@@ -85,7 +85,87 @@ ApplicationContext ctx = new AnnotationConfigApplicationContext(AppConfig.class)
 
 结论直接：**实际项目用 `ApplicationContext`，`BeanFactory` 只在内存受限或需要完全控制加载顺序的底层框架里出现。** Spring Boot 启动时创建的容器是 `AnnotationConfigServletWebServerApplicationContext`，它继承自 `ApplicationContext`。
 
-## 4. 容器启动做了什么
+`BeanPostProcessor` 是 Spring 最实用的扩展点之一：它能在每个 Bean 创建前后插入逻辑。AOP、`@Autowired`、`@Transactional` 都靠它实现——本质是在 `postProcessAfterInitialization` 里把原始对象换成了代理对象。
+
+```java
+@Component
+public class MonitorBeanPostProcessor implements BeanPostProcessor {
+
+    @Override
+    public Object postProcessBeforeInitialization(Object bean, String beanName) {
+        return bean;  // 初始化前通常不动
+    }
+
+    @Override
+    public Object postProcessAfterInitialization(Object bean, String beanName) {
+        // 命中标记的类，返回代理替代原对象
+        if (bean.getClass().isAnnotationPresent(Monitorable.class)) {
+            return createMonitorProxy(bean);  // AOP 代理就在此处生成
+        }
+        return bean;
+    }
+}
+```
+
+理解这一点很关键：你在业务方法上加的 `@Transactional`、`@Cacheable`，都不是「方法自带」的能力，而是容器在创建 Bean 时包了一层代理。这也是为什么「手动 new 出来的对象注解不生效」——它绕过了容器，自然没有代理。
+
+## 4. BeanDefinition：Bean 的元数据
+
+容器在第 2 步「读配置」时，不会直接读你的类，而是先读成一堆 `BeanDefinition`——它是 Bean 的元数据描述，类比 Java 类的 `Class` 对象：类描述了一个对象的模板，`BeanDefinition` 描述了一个 Bean 该怎么造。
+
+```java
+public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
+
+    void setBeanClassName(String beanClassName);   // 类名
+    void setScope(String scope);                   // singleton / prototype
+    void setLazyInit(boolean lazyInit);            // 是否延迟初始化
+    void setDependsOn(String... dependsOn);        // 强制依赖顺序
+    void setAutowireCandidate(boolean c);          // 是否参与自动装配
+    ConstructorArgumentValues getConstructorArgumentValues();  // 构造器参数
+    MutablePropertyValues getPropertyValues();     // 属性值
+    void setInitMethodName(String name);           // 初始化方法
+    void setDestroyMethodName(String name);        // 销毁方法
+}
+```
+
+`BeanDefinition` 不只来自注解扫描。同一份配置可以来自不同入口，容器统一归一化成 `BeanDefinition`：
+
+| 来源 | 示例 |
+|------|------|
+| 组件扫描 | `@Service` `@Repository` `@Controller` |
+| 配置类 | `@Configuration` + `@Bean` |
+| 导入 | `@Import({DataSourceConfig.class})` |
+| XML | `<bean id="userService" class="..."/>` |
+| 编程注册 | `registry.registerBeanDefinition(...)` |
+| 条件注册 | `@Conditional` `@ConditionalOnClass` |
+
+看一个 `@Service` 怎么变成 `BeanDefinition`：
+
+```java
+@Service
+@Scope("prototype")
+@Lazy
+public class ReportGenerator {
+    @Value("${report.template.dir}")
+    private String templateDir;
+}
+```
+
+容器扫描后得到的 `BeanDefinition` 大致是：
+
+```text
+GenericBeanDefinition {
+    beanClassName = "com.example.ReportGenerator",
+    scope        = "prototype",
+    lazyInit     = true,
+    role         = ROLE_APPLICATION,
+    propertyValues = [ "templateDir" → "${report.template.dir}" ]  // 占位符，后续解析
+}
+```
+
+注意 `propertyValues` 里的 `${report.template.dir}` 还是占位符——它要到 `finishBeanFactoryInitialization` 阶段才由 `PropertySourcesPlaceholderConfigurer` 解析成真实值。这就是「定义」与「实例」分离的好处：在真正 `new` 之前，容器有机会反复修改这份元数据（比如第 5 步的 `BeanFactoryPostProcessor` 就专门干这个）。
+
+## 5. 容器启动做了什么
 
 `ApplicationContext` 启动的核心逻辑集中在 `AbstractApplicationContext#refresh()`，它把启动拆成 12 步：
 
@@ -118,8 +198,8 @@ public void refresh() {
 }
 ```
 
-这 12 步里，对理解 IoC 最要紧的是第 2 步和第 11 步：第 2 步把配置读成 `BeanDefinition`（描述 Bean 的元数据），第 11 步才真正 `new` 出 Bean。中间的第 5、6 步留了两个扩展点——`BeanFactoryPostProcessor` 在 Bean 创建前改定义，`BeanPostProcessor` 在 Bean 创建时拦截。AOP、`@Autowired` 都靠它们实现，具体见 [AOP](./chapter-05-aop.md) 和 [循环依赖与三级缓存](./chapter-04-bean-lifecycle.md)。
+这 12 步里，对理解 IoC 最要紧的是第 2 步和第 11 步：第 2 步把配置读成 `BeanDefinition`（描述 Bean 的元数据），第 11 步才真正 `new` 出 Bean——单个 Bean 从创建到销毁的完整流程见 [Bean 完整生命周期](./chapter-03-bean-lifecycle.md)。中间的第 5、6 步留了两个扩展点——`BeanFactoryPostProcessor` 在 Bean 创建前改定义，`BeanPostProcessor` 在 Bean 创建时拦截。AOP、`@Autowired` 都靠它们实现，具体见 [AOP](./chapter-06-aop.md) 和 [循环依赖与三级缓存](./chapter-05-circular-dependency.md)。
 
-## 5. 小结
+## 6. 小结
 
 IoC 要解决的只有一件事：把「创建依赖」从业务代码里拿出来，交给容器。容器做两件事——启动时读配置、按需创建并注入 Bean。记住 `BeanFactory` 是底座、`ApplicationContext` 是加满企业级能力的完整版，再看 `refresh()` 十二步，就能看懂一个 Bean 从定义到就绪的完整路径。

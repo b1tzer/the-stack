@@ -121,27 +121,15 @@ export default withOpenInEditor(defineConfig({
         {
           text: '第六卷 企业架构',
           items: [
-            { text: 'Spring 核心思想', link: '/java/06-java-enterprise/chapter-01-spring-core' },
-            { text: '容器与 AOP', link: '/java/06-java-enterprise/chapter-02-container-aop' },
-            { text: 'Spring MVC', link: '/java/06-java-enterprise/chapter-03-spring-mvc' },
-            { text: 'Spring Boot', link: '/java/06-java-enterprise/chapter-04-spring-boot' },
-            { text: '数据访问整合', link: '/java/06-java-enterprise/chapter-05-data-integration' },
             { text: '微服务架构', link: '/java/06-java-enterprise/chapter-06-microservices' },
             { text: '分布式治理', link: '/java/06-java-enterprise/chapter-07-governance' },
-            { text: '安全与部署', link: '/java/06-java-enterprise/chapter-08-security-deploy' },
+            { text: '企业系统部署', link: '/java/06-java-enterprise/chapter-08-security-deploy' },
             { text: '可观测性', link: '/java/06-java-enterprise/chapter-09-observability' },
           ]
         },
         {
           text: '第七卷 性能与架构',
           items: [
-            { text: '架构思想', link: '/java/07-performance-architecture/chapter-01-architecture' },
-            { text: '领域驱动设计', link: '/java/07-performance-architecture/chapter-02-ddd' },
-            { text: '高并发设计', link: '/java/07-performance-architecture/chapter-03-high-concurrency' },
-            { text: '高可用设计', link: '/java/07-performance-architecture/chapter-04-high-availability' },
-            { text: '分布式系统', link: '/java/07-performance-architecture/chapter-05-distributed' },
-            { text: '数据架构', link: '/java/07-performance-architecture/chapter-06-data-architecture' },
-            { text: '消息驱动', link: '/java/07-performance-architecture/chapter-07-messaging' },
             { text: '性能工程', link: '/java/07-performance-architecture/chapter-08-performance' },
             { text: '架构案例', link: '/java/07-performance-architecture/chapter-09-case-studies' },
           ]
@@ -153,10 +141,11 @@ export default withOpenInEditor(defineConfig({
           items: [
             { text: 'Spring 概览', link: '/spring/01-core/chapter-01-spring-overview' },
             { text: 'IoC 容器', link: '/spring/01-core/chapter-02-ioc-container' },
-            { text: '依赖注入', link: '/spring/01-core/chapter-03-dependency-injection' },
-            { text: 'Bean 生命周期', link: '/spring/01-core/chapter-04-bean-lifecycle' },
-            { text: 'AOP', link: '/spring/01-core/chapter-05-aop' },
-            { text: '条件装配与 Profile', link: '/spring/01-core/chapter-06-conditional-profile' },
+            { text: 'Bean 完整生命周期', link: '/spring/01-core/chapter-03-bean-lifecycle' },
+            { text: '依赖注入', link: '/spring/01-core/chapter-04-dependency-injection' },
+            { text: '循环依赖与三级缓存', link: '/spring/01-core/chapter-05-circular-dependency' },
+            { text: 'AOP', link: '/spring/01-core/chapter-06-aop' },
+            { text: '条件装配与 Profile', link: '/spring/01-core/chapter-07-conditional-profile' },
           ]
         },
         {

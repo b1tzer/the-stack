@@ -545,4 +545,4 @@ M6 不是 GA，升级到 1.0.0 时会有少量 API 重命名（`BaseAdvisor` →
 | :-- | :-- |
 | MCP 协议本身（Tool / Resource / Prompt 三件套） | [05 篇](05-MCP协议与OpenClawSkill实战.md) |
 | 写一个 MCP Server（网易云歌单 Skill 实战） | [05 篇](05-MCP协议与OpenClawSkill实战.md) |
-| Spring AOP 原生机制（对比理解 Advisor） | [AOP面向切面编程](../spring/01-core/chapter-05-aop.md) |
+| Spring AOP 原生机制（对比理解 Advisor） | [AOP面向切面编程](../spring/01-core/chapter-06-aop.md) |

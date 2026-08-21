@@ -1,15 +1,9 @@
----
-doc_id: se-软件架构演进
-title: 软件架构演进
----
 
 # 软件架构演进
 
 > **核心问题**：软件架构经历了哪些演进阶段？每种架构解决了什么问题、引入了什么新问题？如何根据业务阶段选择合适的架构？
 
----
-
-## 它解决了什么问题？
+## 1. 它解决了什么问题？
 
 架构不是一成不变的，而是随着业务规模、团队规模、技术能力的变化而演进的。理解架构演进的脉络，能帮助你：
 
@@ -17,29 +11,17 @@ title: 软件架构演进
 - 理解每种架构的适用场景和局限性
 - 避免"为了微服务而微服务"的常见陷阱
 
----
+## 2. 架构演进全景
 
-# 一、架构演进全景
+![软件架构演进路径](/java/architecture-evolution.svg)
 
-```mermaid
-flowchart LR
-    subgraph 架构演进路径
-        A["单体架构<br>Monolith<br>👥 1-5人"] -->|"业务模块增多<br>代码耦合严重"| B["垂直拆分<br>按业务线拆分<br>👥 5-15人"]
-        B -->|"公共能力重复建设<br>需要服务复用"| C["SOA<br>面向服务架构<br>👥 15-50人"]
-        C -->|"ESB 成为瓶颈<br>需要更轻量的通信"| D["微服务架构<br>Microservices<br>👥 50+人"]
-        D -->|"运维复杂度高<br>追求极致弹性"| E["云原生/Serverless<br>FaaS<br>👥 按需"]
-    end
-```
+## 3. 各阶段架构详解
 
----
-
-# 二、各阶段架构详解
-
-## 2.1 单体架构（Monolith）
+### 3.1 单体架构（Monolith）
 
 所有功能模块打包在一个应用中，共享一个数据库，一次部署。
 
-```
+```text
 ┌─────────────────────────────────┐
 │           单体应用               │
 │  ┌─────┐ ┌─────┐ ┌─────┐      │
@@ -62,13 +44,13 @@ flowchart LR
 
 **适用场景**：初创项目、MVP 验证、团队 1-5 人、业务逻辑简单。
 
-## 2.2 垂直拆分架构
+### 3.2 垂直拆分架构
 
 按业务线将单体拆分为多个独立应用，每个应用有自己的数据库。
 
 ```
 ┌──────────┐  ┌──────────┐  ┌──────────┐
-│ 用户系统  │  │ 订单系统  │  │ 商品系统  │
+│ 用户系统  │  │ 订单系统   │  │ 商品系统  │
 │          │  │          │  │          │
 │  ┌────┐  │  │  ┌────┐  │  │  ┌────┐  │
 │  │ DB │  │  │  │ DB │  │  │  │ DB │  │
@@ -84,18 +66,11 @@ flowchart LR
 
 **适用场景**：业务线明确分离、团队 5-15 人、各业务线相对独立。
 
-## 2.3 SOA（面向服务架构）
+### 3.3 SOA（面向服务架构）
 
 将公共能力抽取为独立服务，通过 ESB（企业服务总线）统一通信。
 
-```mermaid
-flowchart TB
-    App1["应用A"] --> ESB["ESB 企业服务总线<br>协议转换/路由/编排"]
-    App2["应用B"] --> ESB
-    ESB --> S1["用户服务"]
-    ESB --> S2["支付服务"]
-    ESB --> S3["消息服务"]
-```
+![SOA：以 ESB 为中心的服务集成](/java/soa-esb-architecture.svg)
 
 | 优势 | 劣势 |
 |------|------|
@@ -105,30 +80,11 @@ flowchart TB
 
 **适用场景**：大型企业内部系统集成、异构系统互通。
 
-## 2.4 微服务架构（Microservices）
+### 3.4 微服务架构（Microservices）
 
 每个服务围绕一个业务能力构建，独立开发、部署、扩展，服务间通过轻量级协议（HTTP/gRPC）通信。
 
-```mermaid
-flowchart TB
-    Client["客户端"] --> GW["API Gateway<br>统一入口/鉴权/限流"]
-    GW --> S1["用户服务"]
-    GW --> S2["订单服务"]
-    GW --> S3["商品服务"]
-
-    S1 --> SD["Service Discovery<br>Nacos/Eureka"]
-    S2 --> SD
-    S3 --> SD
-
-    S2 --> CB["Circuit Breaker<br>Sentinel/Hystrix<br>熔断降级"]
-    S2 --> MQ["Message Queue<br>Kafka/RocketMQ<br>异步解耦"]
-
-    subgraph 可观测性
-        LT["链路追踪<br>SkyWalking/Zipkin"]
-        LOG["日志聚合<br>ELK Stack"]
-        MT["指标监控<br>Prometheus+Grafana"]
-    end
-```
+![微服务架构全景](/java/microservice-infrastructure.svg)
 
 | 优势 | 劣势 |
 |------|------|
@@ -141,16 +97,9 @@ flowchart TB
 
 > **与 Spring 微服务文档的分工**：本文聚焦架构理论和选型决策，具体的 Spring Cloud 组件原理和落地实践请参考 [Spring Cloud 核心组件](../../spring/07-microservices/chapter-01-microservice-pattern.md) 和 [微服务架构深度实践](../../spring/07-microservices/chapter-01-microservice-pattern.md)。
 
-## 2.5 云原生与 Serverless
+### 3.5 云原生与 Serverless
 
-```mermaid
-flowchart LR
-    subgraph 云原生技术栈
-        Container["容器化<br>Docker"] --> Orchestration["编排调度<br>Kubernetes"]
-        Orchestration --> Mesh["服务网格<br>Istio/Linkerd"]
-        Mesh --> Serverless["Serverless<br>AWS Lambda / 阿里云函数计算"]
-    end
-```
+![云原生技术栈演进](/java/cloud-native-stack.svg)
 
 | 特性 | 说明 |
 |------|------|
@@ -159,25 +108,13 @@ flowchart LR
 | **服务网格** | 将服务治理（熔断、限流、重试）下沉到基础设施层，业务代码无感知 |
 | **Serverless** | 按调用次数计费，无需管理服务器，极致弹性 |
 
----
+## 4. 架构选型决策框架
 
-# 三、架构选型决策框架
+### 4.1 选型决策树
 
-## 选型决策树
+![架构选型决策树](/java/architecture-decision-tree.svg)
 
-```mermaid
-flowchart TD
-    Start["项目启动"] --> Q1{"团队规模？"}
-    Q1 -->|"< 5人"| Mono["单体架构<br>快速验证"]
-    Q1 -->|"5-15人"| Q2{"业务线是否独立？"}
-    Q2 -->|"是"| Vertical["垂直拆分"]
-    Q2 -->|"否"| Mono
-    Q1 -->|"> 15人"| Q3{"是否有 DevOps 能力？"}
-    Q3 -->|"是"| Micro["微服务架构"]
-    Q3 -->|"否"| Q4["先建设基础设施<br>再逐步拆分"]
-```
-
-## 关键决策因素
+### 4.2 关键决策因素
 
 | 决策因素 | 倾向单体 | 倾向微服务 |
 |---------|---------|-----------|
@@ -190,56 +127,27 @@ flowchart TD
 
 > **核心原则**：**先单体，再拆分**。不要一开始就用微服务，微服务需要服务注册发现、分布式追踪、分布式事务等基础设施，运维复杂度极高。初创项目业务不稳定，过早拆分会导致频繁的跨服务重构。
 
----
-
-# 四、分层架构模式
+## 5. 分层架构模式
 
 无论选择哪种部署架构，应用内部的分层设计都很重要。
 
-## 传统三层架构
+### 5.1 传统三层架构
 
-```
+```text
 Controller（表现层）→ Service（业务层）→ DAO（数据层）
 ```
 
 **问题**：业务逻辑全部堆在 Service 层，Entity 只有 getter/setter（贫血模型），Service 越来越臃肿。
 
-## 六边形架构（端口与适配器）
+### 5.2 六边形架构（端口与适配器）
 
-```mermaid
-flowchart LR
-    subgraph 外部
-        HTTP["HTTP 请求"]
-        MQ["消息队列"]
-        DB["数据库"]
-        Cache["缓存"]
-    end
-
-    subgraph 适配器层
-        HA["HTTP Adapter<br>Controller"]
-        MA["MQ Adapter<br>Consumer"]
-        DA["DB Adapter<br>Repository 实现"]
-        CA["Cache Adapter"]
-    end
-
-    subgraph 核心域
-        Port["端口（接口）"]
-        Domain["领域模型<br>业务逻辑"]
-    end
-
-    HTTP --> HA --> Port
-    MQ --> MA --> Port
-    Port --> Domain
-    Domain --> Port
-    Port --> DA --> DB
-    Port --> CA --> Cache
-```
+![六边形架构（端口与适配器）](/java/hexagonal-ports-adapters.svg)
 
 **核心思想**：业务逻辑在中心，通过端口（接口）与外部交互，适配器负责技术细节。更换数据库、消息队列等只需替换适配器，不影响核心业务。
 
-## 整洁架构（Clean Architecture）
+### 5.3 整洁架构（Clean Architecture）
 
-```
+```text
 外层（框架/驱动）→ 接口适配器 → 用例层 → 实体层（核心）
 ```
 
@@ -252,9 +160,7 @@ flowchart LR
 | **接口适配器** | 转换数据格式 | Controller、Repository |
 | **框架层** | 技术细节 | Spring、MyBatis、Redis |
 
----
-
-# 五、架构反模式
+## 6. 架构反模式
 
 | 反模式 | 描述 | 后果 | 正确做法 |
 |--------|------|------|---------|
@@ -264,9 +170,7 @@ flowchart LR
 | **大泥球** | 没有清晰的模块边界，代码随意调用 | 牵一发动全身，无法维护 | 明确模块边界，通过接口通信 |
 | **拆分过细** | 每个接口都是一个服务 | 网络开销大，分布式事务多 | 按业务域拆分，一个域一个服务 |
 
----
-
-# 六、常见问题
+## 7. 常见问题
 
 **Q：微服务和单体架构如何选择？**
 
@@ -287,3 +191,120 @@ flowchart LR
 **Q：如何判断是否需要从单体迁移到微服务？**
 
 > 出现以下信号时考虑迁移：① 团队超过 10 人，代码合并冲突频繁；② 某个模块需要独立扩展（如秒杀模块需要 10 倍资源，其他模块不需要）；③ 发布频率受限，一个模块的变更需要等待整体发布；④ 技术栈需要多样化（如 AI 模块用 Python，其他用 Java）。
+
+## 8. Conway 定律与架构约束
+
+技术约束（用户规模、成本、性能）大家都想得到，但有一个约束比它们都大，却经常被忽略——**人**。
+
+> "设计系统的组织，其产生的设计等同于组织之间的沟通结构。" —— Melvin Conway, 1967
+
+用人话说：**系统架构会 mirror 团队结构**。
+
+```text
+3 人团队硬拆 6 个微服务：
+  服务 A（无人维护）→ 版本落后 → 成为技术债
+  服务 B（张三维护）→ 张三离职 → 无人能改
+  其余服务 → 同样的问题
+
+3 个团队各 5 人，坚持单体架构：
+  团队 A 改了订单模块 → 冲突了团队 B 的支付模块
+  团队 B 等团队 A 发布 → 交付周期拉长
+  合并冲突、代码审查、发布协调 → 效率暴跌
+```
+
+| 约束类型 | 示例 | 影响 |
+|---------|------|------|
+| 团队规模 | 3 人团队不适合微服务 | 运维成本 > 开发收益 |
+| 团队分布 | 跨时区团队需要服务解耦 | 同步协作成本太高 |
+| 技术栈 | 团队只熟悉 Java，不熟悉 Go | 强行换栈的学习成本 |
+| 组织边界 | 两个部门各管一个服务 | API 契约成为部门边界 |
+
+**经验法则**：先看团队结构，再定架构。团队只有 5 个人时，单体 + 模块化是最佳选择；等团队增长到 20+ 人、模块间沟通成本超过拆分成本时，再考虑微服务。
+
+## 9. 模块边界设计
+
+无论选哪种架构风格，最终落地都要靠**模块边界**保障。好的模块边界是架构的"防波堤"——变化发生时，边界阻止变化扩散。
+
+### 9.1 高内聚、低耦合
+
+```text
+    高内聚（模块内部紧密相关）         低耦合（模块之间松散依赖）
+
+    ┌─────────────────┐           ┌────────┐    ┌────────┐
+    │  Order 模块      │           │ Order  │    │ User   │
+    │  - Order         │           │ Module │◄──►│ Module │
+    │  - OrderItem     │           │        │    │        │
+    │  - OrderService  │           └────────┘    └────────┘
+    │  - OrderRepo     │               仅通过接口通信
+    └─────────────────┘
+      内部元素高度相关
+```
+
+### 9.2 单一职责在模块层面
+
+```java
+// ❌ 反模式：一个 Service 做所有事
+@Service
+public class GodService {
+    public void createOrder() { ... }   // 订单
+    public void registerUser() { ... }  // 用户
+    public void processPayment() { ... }// 支付
+    public void sendEmail() { ... }     // 通知
+}
+
+// ✅ 正确：按领域拆分模块
+public class OrderService { /* 只管订单 */ }
+public class UserService { /* 只管用户 */ }
+public class PaymentService { /* 只管支付 */ }
+public class NotificationService { /* 只管通知 */ }
+```
+
+### 9.3 模块间通信的两种模式
+
+```java
+// 模式一：直接方法调用（单体内模块间）
+public class OrderService {
+    private final PaymentService paymentService;
+
+    public void createOrder(OrderRequest request) {
+        Order order = Order.create(request);
+        paymentService.charge(order.getId(), order.getTotalAmount());
+    }
+}
+
+// 模式二：事件驱动（松耦合，或跨服务通信）
+public class OrderService {
+    private final ApplicationEventPublisher eventPublisher;
+
+    public void createOrder(OrderRequest request) {
+        Order order = Order.create(request);
+        orderRepository.save(order);
+        eventPublisher.publishEvent(new OrderCreatedEvent(order.getId(), order.getTotalAmount()));
+        // 不直接调用 PaymentService，由事件监听器处理
+    }
+}
+```
+
+### 9.4 边界守护：ArchUnit
+
+模块边界不是画出来的，而是**守出来的**。没有自动化测试守护的边界，迟早被破坏：
+
+```java
+@Test
+void serviceShouldNotDependOnController() {
+    noClasses()
+        .that().resideInAPackage("..service..")
+        .should().dependOnClassesThat()
+        .resideInAPackage("..controller..")
+        .check(importedClasses);
+}
+
+@Test
+void domainShouldNotDependOnInfrastructure() {
+    noClasses()
+        .that().resideInAPackage("..domain..")
+        .should().dependOnClassesThat()
+        .resideInAPackage("..infrastructure..")
+        .check(importedClasses);
+}
+```

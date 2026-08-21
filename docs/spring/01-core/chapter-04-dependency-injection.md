@@ -171,4 +171,4 @@ public class ReportService {
 | 依赖可选或延迟初始化 | `ObjectProvider`，不要用 `@Autowired(required=false)` |
 | 同类型多个 Bean | `@Qualifier` 指名 |
 | 策略 / 插件扩展点 | 集合注入（`Map` 或 `List`） |
-| 遇到循环依赖 | 优先重构消除；确实拆不掉时，换字段 / Setter 注入并开启 `allow-circular-references`，这是最后兜底（见 [循环依赖与三级缓存](./chapter-04-bean-lifecycle.md)） |
+| 遇到循环依赖 | 优先重构消除；确实拆不掉时，换字段 / Setter 注入并开启 `allow-circular-references`，这是最后兜底（见 [循环依赖与三级缓存](./chapter-05-circular-dependency.md)） |

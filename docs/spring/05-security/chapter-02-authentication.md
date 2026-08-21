@@ -197,6 +197,40 @@ public class OAuth2LoginConfig {
 }
 ```
 
+## 5. 三种认证方案对比
+
+选型之前，先看清 Session-Cookie、JWT、OAuth 2.0 三者的本质差异：
+
+| 维度 | Session-Cookie | JWT | OAuth 2.0 |
+|------|---------------|-----|-----------|
+| 存储位置 | 服务端（内存/Redis） | 客户端（LocalStorage/Cookie） | 不存储 token，授权服务器管理 |
+| 状态 | 有状态 | 无状态（token 自包含） | 依赖授权服务器 |
+| 跨域 | 需额外处理 | 天然支持（Header） | 天然支持 |
+| 扩展性 | 多实例需 Session 共享 | 任意节点可验证 | 授权中心集中管理 |
+| 撤销 | 删除 Session 即可 | 困难（需黑名单） | Refresh Token 机制 |
+| 适用场景 | 传统单体 Web | 前后端分离、微服务 | 第三方登录、开放平台 |
+
+## 6. OAuth 2.0 四种授权模式
+
+| 模式 | 流程 | 适用场景 |
+|------|------|---------|
+| 授权码模式 | 用户→授权页→授权码→后端换 Token | 第三方登录（微信、GitHub） |
+| 隐式模式 | 用户→授权页→直接返回 Token（前端） | 已不推荐，安全隐患大 |
+| 密码模式 | 用户名+密码直接换 Token | 自家 App、高度信任的第一方 |
+| 客户端凭证模式 | 客户端 ID+Secret 直接换 Token | 服务间调用（M2M） |
+
+授权码模式的完整流程：
+
+```text
+① 用户点击"微信登录"
+② 浏览器跳转授权页（携带 client_id、redirect_uri、scope）
+③ 用户确认授权，回调 redirect_uri 并携带授权码 code
+④ 后端用授权码换 Access Token（服务器间通信，用户无感知）
+⑤ 获得 Access Token，调用 API 获取用户信息
+```
+
+---
+
 **最佳实践：**
 
 1. **JWT 过期时间**——Access Token 短（2 小时），Refresh Token 长（7 天）

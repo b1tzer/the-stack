@@ -8,7 +8,7 @@ Spring Boot 2.6 起默认禁止循环依赖，`spring.main.allow-circular-refere
 
 ## 1. Bean 的三步与循环依赖的卡点
 
-Spring 创建 Bean 分三步，顺序固定：
+一个 Bean 从创建到销毁的完整流程见 [Bean 完整生命周期](./chapter-03-bean-lifecycle.md)，这里只回顾和循环依赖相关的三步，顺序固定：
 
 ```text
 1. 实例化     new 出对象，字段全是 null

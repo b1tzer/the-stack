@@ -152,6 +152,80 @@ public class PermissionCacheService {
 }
 ```
 
+## 4. RBAC 数据库设计与 Spring Security 集成
+
+### 4.1 五张核心表
+
+```sql
+CREATE TABLE sys_user (
+    id          BIGINT PRIMARY KEY AUTO_INCREMENT,
+    username    VARCHAR(50) UNIQUE NOT NULL,
+    password    VARCHAR(100) NOT NULL,
+    status      TINYINT DEFAULT 1 COMMENT '1-正常 0-禁用',
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE sys_role (
+    id          BIGINT PRIMARY KEY AUTO_INCREMENT,
+    role_code   VARCHAR(50) UNIQUE NOT NULL COMMENT '如 ROLE_ADMIN',
+    role_name   VARCHAR(100) NOT NULL,
+    status      TINYINT DEFAULT 1
+);
+
+CREATE TABLE sys_permission (
+    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
+    permission_code VARCHAR(100) UNIQUE NOT NULL COMMENT '如 order:read',
+    permission_name VARCHAR(200) NOT NULL,
+    resource_type   VARCHAR(20) DEFAULT 'api' COMMENT 'menu/button/api',
+    parent_id       BIGINT DEFAULT 0
+);
+
+CREATE TABLE sys_user_role (
+    user_id BIGINT NOT NULL,
+    role_id BIGINT NOT NULL,
+    PRIMARY KEY (user_id, role_id)
+);
+
+CREATE TABLE sys_role_permission (
+    role_id       BIGINT NOT NULL,
+    permission_id BIGINT NOT NULL,
+    PRIMARY KEY (role_id, permission_id)
+);
+```
+
+### 4.2 UserDetailsService 集成
+
+```java
+@Service
+public class CustomUserDetailsService implements UserDetailsService {
+
+    private final UserMapper userMapper;
+
+    @Override
+    public UserDetails loadUserByUsername(String username) {
+        SysUser user = userMapper.selectByUsername(username);
+        if (user == null) {
+            throw new UsernameNotFoundException("用户不存在: " + username);
+        }
+
+        List<String> permissions = userMapper.selectPermissionsByUserId(user.getId());
+        List<GrantedAuthority> authorities = permissions.stream()
+            .map(SimpleGrantedAuthority::new)
+            .collect(Collectors.toList());
+
+        return new User(
+            user.getUsername(),
+            user.getPassword(),
+            user.getStatus() == 1,
+            true, true, true,
+            authorities
+        );
+    }
+}
+```
+
+---
+
 **最佳实践：**
 
 1. **权限粒度**——菜单权限 + 按钮权限 + 数据权限，三层控制

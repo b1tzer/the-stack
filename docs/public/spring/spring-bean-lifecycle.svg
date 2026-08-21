@@ -1,56 +1,101 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 612 663" width="612" height="663" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
-<style>
-  text { text-anchor: middle; dominant-baseline: central; }
-  .title { font-size: 15px; font-weight: bold; fill: #333333; }
-  .label { font-size: 12px; fill: #333333; }
-  .note { font-size: 11px; fill: #666666; }
-  .arrow { stroke: #7b1fa2; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
-  .box { rx: 8; ry: 8; }
-  .phase { fill: #eceff1; stroke: #666666; stroke-width: 1.5; }
-  .highlight { fill: #fff3e0; stroke: #e65100; stroke-width: 1.5; }
-  .action { fill: #e8f5e9; stroke: #2e7d32; stroke-width: 1.5; }
-  .important { fill: #ffcdd2; stroke: #e65100; stroke-width: 1.5; }
-  .step { fill: #e1bee7; stroke: #7b1fa2; stroke-width: 1.5; }
-  .note-box { fill: #f8f9fa; stroke: #bdbdbd; stroke-width: 1; }
-  .cache { fill: #e65100; stroke: #e65100; stroke-width: 1.5; }
-</style>
-<defs>
-  <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-    <polygon points="0 0, 10 3.5, 0 7" fill="#7b1fa2"/>
-  </marker>
-  <marker id="arrowhead-green" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-    <polygon points="0 0, 10 3.5, 0 7" fill="#2e7d32"/>
-  </marker>
-  <marker id="arrowhead-orange" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-    <polygon points="0 0, 10 3.5, 0 7" fill="#e65100"/>
-  </marker>
-</defs>
-<text x="306" y="26" class="title">Bean 生命周期全流程</text>
-<rect x="180.0" y="47" width="306" height="41" class="box phase"/>
-<text x="360.0" y="79.0" class="label">BeanDefinition 加载</text>
-<text x="555.0" y="79.0" text-anchor="start" class="note">← 构造器调用</text>
-<line x1="306" y1="88" x2="306" y2="113" class="arrow"/><rect x="180.0" y="113" width="306" height="41" class="box phase"/>
-<text x="360.0" y="157.0" class="label">实例化（Instantiation）</text>
-<text x="555.0" y="157.0" text-anchor="start" class="note">← @Autowired / @Value 注入</text>
-<line x1="306" y1="154" x2="306" y2="179" class="arrow"/><rect x="180.0" y="179" width="306" height="41" class="box action"/>
-<text x="360.0" y="235.0" class="label">属性赋值（Populate）</text>
-<text x="555.0" y="235.0" text-anchor="start" class="note">← BeanNameAware / BeanFactoryAware / ApplicationContextAware</text>
-<line x1="306" y1="220" x2="306" y2="246" class="arrow"/><rect x="180.0" y="246" width="306" height="41" class="box phase"/>
-<text x="360.0" y="313.0" class="label">Aware 接口回调</text>
-<line x1="306" y1="286" x2="306" y2="312" class="arrow"/><rect x="180.0" y="312" width="306" height="41" class="box step"/>
-<text x="360.0" y="391.0" class="label">BeanPostProcessor
-postProcessBeforeInitialization</text>
-<line x1="306" y1="353" x2="306" y2="378" class="arrow"/><rect x="180.0" y="378" width="306" height="41" class="box highlight"/>
-<text x="360.0" y="469.0" class="label">@PostConstruct / InitializingBean
-afterPropertiesSet / init-method</text>
-<text x="555.0" y="469.0" text-anchor="start" class="note">← AOP 代理在此创建</text>
-<line x1="306" y1="419" x2="306" y2="445" class="arrow"/><rect x="180.0" y="445" width="306" height="41" class="box step"/>
-<text x="360.0" y="547.0" class="label">BeanPostProcessor
-postProcessAfterInitialization</text>
-<line x1="306" y1="485" x2="306" y2="511" class="arrow"/><rect x="180.0" y="511" width="306" height="41" class="box important"/>
-<text x="360.0" y="625.0" class="label">Bean 就绪，可被使用</text>
-<line x1="306" y1="552" x2="306" y2="577" class="arrow"/><rect x="180.0" y="577" width="306" height="41" class="box phase"/>
-<text x="360.0" y="703.0" class="label">@PreDestroy / DisposableBean
-destroy / destroy-method</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 700" width="800" height="700" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="12">
+  <style>
+    text { text-anchor: middle; dominant-baseline: central; }
+    .title { font-size: 15px; font-weight: bold; fill: var(--diagram-text-1); }
+    .footnote { font-size: 10px; fill: var(--diagram-text-3); }
+    .stage { font-size: 13px; font-weight: bold; }
+    .card-label { font-size: 12px; font-weight: bold; fill: var(--diagram-text-1); }
+    .card-label-emph { font-size: 12px; font-weight: bold; fill: var(--diagram-accent-text-4); }
+    .card-note { font-size: 11px; fill: var(--diagram-text-2); }
+    .arrow { stroke: var(--diagram-arrow); stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+    .box { rx: 8; ry: 8; stroke-width: 1.5; }
+    .marker-arrow { fill: var(--diagram-arrow); }
+    .stage-instantiate { fill: var(--diagram-accent-bg-1); stroke: var(--diagram-accent-1); }
+    .stage-populate { fill: var(--diagram-accent-bg-2); stroke: var(--diagram-accent-2); }
+    .stage-init { fill: var(--diagram-accent-bg-3); stroke: var(--diagram-accent-3); }
+    .stage-ready { fill: var(--diagram-surface-2); stroke: var(--diagram-stroke-1); }
+    .stage-destroy { fill: var(--diagram-accent-bg-5); stroke: var(--diagram-accent-5); }
+    .stage-text-instantiate { fill: var(--diagram-accent-text-1); }
+    .stage-text-populate { fill: var(--diagram-accent-text-2); }
+    .stage-text-init { fill: var(--diagram-accent-text-3); }
+    .stage-text-ready { fill: var(--diagram-text-2); }
+    .stage-text-destroy { fill: var(--diagram-accent-text-5); }
+    .card-instantiate { fill: var(--diagram-accent-bg-1); stroke: var(--diagram-accent-1); }
+    .card-populate { fill: var(--diagram-accent-bg-2); stroke: var(--diagram-accent-2); }
+    .card-aware { fill: var(--diagram-accent-bg-3); stroke: var(--diagram-accent-3); }
+    .card-before { fill: var(--diagram-accent-bg-3); stroke: var(--diagram-accent-3); }
+    .card-init { fill: var(--diagram-accent-bg-3); stroke: var(--diagram-accent-3); }
+    .card-after { fill: var(--diagram-accent-bg-4); stroke: var(--diagram-accent-4); }
+    .card-ready { fill: var(--diagram-surface-2); stroke: var(--diagram-stroke-1); }
+    .card-destroy { fill: var(--diagram-accent-bg-5); stroke: var(--diagram-accent-5); }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 9 3.5, 0 7" class="marker-arrow"/>
+    </marker>
+  </defs>
 
+  <text x="400" y="26" class="title">Spring Bean 生命周期全流程</text>
+
+  <rect x="20" y="58" width="140" height="40" class="box stage-instantiate"/>
+  <text x="90" y="78" class="stage stage-text-instantiate">实例化</text>
+
+  <rect x="20" y="138" width="140" height="40" class="box stage-populate"/>
+  <text x="90" y="158" class="stage stage-text-populate">属性填充</text>
+
+  <rect x="20" y="330" width="140" height="56" class="box stage-init"/>
+  <text x="90" y="358" class="stage stage-text-init">初始化</text>
+
+  <rect x="20" y="530" width="140" height="40" class="box stage-ready"/>
+  <text x="90" y="550" class="stage stage-text-ready">就绪</text>
+
+  <rect x="20" y="602" width="140" height="40" class="box stage-destroy"/>
+  <text x="90" y="622" class="stage stage-text-destroy">销毁</text>
+
+  <rect x="180" y="50" width="590" height="56" class="box card-instantiate"/>
+  <text x="475" y="71" class="card-label">① 实例化 · createBeanInstance()</text>
+  <text x="475" y="92" class="card-note">构造器 / 工厂方法 new 出对象，字段全空</text>
+
+  <line x1="475" y1="106" x2="475" y2="130" class="arrow"/>
+
+  <rect x="180" y="130" width="590" height="56" class="box card-populate"/>
+  <text x="475" y="151" class="card-label">② 属性填充 · populateBean()</text>
+  <text x="475" y="172" class="card-note">@Autowired 在此注入依赖</text>
+
+  <line x1="475" y1="186" x2="475" y2="210" class="arrow"/>
+
+  <rect x="180" y="210" width="590" height="56" class="box card-aware"/>
+  <text x="475" y="231" class="card-label">③ Aware 回调 · invokeAwareMethods()</text>
+  <text x="475" y="252" class="card-note">BeanNameAware → BeanClassLoaderAware → BeanFactoryAware</text>
+
+  <line x1="475" y1="266" x2="475" y2="290" class="arrow"/>
+
+  <rect x="180" y="290" width="590" height="56" class="box card-before"/>
+  <text x="475" y="311" class="card-label">④ 初始化前 · postProcessBeforeInitialization()</text>
+  <text x="475" y="332" class="card-note">@PostConstruct 在此执行</text>
+
+  <line x1="475" y1="346" x2="475" y2="370" class="arrow"/>
+
+  <rect x="180" y="370" width="590" height="56" class="box card-init"/>
+  <text x="475" y="391" class="card-label">⑤ 初始化 · invokeInitMethods()</text>
+  <text x="475" y="412" class="card-note">InitializingBean#afterPropertiesSet() → init-method</text>
+
+  <line x1="475" y1="426" x2="475" y2="450" class="arrow"/>
+
+  <rect x="180" y="450" width="590" height="56" class="box card-after"/>
+  <text x="475" y="471" class="card-label-emph">⑥ 初始化后 · postProcessAfterInitialization()</text>
+  <text x="475" y="492" class="card-note">AOP 代理在此生成（关键时机）</text>
+
+  <line x1="475" y1="506" x2="475" y2="530" class="arrow"/>
+
+  <rect x="180" y="530" width="590" height="40" class="box card-ready"/>
+  <text x="475" y="550" class="card-label">⑦ Bean 就绪，可注入使用</text>
+
+  <line x1="475" y1="570" x2="475" y2="594" class="arrow"/>
+
+  <rect x="180" y="594" width="590" height="56" class="box card-destroy"/>
+  <text x="475" y="615" class="card-label">⑧ 销毁 · DisposableBeanAdapter#destroy()</text>
+  <text x="475" y="636" class="card-note">@PreDestroy → destroy() → destroy-method</text>
+
+  <text x="400" y="680" class="footnote">完整链路还含 MergedBeanDefinitionPostProcessor 等进阶钩子，正文 §3 有完整源码</text>
 </svg>

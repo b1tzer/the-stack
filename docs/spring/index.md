@@ -7,10 +7,11 @@
 ### 01-核心原理
 - [Spring 概览](01-core/chapter-01-spring-overview) — 生态全景、设计理念、模块划分
 - [IoC 容器](01-core/chapter-02-ioc-container) — BeanFactory vs ApplicationContext
-- [依赖注入](01-core/chapter-03-dependency-injection) — DI 类型、@Autowired 原理
-- [循环依赖与三级缓存](01-core/chapter-04-bean-lifecycle) — 三级缓存、AOP 代理冲突、工程红线
-- [AOP 面向切面编程](01-core/chapter-05-aop) — 原理、JDK Proxy vs CGLIB
-- [条件装配与 Profile](01-core/chapter-06-conditional-profile) — @Conditional、多环境
+- [Bean 完整生命周期](01-core/chapter-03-bean-lifecycle) — 实例化到销毁的八阶段、初始化回调顺序
+- [依赖注入](01-core/chapter-04-dependency-injection) — DI 类型、@Autowired 原理
+- [循环依赖与三级缓存](01-core/chapter-05-circular-dependency) — 三级缓存、AOP 代理冲突、工程红线
+- [AOP 面向切面编程](01-core/chapter-06-aop) — 原理、JDK Proxy vs CGLIB
+- [条件装配与 Profile](01-core/chapter-07-conditional-profile) — @Conditional、多环境
 
 ### 02-Web开发
 - [Spring MVC](02-web/chapter-01-spring-mvc) — 请求处理全流程、DispatcherServlet
