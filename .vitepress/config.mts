@@ -143,8 +143,8 @@ export default withOpenInEditor(defineConfig({
             { text: 'IoC 容器', link: '/spring/01-core/chapter-02-ioc-container' },
             { text: 'Bean 完整生命周期', link: '/spring/01-core/chapter-03-bean-lifecycle' },
             { text: '依赖注入', link: '/spring/01-core/chapter-04-dependency-injection' },
-            { text: '循环依赖与三级缓存', link: '/spring/01-core/chapter-05-circular-dependency' },
-            { text: 'AOP', link: '/spring/01-core/chapter-06-aop' },
+            { text: 'AOP', link: '/spring/01-core/chapter-05-aop' },
+            { text: '循环依赖与三级缓存', link: '/spring/01-core/chapter-06-circular-dependency' },
             { text: '条件装配与 Profile', link: '/spring/01-core/chapter-07-conditional-profile' },
           ]
         },
