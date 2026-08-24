@@ -119,7 +119,7 @@ return bean;
 
 ### 5.3 循环依赖把决策提前到「有人来取」时
 
-正常 Bean 在初始化后裁决。循环依赖打乱了「先初始化、后裁决」的顺序：A 填充属性时要拿 B，B 还没初始化完。此时 `getEarlyBeanReference` 被调用，用同一套 `wrapIfNecessary` 逻辑先裁决一次，结果记进 `earlyProxyReferences`，初始化完成后不再二次代理。而这次提前裁决之所以拿得到正确的 `Advisor`，是因为「取 B」这个动作本身会触发相关 Advisor Bean 的创建，`findEligibleAdvisors` 现场就能拉齐集合。完整链路见 [循环依赖与三级缓存](./chapter-05-circular-dependency.md)。
+正常 Bean 在初始化后裁决。循环依赖打乱了「先初始化、后裁决」的顺序：A 填充属性时要拿 B，B 还没初始化完。此时 `getEarlyBeanReference` 被调用，用同一套 `wrapIfNecessary` 逻辑先裁决一次，结果记进 `earlyProxyReferences`，初始化完成后不再二次代理。而这次提前裁决之所以拿得到正确的 `Advisor`，是因为「取 B」这个动作本身会触发相关 Advisor Bean 的创建，`findEligibleAdvisors` 现场就能拉齐集合。完整链路见 [循环依赖与三级缓存](./chapter-06-circular-dependency.md)。
 
 ## 6. AOP 失效的四种情况
 
