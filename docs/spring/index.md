@@ -12,6 +12,7 @@
 - [AOP 面向切面编程](01-core/chapter-05-aop) — 代理机制、JDK Proxy vs CGLIB、AOP 失效四种情况
 - [循环依赖与三级缓存](01-core/chapter-06-circular-dependency) — 三级缓存、为什么是三级不是两级、AOP 代理冲突
 - [条件装配与 Profile](01-core/chapter-07-conditional-profile) — @Conditional、Environment 抽象、PropertySource 优先级
+- [踩坑案例集](01-core/chapter-08-pitfalls-and-cases) — 8 个高频真实案例，关联知识点双向链接
 
 ### 02-Web开发
 - [Spring MVC](02-web/chapter-01-spring-mvc) — 请求处理全流程、DispatcherServlet

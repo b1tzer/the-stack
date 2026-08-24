@@ -146,6 +146,7 @@ export default withOpenInEditor(defineConfig({
             { text: 'AOP', link: '/spring/01-core/chapter-05-aop' },
             { text: '循环依赖与三级缓存', link: '/spring/01-core/chapter-06-circular-dependency' },
             { text: '条件装配与 Profile', link: '/spring/01-core/chapter-07-conditional-profile' },
+            { text: '踩坑案例集', link: '/spring/01-core/chapter-08-pitfalls-and-cases' },
           ]
         },
         {
