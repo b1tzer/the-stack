@@ -6,8 +6,6 @@
 Spring Boot 2.6 起默认禁止循环依赖，`spring.main.allow-circular-references` 默认为 `false`，遇到循环依赖直接启动报错。本文讲的「三级缓存解开循环依赖」只在显式开启 `allow-circular-references=true` 后生效。
 :::
 
-> 本文反复用到 AOP 代理的概念，已学过 [AOP](./chapter-05-aop.md) §4「代理机制」的读者可直接往下读。
-
 ## 1. Bean 的三步与循环依赖的卡点
 
 一个 Bean 从创建到销毁的完整流程见 [Bean 完整生命周期](./chapter-03-bean-lifecycle.md)，这里只回顾和循环依赖相关的三步，顺序固定：
