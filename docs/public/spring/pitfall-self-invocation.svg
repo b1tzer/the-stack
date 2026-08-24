@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 360" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" font-size="14">
+  <!-- Title -->
+  <text x="400" y="30" text-anchor="middle" font-size="18" font-weight="bold" fill="#1a1a2e">案例1：@Transactional 自调用失效</text>
+
+  <!-- Left: Wrong (this call) -->
+  <rect x="30" y="55" width="360" height="290" rx="12" fill="#fff5f5" stroke="#e53e3e" stroke-width="2"/>
+  <text x="210" y="82" text-anchor="middle" font-size="15" font-weight="bold" fill="#e53e3e">❌ this 调用（失效）</text>
+
+  <!-- Caller -->
+  <rect x="60" y="100" width="140" height="40" rx="6" fill="#fed7d7" stroke="#e53e3e"/>
+  <text x="130" y="125" text-anchor="middle" font-weight="bold" fill="#c53030">调用方</text>
+
+  <!-- Arrow: caller -> this -->
+  <line x1="130" y1="140" x2="130" y2="170" stroke="#e53e3e" stroke-width="2" marker-end="url(#arrowRed)"/>
+  <text x="145" y="160" fill="#e53e3e" font-size="12">this.method()</text>
+
+  <!-- Target object -->
+  <rect x="60" y="175" width="140" height="40" rx="6" fill="#fed7d7" stroke="#e53e3e"/>
+  <text x="130" y="200" text-anchor="middle" font-weight="bold" fill="#c53030">OrderService</text>
+
+  <!-- No proxy involved -->
+  <line x1="70" y1="230" x2="190" y2="260" stroke="#e53e3e" stroke-width="2"/>
+  <line x1="190" y1="230" x2="70" y2="260" stroke="#e53e3e" stroke-width="2"/>
+  <text x="130" y="280" text-anchor="middle" fill="#e53e3e" font-size="12" font-weight="bold">无代理介入</text>
+
+  <!-- DB -->
+  <rect x="250" y="175" width="110" height="40" rx="6" fill="#fefcbf" stroke="#d69e2e"/>
+  <text x="305" y="200" text-anchor="middle" fill="#975a16">数据库操作</text>
+  <line x1="200" y1="195" x2="250" y2="195" stroke="#e53e3e" stroke-width="2" marker-end="url(#arrowRed)" stroke-dasharray="6,4"/>
+  <text x="225" y="190" fill="#e53e3e" font-size="11">直接调用</text>
+
+  <!-- No rollback -->
+  <rect x="250" y="230" width="110" height="35" rx="6" fill="#fed7d7" stroke="#e53e3e"/>
+  <text x="305" y="252" text-anchor="middle" fill="#c53030" font-size="12">异常不回滚 ❌</text>
+
+  <!-- Right: Correct (proxy call) -->
+  <rect x="410" y="55" width="360" height="290" rx="12" fill="#f0fff4" stroke="#38a169" stroke-width="2"/>
+  <text x="590" y="82" text-anchor="middle" font-size="15" font-weight="bold" fill="#38a169">✅ 走代理调用（生效）</text>
+
+  <!-- Caller -->
+  <rect x="440" y="100" width="140" height="40" rx="6" fill="#c6f6d5" stroke="#38a169"/>
+  <text x="510" y="125" text-anchor="middle" font-weight="bold" fill="#276749">调用方</text>
+
+  <!-- Arrow: caller -> proxy -->
+  <line x1="510" y1="140" x2="510" y2="170" stroke="#38a169" stroke-width="2" marker-end="url(#arrowGreen)"/>
+  <text x="525" y="160" fill="#38a169" font-size="12">proxy.method()</text>
+
+  <!-- Proxy -->
+  <rect x="440" y="175" width="140" height="40" rx="6" fill="#bee3f8" stroke="#3182ce"/>
+  <text x="510" y="200" text-anchor="middle" font-weight="bold" fill="#2b6cb0">CGLIB 代理</text>
+
+  <!-- AOP intercept -->
+  <rect x="440" y="225" width="140" height="30" rx="4" fill="#e9d8fd" stroke="#805ad5"/>
+  <text x="510" y="245" text-anchor="middle" fill="#553c9a" font-size="12">切面拦截 → 开事务</text>
+
+  <!-- Arrow: proxy -> target -->
+  <line x1="510" y1="255" x2="510" y2="280" stroke="#38a169" stroke-width="2" marker-end="url(#arrowGreen)"/>
+
+  <!-- Target -->
+  <rect x="440" y="285" width="140" height="40" rx="6" fill="#c6f6d5" stroke="#38a169"/>
+  <text x="510" y="310" text-anchor="middle" font-weight="bold" fill="#276749">OrderService</text>
+
+  <!-- DB -->
+  <rect x="620" y="200" width="110" height="40" rx="6" fill="#fefcbf" stroke="#d69e2e"/>
+  <text x="675" y="225" text-anchor="middle" fill="#975a16">数据库操作</text>
+  <line x1="580" y1="215" x2="620" y2="215" stroke="#38a169" stroke-width="2" marker-end="url(#arrowGreen)"/>
+
+  <!-- Rollback OK -->
+  <rect x="620" y="260" width="110" height="35" rx="6" fill="#c6f6d5" stroke="#38a169"/>
+  <text x="675" y="282" text-anchor="middle" fill="#276749" font-size="12">异常正常回滚 ✅</text>
+
+  <!-- Arrow markers -->
+  <defs>
+    <marker id="arrowRed" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#e53e3e"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#38a169"/>
+    </marker>
+  </defs>
+</svg>

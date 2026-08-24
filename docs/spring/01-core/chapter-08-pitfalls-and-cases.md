@@ -6,6 +6,8 @@
 
 ### 现象
 
+![自调用失效](/spring/pitfall-self-invocation.svg)
+
 ```java
 @Service
 public class OrderService {
@@ -90,6 +92,8 @@ public class FileService {
 
 ### 现象
 
+![Async + 循环依赖](/spring/pitfall-async-circular.svg)
+
 ```java
 @Service
 public class OrderService {
@@ -143,6 +147,8 @@ public class NotificationService {
 ## 案例 4：@Configuration vs @Component——单例悄悄失效
 
 ### 现象
+
+![Configuration vs Component](/spring/pitfall-config-vs-component.svg)
 
 ```java
 @Component  // ← 用了 @Component 而不是 @Configuration
@@ -290,6 +296,8 @@ Spring 的扫描顺序受 `@ComponentScan` 的 `basePackages`、类的包路径�
 
 ### 现象
 
+![prototype @PreDestroy](/spring/pitfall-prototype-scope.svg)
+
 ```java
 @Component
 @Scope("prototype")
@@ -334,6 +342,8 @@ Spring 容器对 prototype Bean 的管理边界是：**创建时管，销毁时�
 ## 案例 8：多线程下 @Transactional 失效
 
 ### 现象
+
+![多线程事务失效](/spring/pitfall-thread-transaction.svg)
 
 ```java
 @Service
