@@ -99,7 +99,7 @@ protected Object initializeBean(String beanName, Object bean, @Nullable RootBean
 }
 ```
 
-`@PostConstruct` 排在最前，是因为它不是 Spring 内核原生支持的，而是 `CommonAnnotationBeanPostProcessor`（一个 `BeanPostProcessor`）在 `postProcessBeforeInitialization` 里反射调用的，自然先于 `invokeInitMethods`。`invokeInitMethods` 内部再把剩下两个排好：
+`@PostConstruct` 排在最前，是因为它不写在 `initializeBean` 的硬编码路径里，而是由 `CommonAnnotationBeanPostProcessor` 在 `postProcessBeforeInitialization` 里反射调用。这个处理器是 Spring 在 `spring-context` 模块里提供的注解驱动层，通过 `AnnotationConfigUtils.registerAnnotationConfigPostProcessors()` 挂载到容器，属于 `BeanPostProcessor` 扩展点，而非 `spring-beans` 内核写死的主流程，因此它的 before 回调天然排在 `invokeInitMethods` 之前。`invokeInitMethods` 内部再把剩下两个排好：
 
 ```java
 protected void invokeInitMethods(String beanName, Object bean, @Nullable RootBeanDefinition mbd) {

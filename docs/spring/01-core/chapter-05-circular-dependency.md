@@ -6,6 +6,8 @@
 Spring Boot 2.6 起默认禁止循环依赖，`spring.main.allow-circular-references` 默认为 `false`，遇到循环依赖直接启动报错。本文讲的「三级缓存解开循环依赖」只在显式开启 `allow-circular-references=true` 后生效。
 :::
 
+> 本文反复用到 AOP 代理的概念，不清楚代理是什么的读者，可先看 [AOP](./chapter-06-aop.md) §4「代理机制」再回来。
+
 ## 1. Bean 的三步与循环依赖的卡点
 
 一个 Bean 从创建到销毁的完整流程见 [Bean 完整生命周期](./chapter-03-bean-lifecycle.md)，这里只回顾和循环依赖相关的三步，顺序固定：
@@ -96,6 +98,8 @@ public Object getEarlyBeanReference(Object bean, String beanName) {
 ```
 
 它不直接返回裸对象，而是先问 `wrapIfNecessary`：这个 Bean 需不需要 AOP 代理，需要就提前包一层。`@Transactional`、`@Aspect` 的处理器都实现了这一层提前代理，所以它们能安全地参与循环依赖。
+
+`getEarlyBeanReference` 里的 `this.earlyProxyReferences.put(cacheKey, bean)` 登记「这个 Bean 已经提前代理过」。三级缓存的 `ObjectFactory` 是每个 Bean 一个的闭包，被调用时才执行 `wrapIfNecessary` 现场裁决要不要代理；`earlyProxyReferences` 则记录哪些 Bean 已经走过这次裁决，等初始化完成、`wrapIfNecessary` 再次被调用时，发现它已在名单里，就跳过二次代理。
 
 ## 5. @Async 为什么失效
 

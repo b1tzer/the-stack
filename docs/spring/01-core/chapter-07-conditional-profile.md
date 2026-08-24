@@ -1,6 +1,6 @@
 # 条件装配与 Profile
 
-> 一段自动配置要同时服务两种情况：用户没配，框架兜底；用户配了，框架让路。这靠的不是 if-else，是条件装配——注解在 Bean 注册前先问一句「条件满足吗」。Spring Boot 的「开箱即用」全部建立在这一套注解之上。
+> 条件装配让 Bean 的注册依赖一个运行时条件，满足才注册，不满足就不进容器。Spring Boot 的自动配置靠它实现「用户没配时给默认值，用户自己配了就不再重复注册」。
 
 ## 1. 什么是条件装配
 
@@ -24,6 +24,24 @@ public class LinuxCondition implements Condition {
 ```
 
 `matches` 返回 `true` 才注册这个 Bean。判断发生在 Bean 实例化之前，不满足条件的 Bean 根本不进容器。
+
+判断的精确时机是 **BeanDefinition 注册阶段**，比实例化更早。`ConfigurationClassPostProcessor` 解析 `@Configuration` 类时，分两个 phase 触发条件评估，统一收口在 `ConditionEvaluator#shouldSkip`：
+
+```java
+// ConditionEvaluator#shouldSkip：返回 true 就跳过对应的类或方法定义
+public boolean shouldSkip(AnnotatedTypeMetadata metadata, ConfigurationPhase phase) {
+    // 收集 @Conditional 注解，逐个调用 Condition#matches 求值
+}
+```
+
+`ConfigurationPhase` 只有两个取值：
+
+| Phase | 评估对象 | 典型注解 |
+| :-- | :-- | :-- |
+| `PARSE_CONFIGURATION` | `@Configuration` 类本身 | 类级别 `@ConditionalOnClass`、`@ConditionalOnMissingClass` |
+| `REGISTER_BEAN` | `@Bean` 方法 | `@ConditionalOnMissingBean`、`@ConditionalOnProperty` |
+
+类级别的条件在 `ConfigurationClassParser` 解析配置类时先评估，方法级别的条件在 `ConfigurationClassBeanDefinitionReader` 读取 `@Bean` 定义时再评估。两次都调用 `shouldSkip`，返回 `true` 就跳过这个类或方法对应的 BeanDefinition，实例化根本不会发生。
 
 ## 2. 常用条件注解
 
@@ -82,7 +100,7 @@ public class CacheAutoConfiguration {
 
 ### 4.2 功能开关：@ConditionalOnProperty
 
-用配置项控制功能启停，改配置就能开关功能，无需重新部署：
+用配置项控制功能启停。条件是启动时评估的，改配置后需重启应用才生效——不用改代码、不用重新打包：
 
 ```java
 @Configuration

@@ -89,11 +89,43 @@ Spring Boot 2.0 起默认使用 CGLIB（`spring.aop.proxy-target-class` 默认 `
          目标方法
 ```
 
-## 5. AOP 失效的四种情况
+## 5. 代理是怎么被决定的
+
+第 4 节讲代理用什么生成（JDK 代理 / CGLIB），这一节回答更靠前的问题：Spring 怎么决定一个 Bean 要不要生成代理、在什么时机生成。
+
+### 5.1 决策发生在初始化之后
+
+每个 Bean 走完初始化（`@PostConstruct`、`InitializingBean` 等）后，`AbstractAutoProxyCreator#postProcessAfterInitialization` 会调用 `wrapIfNecessary`，对 Bean 做一次「要不要代理」的裁决。它先查 `earlyProxyReferences`：这个 Bean 若在循环依赖时已经提前代理过，就直接放行；否则进入真正的裁决逻辑：
+
+```java
+// AbstractAutoProxyCreator#wrapIfNecessary
+Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(bean, beanName, null);
+if (specificInterceptors != DO_NOT_PROXY) {
+    return createProxy(bean.getClass(), beanName, specificInterceptors, new SingletonTargetSource(bean));
+}
+return bean;
+```
+
+裁决的核心是 `getAdvicesAndAdvisorsForBean` → `findEligibleAdvisors`：把容器里所有 `Advisor` 找出来，用每个 `Advisor` 的 `Pointcut` 去匹配当前 Bean 的类和方法，匹配上才织入。匹配不到，返回裸对象，这个 Bean 全程不经过代理。
+
+### 5.2 为什么必须到运行时才判
+
+这个裁决无法在「代码写好」时就静态确定，因为 `Advisor` 集合本身是运行时装配出来的：
+
+- `@Aspect` 切面会被解析成 `Advisor` Bean，但它自己也要走实例化、依赖注入，谁先谁后由容器决定。
+- `@Transactional`、`@Async` 的拦截器来自各自的 `BeanPostProcessor`，是否注册、注册几个，取决于 classpath 上引了哪些 starter。
+
+要判断一个 Bean 要不要代理，得先知道容器里到底有哪些 `Advisor`；这个集合只有等所有 Bean 定义解析完、相关 Bean 实例化之后才稳定。所以决策不能提前算好，只能推迟到目标 Bean 初始化完成的那个点，现场拉齐 `Advisor` 再匹配。
+
+### 5.3 循环依赖把决策提前到「有人来取」时
+
+正常 Bean 在初始化后裁决。循环依赖打乱了「先初始化、后裁决」的顺序：A 填充属性时要拿 B，B 还没初始化完。此时 `getEarlyBeanReference` 被调用，用同一套 `wrapIfNecessary` 逻辑先裁决一次，结果记进 `earlyProxyReferences`，初始化完成后不再二次代理。而这次提前裁决之所以拿得到正确的 `Advisor`，是因为「取 B」这个动作本身会触发相关 Advisor Bean 的创建，`findEligibleAdvisors` 现场就能拉齐集合。完整链路见 [循环依赖与三级缓存](./chapter-05-circular-dependency.md)。
+
+## 6. AOP 失效的四种情况
 
 代理机制决定了一条硬规则：只有从容器拿到的 Bean、经过代理对象调用的方法，AOP 才生效。违反它，注解就「不生效」。
 
-### 5.1 自调用
+### 6.1 自调用
 
 ```java
 @Service
@@ -109,15 +141,15 @@ public class OrderService {
 
 `this.validate()` 调用的是目标对象本身，不是代理对象，切面拦不到。修法是注入自身代理，或用 `AopContext.currentProxy()`。
 
-### 5.2 private 方法
+### 6.2 private 方法
 
 CGLIB 靠继承子类、覆写方法来实现代理，`private` 方法无法被覆写，也就无法增强。
 
-### 5.3 final 类 / final 方法
+### 6.3 final 类 / final 方法
 
 同理，CGLIB 需要继承，`final` 阻断继承，代理无法生成。
 
-### 5.4 未被 Spring 管理
+### 6.4 未被 Spring 管理
 
 ```java
 OrderService service = new OrderService();  // ❌ 手动 new，没有代理
