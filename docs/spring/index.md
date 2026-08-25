@@ -20,6 +20,9 @@
 - [参数校验与数据绑定](02-web/chapter-03-validation-binding) — Bean Validation
 - [拦截器与过滤器](02-web/chapter-04-interceptor-filter) — Filter vs Interceptor
 - [WebFlux 响应式编程](02-web/chapter-05-webflux) — Mono/Flux、RouterFunction
+- [WebSocket 实时通信](02-web/chapter-06-websocket) — STOMP/SockJS、集群方案
+- [Server-Sent Events](02-web/chapter-07-sse) — SseEmitter、WebFlux Flux 流
+- [文件上传与下载](02-web/chapter-08-file-upload-download) — MultipartFile、分片上传、Range 请求
 
 ### 03-数据访问
 - [JdbcTemplate](03-data-access/chapter-01-jdbc-template) — 基本使用
@@ -27,6 +30,8 @@
 - [Spring Data JPA](03-data-access/chapter-03-jpa) — Repository、Specification
 - [事务管理](03-data-access/chapter-04-transaction) — 传播行为、隔离级别、失效场景
 - [多数据源](03-data-access/chapter-05-multi-datasource) — 动态数据源、读写分离
+- [数据库迁移](03-data-access/chapter-06-flyway-liquibase) — Flyway SQL 脚本、Liquibase changelog
+- [响应式数据访问](03-data-access/chapter-07-r2dbc) — R2DBC、ReactiveCrudRepository、DatabaseClient
 
 ### 04-Spring Boot
 - [自动配置原理](04-spring-boot/chapter-01-autoconfiguration) — @EnableAutoConfiguration
@@ -34,6 +39,7 @@
 - [外部化配置](04-spring-boot/chapter-03-configuration) — 多环境 Profile、配置加密
 - [Actuator 监控](04-spring-boot/chapter-04-actuator) — 健康检查、指标收集
 - [DevTools 热部署](04-spring-boot/chapter-05-devtools) — 原理与配置
+- [API 文档](04-spring-boot/chapter-06-api-doc) — springdoc-openapi、Swagger UI、分组与安全
 
 ### 05-安全
 - [安全架构](05-security/chapter-01-security-architecture) — Filter Chain、AuthenticationManager
@@ -48,6 +54,9 @@
 - [缓存抽象](06-advanced/chapter-04-caching) — @Cacheable、CacheManager
 - [消息集成](06-advanced/chapter-05-messaging) — Kafka、RabbitMQ
 - [国际化](06-advanced/chapter-06-internationalization) — i18n
+- [分布式锁](06-advanced/chapter-07-distributed-lock) — Redisson、Spring Integration、自定义注解
+- [动态定时任务](06-advanced/chapter-08-quartz) — Quartz 集群、REST API 管理
+- [邮件发送](06-advanced/chapter-09-mail) — JavaMailSender、模板邮件、异步与重试
 
 ### 07-微服务
 - [微服务架构模式](07-microservices/chapter-01-microservice-pattern) — DDD、设计原则
@@ -56,6 +65,7 @@
 - [负载均衡](07-microservices/chapter-04-load-balancing) — OpenFeign
 - [熔断降级](07-microservices/chapter-05-circuit-breaker) — Resilience4j、Sentinel
 - [配置中心](07-microservices/chapter-06-config-center) — Nacos Config、动态刷新
+- [分布式事务](07-microservices/chapter-07-distributed-transaction) — Seata AT/TCC、RocketMQ 事务消息、本地消息表
 
 ### 08-测试
 - [单元测试](08-testing/chapter-01-unit-test) — JUnit 5、Mockito

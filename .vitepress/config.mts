@@ -157,6 +157,9 @@ export default withOpenInEditor(defineConfig({
             { text: '参数校验', link: '/spring/02-web/chapter-03-validation-binding' },
             { text: '拦截器与过滤器', link: '/spring/02-web/chapter-04-interceptor-filter' },
             { text: 'WebFlux', link: '/spring/02-web/chapter-05-webflux' },
+            { text: 'WebSocket', link: '/spring/02-web/chapter-06-websocket' },
+            { text: 'SSE', link: '/spring/02-web/chapter-07-sse' },
+            { text: '文件上传下载', link: '/spring/02-web/chapter-08-file-upload-download' },
           ]
         },
         {
@@ -167,6 +170,8 @@ export default withOpenInEditor(defineConfig({
             { text: 'JPA', link: '/spring/03-data-access/chapter-03-jpa' },
             { text: '事务管理', link: '/spring/03-data-access/chapter-04-transaction' },
             { text: '多数据源', link: '/spring/03-data-access/chapter-05-multi-datasource' },
+            { text: '数据库迁移', link: '/spring/03-data-access/chapter-06-flyway-liquibase' },
+            { text: 'R2DBC', link: '/spring/03-data-access/chapter-07-r2dbc' },
           ]
         },
         {
@@ -177,6 +182,7 @@ export default withOpenInEditor(defineConfig({
             { text: '外部化配置', link: '/spring/04-spring-boot/chapter-03-configuration' },
             { text: 'Actuator', link: '/spring/04-spring-boot/chapter-04-actuator' },
             { text: 'DevTools', link: '/spring/04-spring-boot/chapter-05-devtools' },
+            { text: 'API 文档', link: '/spring/04-spring-boot/chapter-06-api-doc' },
           ]
         },
         {
@@ -197,6 +203,9 @@ export default withOpenInEditor(defineConfig({
             { text: '缓存', link: '/spring/06-advanced/chapter-04-caching' },
             { text: '消息集成', link: '/spring/06-advanced/chapter-05-messaging' },
             { text: '国际化', link: '/spring/06-advanced/chapter-06-internationalization' },
+            { text: '分布式锁', link: '/spring/06-advanced/chapter-07-distributed-lock' },
+            { text: 'Quartz', link: '/spring/06-advanced/chapter-08-quartz' },
+            { text: '邮件发送', link: '/spring/06-advanced/chapter-09-mail' },
           ]
         },
         {
@@ -208,6 +217,7 @@ export default withOpenInEditor(defineConfig({
             { text: '负载均衡', link: '/spring/07-microservices/chapter-04-load-balancing' },
             { text: '熔断降级', link: '/spring/07-microservices/chapter-05-circuit-breaker' },
             { text: '配置中心', link: '/spring/07-microservices/chapter-06-config-center' },
+            { text: '分布式事务', link: '/spring/07-microservices/chapter-07-distributed-transaction' },
           ]
         },
         {
