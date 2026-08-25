@@ -150,6 +150,64 @@ return new StepBuilder("step", jobRepository)
 
 ---
 
-## 6. 小结
+## 6. CSV 文件导入示例
+
+除了数据库读取，CSV 文件导入也是常见场景：
+
+```java
+@Bean
+public ItemReader<User> csvReader() {
+    return new FlatFileItemReaderBuilder<User>()
+        .name("userCsvReader")
+        .resource(new ClassPathResource("users.csv"))
+        .delimited()                          // 分隔符模式
+        .names("id", "name", "email")         // 列名映射
+        .fieldSetMapper(new BeanPropertyRowMapper<>(User.class))
+        .linesToSkip(1)                       // 跳过表头
+        .build();
+}
+```
+
+`users.csv` 格式：
+```csv
+id,name,email
+1,张三,zhangsan@example.com
+2,李四,lisi@example.com
+```
+
+---
+
+## 7. Job 参数传递
+
+Job 参数让同一个 Job 可以处理不同数据：
+
+```java
+// 传递参数启动 Job
+public void runJob(String fileName) throws Exception {
+    JobParameters params = new JobParametersBuilder()
+        .addLong("timestamp", System.currentTimeMillis())  // 每次运行不同，保证是新 Job 实例
+        .addString("fileName", fileName)                    // 业务参数
+        .toJobParameters();
+    jobLauncher.run(job, params);
+}
+
+// 在 Step 中读取参数
+@Bean
+public ItemReader<User> reader(DataSource dataSource, @Value("#{jobParameters['fileName']}") String fileName) {
+    // 使用 fileName 参数...
+}
+```
+
+参数用途：
+
+| 参数类型 | 用途 | 示例 |
+| :-- | :-- | :-- |
+| `Long` 时间戳 | 保证每次运行是新 Job 实例 | `addLong("timestamp", System.currentTimeMillis())` |
+| `String` 业务参数 | 控制处理范围 | `addString("fileName", "users.csv")` |
+| `Date` 时间范围 | 按日期处理数据 | `addDate("startDate", start)` |
+
+---
+
+## 8. 小结
 
 Spring Batch 的价值在「分块」和「可重启」：chunk 控制内存占用并划定事务边界，`JobRepository` 记录执行状态支撑断点续跑。Job 由 Step 组成，Step 是「读 → 处理 → 写」三段式。用它的判断标准很简单——单次数据量大到「重跑一次代价不可接受」时，才值得引入这套模型，否则一个循环加事务更省事。

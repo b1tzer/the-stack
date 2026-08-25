@@ -90,6 +90,91 @@ demo-parent (pom)
 
 ---
 
-## 5. 小结
+## 5. Gradle 构建
 
-fat jar 能自包含运行，靠的是 `repackage` 目标把依赖塞进 `BOOT-INF/lib`、把 `Main-Class` 指向 `JarLauncher`。打包时只需守住两条：应用模块配 `spring-boot-maven-plugin`，库模块不配；父 pom 统一用 `spring-boot-starter-parent` 管理版本。
+除了 Maven，Gradle 也是常用构建工具。Spring Boot 提供了对应的 Gradle 插件：
+
+```groovy
+// build.gradle
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.2.0'
+    id 'io.spring.dependency-management' version '1.1.4'
+}
+
+// 可执行 jar 配置
+bootJar {
+    archiveFileName = 'app.jar'
+    mainClass = 'com.example.MyApplication'
+}
+
+// 库模块禁用 bootJar，使用普通 jar
+tasks.named('jar') {
+    enabled = true
+}
+bootJar {
+    enabled = false
+}
+```
+
+多模块工程中，库模块需要禁用 `bootJar` 并启用普通 `jar`，否则其他模块无法正常引用。
+
+---
+
+## 6. Docker 多阶段构建
+
+生产部署推荐使用多阶段构建，减小镜像体积：
+
+```dockerfile
+# 阶段 1：构建
+FROM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /app
+COPY pom.xml .
+RUN mvn dependency:go-offline
+COPY src ./src
+RUN mvn package -DskipTests
+
+# 阶段 2：运行
+FROM eclipse-temurin:17-jre-alpine
+WORKDIR /app
+COPY --from=build /app/target/app.jar .
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]
+```
+
+镜像体积对比：
+
+| 方式 | 体积 | 原因 |
+| :-- | :-- | :-- |
+| 直接用 `maven` 镜像 | ~800MB | 包含 Maven + JDK + 源码 |
+| 多阶段构建 | ~200MB | 只有 JRE + fat jar |
+| `jib` 插件（无 Dockerfile） | ~180MB | Google 出品，自动化最佳 |
+
+---
+
+## 7. spring-boot-maven-plugin 其他目标
+
+除了 `repackage`，插件还有几个实用目标：
+
+| 目标 | 作用 | 典型场景 |
+| :-- | :-- | :-- |
+| `repackage` | 打 fat jar | 生产打包 |
+| `run` | 直接运行应用 | 开发调试，`mvn spring-boot:run` |
+| `start` / `stop` | 后台启动/停止 | 集成测试前启动、测试后停止 |
+
+```bash
+# 开发时直接运行（支持热重载）
+mvn spring-boot:run
+
+# 指定 profile
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
+
+# 传递 JVM 参数
+mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Xmx1g -Xms512m"
+```
+
+---
+
+## 8. 小结
+
+fat jar 能自包含运行，靠的是 `repackage` 目标把依赖塞进 `BOOT-INF/lib`、把 `Main-Class` 指向 `JarLauncher`。打包时只需守住三条：应用模块配 `spring-boot-maven-plugin`，库模块不配；父 pom 统一用 `spring-boot-starter-parent` 管理版本；Docker 部署用多阶段构建减小镜像体积。
