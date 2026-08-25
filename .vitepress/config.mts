@@ -183,6 +183,10 @@ export default withOpenInEditor(defineConfig({
             { text: 'Actuator', link: '/spring/04-spring-boot/chapter-04-actuator' },
             { text: 'DevTools', link: '/spring/04-spring-boot/chapter-05-devtools' },
             { text: 'API 文档', link: '/spring/04-spring-boot/chapter-06-api-doc' },
+            { text: '启动流程', link: '/spring/04-spring-boot/chapter-07-startup' },
+            { text: '生产化配置', link: '/spring/04-spring-boot/chapter-08-production-tuning' },
+            { text: '构建与部署', link: '/spring/04-spring-boot/chapter-09-build-deploy' },
+            { text: 'JVM 调优', link: '/spring/04-spring-boot/chapter-10-jvm-tuning' },
           ]
         },
         {
@@ -206,6 +210,7 @@ export default withOpenInEditor(defineConfig({
             { text: '分布式锁', link: '/spring/06-advanced/chapter-07-distributed-lock' },
             { text: 'Quartz', link: '/spring/06-advanced/chapter-08-quartz' },
             { text: '邮件发送', link: '/spring/06-advanced/chapter-09-mail' },
+            { text: 'Spring Batch', link: '/spring/06-advanced/chapter-10-spring-batch' },
           ]
         },
         {
@@ -384,6 +389,8 @@ export default withOpenInEditor(defineConfig({
             { text: '安装部署', link: '/mysql/01-basics/chapter-02-install-config' },
             { text: 'SQL 基础', link: '/mysql/01-basics/chapter-03-sql-basics' },
             { text: '整体架构', link: '/mysql/01-basics/chapter-04-architecture' },
+            { text: '字符集与排序规则', link: '/mysql/01-basics/chapter-05-charset-collation' },
+            { text: 'SQL 规范', link: '/mysql/01-basics/chapter-06-sql-best-practices' },
           ]
         },
         {
@@ -394,7 +401,6 @@ export default withOpenInEditor(defineConfig({
             { text: '表空间', link: '/mysql/02-innodb-internals/chapter-03-tablespace' },
             { text: 'Redo Log', link: '/mysql/02-innodb-internals/chapter-04-redo-log' },
             { text: 'Undo Log', link: '/mysql/02-innodb-internals/chapter-05-undo-log' },
-            { text: 'Binlog', link: '/mysql/02-innodb-internals/chapter-06-binlog' },
           ]
         },
         {
@@ -413,6 +419,7 @@ export default withOpenInEditor(defineConfig({
             { text: '锁机制', link: '/mysql/04-transaction-lock/chapter-02-lock' },
             { text: '死锁', link: '/mysql/04-transaction-lock/chapter-03-deadlock' },
             { text: '乐观锁', link: '/mysql/04-transaction-lock/chapter-04-optimistic-lock' },
+            { text: '锁选型', link: '/mysql/04-transaction-lock/chapter-05-lock-selection' },
           ]
         },
         {
@@ -433,11 +440,14 @@ export default withOpenInEditor(defineConfig({
             { text: '生成列', link: '/mysql/06-advanced-features/chapter-03-generated-column' },
             { text: 'JSON', link: '/mysql/06-advanced-features/chapter-04-json' },
             { text: '分区表', link: '/mysql/06-advanced-features/chapter-05-partition' },
+            { text: '全文索引', link: '/mysql/06-advanced-features/chapter-06-fulltext-index' },
+            { text: '存储过程', link: '/mysql/06-advanced-features/chapter-07-stored-procedure' },
           ]
         },
         {
           text: '复制与高可用',
           items: [
+            { text: 'Binlog', link: '/mysql/07-replication-ha/chapter-00-binlog' },
             { text: '异步复制', link: '/mysql/07-replication-ha/chapter-01-binlog-replication' },
             { text: 'GTID', link: '/mysql/07-replication-ha/chapter-02-gtid' },
             { text: '组复制', link: '/mysql/07-replication-ha/chapter-03-group-replication' },
@@ -453,6 +463,7 @@ export default withOpenInEditor(defineConfig({
             { text: '安全', link: '/mysql/08-operations/chapter-03-security' },
             { text: '用户管理', link: '/mysql/08-operations/chapter-04-user-management' },
             { text: '日常维护', link: '/mysql/08-operations/chapter-05-maintenance' },
+            { text: '连接管理', link: '/mysql/08-operations/chapter-06-connection-mgmt' },
           ]
         },
         {
