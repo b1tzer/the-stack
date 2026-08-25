@@ -192,7 +192,9 @@ public void runJob(String fileName) throws Exception {
 }
 
 // 在 Step 中读取参数
+// Spring Batch 5 中，要用 #{jobParameters[...]} 读取参数，Bean 必须加 @StepScope
 @Bean
+@StepScope
 public ItemReader<User> reader(DataSource dataSource, @Value("#{jobParameters['fileName']}") String fileName) {
     // 使用 fileName 参数...
 }

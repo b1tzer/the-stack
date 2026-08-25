@@ -72,7 +72,7 @@ fixedDelay(5s):[任务1====]                   [任务2====]
 
 ### 1.2 线程池配置
 
-默认情况下，`@Scheduled` 使用单线程的 `SimpleAsyncTaskScheduler`，所有任务串行执行。生产环境**必须自定义线程池**：
+Spring 6.1 之前，`@Scheduled` 默认使用单线程调度器，所有任务串行执行；Spring 6.1+ 默认改用 `SimpleAsyncTaskScheduler`，每个任务用独立线程，不再串行。无论哪个版本，生产环境都**必须自定义线程池**：
 
 ```java
 @Configuration

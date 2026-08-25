@@ -121,8 +121,6 @@ export default withOpenInEditor(defineConfig({
         {
           text: '第六卷 企业架构',
           items: [
-            { text: '微服务架构', link: '/java/06-java-enterprise/chapter-06-microservices' },
-            { text: '分布式治理', link: '/java/06-java-enterprise/chapter-07-governance' },
             { text: '企业系统部署', link: '/java/06-java-enterprise/chapter-08-security-deploy' },
             { text: '可观测性', link: '/java/06-java-enterprise/chapter-09-observability' },
           ]
@@ -186,7 +184,6 @@ export default withOpenInEditor(defineConfig({
             { text: '启动流程', link: '/spring/04-spring-boot/chapter-07-startup' },
             { text: '生产化配置', link: '/spring/04-spring-boot/chapter-08-production-tuning' },
             { text: '构建与部署', link: '/spring/04-spring-boot/chapter-09-build-deploy' },
-            { text: 'JVM 调优', link: '/spring/04-spring-boot/chapter-10-jvm-tuning' },
           ]
         },
         {

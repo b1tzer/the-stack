@@ -150,7 +150,7 @@ output.kafka:
 
 日志最大的问题是**上下文割裂**——一个请求跨越多个服务，每个服务的日志独立存储，无法关联。解决方案是将链路追踪的 TraceID 注入日志。
 
-在第 7 章中我们介绍了 SkyWalking 自动注入 `tid`（TraceID）到 MDC。如果使用 OpenTelemetry，可以手动注入：
+SkyWalking Agent 会自动将 `tid`（TraceID）注入 MDC。如果使用 OpenTelemetry，可以手动注入：
 
 ```java
 @Component

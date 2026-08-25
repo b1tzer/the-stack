@@ -43,7 +43,6 @@
 - [启动流程与启动参数](04-spring-boot/chapter-07-startup) — run 序列、ApplicationArguments、FailureAnalyzer、优雅停机
 - [生产化配置](04-spring-boot/chapter-08-production-tuning) — HikariCP 连接池、内嵌 Tomcat 调优
 - [构建与部署](04-spring-boot/chapter-09-build-deploy) — fat jar、repackage、多模块工程
-- [JVM 调优](04-spring-boot/chapter-10-jvm-tuning) — 堆内存、GC 策略、OOM 排查
 
 ### 05-安全
 - [安全架构](05-security/chapter-01-security-architecture) — Filter Chain、AuthenticationManager
