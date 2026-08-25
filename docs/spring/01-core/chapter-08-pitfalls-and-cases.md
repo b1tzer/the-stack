@@ -48,8 +48,6 @@ Spring AOP 靠代理对象拦截方法调用。`this.processPayment()` 调的是
 
 三种方案本质相同：让调用走代理对象而非 `this`。
 
----
-
 ## 案例 2：@Transactional 不生效——异常类型不匹配
 
 ### 现象
@@ -80,13 +78,28 @@ public class FileService {
 
 ### 解法
 
+方法级声明（只影响当前方法，所有版本可用）：
+
 ```java
 @Transactional(rollbackFor = Exception.class)  // 所有异常都回滚
 ```
 
-**经验法则：永远显式写 `rollbackFor = Exception.class`。** 不写就只回滚 `RuntimeException`，而 Checked Exception 导致的数据不一致在生产环境极难排查。
+全局默认（改整个应用，Spring Framework 6.2 / Spring Boot 3.4+）：
 
----
+```java
+@Configuration
+@EnableTransactionManagement(rollbackOn = RollbackOn.ALL_EXCEPTIONS)
+public class TxConfig {
+}
+```
+
+`rollbackOn` 是 `@EnableTransactionManagement` 在 Spring Framework 6.2 新增的属性，`RollbackOn` 枚举（`org.springframework.transaction.annotation.RollbackOn`）只有两个值：`RUNTIME_EXCEPTIONS`（默认）和 `ALL_EXCEPTIONS`。
+
+Spring Boot 默认已自动开启事务管理，通常不需要写 `@EnableTransactionManagement`。要改全局回滚行为，就在任意 `@Configuration` 类上手动加这行——Boot 检测到用户声明后会让出自己的自动配置，以你写的 `rollbackOn` 为准。
+
+两种写法怎么选：方法级 `rollbackFor` 意图明确、只影响单个方法，是新项目最稳的写法；全局开关适合统一治理存量项目，但它会让原本「Checked Exception 提交」的方法整体反转，改之前要先确认没有代码依赖旧的默认提交行为。
+
+为什么默认是 `RuntimeException` 而不是 `Exception`？社区围绕这个问题讨论了很多年（[Issue #23473](https://github.com/spring-projects/spring-framework/issues/23473)）。官方没有直接改默认值——那会让存量应用的提交行为静默反转，属于破坏性变更——而是新增 `rollbackOn` 属性，让开发者显式选择。Kotlin 项目（异常不区分受检与否）官方建议直接切到 `ALL_EXCEPTIONS`。
 
 ## 案例 3：@Async + 循环依赖——异步变同步
 
@@ -118,11 +131,11 @@ public class NotificationService {
 }
 ```
 
-`sendNotification` 标了 `@Async`，但监控发现它一直是同步执行，接口 P99 耗时翻倍。
+这段代码在 Spring Boot 2.6 之前（或纯 Spring，默认允许循环依赖）启动不报错：`sendNotification` 标了 `@Async`，但监控发现它一直是同步执行，接口 P99 耗时翻倍。Boot 2.6 起默认禁止循环依赖，同样的代码启动时直接报循环依赖错误，走不到「异步变同步」这一步。
 
 ### 排查
 
-1. 启动时没报错，两个 Bean 都创建成功
+1. 启动时没报错，两个 Bean 都创建成功（仅 Boot 2.6 之前 / 纯 Spring）
 2. 在 `sendNotification` 里打印线程名：`main`，不是 `task-1`
 3. 检查 `OrderService` 拿到的 `notificationService` 的类型——是原始对象，不是代理
 
@@ -138,11 +151,9 @@ public class NotificationService {
 | :-- | :-- |
 | 消除循环依赖（推荐） | 拆出公共组件，或用事件解耦 |
 | 用 `@Lazy` 打破循环 | `@Lazy @Autowired NotificationService`，延迟到首次使用时才创建 |
-| 开启 `allow-circular-references` | 最后兜底，但 `@Async` 仍然失效，治标不治本 |
+| 开启 `allow-circular-references` | 不解决 `@Async` 失效：只把「启动报错」换成「启动成功但 `@Async` 静默失效」 |
 
-**结论：循环依赖 + @Async = 定时炸弹。** 消除循环依赖是唯一正确的解法。
-
----
+**结论：循环依赖 + @Async = 定时炸弹。** 消除循环依赖是治本；`@Lazy` 能保住 `@Async` 生效，是可行的治标手段，但循环依赖仍在。
 
 ## 案例 4：@Configuration vs @Component——单例悄悄失效
 
@@ -196,8 +207,6 @@ public class DataSourceConfig {
 ```
 
 **经验法则：有 `@Bean` 方法互相调用的配置类，必须用 `@Configuration`。**
-
----
 
 ## 案例 5：@Value 注入 null——配置属性找不到
 
@@ -253,8 +262,6 @@ PayService service = new PayService();  // 手动 new
 - 非 Boot 项目加 `@PropertySource("classpath:application.properties")`
 - 测试环境用 `@TestPropertySource` 或 `@SpringBootTest`
 
----
-
 ## 案例 6：@ConditionalOnBean 不生效——Bean 扫描顺序问题
 
 ### 现象
@@ -289,8 +296,6 @@ Spring 的扫描顺序受 `@ComponentScan` 的 `basePackages`、类的包路径�
 | 合并到同一个 `@Configuration` | 让两个 Bean 在同一个类里定义，保证顺序 |
 
 **经验法则：`@ConditionalOnBean` 适合「用户已经定义了某个 Bean，框架就退让」的场景（如 `@ConditionalOnMissingBean`），不适合「框架自己定义的 Bean 之间做条件判断」。**
-
----
 
 ## 案例 7：prototype Bean 的 @PreDestroy 不触发
 
@@ -336,8 +341,6 @@ Spring 容器对 prototype Bean 的管理边界是：**创建时管，销毁时�
 | 用 `ObjectFactory` / `Provider` | `@Autowired ObjectProvider<ReportGenerator>`，每次 `getObject()` 拿新实例，释放由调用方负责 |
 
 **经验法则：prototype Bean 不能依赖容器销毁。持有资源（连接、文件、锁）的类要么用 singleton，要么自己管生命周期。**
-
----
 
 ## 案例 8：多线程下 @Transactional 失效
 
@@ -392,8 +395,6 @@ Spring 事务绑定在 `ThreadLocal` 上（[事务管理](../03-data-access/chap
 | 两阶段提交 | 用消息队列 + 本地事务表 | 分布式场景 |
 
 **经验法则：`@Transactional` 的边界就是当前线程。想跨线程共享事务，要么不用多线程，要么用编程式事务。**
-
----
 
 ## 案例索引
 
