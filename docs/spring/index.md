@@ -40,6 +40,9 @@
 - [Actuator 监控](04-spring-boot/chapter-04-actuator) — 健康检查、指标收集
 - [DevTools 热部署](04-spring-boot/chapter-05-devtools) — 原理与配置
 - [API 文档](04-spring-boot/chapter-06-api-doc) — springdoc-openapi、Swagger UI、分组与安全
+- [启动流程与启动参数](04-spring-boot/chapter-07-startup) — run 序列、ApplicationArguments、FailureAnalyzer、优雅停机
+- [生产化配置](04-spring-boot/chapter-08-production-tuning) — HikariCP 连接池、内嵌 Tomcat 调优
+- [构建与部署](04-spring-boot/chapter-09-build-deploy) — fat jar、repackage、多模块工程
 
 ### 05-安全
 - [安全架构](05-security/chapter-01-security-architecture) — Filter Chain、AuthenticationManager
@@ -57,6 +60,7 @@
 - [分布式锁](06-advanced/chapter-07-distributed-lock) — Redisson、Spring Integration、自定义注解
 - [动态定时任务](06-advanced/chapter-08-quartz) — Quartz 集群、REST API 管理
 - [邮件发送](06-advanced/chapter-09-mail) — JavaMailSender、模板邮件、异步与重试
+- [Spring Batch 批处理](06-advanced/chapter-10-spring-batch) — Job/Step、Chunk 分块、重启与跳过
 
 ### 07-微服务
 - [微服务架构模式](07-microservices/chapter-01-microservice-pattern) — DDD、设计原则

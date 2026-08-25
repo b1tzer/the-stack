@@ -93,7 +93,20 @@ public class MyApplication {
 
 ## 4.2 自动配置原理
 
-### 4.2.1 @SpringBootApplication 拆解
+### 4.2.1 注解分类全景
+
+开始拆 `@SpringBootApplication` 之前，先把 Spring Boot 的注解按职责归一次类。这一层分类能帮你回答两个问题：看到一个陌生注解时该往哪一类放，以及配置不生效时该从哪一类开始排查。
+
+| 类别 | 代表注解 | 职责 | 最容易踩的坑 |
+| :-- | :-- | :-- | :-- |
+| **启动注解** | `@SpringBootApplication` | 标记启动类，同时开启扫描与自动配置 | 启动类没放在最外层包，导致部分组件扫不到 |
+| **配置注解** | `@Configuration`、`@Bean`、`@Import`、`@PropertySource` | 声明 Bean 与配置来源 | `@Configuration` 里的 `@Bean` 方法互调走 CGLIB 代理，`@Component` 里则不走 |
+| **条件注解** | `@Conditional`、`@ConditionalOnClass`、`@ConditionalOnMissingBean`、`@Profile` | 决定 Bean 是否注册 | 条件只在启动时评估一次，改配置不会热生效 |
+| **属性绑定注解** | `@Value`、`@ConfigurationProperties`、`@EnableConfigurationProperties` | 把配置值注入字段 | `@Value` 无类型安全，嵌套对象用 `@ConfigurationProperties` |
+
+四类是一条流水线：启动注解是入口，配置注解声明"容器里有什么"，条件注解决定"这个 Bean 要不要进容器"，属性绑定注解解决"Bean 里的值从哪来"。前两类回答"是什么"，后两类回答"何时、何值"。
+
+### 4.2.2 @SpringBootApplication 拆解
 
 `@SpringBootApplication` 看起来是一个注解，实际上是三个注解的组合：
 
@@ -108,7 +121,7 @@ public @interface SpringBootApplication { ... }
 
 自动配置的魔法集中在 `@EnableAutoConfiguration` 上。
 
-### 4.2.2 自动配置的加载流程
+### 4.2.3 自动配置的加载流程
 
 Spring Boot 2.7+ 使用新的加载机制，整个流程如下：
 
@@ -154,7 +167,7 @@ public class DataSourceAutoConfiguration {
 }
 ```
 
-### 4.2.3 条件注解家族
+### 4.2.4 条件注解家族
 
 Spring Boot 提供了一整套 `@Conditional` 注解，构成自动配置的"开关系统"：
 
@@ -167,7 +180,7 @@ Spring Boot 提供了一整套 `@Conditional` 注解，构成自动配置的"开
 | `@ConditionalOnResource` | classpath 存在指定资源 | 有 `logback.xml` 才使用自定义日志 |
 | `@ConditionalOnExpression` | SpEL 表达式为 true | 复杂条件组合 |
 
-### 4.2.4 自动配置的核心流程图
+### 4.2.5 自动配置的核心流程图
 
 ![springboot-startup](/spring/springboot-startup.svg)
 

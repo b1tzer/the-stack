@@ -151,6 +151,29 @@ public void scheduledTask() {
 }
 ```
 
+手写分布式锁能解决问题，但锁的获取、续期、释放都要自己处理。一旦任务执行时间超过锁的过期时间，锁会提前释放，另一个实例就会重复执行。更标准的做法是用 ShedLock：
+
+```java
+// ShedLock：声明式分布式锁，锁的续期由框架自动处理
+@Scheduled(fixedRate = 60000)
+@SchedulerLock(name = "dailyReport", lockAtMostFor = "4m", lockAtLeastFor = "1m")
+public void scheduledTask() {
+    doDailyReport();
+}
+```
+
+ShedLock 用一个 `@SchedulerLock` 注解声明锁：`name` 是锁的唯一标识，`lockAtMostFor` 是锁的最长持有时间（防止实例崩溃后锁永远不释放），`lockAtLeastFor` 是最短持有时间（防止时钟漂移导致锁提前释放）。锁存在数据库或 Redis 里，由 `LockProvider` 管理：
+
+```java
+@Configuration
+@EnableScheduling
+@EnableSchedulerLock(defaultLockAtMostFor = "5m")  // 全局默认锁时长
+public class ScheduleConfig {
+}
+```
+
+对比手写锁，ShedLock 的优势是：锁的续期和释放由框架处理，`lockAtMostFor` 兜底了实例崩溃场景，`lockAtLeastFor` 兜底了时钟漂移场景。多实例下 `@Scheduled` 去重，首选 ShedLock 而不是手写分布式锁；需要 misfire 策略、任务持久化、集群调度时再上 [Quartz](./chapter-08-quartz.md)。
+
 ### 3.2 动态定时任务（数据库驱动）
 
 ```java
