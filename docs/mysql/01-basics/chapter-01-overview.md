@@ -6,21 +6,24 @@ MySQL 是最流行的开源关系型数据库管理系统，由 Oracle 维护。
 
 ## 2. 版本选择
 
-| 版本 | 特性 | 推荐 |
-|------|------|------|
-| 5.7 | 稳定，JSON 支持 | 老项目 |
-| 8.0 | 窗口函数、CTE、JSON 增强 | 推荐 |
-| 8.4 | LTS 版本，性能优化 | 新项目 |
+| 版本 | 特性 | 状态 | 推荐 |
+|------|------|------|------|
+| 5.7 | 稳定，JSON 支持 | 2023-10 停止支持 | ❌ 不推荐 |
+| 8.0 | 窗口函数、CTE、JSON 增强 | 活跃 | 现有项目 |
+| 8.4 | LTS，性能优化，安全增强 | 长期支持 | ✅ 新项目首选 |
+| 9.0 | Innovation 版本，最新特性 | 快速迭代 | 测试环境 |
 
-## 3. 与 PostgreSQL/Oracle 对比
+## 3. 与 PostgreSQL/MariaDB/Oracle 对比
 
-| 特性 | MySQL | PostgreSQL | Oracle |
-|------|-------|-----------|--------|
-| 开源 | ✅ | ✅ | ❌ |
-| 事务 | InnoDB 支持 | 原生支持 | 原生支持 |
-| JSON | 8.0+ 增强 | JSONB 原生 | 支持 |
-| 复制 | 主从/GTID/MGR | 流复制/逻辑复制 | Data Guard |
-| 适用场景 | 互联网/高并发 | 企业级/复杂查询 | 金融/电信 |
+| 特性 | MySQL | PostgreSQL | MariaDB | Oracle |
+|------|-------|-----------|---------|--------|
+| 开源 | ✅ (GPL) | ✅ (PostgreSQL) | ✅ (GPL) | ❌ |
+| 事务 | InnoDB 支持 | 原生支持 | InnoDB/XtraDB | 原生支持 |
+| JSON | 8.0+ 增强 | JSONB 原生 | 10.2+ 支持 | 支持 |
+| 复制 | 主从/GTID/MGR | 流复制/逻辑复制 | 主从/Galera | Data Guard |
+| 窗口函数 | 8.0+ | ✅ | 10.2+ | ✅ |
+| 许可证 | GPL (Oracle) | PostgreSQL | GPL (社区) | 商业 |
+| 适用场景 | 互联网/高并发 | 企业级/复杂查询 | 兼容 MySQL | 金融/电信 |
 
 ## 4. 存储引擎
 
@@ -87,12 +90,130 @@ ALTER TABLE employees ALTER INDEX idx_name VISIBLE;
 DROP TABLE IF EXISTS t1, t2;  -- 要么全成功，要么全失败
 ```
 
-## 8. 最佳实践
+## 8. MySQL 8.4 LTS 新特性详解
+
+MySQL 8.4 是首个 LTS（长期支持）版本，适合生产环境。
+
+### 8.1 生命周期
+
+```
+8.4 LTS: 2024 年发布，支持至 2032 年
+8.0: 2018-2026（创新版本，快速迭代）
+9.x: 创新版本线，每季度发布
+```
+
+### 8.2 核心改进
+
+```sql
+-- 1. Redo Log 动态调整（8.0.30+ 已有，8.4 优化）
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+SET GLOBAL innodb_redo_log_capacity = 2147483648;  -- 2GB
+
+-- 2. 组复制增强
+-- 自动选举、流控优化、可观测性提升
+SET GLOBAL group_replication_consistency = 'BEFORE_ON_PRIMARY_FAILOVER';
+
+-- 3. 安全增强
+-- 默认使用 caching_sha2_password 认证插件
+-- 密钥环组件改进
+CREATE USER 'app'@'%' IDENTIFIED WITH caching_sha2_password BY 'StrongP@ss123';
+
+-- 4. 性能优化
+-- 查询执行计划改进
+-- InnoDB 后台线程优化
+-- 临时表空间管理改进
+```
+
+### 8.3 与 8.0 的区别
+
+| 特性 | 8.0 | 8.4 LTS |
+|------|-----|--------|
+| 支持周期 | 创新版本，快速迭代 | 长期支持至 2032 |
+| 新特性 | 持续引入 | 仅安全/稳定性修复 |
+| 默认认证 | mysql_native_password | caching_sha2_password |
+| Redo Log | 静态配置 | 动态调整 |
+| 推荐场景 | 追求新特性 | 生产环境首选 |
+
+## 9. MySQL vs MariaDB 选型指南
+
+MariaDB 是 MySQL 的分支，由原始创建者维护。
+
+### 9.1 核心差异
+
+| 特性 | MySQL | MariaDB |
+|------|-------|---------|
+| 维护方 | Oracle | MariaDB Foundation |
+| 存储引擎 | InnoDB | InnoDB + XtraDB + Aria |
+| 语法兼容 | 官方标准 | 高度兼容 MySQL |
+| JSON 支持 | 8.0+ 原生类型 | 10.2+ 函数支持 |
+| 窗口函数 | 8.0+ | 10.2+ |
+| 默认字符集 | utf8mb4 (8.0+) | utf8mb4 (10.2+) |
+| 许可证 | GPL (Oracle) | GPL (社区) |
+
+### 9.2 选型建议
+
+```
+选 MySQL 的理由：
+- 需要 Oracle 官方支持
+- 使用 MySQL 专属特性（如 X DevAPI）
+- 云厂商 RDS 通常 MySQL 兼容性更好
+- 团队熟悉 MySQL 生态
+
+选 MariaDB 的理由：
+- 担心 Oracle 控制开源项目
+- 需要 Galera 多主复制
+- 需要 Aria 存储引擎（替代 MyISAM）
+- 追求社区驱动的创新
+```
+
+## 10. 云数据库（RDS）选型
+
+### 10.1 主流云 RDS 对比
+
+| 云厂商 | 产品 | MySQL 版本 | 特点 |
+|--------|------|-----------|------|
+| 阿里云 | RDS MySQL | 5.7/8.0/8.4 | 最成熟，功能丰富 |
+| 腾讯云 | TDSQL-C | 5.7/8.0 | Serverless，按量计费 |
+| AWS | Aurora MySQL | 5.7/8.0 | 兼容 MySQL，性能 5x |
+| 华为云 | RDS for MySQL | 5.7/8.0 | 国产化支持 |
+| Google Cloud | Cloud SQL | 5.7/8.0 | 与 GCP 生态集成 |
+
+### 10.2 RDS vs 自建对比
+
+| 特性 | 云 RDS | 自建 MySQL |
+|------|-------|----------|
+| 运维成本 | 低（托管） | 高（DBA） |
+| 高可用 | 内置主从/故障切换 | 需自行搭建 |
+| 备份 | 自动备份/PITR | 需自行配置 |
+| 扩展 | 在线升配 | 需要停机迁移 |
+| 成本 | 按量付费，长期较高 | 一次性投入，长期较低 |
+| 灵活性 | 受限（参数/插件） | 完全控制 |
+| 数据安全 | 依赖云厂商 | 完全掌控 |
+
+### 10.3 RDS 选型建议
+
+```
+推荐云 RDS 的场景：
+- 团队无专职 DBA
+- 业务需要快速上线
+- 需要高可用和自动备份
+- 预算充足，追求稳定性
+
+推荐自建的场景：
+- 有专业 DBA 团队
+- 需要深度定制（参数/插件）
+- 数据敏感，不能上云
+- 成本敏感，长期运行
+```
+
+## 11. 最佳实践
 
 1. **生产环境始终使用 InnoDB** — MyISAM 已过时，不支持事务和行锁
 2. **统一使用 utf8mb4** — utf8 只支持 3 字节，无法存储 emoji
 3. **主键选择 BIGINT AUTO_INCREMENT** — 避免 UUID 作为主键（随机写入导致页分裂）
 4. **及时升级到 8.0+** — 5.7 已于 2023 年 10 月停止官方支持
-5. **关注 LTS 版本** — 8.4 为长期支持版本，适合生产环境
+5. **新项目选择 8.4 LTS** — 长期支持至 2032 年，稳定性优先
+6. **评估是否需要上云** — 无 DBA 团队优先考虑云 RDS
+7. **关注 MySQL vs MariaDB** — 根据团队和生态选择
 
 ---
