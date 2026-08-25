@@ -1,213 +1,555 @@
 # WebFlux 响应式编程
 
-## 1. 响应式流
+> Spring MVC 的线程模型是「一请求一线程」：200 个并发请求就需要 200 个线程。线程消耗内存（每个约 1MB 栈空间），切换消耗 CPU。当并发量到达万级，阻塞模型的瓶颈不在业务逻辑，而在线程等待——等数据库、等下游 HTTP、等磁盘 IO。WebFlux 换了一种思路：不给每个请求分配线程，而是用少量线程通过事件驱动处理所有请求。
 
-```java
-// Mono：0-1 个元素
-Mono<String> mono = Mono.just("hello");
+## 1. 阻塞模型的瓶颈
 
-// Flux：0-N 个元素
-Flux<Integer> flux = Flux.range(1, 10);
+```text
+Spring MVC 线程模型：
+┌─────────────────────────────────────────────────┐
+│ Tomcat 线程池 (默认 200 线程)                      │
+│                                                  │
+│  请求1 ──→ [线程1] ──→ 查询数据库(50ms) ──→ 返回   │
+│  请求2 ──→ [线程2] ──→ 调用下游(200ms) ──→ 返回    │
+│  请求3 ──→ [线程3] ──→ 查询数据库(80ms) ──→ 返回   │
+│  ...                                             │
+│  请求201 ──→ [等待...] ──→ 线程池满，排队           │
+└─────────────────────────────────────────────────┘
+
+问题：线程在等 IO 时被白白占用，不能处理其他请求
 ```
 
-## 2. WebFlux vs Spring MVC
+```text
+WebFlux 事件驱动模型：
+┌─────────────────────────────────────────────────┐
+│ Event Loop 线程数 = CPU 核心数                     │
+│                                                  │
+│  请求1 ──→ 发送SQL ──→ 释放线程                    │
+│  请求2 ──→ 发送HTTP ──→ 释放线程                   │
+│  ...                                             │
+│  数据库响应回来 ──→ 回调处理请求1                    │
+│  下游响应回来 ──→ 回调处理请求2                      │
+└─────────────────────────────────────────────────┘
 
-| 特性 | Spring MVC | WebFlux |
-|------|-----------|---------|
-| 编程模型 | 阻塞式 | 非阻塞式 |
-| 线程模型 | 一个请求一个线程 | 事件循环 |
-| 适用场景 | 传统 Web | 高并发、流式 |
+优势：线程不等待 IO，少量线程处理大量并发
+```
 
-## 3. RouterFunction
+## 2. Reactor 响应式库
+
+WebFlux 基于 Reactor 库，核心类型是 `Mono<T>` 和 `Flux<T>`：
+
+| 类型 | 含义 | 类比 |
+| :-- | :-- | :-- |
+| `Mono<T>` | 0 或 1 个元素的异步序列 | `Optional<T>` 的异步版 |
+| `Flux<T>` | 0 到 N 个元素的异步序列 | `Stream<T>` 的异步版 |
+
+### 2.1 创建
 
 ```java
-@Configuration
-public class RouterConfig {
-    @Bean
-    public RouterFunction<ServerResponse> routes(UserHandler handler) {
-        return RouterFunctions.route()
-            .GET("/api/users", handler::listUsers)
-            .GET("/api/users/{id}", handler::getUser)
-            .POST("/api/users", handler::createUser)
-            .build();
+// Mono 创建
+Mono<String> mono1 = Mono.just("hello");
+Mono<String> mono2 = Mono.empty();                    // 空序列
+Mono<String> mono3 = Mono.error(new RuntimeException()); // 错误信号
+Mono<String> mono4 = Mono.fromCallable(() -> expensiveCompute());
+Mono<String> mono5 = Mono.fromFuture(comtableFuture);
+Mono<String> mono6 = Mono.defer(() -> Mono.just(dynamicValue())); // 延迟创建
+
+// Flux 创建
+Flux<Integer> flux1 = Flux.range(1, 10);
+Flux<String> flux2 = Flux.fromIterable(List.of("a", "b", "c"));
+Flux<Long> flux3 = Flux.interval(Duration.ofSeconds(1)); // 定时发射
+Flux<String> flux4 = Flux.just("a", "b", "c");
+Flux<Integer> flux5 = Flux.fromStream(Stream.of(1, 2, 3));
+```
+
+### 2.2 核心操作符
+
+```java
+// ===== 转换 =====
+flux.map(x -> x * 2)                    // 同步转换
+    .flatMap(x -> asyncCall(x))          // 异步转换（可能改变顺序）
+    .concatMap(x -> asyncCall(x))        // 异步转换（保持顺序）
+
+// ===== 过滤 =====
+flux.filter(x -> x > 5)                 // 条件过滤
+    .distinct()                          // 去重
+    .take(5)                             // 取前 N 个
+    .skip(3)                             // 跳过前 N 个
+
+// ===== 组合 =====
+Flux.merge(flux1, flux2)                // 合并（交错）
+Flux.concat(flux1, flux2)               // 拼接（顺序）
+Mono.zip(mono1, mono2, mono3)           // 等所有完成，合并结果
+
+// ===== 错误处理 =====
+flux.onErrorReturn(fallbackValue)       // 出错返回默认值
+flux.onErrorResume(ex -> fallback())    // 出错执行备用逻辑
+flux.retry(3)                           // 重试 N 次
+flux.timeout(Duration.ofSeconds(5))     // 超时
+
+// ===== 调度 =====
+flux.subscribeOn(Schedulers.boundedElastic())  // 订阅线程池
+flux.publishOn(Schedulers.parallel())          // 后续操作线程池
+
+// ===== 终止操作 =====
+flux.subscribe(value -> {}, error -> {}, () -> {});
+flux.blockFirst();                      // 阻塞获取第一个（仅测试用）
+flux.blockLast();                       // 阻塞获取最后一个（仅测试用）
+flux.collectList().block();             // 转 List（仅测试用）
+```
+
+### 2.3 背压 (Backpressure)
+
+背压是响应式流的核心机制——消费者告诉生产者「我处理不过来了，慢点发」：
+
+```java
+// 生产者快，消费者慢
+Flux.range(1, 1_000_000)
+    .onBackpressureBuffer(100)           // 缓冲 100 个，满了报错
+    // .onBackpressureDrop()            // 丢弃多余的
+    // .onBackpressureLatest()          // 只保留最新的
+    .subscribe(
+        item -> slowProcess(item),
+        error -> log.error("错误", error),
+        () -> log.info("完成")
+    );
+```
+
+```text
+背压策略：
+┌──────────┐   ┌──────────────────┐   ┌──────────┐
+│ 生产者    │──→│  缓冲区 / 策略    │──→│ 消费者    │
+│ (快)      │   │ buffer/drop/latest│  │ (慢)      │
+└──────────┘   └──────────────────┘   └──────────┘
+```
+
+## 3. 编程模型
+
+WebFlux 提供两种编程模型：注解式（和 MVC 几乎一样）和函数式。
+
+### 3.1 注解式（推荐）
+
+```java
+@RestController
+@RequestMapping("/api/users")
+public class UserController {
+
+    private final UserRepository userRepository;
+    private final WebClient webClient;
+
+    public UserController(UserRepository userRepository, WebClient.Builder builder) {
+        this.userRepository = userRepository;
+        this.webClient = builder.baseUrl("http://order-service").build();
+    }
+
+    // 返回类型是 Mono/Flux，而非直接对象
+    @GetMapping
+    public Flux<User> listUsers() {
+        return userRepository.findAll();
+    }
+
+    @GetMapping("/{id}")
+    public Mono<ResponseEntity<User>> getUser(@PathVariable Long id) {
+        return userRepository.findById(id)
+                .map(ResponseEntity::ok)
+                .defaultIfEmpty(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public Mono<User> createUser(@Valid @RequestBody Mono<CreateUserDTO> dtoMono) {
+        return dtoMono
+                .map(this::toEntity)
+                .flatMap(userRepository::save);
+    }
+
+    // 并发调用多个下游服务
+    @GetMapping("/{id}/detail")
+    public Mono<UserDetailVO> getUserDetail(@PathVariable Long id) {
+        Mono<User> userMono = userRepository.findById(id);
+        Mono<List<Order>> ordersMono = webClient.get()
+                .uri("/api/orders?userId={id}", id)
+                .retrieve()
+                .bodyToFlux(Order.class)
+                .collectList();
+        Mono<List<Point>> pointsMono = webClient.get()
+                .uri("/api/points?userId={id}", id)
+                .retrieve()
+                .bodyToFlux(Point.class)
+                .collectList();
+
+        // 三个请求并发执行，全部完成后合并结果
+        return Mono.zip(userMono, ordersMono, pointsMono)
+                .map(tuple -> new UserDetailVO(tuple.getT1(), tuple.getT2(), tuple.getT3()));
     }
 }
 ```
 
-## 4. WebFlux 实战
-
-### 4.1 函数式端点（RouterFunction）
+### 3.2 函数式
 
 ```java
+// 路由配置
 @Configuration
-public class UserRouter {
+public class RouterConfig {
 
     @Bean
     public RouterFunction<ServerResponse> userRoutes(UserHandler handler) {
         return RouterFunctions.route()
-            .GET("/api/users", handler::listUsers)
-            .GET("/api/users/{id}", handler::getUser)
-            .POST("/api/users", handler::createUser)
-            .PUT("/api/users/{id}", handler::updateUser)
-            .DELETE("/api/users/{id}", handler::deleteUser)
-            .build();
+                .path("/api/users", builder -> builder
+                        .GET("", handler::listUsers)
+                        .GET("/{id}", handler::getUser)
+                        .POST("", handler::createUser)
+                        .PUT("/{id}", handler::updateUser)
+                        .DELETE("/{id}", handler::deleteUser))
+                .build();
     }
 }
 
+// Handler
 @Component
 public class UserHandler {
 
     private final UserRepository userRepository;
 
-    public UserHandler(UserRepository userRepository) {
-        this.userRepository = userRepository;
-    }
-
     public Mono<ServerResponse> listUsers(ServerRequest request) {
-        Flux<User> users = userRepository.findAll();
         return ServerResponse.ok()
-            .contentType(MediaType.APPLICATION_JSON)
-            .body(users, User.class);
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(userRepository.findAll(), User.class);
     }
 
     public Mono<ServerResponse> getUser(ServerRequest request) {
         Long id = Long.valueOf(request.pathVariable("id"));
         return userRepository.findById(id)
-            .flatMap(user -> ServerResponse.ok()
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(user))
-            .switchIfEmpty(ServerResponse.notFound().build());
+                .flatMap(user -> ServerResponse.ok()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(user))
+                .switchIfEmpty(ServerResponse.notFound().build());
     }
 
     public Mono<ServerResponse> createUser(ServerRequest request) {
-        return request.bodyToMono(User.class)
-            .flatMap(userRepository::save)
-            .flatMap(user -> ServerResponse
-                .created(URI.create("/api/users/" + user.getId()))
-                .bodyValue(user));
+        return request.bodyToMono(CreateUserDTO.class)
+                .flatMap(dto -> userRepository.save(toEntity(dto)))
+                .flatMap(user -> ServerResponse
+                        .created(URI.create("/api/users/" + user.getId()))
+                        .bodyValue(user));
     }
 }
 ```
 
-### 4.2 响应式 Repository
+## 4. WebClient（响应式 HTTP 客户端）
+
+WebClient 替代 RestTemplate，是非阻塞的 HTTP 客户端：
 
 ```java
-// Spring Data Reactive MongoDB
-public interface UserRepository extends ReactiveMongoRepository<User, String> {
-    Flux<User> findByAgeBetween(int min, int max);
-    Mono<User> findByEmail(String email);
+@Configuration
+public class WebClientConfig {
+
+    @Bean
+    public WebClient.Builder webClientBuilder() {
+        return WebClient.builder()
+                .baseUrl("http://user-service")
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .filter(ExchangeFilterFunctions.basicAuthentication("user", "pass"))
+                .codecs(config -> config.defaultCodecs().maxInMemorySize(16 * 1024 * 1024));
+    }
 }
 
-// Spring Data R2DBC（响应式关系数据库）
-public interface UserRepository extends R2dbcRepository<User, Long> {
-    @Query("SELECT * FROM users WHERE status = :status")
-    Flux<User> findByStatus(@Param("status") String status);
-}
-```
-
-### 4.3 Mono/Flux 核心操作
-
-```java
 @Service
-public class ReactiveUserService {
+public class UserServiceClient {
 
-    private final UserRepository userRepository;
     private final WebClient webClient;
 
-    public ReactiveUserService(UserRepository userRepository, WebClient.Builder builder) {
-        this.userRepository = userRepository;
-        this.webClient = builder.baseUrl("http://order-service").build();
+    public UserServiceClient(WebClient.Builder builder) {
+        this.webClient = builder.baseUrl("http://user-service").build();
     }
 
-    // 转换：map
-    public Flux<UserDTO> getAllUserDTOs() {
-        return userRepository.findAll()
-            .map(user -> new UserDTO(user.getId(), user.getName()));
-    }
-
-    // 异步转换：flatMap
-    public Mono<UserDetail> getUserDetail(Long id) {
-        return userRepository.findById(id)
-            .flatMap(user -> webClient.get()
-                .uri("/api/orders?userId={id}", id)
+    // GET
+    public Mono<User> getUser(Long id) {
+        return webClient.get()
+                .uri("/api/users/{id}", id)
                 .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<List<Order>>() {})
-                .map(orders -> new UserDetail(user, orders)));
+                .bodyToMono(User.class);
     }
 
-    // 过滤
-    public Flux<User> getActiveUsers() {
-        return userRepository.findAll()
-            .filter(user -> "ACTIVE".equals(user.getStatus()));
+    // GET 列表
+    public Flux<User> listUsers() {
+        return webClient.get()
+                .uri("/api/users")
+                .retrieve()
+                .bodyToFlux(User.class);
     }
 
-    // 合并多个流
-    public Flux<Object> getUserActivity(Long userId) {
-        Flux<Order> orders = getOrders(userId);
-        Flux<LoginLog> loginLogs = getLoginLogs(userId);
-        return Flux.merge(orders, loginLogs)
-            .sort(Comparator.comparing(Activity::getCreatedAt).reversed());
+    // POST
+    public Mono<User> createUser(CreateUserDTO dto) {
+        return webClient.post()
+                .uri("/api/users")
+                .bodyValue(dto)
+                .retrieve()
+                .bodyToMono(User.class);
     }
 
     // 错误处理
-    public Mono<User> safeGetUser(Long id) {
-        return userRepository.findById(id)
-            .switchIfEmpty(Mono.error(new UserNotFoundException(id)))
-            .onErrorResume(ex -> Mono.just(User.anonymous()))
-            .timeout(Duration.ofSeconds(3))
-            .retry(2);
+    public Mono<User> getUserSafe(Long id) {
+        return webClient.get()
+                .uri("/api/users/{id}", id)
+                .retrieve()
+                .onStatus(HttpStatusCode::is4xxClientError, resp ->
+                        Mono.error(new UserNotFoundException(id)))
+                .onStatus(HttpStatusCode::is5xxClientError, resp ->
+                        Mono.error(new ServiceUnavailableException()))
+                .bodyToMono(User.class)
+                .timeout(Duration.ofSeconds(3))
+                .retryWhen(Retry.backoff(3, Duration.ofMillis(500)));
+    }
+
+    // 流式接收（SSE）
+    public Flux<UserEvent> streamEvents() {
+        return webClient.get()
+                .uri("/api/events")
+                .accept(MediaType.TEXT_EVENT_STREAM)
+                .retrieve()
+                .bodyToFlux(UserEvent.class);
     }
 }
 ```
 
-### 4.4 WebFlux 中的全局异常处理
+## 5. 错误处理
+
+### 5.1 操作符级错误处理
 
 ```java
+@Service
+public class UserService {
+
+    // 出错返回默认值
+    public Mono<User> getUserOrDefault(Long id) {
+        return userRepository.findById(id)
+                .onErrorReturn(User.anonymous());
+    }
+
+    // 出错执行备用逻辑
+    public Mono<User> getUserWithFallback(Long id) {
+        return userRepository.findById(id)
+                .onErrorResume(ex -> {
+                    log.warn("主库查询失败，查缓存", ex);
+                    return cacheService.getUser(id);
+                });
+    }
+
+    // 出错记录并继续
+    public Flux<User> getAllUsersSafe() {
+        return userRepository.findAll()
+                .onErrorContinue((ex, item) -> {
+                    log.error("处理 {} 失败", item, ex);
+                });
+    }
+
+    // 超时 + 重试
+    public Mono<User> getUserWithRetry(Long id) {
+        return userRepository.findById(id)
+                .timeout(Duration.ofSeconds(3))
+                .retryWhen(Retry.backoff(3, Duration.ofMillis(500))
+                        .filter(ex -> ex instanceof TimeoutException)
+                        .onRetryExhaustedThrow((spec, signal) ->
+                                new ServiceUnavailableException()));
+    }
+}
+```
+
+### 5.2 全局异常处理
+
+```java
+// 注解式
 @RestControllerAdvice
-public class GlobalWebExceptionHandler {
+public class GlobalExceptionHandler {
 
     @ExceptionHandler(UserNotFoundException.class)
     public Mono<ResponseEntity<ErrorResponse>> handleNotFound(UserNotFoundException ex) {
         return Mono.just(ResponseEntity.status(404)
-            .body(new ErrorResponse("USER_NOT_FOUND", ex.getMessage())));
+                .body(new ErrorResponse("USER_NOT_FOUND", ex.getMessage())));
+    }
+
+    @ExceptionHandler(WebExchangeBindException.class)
+    public Mono<ResponseEntity<ErrorResponse>> handleValidation(WebExchangeBindException ex) {
+        String message = ex.getFieldErrors().stream()
+                .map(f -> f.getField() + ": " + f.getDefaultMessage())
+                .collect(Collectors.joining(", "));
+        return Mono.just(ResponseEntity.badRequest()
+                .body(new ErrorResponse("VALIDATION_ERROR", message)));
     }
 }
 
-// 或者实现 WebExceptionHandler
+// 函数式（WebExceptionHandler）
 @Component
-@Order(-1)
-public class CustomWebExceptionHandler implements WebExceptionHandler {
+@Order(-2)  // 优先级高于默认的异常处理器
+public class FunctionalExceptionHandler implements WebExceptionHandler {
 
     @Override
     public Mono<Void> handle(ServerWebExchange exchange, Throwable ex) {
-        ServerHttpResponse response = exchange.getResponse();
-        if (response.isCommitted()) {
+        if (exchange.getResponse().isCommitted()) {
             return Mono.error(ex);
         }
 
-        response.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR);
-        response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+        HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
+        String message = ex.getMessage();
 
-        String body = "{\"code\":500,\"message\":\"" + ex.getMessage() + "\"}";
-        DataBuffer buffer = response.bufferFactory().wrap(body.getBytes());
-        return response.writeWith(Mono.just(buffer));
+        if (ex instanceof UserNotFoundException) {
+            status = HttpStatus.NOT_FOUND;
+        } else if (ex instanceof ServerWebInputException) {
+            status = HttpStatus.BAD_REQUEST;
+        }
+
+        exchange.getResponse().setStatusCode(status);
+        exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
+
+        ErrorResponse error = new ErrorResponse(status.name(), message);
+        byte[] bytes = new ObjectMapper().writeValueAsBytes(error);
+        DataBuffer buffer = exchange.getResponse().bufferFactory().wrap(bytes);
+        return exchange.getResponse().writeWith(Mono.just(buffer));
     }
 }
 ```
 
-**WebFlux vs MVC 选择指南：**
+## 6. 阻塞操作隔离
+
+WebFlux 中调用阻塞 API（JDBC、旧版 SDK）必须隔离到专用线程池：
+
+```java
+@Service
+public class HybridUserService {
+
+    private final UserRepository reactiveRepo;      // R2DBC
+    private final LegacyUserDao legacyDao;           // JDBC（阻塞）
+
+    // 方案一：subscribeOn 隔离
+    public Mono<User> getUserHybrid(Long id) {
+        return reactiveRepo.findById(id)
+                .switchIfEmpty(
+                    Mono.fromCallable(() -> legacyDao.findById(id))  // 阻塞调用
+                        .subscribeOn(Schedulers.boundedElastic())    // 隔离到弹性线程池
+                );
+    }
+
+    // 方案二：包装阻塞调用
+    public Flux<User> searchFromLegacy(String keyword) {
+        return Flux.defer(() -> Flux.fromIterable(legacyDao.search(keyword)))
+                .subscribeOn(Schedulers.boundedElastic());
+    }
+}
+```
+
+`Schedulers.boundedElastic()` 特点：
+- 线程数有上限（默认 10 × CPU 核心数）
+- 队列有容量限制
+- 空闲线程 60 秒后回收
+- 适合 IO 密集型阻塞操作
+
+## 7. WebFlux 测试
+
+```java
+@WebFluxTest(UserController.class)
+class UserControllerTest {
+
+    @Autowired
+    private WebTestClient webClient;
+
+    @MockBean
+    private UserRepository userRepository;
+
+    @Test
+    void shouldGetUser() {
+        when(userRepository.findById(1L))
+                .thenReturn(Mono.just(new User(1L, "张三", "zhangsan@example.com")));
+
+        webClient.get().uri("/api/users/1")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.name").isEqualTo("张三")
+                .jsonPath("$.email").isEqualTo("zhangsan@example.com");
+    }
+
+    @Test
+    void shouldReturn404WhenNotFound() {
+        when(userRepository.findById(999L)).thenReturn(Mono.empty());
+
+        webClient.get().uri("/api/users/999")
+                .exchange()
+                .expectStatus().isNotFound();
+    }
+
+    @Test
+    void shouldCreateUser() {
+        User saved = new User(1L, "李四", "lisi@example.com");
+        when(userRepository.save(any())).thenReturn(Mono.just(saved));
+
+        webClient.post().uri("/api/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(new CreateUserDTO("李四", "lisi@example.com"))
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody()
+                .jsonPath("$.id").isEqualTo(1)
+                .jsonPath("$.name").isEqualTo("李四");
+    }
+
+    @Test
+    void shouldStreamUsers() {
+        when(userRepository.findAll()).thenReturn(Flux.just(
+                new User(1L, "张三", "a@test.com"),
+                new User(2L, "李四", "b@test.com")
+        ));
+
+        webClient.get().uri("/api/users")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBodyList(User.class)
+                .hasSize(2);
+    }
+}
+```
+
+## 8. 依赖
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-webflux</artifactId>
+</dependency>
+```
+
+> ⚠️ `spring-boot-starter-web` 和 `spring-boot-starter-webflux` 不能同时引入，否则默认使用 MVC。
+
+## 9. WebFlux vs MVC 选择
+
+```text
+需要 WebFlux 吗？
+│
+├── 并发量 > 1000？ ─── 否 → MVC
+│
+├── 有大量 IO 等待？ ─── 否 → MVC
+│
+├── 需要流式响应？ ─── 是 → WebFlux
+│
+├── 团队熟悉响应式？ ─── 否 → MVC + 异步(@Async)
+│
+└── 以上都是 → WebFlux
+```
 
 | 场景 | 选择 | 理由 |
-|------|------|------|
-| 传统 CRUD 应用 | Spring MVC | 生态成熟，学习成本低 |
+| :-- | :-- | :-- |
+| 传统 CRUD | MVC | 生态成熟，学习成本低 |
 | 高并发网关 | WebFlux | 非阻塞，少量线程处理大量连接 |
-| 流式数据处理 | WebFlux | Flux 天然支持流式处理 |
-| 调用多个下游服务 | WebFlux | 并发调用无需线程池 |
-| 团队不熟悉响应式 | Spring MVC | 强行用 WebFlux 反而增加 Bug |
+| 流式数据 | WebFlux | Flux 天然支持 SSE/WebSocket 流 |
+| 调用多个下游 | WebFlux | `Mono.zip` 并发调用，不阻塞 |
+| 团队新手 | MVC | 强行用 WebFlux 反而增加 Bug |
+| 已有阻塞代码 | MVC | 改造成本大，收益不确定 |
 
 **最佳实践：**
 
-1. **WebFlux 中不要调用阻塞 API**——会导致事件循环线程被阻塞，整个系统瘫痪
-2. **阻塞操作用 `Mono.fromCallable()` + `subscribeOn(Schedulers.boundedElastic())`** 隔离
-3. **错误处理用 `onErrorResume` / `onErrorReturn`** 而非 try-catch
-4. **调试困难时使用 `log()` 操作符**追踪数据流
+1. **不要在 WebFlux 中调用阻塞 API**——用 `subscribeOn(Schedulers.boundedElastic())` 隔离
+2. **错误处理用操作符**——`onErrorResume` / `onErrorReturn` / `retryWhen`，而非 try-catch
+3. **调试用 `log()` 操作符**——追踪 Mono/Flux 的订阅、元素、错误信号
+4. **不要随意 `block()`**——只有在非响应式上下文（如 main 方法、测试）中才用
+5. **保持管道简洁**——复杂的响应式链用 `flatMap` 拆分成小方法
+6. **WebClient 优于 RestTemplate**——即使在 MVC 中，WebClient 也支持非阻塞调用
