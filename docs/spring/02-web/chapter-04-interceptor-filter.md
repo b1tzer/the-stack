@@ -2,9 +2,67 @@
 
 > HTTP 请求到达 Controller 之前，有很多通用逻辑需要处理：鉴权、日志、CORS、编码、限流。Spring 提供了两个拦截点：Filter（Servlet 规范，在 DispatcherServlet 之外）和 Interceptor（Spring MVC 规范，在 DispatcherServlet 之内）。类比：Filter 是机场安检——检查所有进入机场的人；Interceptor 是登机口检票——只检查要登机的旅客，能看到你买了什么票、去哪个座位。
 
-## 1. 最小可运行示例
+## 1. Filter vs Interceptor
 
-先跑通一个请求耗时日志拦截器，再解释原理。
+Filter 和 Interceptor 是请求处理管线上的两个拦截点，职责不同：
+
+| 维度 | Filter | Interceptor |
+|------|--------|-------------|
+| 规范 | Servlet（Java EE） | Spring MVC |
+| 作用范围 | 所有请求（包括静态资源） | 只拦截 Controller 方法 |
+| 能拿到 Handler 信息 | ❌ 不能 | ✅ 能拿到 Controller 类名、方法名 |
+| 异常处理 | 不被 `@ExceptionHandler` 捕获 | 被 `@ExceptionHandler` 捕获 |
+| 执行位置 | DispatcherServlet 之外 | DispatcherServlet 之内 |
+| 注册方式 | `FilterRegistrationBean` / `@WebFilter` | `WebMvcConfigurer.addInterceptors()` |
+
+类比：Filter 是机场安检——检查所有进入机场的人，不管你是旅客还是工作人员；Interceptor 是登机口检票——只检查要登机的旅客，能看到你买了什么票、去哪个座位。
+
+**为什么 Filter 拿不到 Handler 信息？** 因为 Filter 执行时，请求还没有进入 DispatcherServlet，HandlerMapping 还没有查找目标 Controller。Filter 看到的是原始的 `HttpServletRequest`，不知道这个请求会被哪个 Controller 处理。
+
+**为什么 Filter 异常不被 `@ExceptionHandler` 捕获？** 因为 `@ExceptionHandler` 是 DispatcherServlet 内部的异常处理机制。Filter 在 DispatcherServlet 之外执行，异常直接由 Servlet 容器（Tomcat）处理，走的是容器的错误页面机制。
+
+### 1.1 执行顺序
+
+```text
+请求进入
+  │
+  ▼
+Filter-1.doFilter()          ← Servlet 容器调用
+  │
+  ▼
+Filter-2.doFilter()
+  │
+  ▼
+DispatcherServlet.doDispatch()
+  │
+  ├── Interceptor-1.preHandle()
+  ├── Interceptor-2.preHandle()
+  │
+  ├── Controller 方法执行
+  │
+  ├── Interceptor-2.postHandle()
+  ├── Interceptor-1.postHandle()    ← 反序
+  │
+  ├── 视图渲染 / 返回值处理
+  │
+  ├── Interceptor-2.afterCompletion()
+  └── Interceptor-1.afterCompletion()  ← 反序
+  │
+  ▼
+Filter-2.doFilter() 返回
+  │
+  ▼
+Filter-1.doFilter() 返回
+```
+
+拦截器三个回调的执行时机：
+- `preHandle`：Controller 执行**之前**，返回 `false` 则中断请求
+- `postHandle`：Controller 执行**之后**，视图渲染**之前**
+- `afterCompletion`：视图渲染**之后**，**无论是否异常都会执行**
+
+理解了两者的区别和执行顺序，下面用一个实际例子把它们跑通。
+
+## 2. 跑通一个请求耗时拦截器
 
 **拦截器：**
 
@@ -48,60 +106,6 @@ public class WebMvcConfig implements WebMvcConfigurer {
 ```
 
 启动后访问任意 `/api/**` 接口，控制台自动打印请求方法、路径、耗时、状态码。这就是拦截器的核心价值：**通用逻辑从业务代码中抽离，集中处理**。
-
-## 2. Filter vs Interceptor
-
-| 维度 | Filter | Interceptor |
-|------|--------|-------------|
-| 规范 | Servlet（Java EE） | Spring MVC |
-| 作用范围 | 所有请求（包括静态资源） | 只拦截 Controller 方法 |
-| 能拿到 Handler 信息 | ❌ 不能 | ✅ 能拿到 Controller 类名、方法名 |
-| 异常处理 | 不被 `@ExceptionHandler` 捕获 | 被 `@ExceptionHandler` 捕获 |
-| 执行位置 | DispatcherServlet 之外 | DispatcherServlet 之内 |
-| 注册方式 | `FilterRegistrationBean` / `@WebFilter` | `WebMvcConfigurer.addInterceptors()` |
-
-**为什么 Filter 拿不到 Handler 信息？** 因为 Filter 执行时，请求还没有进入 DispatcherServlet，HandlerMapping 还没有查找目标 Controller。Filter 看到的是原始的 `HttpServletRequest`，不知道这个请求会被哪个 Controller 处理。
-
-**为什么 Filter 异常不被 `@ExceptionHandler` 捕获？** 因为 `@ExceptionHandler` 是 DispatcherServlet 内部的异常处理机制。Filter 在 DispatcherServlet 之外执行，异常直接由 Servlet 容器（Tomcat）处理，走的是容器的错误页面机制。
-
-### 2.1 执行顺序
-
-```text
-请求进入
-  │
-  ▼
-Filter-1.doFilter()          ← Servlet 容器调用
-  │
-  ▼
-Filter-2.doFilter()
-  │
-  ▼
-DispatcherServlet.doDispatch()
-  │
-  ├── Interceptor-1.preHandle()
-  ├── Interceptor-2.preHandle()
-  │
-  ├── Controller 方法执行
-  │
-  ├── Interceptor-2.postHandle()
-  ├── Interceptor-1.postHandle()    ← 反序
-  │
-  ├── 视图渲染 / 返回值处理
-  │
-  ├── Interceptor-2.afterCompletion()
-  └── Interceptor-1.afterCompletion()  ← 反序
-  │
-  ▼
-Filter-2.doFilter() 返回
-  │
-  ▼
-Filter-1.doFilter() 返回
-```
-
-拦截器三个回调的执行时机：
-- `preHandle`：Controller 执行**之前**，返回 `false` 则中断请求
-- `postHandle`：Controller 执行**之后**，视图渲染**之前**
-- `afterCompletion`：视图渲染**之后**，**无论是否异常都会执行**
 
 ## 3. Filter 注册
 
