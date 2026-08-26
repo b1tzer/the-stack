@@ -2,13 +2,138 @@
 
 > **核心问题**：如何在开发过程中融入安全？安全编码规范有哪些？
 
----
-
 ## 1. 安全编码规范
 
-```java\n// 规范 1：输入校验\n// 所有外部输入必须校验\npublic class InputValidator {\n    \n    public static String sanitize(String input) {\n        if (input == null) return null;\n        // 去除前后空白\n        input = input.trim();\n        // 限制长度\n        if (input.length() > 1000) {\n            throw new IllegalArgumentException(\"输入过长\");\n        }\n        // HTML 转义\n        return StringEscapeUtils.escapeHtml4(input);\n    }\n    \n    public static boolean isValidEmail(String email) {\n        return email != null && email.matches(\"^[\\\\w.-]+@[\\\\w.-]+\\\\.[a-zA-Z]{2,}$\");\n    }\n    \n    public static boolean isValidPhone(String phone) {\n        return phone != null && phone.matches(\"^1[3-9]\\\\d{9}$\");\n    }\n}\n\n// 规范 2：敏感数据处理\npublic class SensitiveDataUtil {\n    \n    // 手机号脱敏：138****1234\n    public static String maskPhone(String phone) {\n        if (phone == null || phone.length() < 7) return phone;\n        return phone.substring(0, 3) + \"****\" + phone.substring(7);\n    }\n    \n    // 身份证脱敏：110***********1234\n    public static String maskIdCard(String idCard) {\n        if (idCard == null || idCard.length() < 8) return idCard;\n        return idCard.substring(0, 3) + \"***********\" + idCard.substring(idCard.length() - 4);\n    }\n    \n    // 邮箱脱敏：z***@example.com\n    public static String maskEmail(String email) {\n        if (email == null || !email.contains(\"@\")) return email;\n        int at = email.indexOf('@');\n        return email.charAt(0) + \"***\" + email.substring(at);\n    }\n}\n\n// 规范 3：密码安全\npublic class PasswordPolicy {\n    \n    public static boolean isStrongPassword(String password) {\n        if (password == null || password.length() < 8) return false;\n        boolean hasUpper = password.chars().anyMatch(Character::isUpperCase);\n        boolean hasLower = password.chars().anyMatch(Character::isLowerCase);\n        boolean hasDigit = password.chars().anyMatch(Character::isDigit);\n        boolean hasSpecial = password.chars().anyMatch(c -> \"!@#$%^&*\".indexOf(c) >= 0);\n        return hasUpper && hasLower && hasDigit && hasSpecial;\n    }\n}\n```\n\n## 2. 日志安全\n\n```java\n// 差：日志中记录敏感信息\nlog.info(\"用户登录: username={}, password={}\", username, password);\nlog.info(\"支付信息: cardNo={}, cvv={}\", cardNo, cvv);\n\n// 好：日志脱敏\nlog.info(\"用户登录: username={}\", username);  // 不记录密码\nlog.info(\"支付信息: cardNo={}\", SensitiveDataUtil.maskPhone(cardNo));\n```\n\n## 3. API 安全\n\n```java\n// API 安全清单\n// 1. HTTPS 强制\n// 2. 认证（JWT/Session）\n// 3. 授权（RBAC/ABAC）\n// 4. 限流（防 DDoS）\n// 5. 输入校验\n// 6. CORS 配置\n\n@Configuration\npublic class WebSecurityConfig {\n    \n    @Bean\n    public CorsConfigurationSource corsConfigurationSource() {\n        CorsConfiguration config = new CorsConfiguration();\n        config.setAllowedOrigins(List.of(\"https://www.example.com\"));  // 不要用 *\n        config.setAllowedMethods(List.of(\"GET\", \"POST\", \"PUT\", \"DELETE\"));\n        config.setAllowedHeaders(List.of(\"Authorization\", \"Content-Type\"));\n        config.setAllowCredentials(true);\n        config.setMaxAge(3600L);\n        \n        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();\n        source.registerCorsConfiguration(\"/api/**\", config);\n        return source;\n    }\n}\n```\n\n## 4. 依赖安全\n\n```bash\n# 使用 OWASP Dependency-Check 检查依赖漏洞\nmvn org.owasp:dependency-check-maven:check\n\n# 使用 Snyk 检查\nsnyk test\n\n# 定期更新依赖\nmvn versions:display-dependency-updates\n```\n\n## 5. 安全开发流程\n\n| 阶段 | 安全活动 |\n|------|----------|\n| 需求 | 安全需求分析、威胁建模 |\n| 设计 | 安全架构评审 |\n| 编码 | 安全编码规范、代码审查 |\n| 测试 | 安全测试（渗透测试、漏洞扫描） |\n| 部署 | 安全配置检查 |\n| 运维 | 安全监控、应急响应 |\n\n> **安全的核心**：安全是过程，不是产品。它需要在开发的每个阶段持续关注，而不是上线前的临时抱佛脚。
+```java
+// 规范 1：输入校验
+// 所有外部输入必须校验
+public class InputValidator {
+    
+    public static String sanitize(String input) {
+        if (input == null) return null;
+        // 去除前后空白
+        input = input.trim();
+        // 限制长度
+        if (input.length() > 1000) {
+            throw new IllegalArgumentException(\"输入过长\");
+        }
+        // HTML 转义
+        return StringEscapeUtils.escapeHtml4(input);
+    }
+    
+    public static boolean isValidEmail(String email) {
+        return email != null && email.matches(\"^[\\\\w.-]+@[\\\\w.-]+\\\\.[a-zA-Z]{2,}$\");
+    }
+    
+    public static boolean isValidPhone(String phone) {
+        return phone != null && phone.matches(\"^1[3-9]\\\\d{9}$\");
+    }
+}
 
----
+// 规范 2：敏感数据处理
+public class SensitiveDataUtil {
+    
+    // 手机号脱敏：138****1234
+    public static String maskPhone(String phone) {
+        if (phone == null || phone.length() < 7) return phone;
+        return phone.substring(0, 3) + \"****\" + phone.substring(7);
+    }
+    
+    // 身份证脱敏：110***********1234
+    public static String maskIdCard(String idCard) {
+        if (idCard == null || idCard.length() < 8) return idCard;
+        return idCard.substring(0, 3) + \"***********\" + idCard.substring(idCard.length() - 4);
+    }
+    
+    // 邮箱脱敏：z***@example.com
+    public static String maskEmail(String email) {
+        if (email == null || !email.contains(\"@\")) return email;
+        int at = email.indexOf('@');
+        return email.charAt(0) + \"***\" + email.substring(at);
+    }
+}
+
+// 规范 3：密码安全
+public class PasswordPolicy {
+    
+    public static boolean isStrongPassword(String password) {
+        if (password == null || password.length() < 8) return false;
+        boolean hasUpper = password.chars().anyMatch(Character::isUpperCase);
+        boolean hasLower = password.chars().anyMatch(Character::isLowerCase);
+        boolean hasDigit = password.chars().anyMatch(Character::isDigit);
+        boolean hasSpecial = password.chars().anyMatch(c -> \"!@#$%^&*\".indexOf(c) >= 0);
+        return hasUpper && hasLower && hasDigit && hasSpecial;
+    }
+}
+```
+
+## 2. 日志安全
+
+```java
+// 差：日志中记录敏感信息
+log.info(\"用户登录: username={}, password={}\", username, password);
+log.info(\"支付信息: cardNo={}, cvv={}\", cardNo, cvv);
+
+// 好：日志脱敏
+log.info(\"用户登录: username={}\", username);  // 不记录密码
+log.info(\"支付信息: cardNo={}\", SensitiveDataUtil.maskPhone(cardNo));
+```
+
+## 3. API 安全
+
+```java
+// API 安全清单
+// 1. HTTPS 强制
+// 2. 认证（JWT/Session）
+// 3. 授权（RBAC/ABAC）
+// 4. 限流（防 DDoS）
+// 5. 输入校验
+// 6. CORS 配置
+
+@Configuration
+public class WebSecurityConfig {
+    
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(List.of(\"https://www.example.com\"));  // 不要用 *
+        config.setAllowedMethods(List.of(\"GET\", \"POST\", \"PUT\", \"DELETE\"));
+        config.setAllowedHeaders(List.of(\"Authorization\", \"Content-Type\"));
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
+        
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration(\"/api/**\", config);
+        return source;
+    }
+}
+```
+
+## 4. 依赖安全
+
+```bash
+# 使用 OWASP Dependency-Check 检查依赖漏洞
+mvn org.owasp:dependency-check-maven:check
+
+# 使用 Snyk 检查
+snyk test
+
+# 定期更新依赖
+mvn versions:display-dependency-updates
+```
+
+## 5. 安全开发流程
+
+| 阶段 | 安全活动 |
+|------|----------|
+| 需求 | 安全需求分析、威胁建模 |
+| 设计 | 安全架构评审 |
+| 编码 | 安全编码规范、代码审查 |
+| 测试 | 安全测试（渗透测试、漏洞扫描） |
+| 部署 | 安全配置检查 |
+| 运维 | 安全监控、应急响应 |
+
+> **安全的核心**：安全是过程，不是产品。它需要在开发的每个阶段持续关注，而不是上线前的临时抱佛脚。
 
 ## 6. 敏感数据存储加密
 
@@ -94,4 +219,4 @@ public class AuditAspect {
         }
     }
 }
-```\n
+```

@@ -2,8 +2,6 @@
 
 > **核心问题**：如何写好单元测试？测试金字塔是什么？如何提高测试覆盖率？
 
----
-
 ## 1. 测试金字塔
 
 ```
@@ -118,4 +116,35 @@ class OrderRepositoryTest {
 ## 4. 测试覆盖率
 
 ```java
-// JaCoCo 配置（pom.xml）\n// <plugin>\n//   <groupId>org.jacoco</groupId>\n//   <artifactId>jacoco-maven-plugin</artifactId>\n//   <executions>\n//     <execution>\n//       <goals><goal>prepare-agent</goal></goals>\n//     </execution>\n//     <execution>\n//       <id>report</id>\n//       <phase>test</phase>\n//       <goals><goal>report</goal></goals>\n//     </execution>\n//   </executions>\n// </plugin>\n\n// 覆盖率目标\n// - 行覆盖率 > 80%\n// - 分支覆盖率 > 70%\n// - 核心业务逻辑 > 90%\n```\n\n## 5. 测试策略\n\n| 模块 | 测试策略 | 覆盖率目标 |\n|------|---------|-----------|\\n| 领域层 | 充分单元测试 | > 90% |\n| 应用层 | 单元测试 + 集成测试 | > 80% |\n| 基础设施层 | 集成测试 | > 60% |\n| 接口层 | 集成测试 | > 70% |\n\n> **核心原则**：测试不是为了覆盖率数字，而是为了信心。好的测试让你敢改代码、敢重构、敢发布。\n
+// JaCoCo 配置（pom.xml）
+// <plugin>
+//   <groupId>org.jacoco</groupId>
+//   <artifactId>jacoco-maven-plugin</artifactId>
+//   <executions>
+//     <execution>
+//       <goals><goal>prepare-agent</goal></goals>
+//     </execution>
+//     <execution>
+//       <id>report</id>
+//       <phase>test</phase>
+//       <goals><goal>report</goal></goals>
+//     </execution>
+//   </executions>
+// </plugin>
+
+// 覆盖率目标
+// - 行覆盖率 > 80%
+// - 分支覆盖率 > 70%
+// - 核心业务逻辑 > 90%
+```
+
+## 5. 测试策略
+
+| 模块 | 测试策略 | 覆盖率目标 |
+|------|---------|-----------|\
+| 领域层 | 充分单元测试 | > 90% |
+| 应用层 | 单元测试 + 集成测试 | > 80% |
+| 基础设施层 | 集成测试 | > 60% |
+| 接口层 | 集成测试 | > 70% |
+
+> **核心原则**：测试不是为了覆盖率数字，而是为了信心。好的测试让你敢改代码、敢重构、敢发布。

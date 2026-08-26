@@ -2,8 +2,138 @@
 
 > **核心问题**：RBAC 和 ABAC 有什么区别？如何实现细粒度的权限控制？
 
----
-
 ## 1. RBAC（基于角色的访问控制）
 
-```java\n// RBAC 模型：用户 -> 角色 -> 权限\n// 一个用户可以有多个角色，一个角色可以有多个权限\n\n// 数据库设计\n// users: id, username, password\n// roles: id, name (ADMIN, USER, MANAGER)\n// permissions: id, name (user:read, user:write, order:read)\n// user_roles: user_id, role_id\n// role_permissions: role_id, permission_id\n\n// Spring Security RBAC 配置\n@Configuration\n@EnableMethodSecurity\npublic class MethodSecurityConfig {\n    \n    @Bean\n    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {\n        http.authorizeHttpRequests(auth -> auth\n            .requestMatchers(\"/api/admin/**\").hasRole(\"ADMIN\")\n            .requestMatchers(\"/api/user/**\").hasAnyRole(\"USER\", \"ADMIN\")\n            .requestMatchers(HttpMethod.GET, \"/api/products/**\").permitAll()\n            .requestMatchers(HttpMethod.POST, \"/api/orders/**\").authenticated()\n            .anyRequest().denyAll()\n        );\n        return http.build();\n    }\n}\n\n// 方法级别权限控制\n@Service\npublic class UserService {\n    \n    @PreAuthorize(\"hasRole('ADMIN')\")\n    public void deleteUser(Long userId) {\n        // 只有管理员可以删除用户\n    }\n    \n    @PreAuthorize(\"hasRole('ADMIN') or #userId == authentication.principal.id\")\n    public UserVO getUser(Long userId) {\n        // 管理员可以看任何人，普通用户只能看自己\n        return null;\n    }\n    \n    @PreAuthorize(\"hasAuthority('order:write')\")\n    public void createOrder(OrderCommand cmd) {\n        // 需要 order:write 权限\n    }\n}\n```\n\n## 2. ABAC（基于属性的访问控制）\n\n```java\n// ABAC：基于用户属性、资源属性、环境属性做决策\n// 更灵活，适合复杂权限场景\n\n// 示例：基于时间、地点、用户属性的权限控制\npublic class AccessDecisionService {\n    \n    public boolean canAccess(User user, Resource resource, RequestContext context) {\n        // 规则 1：管理员可以访问所有资源\n        if (user.hasRole(\"ADMIN\")) return true;\n        \n        // 规则 2：资源拥有者可以访问自己的资源\n        if (resource.getOwnerId().equals(user.getId())) return true;\n        \n        // 规则 3：工作时间内，经理可以访问部门资源\n        if (user.hasRole(\"MANAGER\") \n            && isWorkingHours(context.getCurrentTime())\n            && resource.getDepartmentId().equals(user.getDepartmentId())) {\n            return true;\n        }\n        \n        // 规则 4：IP 白名单内的请求可以访问\n        if (isInWhitelist(context.getClientIp())) return true;\n        \n        return false;\n    }\n    \n    private boolean isWorkingHours(LocalDateTime time) {\n        int hour = time.getHour();\n        return hour >= 9 && hour < 18;\n    }\n}\n```\n\n## 3. RBAC vs ABAC 对比\n\n| 维度 | RBAC | ABAC |\n|------|------|------|\n| 灵活性 | 低（角色固定） | 高（任意属性组合） |\n| 复杂度 | 低 | 高 |\n| 适用场景 | 权限相对固定 | 权限规则复杂、动态 |\n| 管理成本 | 低（管理角色） | 高（管理策略） |\n| 示例 | 后台管理系统 | 云平台、多租户系统 |\n\n## 4. 数据权限\n\n```java\n// 数据权限：不同用户看到不同的数据范围\n// 管理员：看到所有数据\n// 部门经理：看到本部门数据\n// 普通员工：只看到自己的数据\n\n// MyBatis 拦截器实现数据权限\n@Intercepts({@Signature(type = StatementHandler.class, method = \"prepare\", args = {Connection.class, Integer.class})})\npublic class DataPermissionInterceptor implements Interceptor {\n    \n    @Override\n    public Object intercept(Invocation invocation) throws Throwable {\n        StatementHandler handler = (StatementHandler) invocation.getTarget();\n        String sql = handler.getBoundSql().getSql();\n        \n        // 根据当前用户的数据权限，追加 WHERE 条件\n        User currentUser = SecurityUtils.getCurrentUser();\n        if (currentUser.getDataScope() == DataScope.DEPARTMENT) {\n            sql = sql + \" AND department_id = \" + currentUser.getDepartmentId();\n        } else if (currentUser.getDataScope() == DataScope.SELF) {\n            sql = sql + \" AND creator_id = \" + currentUser.getId();\n        }\n        \n        // 反射修改 SQL\n        Field sqlField = handler.getBoundSql().getClass().getDeclaredField(\"sql\");\n        sqlField.setAccessible(true);\n        sqlField.set(handler.getBoundSql(), sql);\n        \n        return invocation.proceed();\n    }\n}\n```\n\n> **授权的核心**：验证"你能做什么"。RBAC 适合大多数场景，ABAC 适合复杂场景。数据权限是授权的重要组成部分，不能只控制功能权限而忽略数据权限。\n
+```java
+// RBAC 模型：用户 -> 角色 -> 权限
+// 一个用户可以有多个角色，一个角色可以有多个权限
+
+// 数据库设计
+// users: id, username, password
+// roles: id, name (ADMIN, USER, MANAGER)
+// permissions: id, name (user:read, user:write, order:read)
+// user_roles: user_id, role_id
+// role_permissions: role_id, permission_id
+
+// Spring Security RBAC 配置
+@Configuration
+@EnableMethodSecurity
+public class MethodSecurityConfig {
+    
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http.authorizeHttpRequests(auth -> auth
+            .requestMatchers(\"/api/admin/**\").hasRole(\"ADMIN\")
+            .requestMatchers(\"/api/user/**\").hasAnyRole(\"USER\", \"ADMIN\")
+            .requestMatchers(HttpMethod.GET, \"/api/products/**\").permitAll()
+            .requestMatchers(HttpMethod.POST, \"/api/orders/**\").authenticated()
+            .anyRequest().denyAll()
+        );
+        return http.build();
+    }
+}
+
+// 方法级别权限控制
+@Service
+public class UserService {
+    
+    @PreAuthorize(\"hasRole('ADMIN')\")
+    public void deleteUser(Long userId) {
+        // 只有管理员可以删除用户
+    }
+    
+    @PreAuthorize(\"hasRole('ADMIN') or #userId == authentication.principal.id\")
+    public UserVO getUser(Long userId) {
+        // 管理员可以看任何人，普通用户只能看自己
+        return null;
+    }
+    
+    @PreAuthorize(\"hasAuthority('order:write')\")
+    public void createOrder(OrderCommand cmd) {
+        // 需要 order:write 权限
+    }
+}
+```
+
+## 2. ABAC（基于属性的访问控制）
+
+```java
+// ABAC：基于用户属性、资源属性、环境属性做决策
+// 更灵活，适合复杂权限场景
+
+// 示例：基于时间、地点、用户属性的权限控制
+public class AccessDecisionService {
+    
+    public boolean canAccess(User user, Resource resource, RequestContext context) {
+        // 规则 1：管理员可以访问所有资源
+        if (user.hasRole(\"ADMIN\")) return true;
+        
+        // 规则 2：资源拥有者可以访问自己的资源
+        if (resource.getOwnerId().equals(user.getId())) return true;
+        
+        // 规则 3：工作时间内，经理可以访问部门资源
+        if (user.hasRole(\"MANAGER\") 
+            && isWorkingHours(context.getCurrentTime())
+            && resource.getDepartmentId().equals(user.getDepartmentId())) {
+            return true;
+        }
+        
+        // 规则 4：IP 白名单内的请求可以访问
+        if (isInWhitelist(context.getClientIp())) return true;
+        
+        return false;
+    }
+    
+    private boolean isWorkingHours(LocalDateTime time) {
+        int hour = time.getHour();
+        return hour >= 9 && hour < 18;
+    }
+}
+```
+
+## 3. RBAC vs ABAC 对比
+
+| 维度 | RBAC | ABAC |
+|------|------|------|
+| 灵活性 | 低（角色固定） | 高（任意属性组合） |
+| 复杂度 | 低 | 高 |
+| 适用场景 | 权限相对固定 | 权限规则复杂、动态 |
+| 管理成本 | 低（管理角色） | 高（管理策略） |
+| 示例 | 后台管理系统 | 云平台、多租户系统 |
+
+## 4. 数据权限
+
+```java
+// 数据权限：不同用户看到不同的数据范围
+// 管理员：看到所有数据
+// 部门经理：看到本部门数据
+// 普通员工：只看到自己的数据
+
+// MyBatis 拦截器实现数据权限
+@Intercepts({@Signature(type = StatementHandler.class, method = \"prepare\", args = {Connection.class, Integer.class})})
+public class DataPermissionInterceptor implements Interceptor {
+    
+    @Override
+    public Object intercept(Invocation invocation) throws Throwable {
+        StatementHandler handler = (StatementHandler) invocation.getTarget();
+        String sql = handler.getBoundSql().getSql();
+        
+        // 根据当前用户的数据权限，追加 WHERE 条件
+        User currentUser = SecurityUtils.getCurrentUser();
+        if (currentUser.getDataScope() == DataScope.DEPARTMENT) {
+            sql = sql + \" AND department_id = \" + currentUser.getDepartmentId();
+        } else if (currentUser.getDataScope() == DataScope.SELF) {
+            sql = sql + \" AND creator_id = \" + currentUser.getId();
+        }
+        
+        // 反射修改 SQL
+        Field sqlField = handler.getBoundSql().getClass().getDeclaredField(\"sql\");
+        sqlField.setAccessible(true);
+        sqlField.set(handler.getBoundSql(), sql);
+        
+        return invocation.proceed();
+    }
+}
+```
+
+> **授权的核心**：验证"你能做什么"。RBAC 适合大多数场景，ABAC 适合复杂场景。数据权限是授权的重要组成部分，不能只控制功能权限而忽略数据权限。

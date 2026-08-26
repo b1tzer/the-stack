@@ -2,8 +2,6 @@
 
 > **核心问题**：如何合理拆分微服务？服务间如何通信？如何处理分布式事务？
 
----
-
 ## 1. 服务拆分原则
 
 | 原则 | 说明 | 示例 |
@@ -123,4 +121,57 @@ public class CreateOrderSaga {
                 paymentService.refund(orderId);      // Step 3 补偿
                 inventoryService.restore(orderId);    // Step 2 补偿
                 orderService.cancel(orderId);         // Step 1 补偿
-            }\n            throw new OrderCreationException(\"订单创建失败\", e);\n        }\n    }\n}\n```\n\n### 3.2 本地消息表\n\n```java\n// 在同一个本地事务中写入业务数据和消息\n@Transactional\npublic void createOrder(Order order) {\n    // 1. 保存订单\n    orderRepository.save(order);\n    \n    // 2. 保存消息到本地消息表（同一事务）\n    OutboxMessage msg = new OutboxMessage(\n        \"order-created\",\n        toJson(new OrderCreatedEvent(order.getId())),\n        \"PENDING\"\n    );\n    outboxRepository.save(msg);\n}\n\n// 后台任务：扫描并发送消息\n@Scheduled(fixedDelay = 1000)\npublic void publishPendingMessages() {\n    List<OutboxMessage> messages = outboxRepository.findByStatus(\"PENDING\");\n    for (OutboxMessage msg : messages) {\n        try {\n            rocketMQTemplate.send(msg.getTopic(), msg.getPayload());\n            msg.setStatus(\"SENT\");\n            outboxRepository.save(msg);\n        } catch (Exception e) {\n            msg.setRetryCount(msg.getRetryCount() + 1);\n            outboxRepository.save(msg);\n        }\n    }\n}\n```\n\n## 4. 服务治理\n\n| 治理能力 | 工具 | 说明 |\n|---------|------|------|\n| 注册发现 | Nacos、Eureka | 服务自动注册与发现 |\n| 负载均衡 | Ribbon、Spring Cloud LoadBalancer | 客户端负载均衡 |\n| 熔断降级 | Sentinel、Resilience4j | 防止级联故障 |\n| 配置中心 | Nacos Config、Apollo | 动态配置管理 |\n| 链路追踪 | SkyWalking、Zipkin | 分布式调用链追踪 |\n| API 网关 | Spring Cloud Gateway、Kong | 统一入口、鉴权、限流 |\n\n> **核心原则**：微服务不是银弹。先从单体开始，当团队规模和业务复杂度增长到一定程度时，再逐步拆分。拆分时按业务域拆分，保持高内聚低耦合。\n
+            }
+            throw new OrderCreationException(\"订单创建失败\", e);
+        }
+    }
+}
+```
+
+### 3.2 本地消息表
+
+```java
+// 在同一个本地事务中写入业务数据和消息
+@Transactional
+public void createOrder(Order order) {
+    // 1. 保存订单
+    orderRepository.save(order);
+    
+    // 2. 保存消息到本地消息表（同一事务）
+    OutboxMessage msg = new OutboxMessage(
+        \"order-created\",
+        toJson(new OrderCreatedEvent(order.getId())),
+        \"PENDING\"
+    );
+    outboxRepository.save(msg);
+}
+
+// 后台任务：扫描并发送消息
+@Scheduled(fixedDelay = 1000)
+public void publishPendingMessages() {
+    List<OutboxMessage> messages = outboxRepository.findByStatus(\"PENDING\");
+    for (OutboxMessage msg : messages) {
+        try {
+            rocketMQTemplate.send(msg.getTopic(), msg.getPayload());
+            msg.setStatus(\"SENT\");
+            outboxRepository.save(msg);
+        } catch (Exception e) {
+            msg.setRetryCount(msg.getRetryCount() + 1);
+            outboxRepository.save(msg);
+        }
+    }
+}
+```
+
+## 4. 服务治理
+
+| 治理能力 | 工具 | 说明 |
+|---------|------|------|
+| 注册发现 | Nacos、Eureka | 服务自动注册与发现 |
+| 负载均衡 | Ribbon、Spring Cloud LoadBalancer | 客户端负载均衡 |
+| 熔断降级 | Sentinel、Resilience4j | 防止级联故障 |
+| 配置中心 | Nacos Config、Apollo | 动态配置管理 |
+| 链路追踪 | SkyWalking、Zipkin | 分布式调用链追踪 |
+| API 网关 | Spring Cloud Gateway、Kong | 统一入口、鉴权、限流 |
+
+> **核心原则**：微服务不是银弹。先从单体开始，当团队规模和业务复杂度增长到一定程度时，再逐步拆分。拆分时按业务域拆分，保持高内聚低耦合。

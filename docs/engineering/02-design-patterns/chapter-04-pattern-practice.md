@@ -2,8 +2,6 @@
 
 > **核心问题**：在实际项目中如何选择合适的设计模式？如何避免模式的过度使用？模式之间如何组合？
 
----
-
 ## 1. 模式选型决策框架
 
 选择设计模式时，关键不是"我该用哪个模式"，而是"我遇到了什么问题"。
@@ -162,7 +160,19 @@ Order result = pipeline.process(order);
 | 忽视语言特性 | 用策略模式替代简单 Lambda | Java 8+ 的函数式接口更简洁 |
 
 ```java
-// 过度设计：简单场景不需要策略模式\ninterface StringValidator {\n    boolean validate(String s);\n}\nclass EmailValidator implements StringValidator { /* ... */ }\nclass PhoneValidator implements StringValidator { /* ... */ }\n\n// 合理设计：用 Lambda 简化\nMap<String, Predicate<String>> validators = Map.of(\n    \"email\", s -> s.matches(\"[\\\\w.]+@[\\\\w.]+\"),\n    \"phone\", s -> s.matches(\"1\\\\d{10}\")\n);\n```
+// 过度设计：简单场景不需要策略模式
+interface StringValidator {
+    boolean validate(String s);
+}
+class EmailValidator implements StringValidator { /* ... */ }
+class PhoneValidator implements StringValidator { /* ... */ }
+
+// 合理设计：用 Lambda 简化
+Map<String, Predicate<String>> validators = Map.of(
+    \"email\", s -> s.matches(\"[\\\\w.]+@[\\\\w.]+\"),
+    \"phone\", s -> s.matches(\"1\\\\d{10}\")
+);
+```
 
 ## 4. 框架中的模式应用
 

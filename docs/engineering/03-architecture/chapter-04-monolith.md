@@ -2,8 +2,6 @@
 
 > **核心问题**：如何在单体架构中保持代码的模块化？如何为未来可能的微服务拆分做好准备？
 
----
-
 ## 1. 什么是模块化单体
 
 模块化单体是在一个部署单元内，按业务域划分模块，每个模块有清晰的边界和独立的数据模型。
@@ -114,4 +112,34 @@ public class OrderService {
 ## 5. Spring Modulith
 
 ```java
-// Spring Modulith 提供了模块化单体的开箱即用支持\n// 自动检测模块边界违规\n\n// 模块结构：\n// com.example.app\n//   ├── user/          // 用户模块\n//   │   ├── User.java\n//   │   └── UserService.java\n//   ├── order/         // 订单模块\n//   │   ├── Order.java\n//   │   └── OrderService.java\n//   └── shared/        // 共享内核\n//       └── EventPublisher.java\n\n// 模块间通过 ApplicationEvent 通信\n@Service\npublic class OrderService {\n    private final ApplicationEventPublisher events;\n    \n    public OrderService(ApplicationEventPublisher events) {\n        this.events = events;\n    }\n    \n    public void createOrder(Long userId) {\n        // 创建订单\n        events.publishEvent(new OrderCreatedEvent(userId));\n    }\n}\n```\n\n> **核心理念**：模块化单体是微服务的"训练轮"。它让你在享受单体简单性的同时，建立清晰的模块边界。当业务需要时，可以平滑地拆分为微服务。\n
+// Spring Modulith 提供了模块化单体的开箱即用支持
+// 自动检测模块边界违规
+
+// 模块结构：
+// com.example.app
+//   ├── user/          // 用户模块
+//   │   ├── User.java
+//   │   └── UserService.java
+//   ├── order/         // 订单模块
+//   │   ├── Order.java
+//   │   └── OrderService.java
+//   └── shared/        // 共享内核
+//       └── EventPublisher.java
+
+// 模块间通过 ApplicationEvent 通信
+@Service
+public class OrderService {
+    private final ApplicationEventPublisher events;
+    
+    public OrderService(ApplicationEventPublisher events) {
+        this.events = events;
+    }
+    
+    public void createOrder(Long userId) {
+        // 创建订单
+        events.publishEvent(new OrderCreatedEvent(userId));
+    }
+}
+```
+
+> **核心理念**：模块化单体是微服务的"训练轮"。它让你在享受单体简单性的同时，建立清晰的模块边界。当业务需要时，可以平滑地拆分为微服务。
