@@ -532,17 +532,3 @@ M6 不是 GA，升级到 1.0.0 时会有少量 API 重命名（`BaseAdvisor` →
 
 > **💡 Spring AI 不是"Java 版 LangChain"，它是让 LLM 变成 `@Bean` 的 Spring 风格 AI 框架。**
 > **`ChatClient` + `Advisor` + `@Tool` + MCP Starter 四件套，覆盖 90% 企业 AI 场景**——记忆、知识、工具、生态，一个 `@Bean` 全搞定。
-
-## 附录：和前后文档的关系
-
-| 本篇用到的前置知识 | 来源 |
-| :-- | :-- |
-| `messages` 协议、`role` 家族、流式 SSE | [01 篇 §3](01-LLM接口与提示词工程.md) |
-| Embedding、VectorStore、Chunking、Hybrid Search | [02 篇 §3~§6](02-RAG架构与工程落地.md) |
-| Function Calling 三元闭环、工具设计 6 规约、Agent Runtime | [03 篇 §2~§4](03-FunctionCalling与Agent范式.md) |
-
-| 本篇未展开、延伸阅读 | 去处 |
-| :-- | :-- |
-| MCP 协议本身（Tool / Resource / Prompt 三件套） | [05 篇](05-MCP协议与OpenClawSkill实战.md) |
-| 写一个 MCP Server（网易云歌单 Skill 实战） | [05 篇](05-MCP协议与OpenClawSkill实战.md) |
-| Spring AOP 原生机制（对比理解 Advisor） | [AOP面向切面编程](../spring/01-core/chapter-06-aop.md) |
