@@ -16,7 +16,6 @@
 
 ### 02-Web开发
 - [Spring MVC](02-web/chapter-01-spring-mvc) — 请求处理全流程、DispatcherServlet
-- [RESTful API](02-web/chapter-02-rest-api) — 设计规范、内容协商、异常处理
 - [参数校验与数据绑定](02-web/chapter-03-validation-binding) — Bean Validation
 - [拦截器与过滤器](02-web/chapter-04-interceptor-filter) — Filter vs Interceptor
 - [WebFlux 响应式编程](02-web/chapter-05-webflux) — Mono/Flux、RouterFunction

@@ -575,3 +575,5 @@ public class ExceptionHandlerFilter extends OncePerRequestFilter {
 ```
 
 > 从 Servlet 到 DispatcherServlet，请求处理链路已经清楚了。但配置一个 Spring MVC 项目要写一堆 XML——web.xml、spring-mvc.xml、applicationContext.xml。Spring Boot 把这些全干掉了。下一章看它是怎么做到"开箱即用"的。
+>
+> 如果你关心的是「怎么设计一个好的 API」而不是「Spring 怎么处理请求」，参见 [API 设计](/engineering/09-practice/chapter-01-api-design)。
