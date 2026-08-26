@@ -151,7 +151,6 @@ export default withOpenInEditor(defineConfig({
           text: 'Web 开发',
           items: [
             { text: 'Spring MVC', link: '/spring/02-web/chapter-01-spring-mvc' },
-            { text: 'RESTful API', link: '/spring/02-web/chapter-02-rest-api' },
             { text: '参数校验', link: '/spring/02-web/chapter-03-validation-binding' },
             { text: '拦截器与过滤器', link: '/spring/02-web/chapter-04-interceptor-filter' },
             { text: 'WebFlux', link: '/spring/02-web/chapter-05-webflux' },
