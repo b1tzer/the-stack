@@ -49,9 +49,10 @@ const GROUP_NAMES = {
   'cache-engineering': '缓存工程',
   'high-availability': '高可用',
   'intro': '入门',
+  'ai-engineering': 'AI 工程',
 };
 
-const SKIP_SECTIONS = ['ai'];
+const SKIP_SECTIONS = [];
 
 function parseIndexMd(filePath, sectionName) {
   const content = readFileSync(filePath, 'utf-8');
