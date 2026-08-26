@@ -20,9 +20,11 @@ SSE 和 WebSocket 都能实现服务端推送，但适用场景不同：
 
 WebSocket 的完整用法参见 [WebSocket 实时通信](/spring/02-web/chapter-06-websocket)。下面用一个最简示例跑通 SSE。
 
-## 2. 跑通一个 SSE 端点
+## 2. Spring MVC 实现
 
 **依赖：** Spring Boot Starter Web（已包含，无需额外依赖）。
+
+最简的 SSE 端点，浏览器打开 `http://localhost:8080/stream` 就能看到每秒刷新的数据流：
 
 ```java
 @RestController
@@ -40,21 +42,7 @@ public class SseController {
 }
 ```
 
-浏览器直接打开 `http://localhost:8080/stream`，看到每秒刷新的数据流：
-
-```text
-id:0
-event:heartbeat
-data:ping 0
-
-id:1
-event:heartbeat
-data:ping 1
-```
-
-三行核心代码，一个能跑的 SSE 端点。接下来深入 Spring MVC 和 WebFlux 两种实现方式。
-
-## 3. Spring MVC 实现
+实际项目中，SSE 通常用 `SseEmitter` 配合服务类实现消息推送：
 
 ### 3.1 SseEmitter
 
@@ -161,7 +149,7 @@ public SseEmitter streamEvents(HttpServletRequest request) {
 
 这是 SSE 相比 WebSocket 的核心优势之一——浏览器原生支持断线重连 + `Last-Event-ID`，无需自己实现重连逻辑。
 
-## 4. WebFlux 响应式实现
+## 3. WebFlux 响应式实现
 
 WebFlux 的 `Flux` 天然适合 SSE 流——非阻塞 I/O，少量线程就能支撑大量连接。MVC 下每个 SSE 连接占一个线程，1000 个连接需要 1000 个线程；WebFlux 下 1000 个连接可能只需要几十个线程。
 
@@ -193,7 +181,7 @@ public class ReactiveSseController {
 }
 ```
 
-## 5. 前端对接
+## 4. 前端对接
 
 ### 5.1 EventSource（不需要认证时）
 
@@ -257,7 +245,7 @@ async function streamWithAuth(url, token) {
 
 **选择标准**：不需要认证 → `EventSource`（自动重连更简单）。需要认证 → `fetch + ReadableStream`。
 
-## 6. 心跳保活
+## 5. 心跳保活
 
 代理服务器（Nginx、云 SLB）有空闲超时（通常 60s）。SSE 连接长时间没有数据推送，代理会断开连接。
 
@@ -299,7 +287,7 @@ public Flux<ServerSentEvent<String>> stream() {
 }
 ```
 
-## 7. 连接数管理
+## 6. 连接数管理
 
 每个 SSE 连接占用资源：MVC 下是一个线程，WebFlux 下是一个连接。不控制连接数会导致 OOM 或线程池耗尽。
 
@@ -338,7 +326,7 @@ public void logConnectionCount() {
 Metrics.gauge("sse.connections.active", activeConnections);
 ```
 
-## 8. HTTP/2 优势
+## 7. HTTP/2 优势
 
 HTTP/1.1 下浏览器对同一域名限制 6 个 TCP 连接。如果页面同时开了 6 个 SSE 流，后续的 HTTP 请求会被阻塞。
 
@@ -352,7 +340,7 @@ server:
 
 **生产环境强烈建议开启 HTTP/2**，尤其是 SSE 连接数较多的场景。
 
-## 9. 多实例扩展
+## 8. 多实例扩展
 
 和 WebSocket 一样，SSE 连接是有状态的。用户 A 连接实例 1，消息从实例 2 推送，A 收不到。
 
@@ -397,7 +385,7 @@ public class SseBroadcastService {
 }
 ```
 
-## 10. 常见错误
+## 9. 常见错误
 
 ### ❌ 不设超时，默认 30 秒断开
 
@@ -453,7 +441,7 @@ emitter.send(Base64.getEncoder().encodeToString(imageBytes));
 // 或者用 WebSocket 传输二进制
 ```
 
-## 11. SSE vs WebSocket
+## 10. SSE vs WebSocket
 
 | 维度 | SSE | WebSocket |
 |------|-----|-----------|

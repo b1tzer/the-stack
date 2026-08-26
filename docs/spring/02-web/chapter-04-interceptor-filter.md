@@ -62,9 +62,53 @@ Filter-1.doFilter() 返回
 
 理解了两者的区别和执行顺序，下面用一个实际例子把它们跑通。
 
-## 2. 跑通一个请求耗时拦截器
+理解了两者的区别和执行顺序，下面看具体怎么注册和使用。
 
-**拦截器：**
+## 2. Filter 注册
+
+### 2.1 FilterRegistrationBean
+
+```java
+@Configuration
+public class FilterConfig {
+
+    @Bean
+    public FilterRegistrationBean<RequestIdFilter> requestIdFilter() {
+        FilterRegistrationBean<RequestIdFilter> registration = new FilterRegistrationBean<>();
+        registration.setFilter(new RequestIdFilter());
+        registration.addUrlPatterns("/api/*");
+        registration.setOrder(0);  // 值越小越先执行
+        return registration;
+    }
+}
+```
+
+### 2.2 OncePerRequestFilter
+
+Spring 提供的抽象类，保证 Filter 在一次请求中只执行一次。为什么需要它？因为 Servlet 容器在请求转发（forward）时会再次调用 Filter，导致同一个 Filter 对同一个请求执行多次。
+
+```java
+public class RequestIdFilter extends OncePerRequestFilter {
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+            HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
+        String requestId = UUID.randomUUID().toString().substring(0, 8);
+        request.setAttribute("requestId", requestId);
+        response.setHeader("X-Request-Id", requestId);
+        filterChain.doFilter(request, response);  // 继续 Filter 链
+    }
+}
+```
+
+**Filter 中必须调用 `filterChain.doFilter()`**，否则请求不会继续传递，客户端会收到超时。这是新手最常犯的错误。
+
+## 3. 拦截器实战
+
+### 3.1 请求耗时日志
+
+最常用的拦截器：记录每个请求的耗时和状态码。
 
 ```java
 @Component
@@ -88,7 +132,7 @@ public class LoggingInterceptor implements HandlerInterceptor {
 }
 ```
 
-**注册：**
+注册到 Spring：
 
 ```java
 @Configuration
@@ -105,51 +149,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
 }
 ```
 
-启动后访问任意 `/api/**` 接口，控制台自动打印请求方法、路径、耗时、状态码。这就是拦截器的核心价值：**通用逻辑从业务代码中抽离，集中处理**。
+启动后访问任意 `/api/**` 接口，控制台自动打印请求方法、路径、耗时、状态码。
 
-## 3. Filter 注册
-
-### 3.1 FilterRegistrationBean
-
-```java
-@Configuration
-public class FilterConfig {
-
-    @Bean
-    public FilterRegistrationBean<RequestIdFilter> requestIdFilter() {
-        FilterRegistrationBean<RequestIdFilter> registration = new FilterRegistrationBean<>();
-        registration.setFilter(new RequestIdFilter());
-        registration.addUrlPatterns("/api/*");
-        registration.setOrder(0);  // 值越小越先执行
-        return registration;
-    }
-}
-```
-
-### 3.2 OncePerRequestFilter
-
-Spring 提供的抽象类，保证 Filter 在一次请求中只执行一次。为什么需要它？因为 Servlet 容器在请求转发（forward）时会再次调用 Filter，导致同一个 Filter 对同一个请求执行多次。
-
-```java
-public class RequestIdFilter extends OncePerRequestFilter {
-
-    @Override
-    protected void doFilterInternal(HttpServletRequest request,
-            HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
-        String requestId = UUID.randomUUID().toString().substring(0, 8);
-        request.setAttribute("requestId", requestId);
-        response.setHeader("X-Request-Id", requestId);
-        filterChain.doFilter(request, response);  // 继续 Filter 链
-    }
-}
-```
-
-**Filter 中必须调用 `filterChain.doFilter()`**，否则请求不会继续传递，客户端会收到超时。这是新手最常犯的错误。
-
-## 4. 拦截器实战
-
-### 4.1 鉴权拦截器
+### 3.2 鉴权拦截器
 
 ```java
 @Component
@@ -195,7 +197,7 @@ public class AuthInterceptor implements HandlerInterceptor {
 }
 ```
 
-### 4.2 接口限流拦截器
+### 3.3 接口限流拦截器
 
 ```java
 @Component
@@ -217,7 +219,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
 }
 ```
 
-### 4.3 注册与排序
+### 3.4 注册与排序
 
 ```java
 @Configuration
@@ -252,7 +254,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
 }
 ```
 
-## 5. Filter 实战：MDC 链路追踪
+## 4. Filter 实战：MDC 链路追踪
 
 MDC（Mapped Diagnostic Context）是 SLF4J 的线程级上下文，日志框架会自动输出 MDC 中的值。用 Filter 注入 `traceId`，日志里自动带上，排查问题时可以按 traceId 搜集完整链路。
 
@@ -294,7 +296,7 @@ logback 配置中加入 `%X{traceId}`：
 
 两个日志行共享同一个 `traceId`，一条 grep 就能捞出完整请求链路。
 
-## 6. Filter vs Interceptor 决策指南
+## 5. Filter vs Interceptor 决策指南
 
 | 场景 | 用 Filter | 用 Interceptor | 原因 |
 |------|-----------|----------------|------|
@@ -309,7 +311,7 @@ logback 配置中加入 `%X{traceId}`：
 
 **判断标准**：需要 Handler 信息（Controller 类名、方法名、方法注解）→ Interceptor。不需要 Handler 信息，或者需要在 DispatcherServlet 之前执行 → Filter。
 
-## 7. 常见错误
+## 6. 常见错误
 
 ### ❌ 在 Filter 中做鉴权但拿不到 Handler 信息
 
@@ -375,7 +377,7 @@ registry.addInterceptor(loggingInterceptor).order(0);   // 先日志（记录完
 registry.addInterceptor(authInterceptor).order(1);      // 后鉴权
 ```
 
-## 8. 异步请求的差异
+## 7. 异步请求的差异
 
 Filter 和 Interceptor 在异步场景下行为不同：
 
