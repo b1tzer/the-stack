@@ -150,7 +150,7 @@ KStream<String, String> warnings = branches[1];
 KStream<String, String> others = branches[2];
 ```
 
-## 最佳实践
+## 10. 最佳实践
 
 1. **优先使用 MapValues**：不改变 Key 的操作性能更好，避免数据重新分区。
 2. **合理使用 GroupBy**：GroupBy 会导致数据重新分区，增加网络开销。

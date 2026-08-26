@@ -66,6 +66,4 @@ Resource resource = new FileSystemResource("/path/to/file");
 FilterChain chain = ...
 chain.doFilter(request, response);
 ```
-
----
 *JDK 中的设计模式 →*

@@ -18,8 +18,6 @@ Spring Boot 启动不是一步到位，而是分阶段推进。把 `run` 的内�
 
 `refresh()` 那一段（Bean 的创建、注入、生命周期）已经在 [IoC 容器](../01-core/chapter-02-ioc-container.md) §6 讲过，本章不重复，重点讲 `refresh()` 前后两段——启动参数、启动事件、失败诊断和停机。
 
----
-
 ## 2. 启动参数：args 去了哪
 
 ### 2.1 从字符串数组到 ApplicationArguments
@@ -65,8 +63,6 @@ public class StartupTask implements ApplicationRunner {
 
 `CommandLineRunner` 和 `ApplicationRunner` 只差一个参数类型：前者拿原始 `String... args`，后者拿 `ApplicationArguments`。要判断「有没有某个参数」，用后者更方便。多个 Runner 的执行顺序用 `@Order` 控制，默认按注册顺序。
 
----
-
 ## 3. 启动事件：一条可以挂载的链
 
 `run` 的每个阶段都会发布事件。知道这条链，才能在「Bean 还没建好」时介入——比如在 Environment 就绪后、Bean 装配前改配置。
@@ -105,8 +101,6 @@ public class MyListener {
 ```
 
 `SpringApplicationRunListener` 是更底层的接口，它在事件被广播之前、更早的阶段介入。默认实现 `EventPublishingRunListener` 负责把 run 各阶段转成上面这些 `ApplicationEvent`。自定义 `RunListener` 通过 `META-INF/spring.factories` 里的 `org.springframework.boot.SpringApplicationRunListener` 注册——这条和自动配置类的 `AutoConfiguration.imports` 不是同一个文件，别混。
-
----
 
 ## 4. 启动失败诊断：FailureAnalyzer
 
@@ -148,8 +142,6 @@ public class MyFailureAnalyzer implements FailureAnalyzer {
 
 通过 `META-INF/spring/org.springframework.boot.diagnostics.FailureAnalyzer` 注册（Spring Boot 3.x 使用 `META-INF/spring/` 目录下的文件，不再使用 `spring.factories`）。返回值是 `null` 时，Spring 会继续尝试下一个 analyzer——这套「谁认得谁处理，否则往下传」的链式机制，是它可扩展的原因。
 
----
-
 ## 5. 优雅停机：让发版不掉请求
 
 默认情况下，进程收到终止信号会立刻停掉。正在处理的请求可能还没返回，连接就被断——这在滚动发布时表现为「发版瞬间有几条请求失败」。
@@ -175,8 +167,6 @@ spring.lifecycle.timeout-per-shutdown-phase  <  terminationGracePeriodSeconds
 ```
 
 如果前者（30s）大于后者（30s 默认），Pod 会在请求还没跑完时就被强杀，优雅停机形同虚设。这个不等式是线上发版掉请求的高频根因。
-
----
 
 ## 6. 小结
 

@@ -51,8 +51,6 @@
 | Field | Column |
 | Mapping | Schema |
 
----
-
 ## 7. 近实时（Near Real-Time）
 
 ES 不是实时搜索引擎。文档写入后，需要经过 refresh（默认 1 秒）才能被搜索到。

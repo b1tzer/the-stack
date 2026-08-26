@@ -111,7 +111,7 @@ kafka-delete-records.sh --offset-json-file delete-records.json \
     --bootstrap-server localhost:9092
 ```
 
-## 最佳实践
+## 10. 最佳实践
 
 1. **根据业务需求设置保留时间**：不要使用默认的 7 天，根据数据重要性和存储成本调整。
 2. **监控磁盘使用率**：设置告警，避免磁盘写满导致 Broker 宕机。

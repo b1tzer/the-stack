@@ -4,7 +4,7 @@
 
 ## 1. 重构的基本原则
 
-### 什么时候该重构？
+### 1.1 什么时候该重构？
 
 | 代码坏味道 | 可能需要的模式 |
 |-----------|--------------|
@@ -17,7 +17,7 @@
 | 需要在不修改类的前提下增强功能 | 装饰器、代理 |
 | 需要撤销/回滚 | 命令、备忘录 |
 
-### 重构的三步法
+### 1.2 重构的三步法
 
 ```mermaid
 flowchart LR
@@ -27,7 +27,7 @@ flowchart LR
 
 ## 2. 实战案例一：if-else → 策略模式
 
-### 重构前：支付逻辑的 if-else 地狱
+### 2.1 重构前：支付逻辑的 if-else 地狱
 
 ```java
 public class PaymentService {
@@ -54,7 +54,7 @@ public class PaymentService {
 }
 ```
 
-### 重构步骤
+### 2.2 重构步骤
 
 **Step 1：提取策略接口**
 
@@ -127,7 +127,7 @@ paymentService.pay("alipay", new BigDecimal("100"));
 
 ## 3. 实战案例二：复杂构造 → 建造者模式
 
-### 重构前：构造函数参数爆炸
+### 3.1 重构前：构造函数参数爆炸
 
 ```java
 public class HttpRequest {
@@ -154,7 +154,7 @@ new HttpRequest("https://api.example.com", "POST", null, null,
                 "{\"name\":\"test\"}", 3000, true, 3, null);
 ```
 
-### 重构后：建造者模式
+### 3.2 重构后：建造者模式
 
 ```java
 public class HttpRequest {
@@ -216,7 +216,7 @@ HttpRequest request = HttpRequest.builder("https://api.example.com")
 
 ## 4. 实战案例三：通知耦合 → 观察者模式
 
-### 重构前：订单完成直接调用所有通知方
+### 4.1 重构前：订单完成直接调用所有通知方
 
 ```java
 public class OrderService {
@@ -239,7 +239,7 @@ public class OrderService {
 }
 ```
 
-### 重构后：观察者模式（Spring Event）
+### 4.2 重构后：观察者模式（Spring Event）
 
 ```java
 // 事件对象
@@ -288,7 +288,7 @@ public class PointsUpdater {
 
 ## 5. 实战案例四：重复流程 → 模板方法
 
-### 重构前：数据导出的重复代码
+### 5.1 重构前：数据导出的重复代码
 
 ```java
 public class ExcelExporter {
@@ -312,7 +312,7 @@ public class CsvExporter {
 }
 ```
 
-### 重构后：模板方法
+### 5.2 重构后：模板方法
 
 ```java
 public abstract class DataExporter {

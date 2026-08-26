@@ -157,4 +157,3 @@ SELECT User, Host FROM mysql.user WHERE authentication_string = '';
 6. **密码策略强制执行** — 复杂度 + 过期 + 历史
 7. **禁止共享账号** — 每个应用/人员使用独立账号
 
----

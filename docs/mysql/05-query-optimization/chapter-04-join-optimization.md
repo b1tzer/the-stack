@@ -132,4 +132,3 @@ JOIN (
 5. **使用 EXPLAIN FORMAT=TREE 查看连接算法** — 确认使用了正确的算法
 6. **适当增大 join_buffer_size** — 减少 BNL 的磁盘溢出
 
----

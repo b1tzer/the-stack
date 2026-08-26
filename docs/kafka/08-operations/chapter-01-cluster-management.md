@@ -82,7 +82,7 @@ kafka-reassign-partitions.sh --verify \
 
 ## 6. 集群扩缩容
 
-### 扩容（添加 Broker）
+### 6.1 扩容（添加 Broker）
 ```bash
 # 1. 启动新 Broker
 kafka-server-start.sh config/server-new.properties
@@ -99,7 +99,7 @@ kafka-reassign-partitions.sh --execute \
     --bootstrap-server localhost:9092
 ```
 
-### 缩容（移除 Broker）
+### 6.2 缩容（移除 Broker）
 ```bash
 # 1. 生成重分配计划（将分区从旧 Broker 迁移走）
 kafka-reassign-partitions.sh --generate \
@@ -154,7 +154,7 @@ kafka-consumer-groups.sh --list --bootstrap-server $BOOTSTRAP | while read group
 done
 ```
 
-## 最佳实践
+## 9. 最佳实践
 
 1. **定期执行健康检查**：使用脚本自动化检查集群状态，及时发现问题。
 2. **避免在线高峰期进行重分配**：分区重分配会占用大量网络和磁盘 I/O。

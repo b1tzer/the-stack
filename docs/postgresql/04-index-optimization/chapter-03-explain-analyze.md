@@ -35,9 +35,9 @@ Seq Scan on users  (cost=0.00..15.00 rows=500 width=16)
 | Nested Loop | 嵌套循环 | 小表驱动大表 |
 | Hash Join | 哈希连接 | 等值连接，大表 |
 | Merge Join | 归并连接 | 已排序数据 |
-## 4. 执行计划详解
+## 5. 执行计划详解
 
-### 4.1 EXPLAIN 选项
+### 5.1 EXPLAIN 选项
 
 ```sql
 -- 基本执行计划（不实际执行）
@@ -60,7 +60,7 @@ EXPLAIN (ANALYZE, BUFFERS, VERBOSE, COSTS, TIMING, SUMMARY)
 SELECT * FROM users WHERE age > 25;
 ```
 
-### 4.2 执行计划节点详解
+### 5.2 执行计划节点详解
 
 ```sql
 -- 示例：多表关联查询
@@ -94,7 +94,7 @@ Hash Join  (cost=1.15..2.45 rows=3) (actual time=0.05..0.08 rows=3 loops=1)
 | shared read | 从磁盘读取的页面数 |
 | Rows Removed by Filter | 被过滤掉的行数 |
 
-### 4.3 优化器选择因素
+### 5.3 优化器选择因素
 
 ```sql
 -- 查看优化器参数
@@ -112,7 +112,7 @@ SET random_page_cost = 1.1;  -- 模拟 SSD
 EXPLAIN SELECT * FROM users WHERE email = 'test@example.com';
 ```
 
-### 4.4 统计信息与 ANALYZE
+### 5.4 统计信息与 ANALYZE
 
 ```sql
 -- 查看表的统计信息
@@ -132,7 +132,7 @@ ANALYZE users;
 
 > **何时需要手动 ANALYZE**：大量数据批量导入后、数据分布发生显著变化时、优化器选择了明显不优的执行计划时。autovacuum 会自动执行 ANALYZE，但可能不够及时。
 
-### 4.5 实用 EXPLAIN 技巧
+### 5.5 实用 EXPLAIN 技巧
 
 ```sql
 -- 技巧1：查看是否有 Sort 溢出磁盘（work_mem 不足）

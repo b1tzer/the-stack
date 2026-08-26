@@ -154,7 +154,7 @@ kafka-run-class.sh kafka.tools.JmxTool \
 grep -E "ERROR|WARN|FATAL" /var/kafka-logs/server.log | tail -20
 ```
 
-## 最佳实践
+## 11. 最佳实践
 
 1. **建立排查手册**：将常见问题和解决方案整理成手册，提高排查效率。
 2. **使用监控系统**：Prometheus + Grafana 可以提前发现潜在问题。

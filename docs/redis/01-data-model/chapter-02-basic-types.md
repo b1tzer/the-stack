@@ -1,10 +1,8 @@
-# 第2章 五种基础数据类型
+# 五种基础数据类型
 
 > Redis 对外暴露五种基础数据类型：String、Hash、List、Set、ZSet。它们是 Redis 一切能力的起点——每种类型对应一套独立的命令集，也对应一类典型的使用场景。本章逐一拆解每种类型的语义、命令与适用场景。
 
----
-
-## 2.1 String：单值存储与原子操作
+## 1. String：单值存储与原子操作
 
 String 是 Redis 最基础的类型，一个 key 对应一个 value，value 可以是字符串、整数或二进制数据。
 
@@ -38,9 +36,7 @@ SETNX key value                    # 不存在才设置（分布式锁基础）
 
 底层编码：`int`（整数）、`embstr`（短字符串 ≤ 44 字节）、`raw`（长字符串），详见第 5 章。
 
----
-
-## 2.2 Hash：对象的字段集合
+## 2. Hash：对象的字段集合
 
 Hash 是一个 key 对应一组 field-value，类似 Java 的 `HashMap`，适合存储一个对象的多个属性。
 
@@ -77,9 +73,7 @@ HDEL user:123 age                   # 删除字段
 - **用户信息存储**：每个字段独立更新，避免全量覆盖
 - **购物车**：`HSET cart:user123 product:456 2`（商品 ID → 数量）
 
----
-
-## 2.3 List：有序的可重复列表
+## 3. List：有序的可重复列表
 
 List 是一个 key 对应一组有序、可重复的字符串，底层是双向链表结构，支持从两端插入和弹出。
 
@@ -110,9 +104,7 @@ BLPOP list 10          # 阻塞弹出，等待最多 10 秒（消息队列）
 - **最新动态**：`LPUSH news article1`，`LRANGE news 0 9` 取最新 10 条
 - **分页列表**：`LRANGE list (page-1)*size page*size-1`
 
----
-
-## 2.4 Set：无序去重集合
+## 4. Set：无序去重集合
 
 Set 是一个 key 对应一组无序、不重复的字符串，核心特性是自动去重，并支持集合间的交、并、差运算。
 
@@ -146,9 +138,7 @@ SCARD tags                          # 元素数量
 - **抽奖**：`SRANDMEMBER lottery 3`（随机不重复抽取）
 - **UV 统计**：`SADD uv:20240101 user123`（自动去重）
 
----
-
-## 2.5 ZSet：带分值的有序集合
+## 5. ZSet：带分值的有序集合
 
 ZSet（Sorted Set）是一个 key 对应一组有序、不重复的成员，每个成员关联一个浮点数 score，Redis 按 score 自动排序。
 
@@ -187,9 +177,7 @@ ZINCRBY rank 50 "张三"             # 增加 score
 - **延迟队列**：score 存执行时间戳，定时 `ZRANGEBYSCORE queue 0 now` 取到期任务
 - **热搜词**：`ZINCRBY hot:search 1 "关键词"`，`ZREVRANGE hot:search 0 9` 取 Top10
 
----
-
-## 2.6 五种类型速查
+## 6. 五种类型速查
 
 | 类型 | 命令前缀 | 有序 | 可重复 | 典型场景 |
 | :-- | :-- | :-- | :-- | :-- |
@@ -201,13 +189,11 @@ ZINCRBY rank 50 "张三"             # 增加 score
 
 > String 存单值，Hash 存对象，List 做队列，Set 做去重，ZSet 做排行榜。
 
----
-
-## 2.7 实操演示：五种类型各写一个真实场景
+## 7. 实操演示：五种类型各写一个真实场景
 
 下面五个场景，打开 `redis-cli` 逐个敲一遍。命令后带 `#` 的注释是「你预期会看到的返回」，边敲边对照，比只看概念记得牢。
 
-### 场景一：文章阅读量（String + INCR）
+### 7.1 场景一：文章阅读量（String + INCR）
 
 ```bash
 SET article:1001:views 0        # OK
@@ -219,7 +205,7 @@ GET article:1001:views          # "12"
 
 > 单线程保证 `INCR` 原子，100 个请求同时点进来也不会算错，这是计数器首选 Redis 的原因。
 
-### 场景二：购物车（Hash）
+### 7.2 场景二：购物车（Hash）
 
 ```bash
 HSET cart:u001 p001 2 p002 1    # (integer) 2  加入两件商品
@@ -229,7 +215,7 @@ HGETALL cart:u001               # 1) "p001" 2) "3" 3) "p002" 4) "1"
 HDEL cart:u001 p002             # (integer) 1  删除商品
 ```
 
-### 场景三：消息队列（List 阻塞弹出）
+### 7.3 场景三：消息队列（List 阻塞弹出）
 
 两个终端配合：终端 A 作为消费者阻塞等待，终端 B 作为生产者入队。
 
@@ -253,7 +239,7 @@ RPUSH task:queue "send_email:user123"   # (integer) 1
 
 > `BLPOP` 的妙处：队列为空时消费者不会空转轮询，而是挂起等待，省 CPU。这正是 List 做简单任务队列的经典用法。
 
-### 场景四：共同好友（Set 集合运算）
+### 7.4 场景四：共同好友（Set 集合运算）
 
 ```bash
 SADD friend:u1 u2 u3 u4      # (integer) 3
@@ -263,7 +249,7 @@ SDIFF friend:u1 friend:u2    # 1) "u4"  我关注了但对方没有（可做推�
 SISMEMBER friend:u1 u2       # (integer) 1  判断是否已关注
 ```
 
-### 场景五：积分排行榜（ZSet）
+### 7.5 场景五：积分排行榜（ZSet）
 
 ```bash
 ZADD rank 100 "alice" 150 "bob" 120 "carol"   # (integer) 3

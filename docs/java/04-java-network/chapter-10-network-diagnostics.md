@@ -1,12 +1,10 @@
-# 第10章 网络性能分析与故障排查
+# 网络性能分析与故障排查
 
 > 网络问题是后端开发中最棘手的一类故障——症状相似但根因各异，超时可能是网络不通、对端处理慢、连接池耗尽，也可能是 GC 停顿。本章要回答的核心问题：常见网络异常分别意味着什么？如何用抓包和诊断工具定位根因？Java 应用有哪些特有的网络陷阱？高并发场景下如何系统性地优化网络性能？
 
----
+## 1. 常见网络问题速查
 
-## 10.1 常见网络问题速查
-
-### 10.1.1 异常类型与根因对照表
+### 1.1 异常类型与根因对照表
 
 | 错误现象 | 含义 | 常见根因 | 排查方向 |
 |----------|------|----------|----------|
@@ -18,7 +16,7 @@
 | `No route to host` | 路由不可达 | 路由配置错误 / 网络断开 | traceroute / ip route |
 | `Address already in use` | 端口被占用（TIME-WAIT 堆积） | 短连接高频创建 | 调整 TIME-WAIT 参数 |
 
-### 10.1.2 TCP 连接状态问题
+### 1.2 TCP 连接状态问题
 
 TCP 连接状态是网络排查的第一手信息。两个最容易出问题的状态：
 
@@ -86,7 +84,7 @@ public void handleRequest(Socket socket) {
 }
 ```
 
-### 10.1.3 连接状态全景图
+### 1.3 连接状态全景图
 
 ```text
                                主动打开
@@ -129,13 +127,11 @@ public void handleRequest(Socket socket) {
                   (CLOSED)─────────┘
 ```
 
----
-
-## 10.2 网络抓包分析
+## 2. 网络抓包分析
 
 抓包是网络排查的终极手段。当日志和监控无法定位问题时，抓包能看到"线上到底发生了什么"。
 
-### 10.2.1 tcpdump 常用命令
+### 2.1 tcpdump 常用命令
 
 ```bash
 # 1. 抓取特定端口的 TCP 流量
@@ -177,7 +173,7 @@ tcpdump -i eth0 port 53
 # [R]   = RST（强制重置）
 ```
 
-### 10.2.2 Wireshark 分析技巧
+### 2.2 Wireshark 分析技巧
 
 当 tcpdump 保存了 pcap 文件后，可以用 Wireshark 做深度分析：
 
@@ -221,7 +217,7 @@ tcp.analysis.zero_window
 | 连接被重置 | `tcp.flags.rst == 1` | 查看谁发的 RST |
 | 流控停顿 | `tcp.analysis.zero_window` | 接收方缓冲区满 |
 
-### 10.2.3 实战：排查超时问题
+### 2.3 实战：排查超时问题
 
 ```bash
 # 场景：Java 应用调用外部 API 超时
@@ -239,11 +235,9 @@ curl -v --connect-timeout 5 --max-time 10 https://api.example.com/health
 # - RST 被发出 → 对端主动拒绝
 ```
 
----
+## 3. Java 网络诊断
 
-## 10.3 Java 网络诊断
-
-### 10.3.1 netstat / ss 命令
+### 3.1 netstat / ss 命令
 
 ```bash
 # 查看所有 TCP 连接状态统计
@@ -287,7 +281,7 @@ ESTAB   0       0       10.0.1.1:8080       10.0.1.2:54321
 # Send-Q      — 发送队列（> 0 说明网络发送慢）
 ```
 
-### 10.3.2 jstack 分析线程状态
+### 3.2 jstack 分析线程状态
 
 当 Java 应用网络请求卡住时，jstack 能看到线程在做什么：
 
@@ -331,7 +325,7 @@ grep -A 5 "BLOCKED\|WAITING\|TIMED_WAITING" /tmp/thread_dump.txt | grep -i "sock
         at sun.security.ssl.SSLEngineImpl.wrap(SSLEngineImpl.java:122)
 ```
 
-### 10.3.3 Arthas 在线诊断
+### 3.3 Arthas 在线诊断
 
 Arthas 是阿里巴巴开源的 Java 诊断工具，无需重启应用即可在线排查问题：
 
@@ -389,11 +383,9 @@ vmtool --action getInstances \
 └─────────────────────────────────────────────────────────┘
 ```
 
----
+## 4. 高并发网络优化
 
-## 10.4 高并发网络优化
-
-### 10.4.1 连接池优化
+### 4.1 连接池优化
 
 连接池是高并发网络调用的基础设施。配置不当会导致连接耗尽或性能低下。
 
@@ -443,7 +435,7 @@ public void logPoolStats() {
 }
 ```
 
-### 10.4.2 NIO vs BIO 选择
+### 4.2 NIO vs BIO 选择
 
 | 特性 | BIO（阻塞 I/O） | NIO（非阻塞 I/O） | AIO（异步 I/O） |
 |------|-----------------|-------------------|-----------------|
@@ -490,7 +482,7 @@ while (true) {
 }
 ```
 
-### 10.4.3 TCP 参数调优
+### 4.3 TCP 参数调优
 
 ```bash
 # ====== 内核网络参数调优（/etc/sysctl.conf） ======
@@ -535,7 +527,7 @@ clientChannel.setOption(StandardSocketOptions.SO_SNDBUF, 256 * 1024);
 clientChannel.setOption(StandardSocketOptions.SO_RCVBUF, 256 * 1024);
 ```
 
-### 10.4.4 KeepAlive 与连接复用
+### 4.4 KeepAlive 与连接复用
 
 ```java
 // HTTP 连接复用配置示例（OkHttp）
@@ -557,7 +549,7 @@ ManagedChannel channel = ManagedChannelBuilder
         .build();
 ```
 
-### 10.4.5 限流与熔断
+### 4.5 限流与熔断
 
 高并发场景下，网络调用必须有保护机制：
 
@@ -650,11 +642,9 @@ public class ExternalApiService {
 └─────────────────────────────────────────────────────────┘
 ```
 
----
+## 5. 最佳实践总结
 
-## 10.5 最佳实践总结
-
-### 10.5.1 网络编程检查清单
+### 5.1 网络编程检查清单
 
 | 类别 | 检查项 | 说明 |
 |------|--------|------|
@@ -671,7 +661,7 @@ public class ExternalApiService {
 | 安全 | 使用 TLS 加密 | 生产环境必须 HTTPS/WSS |
 | 安全 | 验证服务端证书 | 避免 MITM 攻击 |
 
-### 10.5.2 常见陷阱与解决方案
+### 5.2 常见陷阱与解决方案
 
 ```java
 // ❌ 陷阱 1: 没有设置超时 → 线程永久阻塞
@@ -730,7 +720,7 @@ java.security.Security.setProperty("networkaddress.cache.ttl", "60");
 java.security.Security.setProperty("networkaddress.cache.negative.ttl", "10");
 ```
 
-### 10.5.3 监控指标体系
+### 5.3 监控指标体系
 
 一个完善的网络监控应覆盖以下指标：
 
@@ -771,8 +761,6 @@ java.security.Security.setProperty("networkaddress.cache.negative.ttl", "10");
 │  - TCP 重传率 > 1% → 告警                               │
 └─────────────────────────────────────────────────────────┘
 ```
-
----
 
 > **本章与其他章节的联系：**
 >

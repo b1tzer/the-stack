@@ -1,12 +1,12 @@
-# 第4章 ORM 深入：对象与关系如何转换
+# ORM 深入：对象与关系如何转换
 
 > 你写了个 `save(user)`，控制台却打了 3 条 SQL：INSERT、UPDATE 外键、再 INSERT 关联表。你以为 ORM 就是自动映射，但它在幕后做的远比你想的多——脏检查、延迟加载、缓存策略、N+1 问题。本章拆解 ORM 框架在"自动"与"可控"之间到底做了什么取舍。
 
-## 4.1 MyBatis vs Hibernate/JPA
+## 1. MyBatis vs Hibernate/JPA
 
 在 Java 生态中，ORM 的两大主流阵营是 **MyBatis** 和 **Hibernate/JPA**。它们解决同一个问题，但哲学截然不同。
 
-### 4.1.1 两种哲学
+### 1.1 两种哲学
 
 **MyBatis 的信条：SQL 是王道。**
 
@@ -43,7 +43,7 @@ public class User {
 entityManager.persist(user);
 ```
 
-### 4.1.2 详细对比
+### 1.2 详细对比
 
 | 维度 | MyBatis | Hibernate/JPA |
 |------|---------|---------------|
@@ -57,7 +57,7 @@ entityManager.persist(user);
 | **适合场景** | 复杂报表、遗留数据库、需要精确控制 SQL | 领域模型清晰、以对象行为为主的新项目 |
 | **团队门槛** | 掌握 SQL 即可 | 需理解 Session、脏检查、Lazy 代理、缓存 |
 
-### 4.1.3 选择建议
+### 1.3 选择建议
 
 "SQL 复杂就选 MyBatis"这种说法并不成立——JPA 也能写原生 SQL，复杂报表照样能做。真正的分水岭是另一个问题：**你是否愿意让框架在你不注意的地方，替你决定何时发 SQL、发几条 SQL、以什么形式发**。
 
@@ -77,11 +77,11 @@ entityManager.persist(user);
 
 大型项目常见**混合使用**：JPA 负责简单 CRUD 和详情读取，把领域行为集中在聚合根上；MyBatis 负责复杂报表、批量写和涉及底层 SQL 特性的场景。这不是骑墙，而是承认两种哲学各自的适用边界。
 
-## 4.2 Entity 生命周期
+## 2. Entity 生命周期
 
 Hibernate/JPA 中，一个实体对象从诞生到消亡，会经历几个明确的状态。理解这些状态，是理解 ORM 行为的前提。
 
-### 4.2.1 三种核心状态
+### 2.1 三种核心状态
 
 ```text
 ┌─────────────┐   persist()/save()   ┌──────────────┐   session 关闭   ┌──────────────┐
@@ -100,7 +100,7 @@ Hibernate/JPA 中，一个实体对象从诞生到消亡，会经历几个明确
 | **Persistent（持久态）** | 已与数据库记录关联，受 Session 管理，修改属性会**自动同步到数据库** | `session.save(u)` 之后 |
 | **Detached（游离态）** | 曾经是持久态，但 Session 已关闭。对象还在，但不再自动同步 | Session 关闭后，对象仍被持有 |
 
-### 4.2.2 状态转换实战
+### 2.2 状态转换实战
 
 ```java
 // 1. Transient —— 纯粹的 Java 对象
@@ -122,7 +122,7 @@ User merged = entityManager.merge(user);
 // merged 是新的持久态对象，修改它会再次自动同步
 ```
 
-### 4.2.3 踩坑提示
+### 2.3 踩坑提示
 
 最容易出问题的是**在事务外修改持久态对象**：
 
@@ -145,11 +145,11 @@ public void updateUserOutsideTx(Long id) {
 
 **教训**：始终在事务边界内操作持久态对象。
 
-## 4.3 Lazy Loading（延迟加载）
+## 3. Lazy Loading（延迟加载）
 
 延迟加载是 ORM 中最强大也最危险的特性之一。
 
-### 4.3.1 原理
+### 3.1 原理
 
 当你查询一个 `User` 对象时，它的 `orders` 关联默认不会立即查询。只有当你**真正调用 `getOrders()`** 时，ORM 才会发出 SQL 去查 orders 表。
 
@@ -186,7 +186,7 @@ public class User {
 └──────────────────┘
 ```
 
-### 4.3.2 LazyInitializationException
+### 3.2 LazyInitializationException
 
 延迟加载有一个著名的陷阱：**Session 关闭后访问延迟属性**。
 
@@ -228,7 +228,7 @@ User findWithOrders(@Param("id") Long id);
 // ⚠️ 争议很大：方便但可能隐藏性能问题
 ```
 
-### 4.3.3 Eager vs Lazy 的选择
+### 3.3 Eager vs Lazy 的选择
 
 | | `FetchType.EAGER` | `FetchType.LAZY` |
 |---|---|---|
@@ -239,11 +239,11 @@ User findWithOrders(@Param("id") Long id);
 
 **经验法则**：`@ManyToOne` 默认 EAGER，`@OneToMany` 默认 LAZY。**不要轻易改变默认值**——框架的设计者比你更懂常见场景。
 
-## 4.4 N+1 查询问题
+## 4. N+1 查询问题
 
 N+1 查询是 ORM 最臭名昭著的性能问题。几乎每个用 ORM 的项目都会踩一次。
 
-### 4.4.1 问题重现
+### 4.1 问题重现
 
 ```java
 // 查询所有用户
@@ -272,7 +272,7 @@ SELECT * FROM orders WHERE user_id = 3;
 
 这就是 **N+1 问题**：1 条主查询 + N 条关联查询。
 
-### 4.4.2 Hibernate 解决方案
+### 4.2 Hibernate 解决方案
 
 **方案一：JOIN FETCH（最常用）**
 
@@ -310,7 +310,7 @@ public class User {
 List<User> findAllWithOrders();
 ```
 
-### 4.4.3 MyBatis 解决方案
+### 4.3 MyBatis 解决方案
 
 MyBatis 天然没有 N+1 问题（因为 SQL 是你写的），但如果你用了嵌套查询（`<collection select="...">`），同样会触发 N+1。
 
@@ -350,7 +350,7 @@ MyBatis 天然没有 N+1 问题（因为 SQL 是你写的），但如果你用�
 </select>
 ```
 
-### 4.4.4 对比总结
+### 4.4 对比总结
 
 | 方案 | 框架 | 效果 | 适用场景 |
 |------|------|------|---------|
@@ -360,11 +360,11 @@ MyBatis 天然没有 N+1 问题（因为 SQL 是你写的），但如果你用�
 | 联合查询 | MyBatis | 一条 SQL，手写 JOIN | 复杂关联 |
 | IN 批量查询 | MyBatis | 两条 SQL，用 IN 合并 | 一对多 |
 
-## 4.5 对象-关系映射策略
+## 5. 对象-关系映射策略
 
 映射的核心问题是：**Java 中的"关系"在数据库中如何表达？**
 
-### 4.5.1 单表映射
+### 5.1 单表映射
 
 最简单的场景：一个类对应一张表。
 
@@ -404,7 +404,7 @@ public class Product {
 └──────────────────────────────────┘
 ```
 
-### 4.5.2 一对多（One-to-Many）
+### 5.2 一对多（One-to-Many）
 
 一个用户有多个订单。
 
@@ -454,7 +454,7 @@ public class Order {
 
 **注意 `mappedBy` 的含义**：它告诉 Hibernate "外键在 Order 那边"。如果不写，Hibernate 会创建一张**中间表**来维护关系，这通常不是你想要的。
 
-### 4.5.3 多对一（Many-to-One）
+### 5.3 多对一（Many-to-One）
 
 多对一是多对一的反面，通常从"多"的一方看问题：
 
@@ -469,7 +469,7 @@ public class Order {
 
 **fetch 策略的选择**：`@ManyToOne` 默认是 `EAGER`，但实践中建议显式写 `LAZY`。理由是：大多数场景下，你查订单时并不一定需要立即加载用户信息。真正需要时再通过 `JOIN FETCH` 显式加载。
 
-### 4.5.4 多对多（Many-to-Many）
+### 5.4 多对多（Many-to-Many）
 
 一个学生可以选多门课，一门课可以被多个学生选。
 
@@ -519,7 +519,7 @@ public class Course {
 2. **Cascade 谨慎使用**：多对多上的 `CascadeType.ALL` 可能导致意外删除。
 3. **Set vs List**：多对多关联建议用 `Set` 而非 `List`，避免 Hibernate 在更新时产生不必要的删除+重插操作。
 
-### 4.5.5 继承映射
+### 5.5 继承映射
 
 当实体类有继承关系时，如何映射到数据库？JPA 提供三种策略：
 
@@ -554,7 +554,7 @@ public class Truck extends Vehicle {
 
 **实践建议**：默认用 `SINGLE_TABLE`，除非子类字段差异极大（超过 20 个不同列）才考虑 `JOINED`。
 
-## 4.6 本章小结
+## 6. 本章小结
 
 ORM 是一把双刃剑。它把开发者从重复的 JDBC 代码中解放出来，但也引入了新的复杂性：
 
@@ -583,7 +583,5 @@ ORM 是一把双刃剑。它把开发者从重复的 JDBC 代码中解放出来�
 3. **延迟加载**是性能优化利器，但 `LazyInitializationException` 是每个 ORM 开发者的成人礼。用 `@Transactional` 或 `JOIN FETCH` 来避免。
 4. **N+1 问题**是 ORM 最大的性能陷阱。识别它、解决它，是中级开发者向高级迈进的必修课。
 5. **映射策略**的选择影响数据库结构。`mappedBy`、`CascadeType`、`FetchType` 这三个注解属性值值得反复推敲。
-
----
 
 > ORM 帮你省了手写 SQL 的力气，但 SQL 最终还是要发到数据库执行。数据库收到一条 SELECT 后，内部经历了什么？为什么有时候快如闪电，有时候慢得让人抓狂？下一章从 SQL 执行流程开始，拆解索引、锁、事务隔离——理解这些，你写的 SQL 才真正"懂数据库"。

@@ -1,10 +1,10 @@
-# 第8章 企业系统安全与部署
+# 企业系统安全与部署
 
 > 某公司用户数据被拖库，原因是密码用明文存储、SQL 注入没防住、接口没有鉴权。这不是段子，是每年都在发生的真实事故。身份认证怎么选型？权限怎么设计才能既灵活又安全？敏感数据怎么保护？应用怎么打包才能在任何环境一致运行？本章从认证授权、数据安全、容器化部署三个维度，讲清楚企业级 Java 应用的安全底线。
 
-## 8.1 身份认证
+## 1. 身份认证
 
-### 8.1.1 认证的本质
+### 1.1 认证的本质
 
 身份认证（Authentication）回答的是"你是谁"的问题。在 Web 应用中，用户首次登录后，后续请求需要某种机制让服务器知道"这个请求来自已认证的用户"。三种主流方案的对比如下：
 
@@ -18,7 +18,7 @@
 | **适用场景** | 传统单体 Web 应用 | 前后端分离、微服务内部认证 | 第三方登录、开放平台 |
 | **安全风险** | CSRF 攻击 | Token 泄露后难以撤销 | 配置不当可能被滥用 |
 
-### 8.1.2 JWT 的结构
+### 1.2 JWT 的结构
 
 JWT 是目前微服务架构中最常用的身份认证方案，它由三部分组成：
 
@@ -68,7 +68,7 @@ public class JwtUtil {
 }
 ```
 
-### 8.1.3 OAuth 2.0 四种授权模式
+### 1.3 OAuth 2.0 四种授权模式
 
 OAuth 2.0 是一个授权框架，定义了四种授权模式：
 
@@ -102,9 +102,9 @@ OAuth 2.0 是一个授权框架，定义了四种授权模式：
    GET https://api.weixin.qq.com/sns/userinfo?access_token=xxx&openid=xxx
 ```
 
-## 8.2 Spring Security 核心
+## 2. Spring Security 核心
 
-### 8.2.1 整体架构
+### 2.1 整体架构
 
 Spring Security 的本质是一条 **Servlet Filter Chain**（过滤器链），每个请求都要经过这条链的处理：
 
@@ -131,13 +131,13 @@ HTTP Request
   Controller
 ```
 
-### 8.2.2 认证流程详解
+### 2.2 认证流程详解
 
 一次登录认证的完整流程涉及多个组件的协作：
 
 ![security-auth-flow](/spring/security-auth-flow.svg)
 
-### 8.2.3 核心代码示例
+### 2.3 核心代码示例
 
 ```java
 @Configuration
@@ -207,9 +207,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 }
 ```
 
-## 8.3 权限模型（RBAC）
+## 3. 权限模型（RBAC）
 
-### 8.3.1 RBAC 基本模型
+### 3.1 RBAC 基本模型
 
 RBAC（Role-Based Access Control，基于角色的访问控制）是企业应用中最广泛使用的权限模型：
 
@@ -224,7 +224,7 @@ RBAC（Role-Based Access Control，基于角色的访问控制）是企业应用
 用户"李四" → 角色"客服"       → 权限"order:read", "ticket:create"
 ```
 
-### 8.3.2 数据库设计
+### 3.2 数据库设计
 
 ```sql
 -- 五张核心表
@@ -265,7 +265,7 @@ CREATE TABLE sys_role_permission (
 );
 ```
 
-### 8.3.3 与 Spring Security 集成
+### 3.3 与 Spring Security 集成
 
 ```java
 @Service
@@ -321,9 +321,9 @@ public class OrderController {
 }
 ```
 
-## 8.4 数据安全
+## 4. 数据安全
 
-### 8.4.1 HTTPS 传输加密
+### 4.1 HTTPS 传输加密
 
 HTTPS 是最基本的安全措施，确保数据在传输过程中不被窃听和篡改。Spring Boot 配置 HTTPS：
 
@@ -339,7 +339,7 @@ server:
 
 **生产环境推荐**：在 Nginx 或负载均衡器上终止 SSL，后端服务之间使用内网 HTTP 通信，减少证书管理的复杂度。
 
-### 8.4.2 敏感数据存储加密
+### 4.2 敏感数据存储加密
 
 数据库中的密码、身份证号、银行卡号等敏感字段必须加密存储：
 
@@ -394,7 +394,7 @@ public class EncryptTypeHandler extends BaseTypeHandler<String> {
 }
 ```
 
-### 8.4.3 日志脱敏
+### 4.3 日志脱敏
 
 日志中出现敏感信息是最常见的安全漏洞之一。使用 Logback 的自定义脱敏 Converter：
 
@@ -433,7 +433,7 @@ public class SensitiveDataConverter extends ClassicConverter {
 </appender>
 ```
 
-### 8.4.4 操作审计
+### 4.4 操作审计
 
 企业系统必须记录"谁在什么时间做了什么操作"，用于事后追溯和合规审计：
 
@@ -486,9 +486,9 @@ public class AuditAspect {
 public Order refundOrder(@PathVariable Long id) { ... }
 ```
 
-## 8.5 Docker 容器化
+## 5. Docker 容器化
 
-### 8.5.1 为什么需要容器化
+### 5.1 为什么需要容器化
 
 | 传统部署痛点 | Docker 解决方式 |
 |-------------|----------------|
@@ -497,7 +497,7 @@ public Order refundOrder(@PathVariable Long id) { ... }
 | 多个应用共享机器，依赖冲突 | 每个容器独立的文件系统和依赖 |
 | 扩容需要采购服务器 | 容器秒级水平扩展 |
 
-### 8.5.2 Dockerfile 示例
+### 5.2 Dockerfile 示例
 
 ```dockerfile
 # ========== 构建阶段 ==========
@@ -555,7 +555,7 @@ docker run -d \
     order-service:1.0.0
 ```
 
-### 8.5.3 多阶段构建的价值
+### 5.3 多阶段构建的价值
 
 多阶段构建（Multi-stage Build）将"编译"和"运行"分离：
 
@@ -573,9 +573,9 @@ docker run -d \
 
 最终镜像不包含 JDK、Maven、源代码，体积大幅缩小，攻击面也更小。
 
-## 8.6 Kubernetes 基础
+## 6. Kubernetes 基础
 
-### 8.6.1 核心资源对象
+### 6.1 核心资源对象
 
 Kubernetes（K8s）是容器编排的事实标准，其核心资源对象如下：
 
@@ -587,7 +587,7 @@ Kubernetes（K8s）是容器编排的事实标准，其核心资源对象如下�
 | **ConfigMap** | 存储非敏感配置（键值对或文件） | 公告栏上的通知 |
 | **Secret** | 存储敏感信息（密码、证书），Base64 编码 | 上锁的保险柜 |
 
-### 8.6.2 Deployment 示例
+### 6.2 Deployment 示例
 
 ```yaml
 apiVersion: apps/v1
@@ -647,7 +647,7 @@ spec:
             periodSeconds: 15
 ```
 
-### 8.6.3 Service 示例
+### 6.3 Service 示例
 
 ```yaml
 apiVersion: v1
@@ -667,7 +667,7 @@ spec:
 
 Service 提供稳定的 DNS 名称：`order-service.production.svc.cluster.local`，无论 Pod 如何漂移，其他服务只需通过这个域名访问。
 
-### 8.6.4 ConfigMap 与 Secret
+### 6.4 ConfigMap 与 Secret
 
 ```yaml
 # ConfigMap - 非敏感配置
@@ -694,9 +694,9 @@ data:
 
 **最佳实践**：ConfigMap 和 Secret 的值可以在 Pod 内以环境变量或文件挂载的方式使用。环境变量适合简单配置，文件挂载适合配置文件（如 `application.yml`）。
 
-## 8.7 多环境配置
+## 7. 多环境配置
 
-### 8.7.1 Spring Profiles 机制
+### 7.1 Spring Profiles 机制
 
 企业应用通常需要在多个环境（开发、测试、预发布、生产）中运行，每个环境的数据库地址、缓存配置、日志级别都不同。Spring Boot 通过 `spring.profiles.active` 机制解决这个问题：
 
@@ -767,7 +767,7 @@ logging:
     org.springframework: WARN
 ```
 
-### 8.7.2 激活 Profile 的方式
+### 7.2 激活 Profile 的方式
 
 | 方式 | 示例 | 优先级 |
 |------|------|--------|
@@ -788,7 +788,7 @@ env:
         key: spring.profiles.active   # 值为 "prod"
 ```
 
-### 8.7.3 配置优先级链
+### 7.3 配置优先级链
 
 Spring Boot 的配置优先级从高到低：
 
@@ -800,7 +800,7 @@ Spring Boot 的配置优先级从高到低：
 
 **设计原则**：公共配置放 `application.yml`，环境差异配置放 `application-{profile}.yml`，敏感信息通过环境变量或 Secret 注入，**永远不要将密码写在代码仓库中**。
 
-## 本章小结
+## 8. 本章小结
 
 本章从三个维度构建了企业级 Java 应用的安全与部署体系：
 

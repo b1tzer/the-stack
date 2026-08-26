@@ -125,4 +125,3 @@ SELECT * FROM sys.schema_redundant_indexes;
 5. **定期审查索引使用情况** — 删除未使用和重复的索引
 6. **使用 EXPLAIN 验证索引效果** — 确认索引被正确使用
 
----

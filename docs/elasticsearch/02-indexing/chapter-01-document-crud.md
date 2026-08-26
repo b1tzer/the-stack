@@ -58,8 +58,6 @@ POST /_bulk
 {"delete": {"_index": "my-index", "_id": "2"}}
 ```
 
----
-
 ## 5. 条件更新与乐观锁
 
 ```bash

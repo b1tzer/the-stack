@@ -1,14 +1,12 @@
-# 第10章 线程池：任务调度的核心引擎
+# 线程池：任务调度的核心引擎
 
 > `ThreadPoolExecutor` 的七个参数如何互相牵制？为什么 `Executors` 提供的四个工厂方法在生产环境几乎都不该直接用？队列满了、线程也满了，任务到底会去哪？
 
 线程池是 Java 后端最常出问题的基础设施之一。参数配对了，线上稳定十年；配错一个字段，可能就是一次 P0 故障。这一章把 `ThreadPoolExecutor` 的每一处开关摊开——从"为什么必须用线程池"讲到"生产上应该怎么配"。
 
----
+## 1. 无限制创建线程为什么行不通
 
-## 10.1 无限制创建线程为什么行不通
-
-### 10.1.1 每来一个请求 `new Thread`：三笔账
+### 1.1 每来一个请求 `new Thread`：三笔账
 
 ```java
 // ❌ 每个请求现场造线程
@@ -31,7 +29,7 @@ CPU 更多时间用于切换 → 请求 RT 变长 →
 
 一旦进入这个循环，靠加机器已经追不上。
 
-### 10.1.2 线程池要解决的问题
+### 1.2 线程池要解决的问题
 
 线程池给出三样能力：
 
@@ -51,11 +49,9 @@ pool.submit(() -> handle(request));
 
 一行 `submit` 背后，线程池已经决定了：新任务应该由核心线程执行、还是入队、还是新起一条非核心线程、还是走拒绝策略。§10.3 会把这个决策过程剖开来看。
 
----
+## 2. `ThreadPoolExecutor` 的七个参数
 
-## 10.2 `ThreadPoolExecutor` 的七个参数
-
-### 10.2.1 参数清单
+### 2.1 参数清单
 
 ```java
 public ThreadPoolExecutor(
@@ -79,17 +75,15 @@ public ThreadPoolExecutor(
 
 七个字段中，只有五个是真正的独立开关（`unit` 只是给 `keepAliveTime` 加单位；`threadFactory` 影响可观测性但不影响调度）。真正决定线程池行为的核心是 **`corePoolSize` / `maximumPoolSize` / `workQueue` / `handler`** 这四项——它们互相牵制，改任何一个都会连带影响另外三个。
 
-### 10.2.2 四项主开关的耦合关系
+### 2.2 四项主开关的耦合关系
 
 ![pool-execute-flow](/java/pool-execute-flow.svg)
 
 **这个流程决定了一件反直觉的事：只有队列先"装不下"，才可能创建非核心线程**。也就是说，把 `workQueue` 换成无界队列，等于让 `maximumPoolSize` 形同虚设——见 §10.5.2。
 
----
+## 3. 任务流转的完整状态机
 
-## 10.3 任务流转的完整状态机
-
-### 10.3.1 `execute()` 的四步决策
+### 3.1 `execute()` 的四步决策
 
 `ThreadPoolExecutor.execute` 的核心逻辑（简化）：
 
@@ -121,7 +115,7 @@ public void execute(Runnable command) {
 
 四条路径映射到 §10.2.2 的图。这里有一个容易漏掉的细节：**入队之后要 double-check**。因为提交和 `shutdown` 是并发的，入队瞬间线程池可能刚好被关。`workerCountOf(recheck) == 0` 那一段则是防御另一种边缘情况——所有 Worker 都异常终止后，队列里还有任务，得补一条兜底 Worker 来消费它。
 
-### 10.3.2 Worker 的生命周期
+### 3.2 Worker 的生命周期
 
 `Worker` 就是"承担任务执行"的那条线程。它的循环骨架是：
 
@@ -129,7 +123,7 @@ public void execute(Runnable command) {
 
 `allowCoreThreadTimeOut(true)` 会让核心线程也走带超时的 `poll`——适合"深夜没流量"的应用，代价是流量突增时需要重新预热线程。
 
-### 10.3.3 一份合规的手写线程池
+### 3.3 一份合规的手写线程池
 
 ```java
 ThreadPoolExecutor pool = new ThreadPoolExecutor(
@@ -143,13 +137,11 @@ ThreadPoolExecutor pool = new ThreadPoolExecutor(
 
 有界队列 + 明确拒绝策略 + 可辨识的线程名——这三条是 §10.5 反复强调的红线。
 
----
-
-## 10.4 四种拒绝策略
+## 4. 四种拒绝策略
 
 `RejectedExecutionHandler` 只有一个方法：`rejectedExecution(Runnable r, ThreadPoolExecutor e)`。JDK 内置四种实现，行为差异明显。
 
-### 10.4.1 四种策略的行为
+### 4.1 四种策略的行为
 
 | 策略 | 行为 | 用途 |
 | :-- | :-- | :-- |
@@ -175,7 +167,7 @@ public void rejectedExecution(Runnable r, ThreadPoolExecutor e) {
 }
 ```
 
-### 10.4.2 `CallerRunsPolicy` 的反压效应
+### 4.2 `CallerRunsPolicy` 的反压效应
 
 `CallerRunsPolicy` 是这四种里最有意思的一种——它把过载压力**反推给上游**：
 
@@ -183,7 +175,7 @@ public void rejectedExecution(Runnable r, ThreadPoolExecutor e) {
 
 这在"绝不能丢任务、也不允许无界排队"的场景里非常有用。代价是调用线程会被临界任务卡住一段时间——如果调用线程本身是 Tomcat 的请求处理线程，这段时间它无法响应新请求。
 
-### 10.4.3 自定义拒绝策略：加计数
+### 4.3 自定义拒绝策略：加计数
 
 生产上通常在 JDK 四种之上再包一层做**过载计数**：
 
@@ -201,13 +193,11 @@ public class CountingCallerRunsPolicy implements RejectedExecutionHandler {
 
 没有过载计数时，"线程池够不够用"只能靠经验推断；接入监控后，`rejected 数 > 0` 直接触发告警。
 
----
-
-## 10.5 `Executors` 工厂方法的陷阱
+## 5. `Executors` 工厂方法的陷阱
 
 `Executors.newFixedThreadPool` / `newCachedThreadPool` / `newSingleThreadExecutor` / `newScheduledThreadPool` 都是一行代码就能造出的线程池。方便，但生产环境里几乎都不该直接用。
 
-### 10.5.1 一览表
+### 5.1 一览表
 
 | 工厂方法 | 内部参数 | 主要风险 |
 | :-- | :-- | :-- |
@@ -216,7 +206,7 @@ public class CountingCallerRunsPolicy implements RejectedExecutionHandler {
 | `newCachedThreadPool()` | core=0, max=`Integer.MAX_VALUE`, `SynchronousQueue` | 线程数无上限 → 线程爆炸 |
 | `newScheduledThreadPool(n)` | core=n, max=`Integer.MAX_VALUE`, `DelayedWorkQueue`（无界） | 定时任务 + 无界队列 |
 
-### 10.5.2 `LinkedBlockingQueue` 默认无界为什么致命
+### 5.2 `LinkedBlockingQueue` 默认无界为什么致命
 
 看看 `newFixedThreadPool` 的实现：
 
@@ -231,7 +221,7 @@ public static ExecutorService newFixedThreadPool(int n) {
 
 代入 §10.2.2 的流程图：核心线程满 → 入队 → 由于队列永远不会满 → 永远走不到"创建非核心线程"这一步。表面上看 `maximumPoolSize` 生效了（因为等于 `corePoolSize`），实际上真正决定行为的是**无界队列在堆里持续膨胀**。任务提交速率一旦持续大于处理速率，堆很快撑爆。
 
-### 10.5.3 `newCachedThreadPool` 的另一头出口
+### 5.3 `newCachedThreadPool` 的另一头出口
 
 ```java
 public static ExecutorService newCachedThreadPool() {
@@ -245,7 +235,7 @@ public static ExecutorService newCachedThreadPool() {
 
 结果：来一个请求造一条线程。10 000 并发就是 10 000 条线程 ≈ 10 GB 栈内存。OOM 或 `OutOfMemoryError: unable to create native thread` 是必然结局。
 
-### 10.5.4 手写线程池的默认姿势
+### 5.4 手写线程池的默认姿势
 
 ```java
 // ❌ 阿里/腾讯的 Java 开发规范都明确禁止
@@ -262,9 +252,7 @@ ThreadPoolExecutor pool = new ThreadPoolExecutor(
 
 三条硬性要求写死：**有界队列、可辨识线程名、明确拒绝策略**。
 
----
-
-## 10.6 `ScheduledThreadPoolExecutor`：定时任务的底座
+## 6. `ScheduledThreadPoolExecutor`：定时任务的底座
 
 定时任务不是普通线程池——需要"到时间才能取"的队列。JDK 用 `DelayedWorkQueue`（一个基于最小堆的优先队列）做底座：
 
@@ -281,7 +269,7 @@ scheduler.scheduleAtFixedRate(task, 0, 5, TimeUnit.SECONDS);
 scheduler.scheduleWithFixedDelay(task, 0, 5, TimeUnit.SECONDS);
 ```
 
-### 10.6.1 `AtFixedRate` vs `WithFixedDelay`
+### 6.1 `AtFixedRate` vs `WithFixedDelay`
 
 区别很多人会混：
 
@@ -291,7 +279,7 @@ scheduler.scheduleWithFixedDelay(task, 0, 5, TimeUnit.SECONDS);
 | 上次执行超时 | 后续任务被压缩甚至并发跟上 | 后续任务向后顺延 |
 | 适用 | 心跳、汇报之类"频率恒定"的任务 | 需要保证间隔的任务 |
 
-### 10.6.2 一个任务异常就"消失"
+### 6.2 一个任务异常就"消失"
 
 `ScheduledExecutorService` 有个坑：**定时任务里抛出的未捕获异常，会让这个任务被静默取消，之后不再触发**。
 
@@ -313,13 +301,11 @@ scheduler.scheduleAtFixedRate(() -> {
 
 线上"定时任务运行了一段时间突然不跑了"，绝大多数是这个原因。
 
----
-
-## 10.7 `ForkJoinPool` 与工作窃取
+## 7. `ForkJoinPool` 与工作窃取
 
 `ThreadPoolExecutor` 处理"独立任务"；`ForkJoinPool` 处理"能被拆分的任务"——分治并行。
 
-### 10.7.1 工作窃取：每个线程一个双端队列
+### 7.1 工作窃取：每个线程一个双端队列
 
 ```text
 Worker A 队列:  [T1, T2, T3]     ← A 从队头取（LIFO，缓存友好）
@@ -331,7 +317,7 @@ Worker B 队列:  [T3]             ← B 拿到 T3 后从自己队头取
 
 **A 从队头（LIFO）取自己的任务，B 从 A 的队尾偷**——两端操作错开，减少 CAS 争抢。加上"最新任务留给自己"的偏好，工作窃取在 CPU 密集分治场景下能压出接近线性的并行度。
 
-### 10.7.2 `commonPool`：`parallelStream` 和 `CompletableFuture` 的默认执行器
+### 7.2 `commonPool`：`parallelStream` 和 `CompletableFuture` 的默认执行器
 
 `ForkJoinPool.commonPool()` 是 JVM 全局单例，线程数默认 = `CPU 核数 - 1`。以下代码全部落到它上面：
 
@@ -354,7 +340,7 @@ CompletableFuture.supplyAsync(() -> httpClient.get(url), ioPool);
 
 一条规则记住即可：**`ForkJoinPool` 只应承担 CPU 密集任务；任何可能阻塞的任务必须走独立线程池**。第 11 章会围绕 `CompletableFuture` 把这条规则再展开一遍。
 
-### 10.7.3 `ThreadPoolExecutor` vs `ForkJoinPool`
+### 7.3 `ThreadPoolExecutor` vs `ForkJoinPool`
 
 | 维度 | `ThreadPoolExecutor` | `ForkJoinPool` |
 | :-- | :-- | :-- |
@@ -363,11 +349,9 @@ CompletableFuture.supplyAsync(() -> httpClient.get(url), ioPool);
 | 工作窃取 | 无 | 有 |
 | 适用负载 | IO 密集 / 通用异步 | CPU 密集 / 递归分治 |
 
----
+## 8. 参数配置方法论
 
-## 10.8 参数配置方法论
-
-### 10.8.1 从任务性质起手
+### 8.1 从任务性质起手
 
 参数不能拍脑袋。核心是判断任务是 CPU 密集还是 IO 密集：
 
@@ -388,7 +372,7 @@ Little 定律的推导：
 
 这个公式给的是**起点**，不是终点。真实业务需要靠压测把线程数、队列大小、拒绝策略这三者一起调到最佳组合。
 
-### 10.8.2 线程命名：排查线上问题的生命线
+### 8.2 线程命名：排查线上问题的生命线
 
 线上出问题，第一件事是抓线程栈。默认线程名 `pool-1-thread-3` 会让你完全分不清哪个业务在跑：
 
@@ -411,7 +395,7 @@ public class NamedThreadFactory implements ThreadFactory {
 
 用 `order-pool-3` / `payment-pool-1` 这种命名，Thread Dump 一眼就能看出哪个业务的哪个池。
 
-### 10.8.3 生产监控的四个指标
+### 8.3 生产监控的四个指标
 
 线程池提供了完备的观测 API，接入监控是必须的：
 
@@ -422,7 +406,7 @@ public class NamedThreadFactory implements ThreadFactory {
 | 已完成任务 | `getCompletedTaskCount()` | 观察增长速率，突降=卡顿 |
 | 拒绝数 | 自定义 `RejectedExecutionHandler` 计数 | > 0 立即告警 |
 
-### 10.8.4 业务线程池要相互隔离
+### 8.4 业务线程池要相互隔离
 
 **反模式**：整个应用共用一个线程池。任一业务变慢会拖垮所有业务。
 
@@ -445,7 +429,7 @@ ExecutorService emailPool   = new ThreadPoolExecutor(10, 10, ...);
 
 Hystrix / Resilience4j 的舱壁隔离（bulkhead）本质就是这一条。
 
-### 10.8.5 优雅关闭
+### 8.5 优雅关闭
 
 ```java
 // 第一步：温和关闭
@@ -475,7 +459,7 @@ try {
 
 Spring 环境中用 `@PreDestroy` 触发这套流程，避免 JVM 退出时任务被硬中断。
 
-### 10.8.6 `submit` 的异常静默陷阱
+### 8.6 `submit` 的异常静默陷阱
 
 ```java
 // ❌ 用 submit 但不调用 future.get()，任务抛的异常悄无声息
@@ -490,9 +474,7 @@ try { f.get(); } catch (ExecutionException e) { /* 才能拿到异常 */ }
 
 `submit` 把任务包装成 `FutureTask`，异常被塞进 `Future` 里"等你来取"。不取就永远看不到。这是线上"任务好像跑了但看不出结果对不对"最常见的原因之一。
 
----
-
-## 10.9 本章小结
+## 9. 本章小结
 
 | 问题 | 根源 | 解决方案 |
 | :-- | :-- | :-- |
@@ -504,8 +486,6 @@ try { f.get(); } catch (ExecutionException e) { /* 才能拿到异常 */ }
 | `parallelStream` / `CompletableFuture` 全局卡住 | 阻塞任务塞进 `commonPool` | 阻塞任务用独立线程池 |
 | 线上无法定位是哪个业务的线程 | 默认线程名无区分 | 自定义 `ThreadFactory` 命名 |
 | `submit` 的任务异常静默丢失 | 异常被封在 `Future` 里 | 用 `execute` 或调 `future.get` |
-
----
 
 > **纵横联系**
 >

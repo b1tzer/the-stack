@@ -41,7 +41,7 @@ sasl.mechanism=SCRAM-SHA-256
 
 ## 5. SASL 认证详解
 
-### SASL/PLAIN（明文，仅用于测试）
+### 5.1 SASL/PLAIN（明文，仅用于测试）
 ```properties
 # Broker 配置
 listeners=SASL_PLAINTEXT://:9092
@@ -58,7 +58,7 @@ KafkaServer {
 };
 ```
 
-### SASL/SCRAM（推荐）
+### 5.2 SASL/SCRAM（推荐）
 ```properties
 # Broker 配置
 listeners=SASL_PLAINTEXT://:9092
@@ -157,7 +157,7 @@ props.put("ssl.truststore.location", "/etc/kafka/ssl/kafka.client.truststore.jks
 props.put("ssl.truststore.password", "***");
 ```
 
-## 最佳实践
+## 9. 最佳实践
 
 1. **生产环境使用 SASL_SSL**：同时启用认证和加密，保护数据安全。
 2. **使用 SCRAM-SHA-256**：比 PLAIN 更安全，支持动态用户管理。

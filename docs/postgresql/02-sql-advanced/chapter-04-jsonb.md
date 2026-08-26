@@ -7,7 +7,7 @@ title: JSONB 高级用法
 
 > **核心问题**：PG 的 JSONB 有哪些操作符？如何建索引？与 MySQL 的 JSON 有什么区别？什么场景适合用 JSONB？
 
-## 它解决了什么问题？
+## 1. 它解决了什么问题？
 
 现代应用中，很多数据结构是半结构化的（如用户配置、商品属性、日志元数据），用传统的关系表设计需要大量的 EAV（Entity-Attribute-Value）表或频繁的 ALTER TABLE。JSONB 让你在关系型数据库中**原生存储和查询 JSON 数据**，兼具灵活性和查询性能。
 
@@ -29,7 +29,7 @@ title: JSONB 高级用法
 
 # 二、JSONB 操作符
 
-## 提取操作符
+## 2. 提取操作符
 
 ```sql
 -- 创建示例表
@@ -60,7 +60,7 @@ SELECT attrs -> 'colors' -> 0 FROM products;    -- "黑色"
 SELECT attrs -> 'colors' ->> 1 FROM products;   -- 白色
 ```
 
-## 包含与存在操作符
+## 3. 包含与存在操作符
 
 ```sql
 -- @> 包含（左边包含右边）
@@ -79,7 +79,7 @@ SELECT * FROM products WHERE attrs ?| array['brand', 'weight'];
 SELECT * FROM products WHERE attrs ?& array['brand', 'price'];
 ```
 
-## 修改操作符
+## 4. 修改操作符
 
 ```sql
 -- || 合并（新增或覆盖字段）
@@ -97,7 +97,7 @@ UPDATE products SET attrs = jsonb_set(attrs, '{specs, storage}', '"256GB"') WHER
 
 # 三、JSONB 索引
 
-## GIN 索引
+## 5. GIN 索引
 
 ```sql
 -- 默认 GIN 索引（支持 @>、?、?|、?& 操作符）
@@ -116,7 +116,7 @@ CREATE INDEX idx_products_attrs_path ON products USING GIN (attrs jsonb_path_ops
 | 默认（jsonb_ops） | `@>`、`?`、`?|`、`?&` | 较大 | 需要键存在性查询 |
 | jsonb_path_ops | 仅 `@>` | **更小** | 只需要包含查询 |
 
-## 表达式索引
+## 6. 表达式索引
 
 ```sql
 -- 对 JSONB 中的特定字段建 B-tree 索引（适合等值和范围查询）
@@ -135,7 +135,7 @@ SELECT * FROM products WHERE (attrs ->> 'price')::numeric > 5000;
 
 # 四、JSONB 聚合与查询技巧
 
-## 展开数组
+## 7. 展开数组
 
 ```sql
 -- jsonb_array_elements 展开 JSONB 数组为多行
@@ -153,7 +153,7 @@ SELECT DISTINCT name FROM products,
 WHERE color = '黑色';
 ```
 
-## 聚合为 JSONB
+## 8. 聚合为 JSONB
 
 ```sql
 -- jsonb_agg 将多行聚合为 JSONB 数组
@@ -165,7 +165,7 @@ SELECT jsonb_object_agg(name, attrs ->> 'price') FROM products;
 -- {"iPhone 15": "7999", "Galaxy S24": "6999"}
 ```
 
-## jsonb_each 遍历键值对
+## 9. jsonb_each 遍历键值对
 
 ```sql
 -- 将 JSONB 对象展开为键值对
@@ -177,7 +177,7 @@ WHERE name = 'iPhone 15';
 
 # 五、实战场景
 
-## 场景1：商品 SKU 属性（半结构化）
+## 10. 场景1：商品 SKU 属性（半结构化）
 
 ```sql
 -- 不同品类的商品有不同的属性，用 JSONB 存储灵活属性
@@ -203,7 +203,7 @@ CREATE INDEX idx_sku_attrs ON sku USING GIN (attrs);
 SELECT * FROM sku WHERE category = '手机' AND attrs @> '{"ram": "8GB"}';
 ```
 
-## 场景2：用户配置（键值对存储）
+## 11. 场景2：用户配置（键值对存储）
 
 ```sql
 CREATE TABLE user_settings (
@@ -220,7 +220,7 @@ WHERE user_id = 1;
 SELECT settings ->> 'theme' FROM user_settings WHERE user_id = 1;
 ```
 
-## 场景3：日志元数据
+## 12. 场景3：日志元数据
 
 ```sql
 CREATE TABLE audit_logs (

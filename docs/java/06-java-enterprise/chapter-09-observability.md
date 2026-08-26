@@ -1,12 +1,10 @@
-# 第9章 可观测性
+# 可观测性
 
 > 系统上线后，你如何知道它运行得好不好？用户反馈"接口很慢"，你如何定位是数据库慢、缓存穿透还是某个下游服务超时？凌晨三点收到告警，你如何快速判断影响范围并找到根因？可观测性（Observability）就是解决这些问题的系统化方法论。本章将从日志、指标、链路追踪三大支柱出发，构建完整的可观测体系，并给出线上问题的排查路径。
 
----
+## 1. 日志体系
 
-## 9.1 日志体系
-
-### 9.1.1 日志的定位
+### 1.1 日志的定位
 
 日志是可观测性中最古老也最基础的手段。它记录的是**离散事件**——某时某刻发生了什么。日志适合回答：
 
@@ -14,7 +12,7 @@
 - 今天有多少次 NullPointerException？
 - 某条 SQL 执行的参数和结果是什么？
 
-### 9.1.2 Logback 日志配置
+### 1.2 Logback 日志配置
 
 Spring Boot 默认使用 Logback 作为日志框架。一个生产级的 `logback-spring.xml` 配置如下：
 
@@ -83,7 +81,7 @@ Spring Boot 默认使用 Logback 作为日志框架。一个生产级的 `logbac
 </configuration>
 ```
 
-### 9.1.3 ELK 日志采集架构
+### 1.3 ELK 日志采集架构
 
 ELK（Elasticsearch + Logstash + Kibana）是最主流的日志采集方案。在高并发场景下，通常在 Logstash 前加一层 Kafka 做缓冲：
 
@@ -119,7 +117,7 @@ ELK（Elasticsearch + Logstash + Kibana）是最主流的日志采集方案。�
                    └────────────┘
 ```
 
-### 9.1.4 Filebeat 配置
+### 1.4 Filebeat 配置
 
 ```yaml
 # filebeat.yml
@@ -146,7 +144,7 @@ output.kafka:
 #   index: "app-logs-%{+yyyy.MM.dd}"
 ```
 
-### 9.1.5 TraceID 关联日志
+### 1.5 TraceID 关联日志
 
 日志最大的问题是**上下文割裂**——一个请求跨越多个服务，每个服务的日志独立存储，无法关联。解决方案是将链路追踪的 TraceID 注入日志。
 
@@ -176,11 +174,9 @@ public class TraceIdLogFilter extends Filter {
 
 有了 TraceID，日志就从"离散事件"变成了"有上下文的事件链"。在 Kibana 中搜索 `traceId:abc-123-def`，就能看到这个请求在所有服务中的完整日志。
 
----
+## 2. 指标监控
 
-## 9.2 指标监控
-
-### 9.2.1 指标的本质
+### 2.1 指标的本质
 
 如果说日志是"发生了什么"，那么指标就是"整体状况如何"。指标是**数值型的时间序列数据**，适合回答：
 
@@ -189,7 +185,7 @@ public class TraceIdLogFilter extends Filter {
 - 错误率是多少？
 - JVM 堆内存使用趋势如何？
 
-### 9.2.2 Micrometer 指标采集
+### 2.2 Micrometer 指标采集
 
 Micrometer 是 Spring Boot 的指标采集标准（类似日志领域的 SLF4J），它提供统一的 API，底层可以对接多种监控系统。
 
@@ -234,7 +230,7 @@ public class OrderMetrics {
 }
 ```
 
-### 9.2.3 Prometheus + Grafana 监控体系
+### 2.3 Prometheus + Grafana 监控体系
 
 ```text
 ┌──────────────────────────────────────────────────────┐
@@ -299,7 +295,7 @@ scrape_configs:
         regex: true
 ```
 
-### 9.2.4 核心监控指标
+### 2.4 核心监控指标
 
 | 类别 | 指标 | 含义 | 告警阈值建议 |
 |------|------|------|-------------|
@@ -313,11 +309,9 @@ scrape_configs:
 | **DB** | `hikaricp_connections_timeout_total` | 连接超时次数 | > 0 |
 | **自定义** | `order_create_duration_seconds` | 业务操作耗时 | P99 > 500ms |
 
----
+## 3. 链路追踪
 
-## 9.3 链路追踪
-
-### 9.3.1 三大支柱的关系
+### 3.1 三大支柱的关系
 
 可观测性三大支柱不是孤立的，它们通过**关联标识**（TraceID、时间戳）串联起来：
 
@@ -351,7 +345,7 @@ scrape_configs:
 4. **Kibana 日志**：用同一个 TraceID 搜索，发现 `AccountService` 报了 `Connection pool exhausted`
 5. **根因定位**：数据库连接池耗尽，需要扩容连接池或优化慢 SQL
 
-### 9.3.2 OpenTelemetry 架构
+### 3.2 OpenTelemetry 架构
 
 OpenTelemetry（OTel）是 CNCF 的可观测性标准，统一了指标、日志、追踪的数据格式和采集方式：
 
@@ -379,7 +373,7 @@ OpenTelemetry（OTel）是 CNCF 的可观测性标准，统一了指标、日志
      └────────────┘ └──────────┘ └──────────────┘
 ```
 
-### 9.3.3 OTel Java Agent 使用
+### 3.3 OTel Java Agent 使用
 
 OpenTelemetry Java Agent 与 SkyWalking 类似，也是无侵入的字节码注入方式：
 
@@ -401,7 +395,7 @@ java -javaagent:/path/opentelemetry-javaagent.jar \
 | `traceidratio` | 按比例采样（如 10%） | 生产环境，平衡开销和可观测性 |
 | `parentbased_traceidratio` | 父 Span 已采样则子 Span 也采样 | 生产推荐，保证链路完整 |
 
-### 9.3.4 OTel Collector 配置
+### 3.4 OTel Collector 配置
 
 ```yaml
 # otel-collector-config.yml
@@ -460,7 +454,7 @@ service:
       exporters: [elasticsearch]
 ```
 
-### 9.3.5 SkyWalking vs Jaeger 对比
+### 3.5 SkyWalking vs Jaeger 对比
 
 | 维度 | SkyWalking | Jaeger |
 |------|-----------|--------|
@@ -472,10 +466,6 @@ service:
 | **扩展性** | 中等（自定义存储需开发插件） | 高（OTel 标准，生态丰富） |
 | **国内生态** | 国内公司广泛使用，中文文档完善 | 国际化社区，文档以英文为主 |
 | **推荐场景** | 国内团队、快速上手、一体化方案 | 国际团队、已有 OTel 基础设施 |
-
----
-
----
 
 > 日志、指标、链路追踪三大支柱的具体落地（ELK、Prometheus、OpenTelemetry）见本文；跨服务的**线上问题定位方法论**（三板斧排查流程、Arthas 常用命令）已收敛到 [软件工程 · 可观测性](../../engineering/06-engineering-practices/chapter-06-observability.md)。
 

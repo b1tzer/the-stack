@@ -1,12 +1,10 @@
-# 第3章 MyBatis：SQL 映射框架
+# MyBatis：SQL 映射框架
 
 > 当 JDBC 的模板代码淹没了业务逻辑，当手写 ResultSet 映射成为机械劳动，我们是否可以找到一种方式——**让开发者专注于 SQL 本身，而把繁琐的映射和连接管理交给框架**？MyBatis 的答案是：SQL 由你写，映射由我做。
 
----
+## 1. 为什么需要 MyBatis
 
-## 3.1 为什么需要 MyBatis
-
-### 3.1.1 JDBC 的三大痛点
+### 1.1 JDBC 的三大痛点
 
 每个写过 JDBC 的 Java 开发者都经历过这样的"仪式感"：
 
@@ -45,7 +43,7 @@ public User findById(int id) {
 
 **痛点三：结果集映射是体力活。** `ResultSet.getString("column_name")` 与 `User.setName()` 之间的映射完全是机械劳动。字段多了容易出错，改了表结构要逐个排查，而且无法复用。
 
-### 3.1.2 MyBatis 的设计哲学
+### 1.2 MyBatis 的设计哲学
 
 MyBatis 选择了**半自动化**的路线。这与 Hibernate 等全自动化 ORM 框架形成了鲜明对比：
 
@@ -63,11 +61,9 @@ MyBatis 的核心理念可以用一句话概括：**SQL 是开发者的领地，
 
 这种"克制"恰恰是 MyBatis 在中国市场占据统治地位的原因：当你的业务查询是 20 行的多表 JOIN 加窗口函数时，任何自动生成 SQL 的框架都会成为阻碍。
 
----
+## 2. 核心流程
 
-## 3.2 核心流程
-
-### 3.2.1 从一次查询说起
+### 2.1 从一次查询说起
 
 当你调用 `userMapper.getById(1)` 时，背后发生了什么？
 
@@ -93,7 +89,7 @@ sequenceDiagram
     RS-->>App: User 对象
 ```
 
-### 3.2.2 六大核心组件
+### 2.2 六大核心组件
 
 整个执行链路涉及六个核心组件，各司其职：
 
@@ -108,11 +104,9 @@ sequenceDiagram
 | **ResultSetHandler** | 将 ResultSet 转换为 Java 对象 | 结果翻译官 |
 | **MappedStatement** | 封装一条 SQL 的所有信息（id、SQL文本、参数类型、结果映射…） | 业务档案袋 |
 
----
+## 3. Mapper 动态代理
 
-## 3.3 Mapper 动态代理
-
-### 3.3.1 一个"魔法"的真相
+### 3.1 一个"魔法"的真相
 
 这是 MyBatis 最让人困惑也最优雅的设计：你定义一个 Java 接口，不写任何实现类，就能直接调用它执行 SQL。
 
@@ -132,7 +126,7 @@ User user = mapper.getById(1);  // SQL 被执行了！
 
 没有实现类，调用却能执行 SQL——这不是魔法，而是 **JDK 动态代理**。
 
-### 3.3.2 代理机制解析
+### 3.2 代理机制解析
 
 MyBatis 的做法分为两步：
 
@@ -186,7 +180,7 @@ graph TD
     I --> J["Executor → StatementHandler → DB"]
 ```
 
-### 3.3.3 方法与 SQL 的绑定
+### 3.3 方法与 SQL 的绑定
 
 `MapperMethod` 是方法与 SQL 之间的桥梁。它的构造过程会解析 Mapper 接口的每个方法，将其与 `MappedStatement`（即 XML 或注解中定义的 SQL）关联：
 
@@ -213,23 +207,21 @@ public Object execute(SqlSession sqlSession, Object[] args) {
 
 注意 `command.getName()` 返回的就是 SQL 的唯一标识（如 `com.example.mapper.UserMapper.getById`），这个标识就是 XML 中 `<select id="getById">` 的完整路径。
 
-### 3.3.4 横向联系：反射与代理
+### 3.4 横向联系：反射与代理
 
 这里用到的 `java.lang.reflect.Proxy` 是 JDK 反射 API 的一部分。在第一卷《Java 语言》中我们详细讨论了反射机制——MyBatis 的 Mapper 代理正是反射在框架设计中的经典应用。
 
 同时，这种"不修改原始代码、在调用前后插入额外逻辑"的模式，与第六卷将要讨论的 AOP（面向切面编程）异曲同工。区别在于 MyBatis 用 JDK 动态代理手写实现，而 Spring AOP 抽象了这一模式，提供了声明式的切面编程。
 
----
+## 4. 缓存机制
 
-## 3.4 缓存机制
-
-### 3.4.1 为什么需要缓存
+### 4.1 为什么需要缓存
 
 数据库访问的成本远高于内存操作。一次简单的 SELECT 查询，涉及网络往返（通常 1-5ms）、SQL 解析、查询计划生成、磁盘 I/O 等环节。对于同一个 SqlSession 内重复执行的相同查询，缓存可以显著减少数据库压力。
 
 MyBatis 提供了两级缓存，各有其适用场景和局限。
 
-### 3.4.2 一级缓存：SqlSession 级别
+### 4.2 一级缓存：SqlSession 级别
 
 一级缓存是 MyBatis 默认开启的本地缓存，其作用域限定在单个 `SqlSession` 内。
 
@@ -280,7 +272,7 @@ public abstract class BaseExecutor implements Executor {
 }
 ```
 
-### 3.4.3 二级缓存：Mapper 级别
+### 4.3 二级缓存：Mapper 级别
 
 二级缓存的作用域跨越 `SqlSession`，同一个 Mapper 下的所有 SqlSession 共享。
 
@@ -303,7 +295,7 @@ public abstract class BaseExecutor implements Executor {
 3. **对象必须实现 `Serializable`**——因为二级缓存可能涉及序列化存储。
 4. **Spring 整合后一级缓存"失效"**——Spring 将每个数据库操作包装在独立的 SqlSession 中（通过 `SqlSessionTemplate`），因此在 Service 层的两个方法调用之间，一级缓存实际上不共享。
 
-### 3.4.4 Spring 整合后的一级缓存陷阱
+### 4.4 Spring 整合后的一级缓存陷阱
 
 ```java
 @Service
@@ -324,7 +316,7 @@ public class UserService {
 
 **实践建议：** 在 Spring 环境中，不要依赖 MyBatis 的一级缓存。如果需要跨请求的缓存，使用 Spring Cache（如 Redis、Caffeine）作为替代。
 
-### 3.4.5 二级缓存的陷阱
+### 4.5 二级缓存的陷阱
 
 二级缓存看似美好——跨 SqlSession 共享，减少数据库调用。但它有几个隐蔽的坑：
 
@@ -355,11 +347,9 @@ User u2 = userMapper.getById(1);     // 命中缓存，返回 Tom（脏数据！
 
 **结论：生产环境慎用 MyBatis 二级缓存。** 用 Spring Cache + Redis 代替——缓存失效、更新通知、分布式一致性都有成熟的解决方案。
 
----
+## 5. 插件机制
 
-## 3.5 插件机制
-
-### 3.5.1 拦截器模型
+### 5.1 拦截器模型
 
 MyBatis 的插件机制基于**责任链模式**，允许你在 SQL 执行的四个关键环节插入自定义逻辑。
 
@@ -389,7 +379,7 @@ public class SlowSqlPlugin implements Interceptor {
 }
 ```
 
-### 3.5.2 四个拦截点
+### 5.2 四个拦截点
 
 ![mybatis-interceptor-chain](/java/mybatis-interceptor-chain.svg)
 
@@ -400,7 +390,7 @@ public class SlowSqlPlugin implements Interceptor {
 | **StatementHandler** | SQL 改写、分页、慢 SQL 监控 | **PageHelper 分页插件** |
 | **ResultSetHandler** | 结果集后处理、字段解密 | 敏感字段解密 |
 
-### 3.5.3 插件的底层实现
+### 5.3 插件的底层实现
 
 MyBatis 在初始化时，会对被拦截的对象进行**层层代理包装**：
 
@@ -433,7 +423,7 @@ public static Object wrap(Object target, Interceptor interceptor) {
 
 如果配置了多个插件，它们会形成嵌套代理——最外层的插件最先被调用，形成责任链。
 
-### 3.5.4 实战：分页插件 PageHelper
+### 5.4 实战：分页插件 PageHelper
 
 PageHelper 是国内使用最广泛的 MyBatis 插件之一，它通过拦截 `StatementHandler.prepare()` 方法，在原始 SQL 前添加分页逻辑：
 
@@ -450,17 +440,15 @@ List<User> users = userMapper.selectAll();
 // 4. 同时执行 COUNT 查询获取总数
 ```
 
----
+## 6. 动态 SQL
 
-## 3.6 动态 SQL
-
-### 3.6.1 为什么需要动态 SQL
+### 6.1 为什么需要动态 SQL
 
 实际业务中，查询条件往往不固定。用户可能按姓名搜索，也可能按状态筛选，或者同时按多个条件组合查询。如果为每种组合写一条 SQL，组合爆炸会导致维护灾难。
 
 MyBatis 的动态 SQL 通过 XML 标签，根据运行时参数动态拼装 SQL 片段。
 
-### 3.6.2 核心标签详解
+### 6.2 核心标签详解
 
 ```xml
 <select id="findUsers" resultType="User">
@@ -497,7 +485,7 @@ MyBatis 的动态 SQL 通过 XML 标签，根据运行时参数动态拼装 SQL 
 | `<trim>` | 自定义前缀/后缀处理 | where/set 的底层实现 |
 | `<sql>/<include>` | SQL 片段复用 | 类似代码中的方法提取 |
 
-### 3.6.3 choose/when：互斥条件
+### 6.3 choose/when：互斥条件
 
 当多个条件互斥时（如排序策略只能选一种），使用 `choose`：
 
@@ -517,7 +505,7 @@ MyBatis 的动态 SQL 通过 XML 标签，根据运行时参数动态拼装 SQL 
 </select>
 ```
 
-### 3.6.4 foreach：集合遍历
+### 6.4 foreach：集合遍历
 
 `foreach` 是处理 `IN` 查询和批量操作的利器：
 
@@ -541,7 +529,7 @@ MyBatis 的动态 SQL 通过 XML 标签，根据运行时参数动态拼装 SQL 
 <!-- 生成：INSERT INTO users (name, email) VALUES ('Tom', 'tom@x.com'), ('Jerry', 'jerry@x.com') -->
 ```
 
-### 3.6.5 动态 SQL 的本质
+### 6.5 动态 SQL 的本质
 
 MyBatis 的动态 SQL 并非简单的字符串拼接。它使用 **OGNL 表达式引擎** 解析 `test` 条件，通过 `SqlNode` 树形结构组织 SQL 片段，最终由 `DynamicSqlSource` 在运行时生成最终的 `BoundSql`。
 
@@ -549,7 +537,7 @@ MyBatis 的动态 SQL 并非简单的字符串拼接。它使用 **OGNL 表达�
 
 每个 XML 标签被解析为对应的 `SqlNode` 实现（`IfSqlNode`、`ForEachSqlNode`、`WhereSqlNode` 等），运行时根据参数值决定是否输出该节点的内容。
 
-### 3.6.6 实战：复杂条件查询
+### 6.6 实战：复杂条件查询
 
 一个贴近真实业务的例子——电商订单搜索：
 
@@ -589,9 +577,7 @@ MyBatis 的动态 SQL 并非简单的字符串拼接。它使用 **OGNL 表达�
 
 这段 SQL 可以根据传入参数的不同组合，动态生成不同的查询——只传 `statusList` 就按状态筛选，加上 `startDate` 就加时间范围，再加 `keyword` 就支持模糊搜索。一个 XML 抵得上几十条硬编码 SQL。
 
----
-
-## 本章小结
+## 7. 本章小结
 
 | 要点 | 核心结论 |
 | :-- | :-- |

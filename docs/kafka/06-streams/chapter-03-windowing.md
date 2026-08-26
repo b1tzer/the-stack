@@ -36,7 +36,7 @@ JoinWindows.of(Duration.ofMinutes(5))
 
 ## 5. 窗口类型详解
 
-### 翻转窗口（Tumbling Window）
+### 5.1 翻转窗口（Tumbling Window）
 
 ```
 时间:  0    5    10   15   20   25   30
@@ -49,7 +49,7 @@ JoinWindows.of(Duration.ofMinutes(5))
 - 每条消息只属于一个窗口。
 - 适用场景：每 5 分钟的统计。
 
-### 跳跃窗口（Hopping Window）
+### 5.2 跳跃窗口（Hopping Window）
 
 ```
 时间:  0    1    2    3    4    5    6
@@ -65,7 +65,7 @@ JoinWindows.of(Duration.ofMinutes(5))
 - 每条消息可能属于多个窗口。
 - 适用场景：滑动平均。
 
-### 会话窗口（Session Window）
+### 5.3 会话窗口（Session Window）
 
 ```
 用户活动:  ●  ●    ● ● ●      ●
@@ -135,7 +135,7 @@ while (results.hasNext()) {
 }
 ```
 
-## 最佳实践
+## 9. 最佳实践
 
 1. **选择合适的窗口类型**：统计用翻转窗口，滑动平均用跳跃窗口，用户行为用会话窗口。
 2. **设置合理的 grace 时间**：太短会丢弃晚到的消息，太长会占用内存。

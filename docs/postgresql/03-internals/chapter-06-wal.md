@@ -30,7 +30,6 @@ SELECT pg_current_wal_lsn();
 SELECT pg_switch_wal();
 ```
 
----
 ## 5. WAL 详解
 
 ### 5.1 WAL 的作用

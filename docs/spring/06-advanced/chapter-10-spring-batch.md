@@ -13,8 +13,6 @@
 
 它的两个核心价值：**分块处理**（不会把全部数据一次装进内存）和**可重启**（失败后从上次断点继续，不重头再来）。
 
----
-
 ## 2. 核心模型：Job 与 Step
 
 一个批处理任务是一个 `Job`，`Job` 由若干 `Step` 串起来。每个 `Step` 是「读 → 处理 → 写」三段式：
@@ -38,8 +36,6 @@ Job
 | `JobRepository` | 持久化 Job/Step 执行状态 | 默认存数据库，重启的基础 |
 | `JobLauncher` | 启动 Job | 手动或由 `@Scheduled` 触发 |
 
----
-
 ## 3. Chunk 分块模型
 
 Spring Batch 不是读一条写一条，而是攒够一个 chunk（比如 100 条）再批量写。关键在**事务边界落在 chunk 上**：
@@ -49,8 +45,6 @@ Spring Batch 不是读一条写一条，而是攒够一个 chunk（比如 100 �
 ```
 
 一个 chunk 内任何一条失败，整个 chunk 回滚。好处有两个：内存里始终只有 chunk 大小的数据；每个 chunk 是独立的提交点，配合 `JobRepository` 就能实现断点续跑。
-
----
 
 ## 4. 最小可运行示例
 
@@ -126,8 +120,6 @@ public class BatchRunner {
 }
 ```
 
----
-
 ## 5. 失败重启与跳过
 
 **重启**：`JobRepository` 把每个 Step、每个 chunk 的执行状态持久化到数据库。任务中途挂了，用**相同的 `JobParameters`** 再次启动，它会从上次失败的 chunk 继续，而不是从头读。前提是 `JobParameters` 相同——所以每次运行要么用固定参数，要么用带时间戳的参数并接受「新参数 = 新 Job 实例」。
@@ -147,8 +139,6 @@ return new StepBuilder("step", jobRepository)
 ```
 
 `skip` 是「这条数据不要了，继续下一条」，`retry` 是「这条数据再试一次」。两者针对不同问题：前者是数据本身有问题，后者是临时故障。
-
----
 
 ## 6. CSV 文件导入示例
 
@@ -174,8 +164,6 @@ id,name,email
 1,张三,zhangsan@example.com
 2,李四,lisi@example.com
 ```
-
----
 
 ## 7. Job 参数传递
 
@@ -207,8 +195,6 @@ public ItemReader<User> reader(DataSource dataSource, @Value("#{jobParameters['f
 | `Long` 时间戳 | 保证每次运行是新 Job 实例 | `addLong("timestamp", System.currentTimeMillis())` |
 | `String` 业务参数 | 控制处理范围 | `addString("fileName", "users.csv")` |
 | `Date` 时间范围 | 按日期处理数据 | `addDate("startDate", start)` |
-
----
 
 ## 8. 小结
 

@@ -105,7 +105,7 @@ export KAFKA_JVM_PERFORMANCE_OPTS="-XX:+UseG1GC -XX:MaxGCPauseMillis=20"
 - 大堆会导致长时间 GC 停顿。
 - 剩余内存留给操作系统做 Page Cache。
 
-## 最佳实践
+## 8. 最佳实践
 
 1. **留足内存给 Page Cache**：Kafka Broker 的内存 = JVM 堆（6GB）+ Page Cache（剩余全部）。
 2. **不要频繁刷盘**：依赖副本机制保证可靠性，而不是 `log.flush.interval.messages=1`。

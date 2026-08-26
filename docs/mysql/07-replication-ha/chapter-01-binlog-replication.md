@@ -156,4 +156,3 @@ START REPLICA;
 5. **定期检查复制一致性** — 使用 pt-table-checksum
 6. **主从切换使用 GTID** — 简化切换流程
 
----

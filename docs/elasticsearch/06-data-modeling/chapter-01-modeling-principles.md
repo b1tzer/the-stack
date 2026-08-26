@@ -45,7 +45,6 @@ PUT /my-index
 - 使用 `dynamic: strict`
 - 避免动态生成字段名
 
----
 ## 5. 文档 ID 设计
 
 ```json

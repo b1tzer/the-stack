@@ -149,4 +149,3 @@ KILL <blocking_thread_id>;
 5. **避免大事务** — 分批处理减少锁范围
 6. **合理选择隔离级别** — RC 下只有 Record Lock，无 Gap Lock
 
----

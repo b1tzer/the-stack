@@ -37,7 +37,7 @@ rules:
 
 ## 5. JMX 指标详解
 
-### Broker 级别指标
+### 5.1 Broker 级别指标
 ```bash
 # 启用 JMX
 export KAFKA_JMX_OPTS="-Dcom.sun.management.jmxremote \
@@ -55,7 +55,7 @@ export KAFKA_JMX_OPTS="-Dcom.sun.management.jmxremote \
 | kafka.controller:type=KafkaController,name=OfflinePartitionsCount | 离线分区数 | > 0 |
 | kafka.server:type=ReplicaManager,name=IsrShrinksPerSec | ISR 收缩速率 | > 0 持续 |
 
-### Topic 级别指标
+### 5.2 Topic 级别指标
 ```bash
 # 查看 Topic 指标
 kafka-run-class.sh kafka.tools.JmxTool \
@@ -150,7 +150,7 @@ tail -f /var/log/kafka/server.log | grep -E "ERROR|WARN|FATAL"
 # [Log Cleaner] Compaction completed for topic → 日志压缩完成
 ```
 
-## 最佳实践
+## 9. 最佳实践
 
 1. **部署完整的监控栈**：JMX Exporter + Prometheus + Grafana + AlertManager。
 2. **设置关键告警**：UnderReplicatedPartitions、OfflinePartitionsCount、ConsumerLag。

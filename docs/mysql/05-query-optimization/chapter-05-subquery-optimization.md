@@ -138,4 +138,3 @@ SET optimizer_trace = 'enabled=off';
 | 大表 IN 小表 | 保持 IN | 物化后用索引查找 |
 | 小表 IN 大表 | 改为 EXISTS | 避免物化大表 |
 
----

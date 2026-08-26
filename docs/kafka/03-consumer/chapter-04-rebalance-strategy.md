@@ -118,7 +118,7 @@ props.put("group.instance.id", "consumer-" + instanceId);
 - `group.instance.id` 在组内必须唯一。
 - 消费者主动离开组时，需要发送 LeaveGroup 请求。
 
-## 最佳实践
+## 11. 最佳实践
 
 1. **生产环境使用 CooperativeSticky 策略**：减少 Rebalance 期间的消费中断。
 2. **使用静态成员 ID**：部署时为每个实例分配固定的 `group.instance.id`。

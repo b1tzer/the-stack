@@ -7,7 +7,7 @@ title: MVCC 与 VACUUM 机制
 
 > **核心问题**：PostgreSQL 的 MVCC 是如何实现的？为什么会产生表膨胀？VACUUM 如何清理？如何避免表膨胀？
 
-## 它解决了什么问题？
+## 1. 它解决了什么问题？
 
 MVCC（多版本并发控制）让**读操作不加锁**，通过保存数据的多个历史版本，让读写操作互不阻塞，大幅提升并发性能。
 
@@ -17,7 +17,7 @@ MVCC（多版本并发控制）让**读操作不加锁**，通过保存数据的
 
 # 一、PostgreSQL MVCC 核心机制
 
-## MySQL vs PostgreSQL 的 MVCC 对比
+## 2. MySQL vs PostgreSQL 的 MVCC 对比
 
 ```mermaid
 flowchart LR
@@ -36,7 +36,7 @@ flowchart LR
     end
 ```
 
-## 隐藏字段：xmin / xmax
+## 3. 隐藏字段：xmin / xmax
 
 每一行数据都有两个隐藏字段：
 
@@ -49,7 +49,7 @@ flowchart LR
 
 **读取时**：通过当前事务的快照（Snapshot）与行的 xmin/xmax 比较，判断该版本是否对当前事务可见。
 
-## 与 MySQL 的关键差异
+## 4. 与 MySQL 的关键差异
 
 | 对比点 | PostgreSQL | MySQL (InnoDB) | 影响 |
 |--------|-----------|----------------|------|
@@ -73,7 +73,7 @@ flowchart TD
     F --> H[表空间稳定<br>查询性能正常]
 ```
 
-### 监控表膨胀
+### 4.1 监控表膨胀
 
 ```sql
 -- 查看表的 Dead Tuple 数量（监控表膨胀）
@@ -91,7 +91,7 @@ ORDER BY n_dead_tup DESC;
 
 # 三、VACUUM 机制
 
-## VACUUM 的几种形式
+## 5. VACUUM 的几种形式
 
 | 命令 | 作用 | 特点 | 适用场景 |
 |------|------|------|---------|
@@ -137,7 +137,7 @@ flowchart LR
     DT --> BL["表膨胀<br>大量 Dead Tuple 无法清理"]
 ```
 
-### 排查长事务
+### 5.1 排查长事务
 
 ```sql
 -- 查看是否有长事务阻塞 VACUUM
@@ -148,7 +148,7 @@ WHERE state = 'active'
 ORDER BY duration DESC;
 ```
 
-### 解决方案
+### 5.2 解决方案
 
 1. 监控 `pg_stat_activity`，及时发现并终止长事务
 2. 业务层设置合理的事务超时：`SET statement_timeout = '30s'`

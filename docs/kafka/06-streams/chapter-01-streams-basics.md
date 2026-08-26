@@ -125,7 +125,7 @@ Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
 - `RUNNING` → `REBALANCING` → `RUNNING`（Rebalance 时）
 - `ERROR` → `PENDING_SHUTDOWN` → `NOT_RUNNING`（异常时）
 
-## 最佳实践
+## 9. 最佳实践
 
 1. **合理设置 APPLICATION_ID**：每个 Streams 应用使用唯一的 APPLICATION_ID，它决定了消费者组名和状态存储目录。
 2. **监控 Streams 应用状态**：监听 `KafkaStreams.StateListener`，及时处理 REBALANCING 和 ERROR 状态。

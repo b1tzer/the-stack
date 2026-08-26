@@ -134,4 +134,3 @@ ORDER BY stat_value DESC;
 | 降序索引 | ORDER BY DESC | 避免 filesort |
 | 不可见索引 | 测试索引影响 | 安全验证 |
 
----

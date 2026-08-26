@@ -156,7 +156,7 @@ rules:
 | 数据延迟高 | 批量大小过大或处理慢 | 调整 batch.size 和 poll 间隔 |
 | 消息丢失 | 错误容忍级别设置不当 | 检查 errors.tolerance 配置 |
 
-## 最佳实践
+## 9. 最佳实践
 
 1. **部署 JMX Exporter**：在每个 Connect Worker 上部署 JMX Exporter，暴露 Prometheus 指标。
 2. **配置 Grafana Dashboard**：可视化监控 Connector 状态、吞吐量、延迟等关键指标。

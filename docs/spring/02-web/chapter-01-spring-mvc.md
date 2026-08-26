@@ -1,10 +1,10 @@
-# 第3章 Spring MVC
+# Spring MVC
 
 > 你在 Controller 写了个 `@GetMapping("/user")`，浏览器就拿到了 JSON。中间发生了什么？从 Tomcat 接收 TCP 连接，到 Filter 链、DispatcherServlet、HandlerMapping、参数解析、返回值处理、异常兜底——20 多个组件参与了这场接力。本章追踪一个请求从浏览器到 Java 方法再回到浏览器的完整旅程。
 
-## 3.1 从 Servlet 到 Spring MVC
+## 1. 从 Servlet 到 Spring MVC
 
-### 3.1.1 Servlet 规范：Java Web 的基石
+### 1.1 Servlet 规范：Java Web 的基石
 
 Java Web 开发的历史起点是 Servlet 规范。一个 HTTP 请求到达服务器的路径：
 
@@ -49,7 +49,7 @@ public class UserServlet extends HttpServlet {
 
 痛点显而易见：参数解析、类型转换、异常处理、响应序列化全部手动完成。
 
-### 3.1.2 前端控制器模式
+### 1.2 前端控制器模式
 
 Spring MVC 的核心设计思想是**前端控制器（Front Controller）模式**——所有请求统一由一个 Servlet 处理，再分发给具体的处理器：
 
@@ -67,7 +67,7 @@ Spring MVC 的核心设计思想是**前端控制器（Front Controller）模式
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### 3.1.3 DispatcherServlet 的初始化
+### 1.3 DispatcherServlet 的初始化
 
 ```java
 // Spring Boot 自动配置
@@ -108,9 +108,9 @@ Root WebApplicationContext
       └── ...
 ```
 
-## 3.2 DispatcherServlet 核心流程
+## 2. DispatcherServlet 核心流程
 
-### 3.2.1 请求处理的九大步骤
+### 2.1 请求处理的九大步骤
 
 DispatcherServlet 继承自 `FrameworkServlet`，其 `doDispatch()` 方法是整个 Spring MVC 的心脏：
 
@@ -142,11 +142,11 @@ protected void doDispatch(HttpServletRequest request, HttpServletResponse respon
 }
 ```
 
-### 3.2.2 流程图解
+### 2.2 流程图解
 
 ![spring-mvc-flow](/spring/spring-mvc-flow.svg)
 
-### 3.2.3 HandlerMapping 的职责
+### 2.3 HandlerMapping 的职责
 
 HandlerMapping 负责将 HTTP 请求映射到具体的处理器：
 
@@ -166,7 +166,7 @@ Map<RequestMappingInfo, HandlerMethod> handlerMethods;
 //   - consumes/produces 媒体类型
 ```
 
-### 3.2.4 HandlerAdapter 的作用
+### 2.4 HandlerAdapter 的作用
 
 HandlerAdapter 解决的是**调用方式适配**问题。不同的处理器有不同的调用方式：
 
@@ -178,9 +178,9 @@ HandlerAdapter 解决的是**调用方式适配**问题。不同的处理器有�
 
 这种设计体现了**适配器模式**——DispatcherServlet 不需要知道每种 Handler 的具体调用方式，统一通过 HandlerAdapter 适配。
 
-## 3.3 参数解析与返回值处理
+## 3. 参数解析与返回值处理
 
-### 3.3.1 参数解析器体系
+### 3.1 参数解析器体系
 
 Spring MVC 通过 `HandlerMethodArgumentResolver` 接口解析 Controller 方法的参数：
 
@@ -210,7 +210,7 @@ Spring 内置了大量参数解析器，覆盖各种注解场景：
 | `HttpServletRequest` | `ServletRequestMethodArgumentResolver` | 直接注入原生请求对象 |
 | `@ModelAttribute` | `ModelAttributeMethodProcessor` | 表单对象绑定 |
 
-### 3.3.2 @RequestParam 的工作原理
+### 3.2 @RequestParam 的工作原理
 
 ```java
 @GetMapping("/search")
@@ -242,7 +242,7 @@ RequestParamMethodArgumentResolver
          2. 因为 required=false，使用 null 作为默认值
 ```
 
-### 3.3.3 @RequestBody 的工作原理
+### 3.3 @RequestBody 的工作原理
 
 ```java
 @PostMapping("/users")
@@ -270,7 +270,7 @@ RequestResponseBodyMethodProcessor
      └── 5. 绑定到方法参数
 ```
 
-### 3.3.4 返回值处理与 HttpMessageConverter
+### 3.4 返回值处理与 HttpMessageConverter
 
 Controller 方法的返回值由 `HandlerMethodReturnValueHandler` 处理：
 
@@ -311,7 +311,7 @@ HttpMessageConverter 的常见实现：
 | `ByteArrayHttpMessageConverter` | application/octet-stream | 字节数组 |
 | `FormHttpMessageConverter` | application/x-www-form-urlencoded | 表单编码 |
 
-### 3.3.5 内容协商机制
+### 3.5 内容协商机制
 
 当客户端请求不同格式的数据时，Spring MVC 通过内容协商决定使用哪个 `HttpMessageConverter`：
 
@@ -329,9 +329,9 @@ spring.mvc.contentnegotiation.parameter-name=format
   GET /api/user/1?format=xml   → XML 响应
 ```
 
-## 3.4 异常处理
+## 4. 异常处理
 
-### 3.4.1 Spring MVC 的异常处理体系
+### 4.1 Spring MVC 的异常处理体系
 
 Spring MVC 提供了多层级的异常处理机制：
 
@@ -357,7 +357,7 @@ HandlerExceptionResolver 链（按 order 排序）
         └── 4. 兜底处理 → 500 Internal Server Error
 ```
 
-### 3.4.2 @ExceptionHandler
+### 4.2 @ExceptionHandler
 
 在 Controller 内部定义异常处理方法：
 
@@ -395,7 +395,7 @@ public class UserController {
 }
 ```
 
-### 3.4.3 @ControllerAdvice
+### 4.3 @ControllerAdvice
 
 `@ControllerAdvice` 将异常处理逻辑抽取到全局，避免每个 Controller 重复编写：
 
@@ -441,7 +441,7 @@ public class GlobalExceptionHandler {
 }
 ```
 
-### 3.4.4 @ResponseStatus
+### 4.4 @ResponseStatus
 
 对于简单的异常场景，可以用 `@ResponseStatus` 直接指定 HTTP 状态码：
 
@@ -455,7 +455,7 @@ public class ResourceNotFoundException extends RuntimeException {
 }
 ```
 
-### 3.4.5 统一错误响应的最佳实践
+### 4.5 统一错误响应的最佳实践
 
 在企业项目中，建议定义统一的错误响应结构：
 
@@ -513,7 +513,7 @@ public class GlobalExceptionHandler {
 }
 ```
 
-### 3.4.6 异常处理的执行顺序
+### 4.6 异常处理的执行顺序
 
 当异常发生时，Spring MVC 按以下顺序查找处理器：
 
@@ -531,7 +531,7 @@ public class GlobalExceptionHandler {
 
 **注意：** Controller 内的 `@ExceptionHandler` 优先级高于 `@ControllerAdvice`。如果需要覆盖某个 Controller 的异常处理，可以在该 Controller 内定义同类型的 `@ExceptionHandler`。
 
-### 3.4.7 异常处理与 Filter 的边界
+### 4.7 异常处理与 Filter 的边界
 
 Spring MVC 的异常处理机制只在 DispatcherServlet 内部生效。对于 Filter 中抛出的异常，需要通过 Servlet 容器的错误页面机制处理：
 

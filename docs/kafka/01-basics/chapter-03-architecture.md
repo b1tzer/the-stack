@@ -50,7 +50,7 @@
 
 ## 3. 数据流向详解
 
-### 生产者写入流程
+### 3.1 生产者写入流程
 
 ```
 Producer
@@ -80,7 +80,7 @@ Follower 同步（ISR 机制）
 ACK 返回给 Producer
 ```
 
-### 消费者读取流程
+### 3.2 消费者读取流程
 
 ```
 Consumer.poll()
@@ -129,7 +129,7 @@ Consumer 反序列化消息
     └─────────┘               └─────────┘
 ```
 
-## 最佳实践
+## 6. 最佳实践
 
 1. **避免单点 Controller**：在 ZooKeeper 模式下，Controller 是单点。确保监控 Controller 状态，KRaft 模式天然支持多 Controller 冗余。
 2. **合理规划 Broker 数量**：Broker 数量应至少等于副本因子，推荐 3 个以上。

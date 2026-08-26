@@ -2,9 +2,9 @@
 
 > 本章不讲新原理，只做一件事：把社区里被反复讨论、反复踩的真实坑，按「现象 → 排查 → 根因 → 解法 → 关联知识点」拆给你看。每个案例都能追溯到前面某一章的某个小节，读不懂就回去翻。
 
-## 案例 1：@Transactional 不生效——同类方法自调用
+## 1. 案例 1：@Transactional 不生效——同类方法自调用
 
-### 现象
+### 1.1 现象
 
 ![自调用失效](/spring/pitfall-self-invocation.svg)
 
@@ -28,17 +28,17 @@ public class OrderService {
 
 `processPayment()` 里如果 `orderDao.updateStatus` 抛异常，`paymentDao.deduct` 不会回滚。`@Transactional` 静默失效，不报错。
 
-### 排查
+### 1.2 排查
 
 在 `processPayment` 入口打断点，看 `this.getClass()`——是 `OrderService` 原始类，不是 `OrderService$$EnhancerBySpringCGLIB`。说明调用没走代理。
 
-### 根因
+### 1.3 根因
 
 Spring AOP 靠代理对象拦截方法调用。`this.processPayment()` 调的是目标对象自身的方法，绕过了代理，切面根本没介入。这不是 Spring 的 bug，是 Java 方法调用的基本规则：`this` 永远指向当前对象，不是代理。
 
 这和 AOP 失效的四种情况（[AOP](./chapter-05-aop.md) §6.1 自调用）是同一个根因。
 
-### 解法
+### 1.4 解法
 
 | 方案 | 做法 | 适用场景 |
 | :-- | :-- | :-- |
@@ -48,9 +48,9 @@ Spring AOP 靠代理对象拦截方法调用。`this.processPayment()` 调的是
 
 三种方案本质相同：让调用走代理对象而非 `this`。
 
-## 案例 2：@Transactional 不生效——异常类型不匹配
+## 2. 案例 2：@Transactional 不生效——异常类型不匹配
 
-### 现象
+### 2.1 现象
 
 ```java
 @Service
@@ -67,7 +67,7 @@ public class FileService {
 
 文件读取失败时 `IOException` 抛出，但已插入的数据不回滚。
 
-### 根因
+### 2.2 根因
 
 `@Transactional` 默认只对 `RuntimeException` 和 `Error` 回滚，`IOException` 是 Checked Exception，不在回滚范围。这是 Spring 事务的默认行为，不是 bug。
 
@@ -76,7 +76,7 @@ public class FileService {
 @Transactional(rollbackFor = RuntimeException.class)  // 只回滚运行时异常
 ```
 
-### 解法
+### 2.3 解法
 
 方法级声明（只影响当前方法，所有版本可用）：
 
@@ -101,9 +101,9 @@ Spring Boot 默认已自动开启事务管理，通常不需要写 `@EnableTrans
 
 为什么默认是 `RuntimeException` 而不是 `Exception`？社区围绕这个问题讨论了很多年（[Issue #23473](https://github.com/spring-projects/spring-framework/issues/23473)）。官方没有直接改默认值——那会让存量应用的提交行为静默反转，属于破坏性变更——而是新增 `rollbackOn` 属性，让开发者显式选择。Kotlin 项目（异常不区分受检与否）官方建议直接切到 `ALL_EXCEPTIONS`。
 
-## 案例 3：@Async + 循环依赖——异步变同步
+## 3. 案例 3：@Async + 循环依赖——异步变同步
 
-### 现象
+### 3.1 现象
 
 ![Async + 循环依赖](/spring/pitfall-async-circular.svg)
 
@@ -133,19 +133,19 @@ public class NotificationService {
 
 这段代码在 Spring Boot 2.6 之前（或纯 Spring，默认允许循环依赖）启动不报错：`sendNotification` 标了 `@Async`，但监控发现它一直是同步执行，接口 P99 耗时翻倍。Boot 2.6 起默认禁止循环依赖，同样的代码启动时直接报循环依赖错误，走不到「异步变同步」这一步。
 
-### 排查
+### 3.2 排查
 
 1. 启动时没报错，两个 Bean 都创建成功（仅 Boot 2.6 之前 / 纯 Spring）
 2. 在 `sendNotification` 里打印线程名：`main`，不是 `task-1`
 3. 检查 `OrderService` 拿到的 `notificationService` 的类型——是原始对象，不是代理
 
-### 根因
+### 3.3 根因
 
 `OrderService` 和 `NotificationService` 存在循环依赖。三级缓存在提前暴露时调用 `getEarlyBeanReference`（[循环依赖与三级缓存](./chapter-06-circular-dependency.md) §4），但 `AsyncAnnotationBeanPostProcessor` **没有重写 `getEarlyBeanReference`**，所以提前拿到的是裸对象，没有 `@Async` 代理。
 
 `@Transactional` 和 `@Aspect` 的处理器重写了这个方法，能安全参与循环依赖；`@Async` 没有。这是 Spring 的设计立场：循环依赖是坏味道，不值得为它改造所有处理器。Boot 2.6 默认禁止循环依赖，就是这个立场的落地。
 
-### 解法
+### 3.4 解法
 
 | 方案 | 做法 |
 | :-- | :-- |
@@ -155,9 +155,9 @@ public class NotificationService {
 
 **结论：循环依赖 + @Async = 定时炸弹。** 消除循环依赖是治本；`@Lazy` 能保住 `@Async` 生效，是可行的治标手段，但循环依赖仍在。
 
-## 案例 4：@Configuration vs @Component——单例悄悄失效
+## 4. 案例 4：@Configuration vs @Component——单例悄悄失效
 
-### 现象
+### 4.1 现象
 
 ![Configuration vs Component](/spring/pitfall-config-vs-component.svg)
 
@@ -179,13 +179,13 @@ public class DataSourceConfig {
 
 运行时发现容器里有两个 `HikariDataSource` 实例，连接池翻倍，数据库连接数超限。
 
-### 根因
+### 4.2 根因
 
 `@Component` 上的 `@Bean` 方法之间是普通的 Java 方法调用，没有代理拦截。`jdbcTemplate()` 里调 `dataSource()`，每次都 `new` 一个新的 `HikariDataSource`，单例语义丢失。
 
 `@Configuration` 会触发 CGLIB 增强（[IoC 容器](./chapter-02-ioc-container.md) §5.1），生成子类重写 `@Bean` 方法，第二次调用直接返回容器里的缓存实例。
 
-### 解法
+### 4.3 解法
 
 ```java
 @Configuration  // ← 改成 @Configuration
@@ -208,9 +208,9 @@ public class DataSourceConfig {
 
 **经验法则：有 `@Bean` 方法互相调用的配置类，必须用 `@Configuration`。**
 
-## 案例 5：@Value 注入 null——配置属性找不到
+## 5. 案例 5：@Value 注入 null——配置属性找不到
 
-### 现象
+### 5.1 现象
 
 ```java
 @Service
@@ -222,7 +222,7 @@ public class PayService {
 
 `application.yml` 里明明配了 `pay.alipay.app-id`，但注入是 null，不报错。
 
-### 排查清单
+### 5.2 排查清单
 
 | 检查项 | 怎么查 |
 | :-- | :-- |
@@ -255,16 +255,16 @@ PayService service = new PayService();  // 手动 new
 // service.appId == null，因为没走容器
 ```
 
-### 解法
+### 5.3 解法
 
 - 属性名严格一致（推荐用中划线 `app-id`，跟 Spring Boot 默认风格对齐）
 - 确保类被 `@Component` / `@Service` 管理
 - 非 Boot 项目加 `@PropertySource("classpath:application.properties")`
 - 测试环境用 `@TestPropertySource` 或 `@SpringBootTest`
 
-## 案例 6：@ConditionalOnBean 不生效——Bean 扫描顺序问题
+## 6. 案例 6：@ConditionalOnBean 不生效——Bean 扫描顺序问题
 
-### 现象
+### 6.1 现象
 
 ```java
 @Configuration
@@ -279,7 +279,7 @@ public class CacheConfig {
 
 `RedisConnectionFactory` 已经通过 `@Configuration` 定义了，但 `redisCacheManager` 始终不创建。
 
-### 根因
+### 6.2 根因
 
 `@ConditionalOnBean` 在 BeanDefinition 注册阶段就执行判断（[条件装配](./chapter-07-conditional-profile.md) §1），此时只查 `BeanDefinitionRegistry` 里**已注册**的 BeanDefinition。
 
@@ -287,7 +287,7 @@ public class CacheConfig {
 
 Spring 的扫描顺序受 `@ComponentScan` 的 `basePackages`、类的包路径、文件系统排序等多种因素影响，**不能依赖扫描顺序保证 `@ConditionalOnBean` 生效**。
 
-### 解法
+### 6.3 解法
 
 | 方案 | 做法 |
 | :-- | :-- |
@@ -297,9 +297,9 @@ Spring 的扫描顺序受 `@ComponentScan` 的 `basePackages`、类的包路径�
 
 **经验法则：`@ConditionalOnBean` 适合「用户已经定义了某个 Bean，框架就退让」的场景（如 `@ConditionalOnMissingBean`），不适合「框架自己定义的 Bean 之间做条件判断」。**
 
-## 案例 7：prototype Bean 的 @PreDestroy 不触发
+## 7. 案例 7：prototype Bean 的 @PreDestroy 不触发
 
-### 现象
+### 7.1 现象
 
 ![prototype @PreDestroy](/spring/pitfall-prototype-scope.svg)
 
@@ -323,7 +323,7 @@ public class ReportGenerator {
 
 `@PostConstruct` 正常执行，但 `@PreDestroy` 从不执行，文件句柄泄漏。
 
-### 根因
+### 7.2 根因
 
 Spring 容器对 prototype Bean 的管理边界是：**创建时管，销毁时不管**。
 
@@ -332,7 +332,7 @@ Spring 容器对 prototype Bean 的管理边界是：**创建时管，销毁时�
 
 这不是 bug，是作用域的定义（[Bean 生命周期](./chapter-03-bean-lifecycle.md) §9.1）。
 
-### 解法
+### 7.3 解法
 
 | 方案 | 做法 |
 | :-- | :-- |
@@ -342,9 +342,9 @@ Spring 容器对 prototype Bean 的管理边界是：**创建时管，销毁时�
 
 **经验法则：prototype Bean 不能依赖容器销毁。持有资源（连接、文件、锁）的类要么用 singleton，要么自己管生命周期。**
 
-## 案例 8：多线程下 @Transactional 失效
+## 8. 案例 8：多线程下 @Transactional 失效
 
-### 现象
+### 8.1 现象
 
 ![多线程事务失效](/spring/pitfall-thread-transaction.svg)
 
@@ -375,7 +375,7 @@ public class BatchService {
 
 子线程抛异常，主线程回滚了，但子线程已经提交的数据不回滚。
 
-### 根因
+### 8.2 根因
 
 Spring 事务绑定在 `ThreadLocal` 上（[事务管理](../03-data-access/chapter-04-transaction.md)），每个线程有自己的事务上下文。子线程拿不到主线程的事务，各自独立提交，不受主线程回滚影响。
 
@@ -386,7 +386,7 @@ Spring 事务绑定在 `ThreadLocal` 上（[事务管理](../03-data-access/chap
   └─ 子线程3: 独立事务 ──── 异常但无事务 ❌
 ```
 
-### 解法
+### 8.3 解法
 
 | 方案 | 做法 | 适用场景 |
 | :-- | :-- | :-- |
@@ -396,7 +396,7 @@ Spring 事务绑定在 `ThreadLocal` 上（[事务管理](../03-data-access/chap
 
 **经验法则：`@Transactional` 的边界就是当前线程。想跨线程共享事务，要么不用多线程，要么用编程式事务。**
 
-## 案例索引
+## 9. 案例索引
 
 | 案例 | 涉及知识点 |
 | :-- | :-- |

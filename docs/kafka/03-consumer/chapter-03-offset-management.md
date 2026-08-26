@@ -137,7 +137,7 @@ kafka-consumer-groups.sh --group my-group --topic my-topic \
     --reset-offsets --to-datetime "2024-01-01T00:00:00.000" --execute --bootstrap-server localhost:9092
 ```
 
-## 最佳实践
+## 9. 最佳实践
 
 1. **生产环境使用手动提交**：自动提交可能导致消息丢失（提交后未处理）或重复消费（处理后未提交）。
 2. **使用异步提交 + 同步提交兜底**：正常用 `commitAsync()`，关闭时用 `commitSync()`。

@@ -1,4 +1,4 @@
-# 第二卷 JVM Runtime
+# JVM Runtime
 
 > 回答"一行代码如何被 JVM 执行"。覆盖字节码与类加载、运行时数据区、对象布局、GC、JIT、线上排查。
 

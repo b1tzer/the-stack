@@ -229,8 +229,6 @@ public class OAuth2LoginConfig {
 ⑤ 获得 Access Token，调用 API 获取用户信息
 ```
 
----
-
 **最佳实践：**
 
 1. **JWT 过期时间**——Access Token 短（2 小时），Refresh Token 长（7 天）

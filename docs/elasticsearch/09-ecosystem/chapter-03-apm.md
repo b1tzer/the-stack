@@ -47,7 +47,7 @@ java -javaagent:/path/to/elastic-apm-agent-1.44.0.jar \
   -jar my-app.jar
 ```
 
-### Spring Boot 配置
+### 4.1 Spring Boot 配置
 
 ```yaml
 # application.yml

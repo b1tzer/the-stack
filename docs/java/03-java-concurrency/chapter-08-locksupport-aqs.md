@@ -1,14 +1,12 @@
-# 第8章 `LockSupport` 与 AQS：并发工具的骨架
+# `LockSupport` 与 AQS：并发工具的骨架
 
 > `ReentrantLock`、`Semaphore`、`CountDownLatch`、`CyclicBarrier`——四种表面完全不同的工具，为什么源码都藏在同一个基类里？
 
 第 6 章的 `synchronized` 把互斥锁封装在 JVM 内部。开发者只有一个开关：`synchronized`/不 `synchronized`。这一章讨论的是另一条路：**把锁的实现搬到 Java 代码层面**，让"如何挂起线程"、"如何组织等待队列"、"如何唤醒"这些机制变得可编程。这条路的起点是 `LockSupport`，终点是 AQS。走完这一章，回头再看 `java.util.concurrent.locks` 和 `java.util.concurrent` 包里绝大多数工具，会发现它们其实只有一个骨架。
 
----
+## 1. `synchronized` 走不到的地方
 
-## 8.1 `synchronized` 走不到的地方
-
-### 8.1.1 五个 `synchronized` 做不到的诉求
+### 1.1 五个 `synchronized` 做不到的诉求
 
 `synchronized` 的语义是"要么拿到锁进入临界区，要么阻塞等"。真到线上，业务几乎每天都在提出更细的要求：
 
@@ -22,7 +20,7 @@
 
 不是 `synchronized` 设计得差，而是它把选择权全部下放到了 JVM 内部——JVM 只做互斥这一种语义。任何超出互斥的诉求，都需要一套 Java 层可编程的锁基础设施。
 
-### 8.1.2 把锁搬到 Java 层，需要什么
+### 1.2 把锁搬到 Java 层，需要什么
 
 如果不再依赖 `monitorenter`/`monitorexit`，一把互斥锁至少要自己回答三个问题：
 
@@ -34,11 +32,9 @@
 
 这三样加在一起就是 AQS 的骨架。但要理解 AQS 的挂起/唤醒是怎么发生的，得先看第三样——`LockSupport`。
 
----
+## 2. `LockSupport`：许可证式挂起
 
-## 8.2 `LockSupport`：许可证式挂起
-
-### 8.2.1 `park` / `unpark` 的语义
+### 2.1 `park` / `unpark` 的语义
 
 `java.util.concurrent.locks.LockSupport` 只有两个核心静态方法：
 
@@ -56,7 +52,7 @@ LockSupport.unpark(Thread t);       // 唤醒指定线程
 
 许可证是一个二值状态——不是计数器。连续两次 `unpark` 只会保留一张许可证，第二张被忽略。
 
-### 8.2.2 三点关键差异
+### 2.2 三点关键差异
 
 `LockSupport` 与 `Object.wait/notify` 表面上都能挂起线程，但用途完全不同：
 
@@ -69,7 +65,7 @@ LockSupport.unpark(Thread t);       // 唤醒指定线程
 
 **"唤醒可以先于挂起"** 是许可证语义带来的关键性质。用 `wait/notify` 实现一个"线程 A 通知 B"的原语，要小心 A 的 `notify` 早于 B 的 `wait` 的时序——一旦跑到前面，B 就会永远睡下去。`park/unpark` 不存在这个时序坑。
 
-### 8.2.3 一个可以自己写的简易锁
+### 2.3 一个可以自己写的简易锁
 
 用 `park`/`unpark` 就能拼一把最简的互斥锁：
 
@@ -100,15 +96,13 @@ public class SimpleLock {
 
 这段代码正确性不够强（缺失公平性、可能丢唤醒、无重入），但它揭示了一个事实：**"CAS 抢状态 + 队列排队 + `park/unpark` 挂起唤醒"就是一把锁的最小工作集**。AQS 做的事，本质上就是把这套模式提炼成一个可扩展的框架。
 
-### 8.2.4 底层实现的一句话交代
+### 2.4 底层实现的一句话交代
 
 `LockSupport.park` 最终委托到 `Unsafe.park`，Linux 上进入 `pthread_cond_wait`。挂起的线程状态在 Java 层是 `WAITING`，OS 层进入睡眠，不消耗 CPU。这也是 AQS 得以在**未拿到锁的线程上不空转**的技术底座。
 
----
+## 3. AQS 的三件套
 
-## 8.3 AQS 的三件套
-
-### 8.3.1 一个 `state` + 一个 CLH 队列 + 一套 Node 状态
+### 3.1 一个 `state` + 一个 CLH 队列 + 一套 Node 状态
 
 `AbstractQueuedSynchronizer`（AQS）的内部结构：
 
@@ -130,7 +124,7 @@ public class SimpleLock {
 - **CLH 队列**：一条 FIFO 双向链表，节点类型是 `Node`。抢锁失败的线程被封装成 Node 挂到队尾。队头是一个"虚节点"（sentinel），当前持锁线程本身不在队列中——head 是"下一个要被唤醒的候选人的前驱"。
 - **Node 的 `waitStatus`**：一个 `int` 字段，编码了节点的四种状态。
 
-### 8.3.2 Node 的四种状态
+### 3.2 Node 的四种状态
 
 | 常量 | 值 | 含义 |
 | :-- | :-- | :-- |
@@ -142,7 +136,7 @@ public class SimpleLock {
 
 一条完整的排队线程通常经历：`0 → SIGNAL → 被唤醒后消费掉 → 0`。理解这四个状态，AQS 里让人头晕的 CAS 就有了坐标。
 
-### 8.3.3 模板方法模式：分离"如何获取"与"失败后怎么办"
+### 3.3 模板方法模式：分离"如何获取"与"失败后怎么办"
 
 AQS 用模板方法把工作切成两半：
 
@@ -206,13 +200,11 @@ classDiagram
     AbstractQueuedSynchronizer <|-- CountDownLatch_Sync
 ```
 
----
-
-## 8.4 独占模式与共享模式
+## 4. 独占模式与共享模式
 
 AQS 从入口就分成两条路径：`acquire` / `release` 走独占，`acquireShared` / `releaseShared` 走共享。骨架相同，唤醒策略不同。
 
-### 8.4.1 独占模式：先尝试，再入队，再挂起
+### 4.1 独占模式：先尝试，再入队，再挂起
 
 `ReentrantLock` 是独占模式的典型。`acquire` 的骨架：
 
@@ -296,7 +288,7 @@ flowchart TD
 
 整个过程中，`shouldParkAfterFailedAcquire` 可能需要多次自旋：如果前驱节点是 `CANCELLED` 状态（线程超时或被中断放弃），就跳过它往前找一个有效的前驱，再把那个前驱的 `waitStatus` 设为 `SIGNAL`。这个清理过程保证了队列中 `CANCELLED` 节点不会阻塞后续节点的唤醒链。
 
-### 8.4.2 独占模式的 `release`：只干两件事
+### 4.2 独占模式的 `release`：只干两件事
 
 ```java
 public final boolean release(int arg) {
@@ -326,7 +318,7 @@ flowchart TD
 
 `unparkSuccessor` 里藏着一个反直觉的细节：找后继时**从 tail 往回遍历**。原因是入队的顺序是"先设 prev，再 CAS tail，最后设 prev.next"——`next` 指针可能是过时的，`prev` 链才是可靠的。
 
-### 8.4.3 共享模式：唤醒之后还要接力
+### 4.3 共享模式：唤醒之后还要接力
 
 `Semaphore.acquire(1)` / `CountDownLatch.await` 走共享路径：
 
@@ -374,7 +366,7 @@ private void doReleaseShared() {
 
 `PROPAGATE` 状态的用途就在这里：即便当前节点已经把 `SIGNAL` 消费掉，只要 `state` 里还有资源，链条上的下一个节点也应当被叫醒。
 
-### 8.4.4 独占 vs 共享的核心差异
+### 4.4 独占 vs 共享的核心差异
 
 | 维度 | 独占模式 | 共享模式 |
 | :-- | :-- | :-- |
@@ -384,13 +376,11 @@ private void doReleaseShared() {
 | 释放后唤醒 | 只唤醒队首后继 | 唤醒后继并沿链传播 |
 | 典型工具 | `ReentrantLock` / `ReadWriteLock` 写锁部分 | `Semaphore` / `CountDownLatch` / 读锁部分 |
 
----
-
-## 8.5 `Condition`：AQS 里的等待队列
+## 5. `Condition`：AQS 里的等待队列
 
 `ReentrantLock.newCondition()` 得到一个 `Condition` 对象。它替代 `Object.wait/notify`，能力上超过后者。
 
-### 8.5.1 两条独立的队列
+### 5.1 两条独立的队列
 
 一个 AQS 内部只有一条 CLH **同步队列**（排队争锁的）。但可以挂**多个条件队列**——每个 `Condition` 一条：
 
@@ -415,7 +405,7 @@ Condition_notFull 条件队列（挂在同一个 lock 上）
 
 **关键**：`signal` 不代表"立刻运行"。被 `signal` 的线程只是从"等条件"变成"等锁"，还得排队争锁——和 `wait/notify` 是一样的。
 
-### 8.5.2 生产者-消费者用两条 Condition 精确唤醒
+### 5.2 生产者-消费者用两条 Condition 精确唤醒
 
 ```java
 private final ReentrantLock lock = new ReentrantLock();
@@ -443,7 +433,7 @@ public E take() throws InterruptedException {
 
 用 `wait/notify` 实现同样的语义，只能用 `notifyAll` 把生产者和消费者一起叫起来，让每条线程醒来后自己重判——这就是"惊群"。`Condition` 把两条队列拆开，每次 `signal` 只精准唤一个方向的线程。
 
-### 8.5.3 `Condition` vs `wait/notify`
+### 5.3 `Condition` vs `wait/notify`
 
 | 维度 | `wait/notify` | `Condition` |
 | :-- | :-- | :-- |
@@ -455,13 +445,11 @@ public E take() throws InterruptedException {
 
 `await` 的超时组合也比 `wait` 丰富——`awaitNanos` 返回剩余时间、`awaitUntil` 用绝对时间。前者适合"再等 500ms 就走"，后者适合"11 点前必须返回"。
 
----
-
-## 8.6 基于 AQS 的工具矩阵
+## 6. 基于 AQS 的工具矩阵
 
 `java.util.concurrent.locks` 与 `java.util.concurrent` 里几乎所有同步工具都是 AQS 子类。它们的差异，落到源码上就是四行 `try*` 方法的写法不同。
 
-### 8.6.1 一张矩阵
+### 6.1 一张矩阵
 
 | 工具 | 模式 | `state` 语义 | 典型用途 |
 | :-- | :-- | :-- | :-- |
@@ -474,7 +462,7 @@ public E take() throws InterruptedException {
 
 `CyclicBarrier` 是唯一没有直接继承 AQS 的常用工具——它自己组合 `Lock` + `Condition` 就够用。列在这里方便一同选型。
 
-### 8.6.2 `ReentrantReadWriteLock`：一个 `int` 同时管理读写
+### 6.2 `ReentrantReadWriteLock`：一个 `int` 同时管理读写
 
 用 32 位 `state` 的高低位分别记两种锁：
 
@@ -491,7 +479,7 @@ state (32 bit)
 
 代价是理论上限——最多 65535 个并发读、65535 次写锁重入。业务里几乎不会撞到，但排查时值得记住。
 
-### 8.6.3 `StampedLock`：乐观读绕开了 CAS
+### 6.3 `StampedLock`：乐观读绕开了 CAS
 
 `ReentrantReadWriteLock` 有一个跑不掉的问题：**写线程饥饿**。读远多于写时，读锁一直有人持有，写请求永远等不到"读锁数归零"。
 
@@ -522,7 +510,7 @@ if (!lock.validate(stamp)) {         // 期间被写过？
 
 限制：`StampedLock` 不可重入，也不支持 `Condition`。它是一个"高性能读写锁"，不是 `ReentrantLock` 的替代品。
 
-### 8.6.4 `Lock` vs `synchronized`：三维对比
+### 6.4 `Lock` vs `synchronized`：三维对比
 
 `Lock` 提供的新能力，付出的代价，与 `synchronized` 的对照：
 
@@ -561,9 +549,7 @@ try {
 
 这是 `Lock` 相比 `synchronized` 最容易踩的坑。`synchronized` 的 `monitorexit` 有异常处理路径保底（见第 6 章 §6.2.1），`Lock` 没有——`unlock` 必须写在 `finally` 里。
 
----
-
-## 8.7 本章小结
+## 7. 本章小结
 
 | 问题 | 根源 | 解决方案 |
 | :-- | :-- | :-- |
@@ -574,8 +560,6 @@ try {
 | 多种等待条件混在一个 Monitor 里 | `_WaitSet` 只有一个 | `Condition` 每个一条独立队列 |
 | 读多写少下写线程饥饿 | `ReadWriteLock` 允许无限读并发 | `StampedLock` 的乐观读 |
 | `Lock` 忘解锁导致永久阻塞 | 无编译器保底 | `unlock` 强制放 `finally` |
-
----
 
 > **纵横联系**
 >

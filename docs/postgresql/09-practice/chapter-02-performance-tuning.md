@@ -7,13 +7,13 @@ title: 性能优化与调优
 
 > **核心问题**：如何分析 PG 的慢查询？如何用 EXPLAIN 和 pg_stat_statements 定位性能瓶颈？有哪些常见的优化手段？
 
-## 它解决了什么问题？
+## 1. 它解决了什么问题？
 
 数据库性能问题是后端开发中最常见的瓶颈。PG 提供了丰富的性能分析工具（EXPLAIN ANALYZE、pg_stat_statements、auto_explain 等），掌握这些工具能帮助你快速定位慢查询、优化索引设计、调整数据库配置。
 
 # 一、EXPLAIN 分析执行计划
 
-## 基本用法
+## 2. 基本用法
 
 ```sql
 -- 查看执行计划（不实际执行）
@@ -24,7 +24,7 @@ EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
 SELECT * FROM users WHERE email = 'test@example.com';
 ```
 
-## 关键指标
+## 3. 关键指标
 
 | 指标 | 含义 | 关注点 |
 |------|------|--------|
@@ -36,7 +36,7 @@ SELECT * FROM users WHERE email = 'test@example.com';
 | **rows** | 实际返回行数 | 与 estimated rows 对比，差异大说明统计信息不准 |
 | **Buffers: shared hit/read** | 缓存命中/磁盘读取的页数 | read 多说明缓存不足 |
 
-## 执行计划示例分析
+## 4. 执行计划示例分析
 
 ```sql
 EXPLAIN (ANALYZE, BUFFERS) 
@@ -58,7 +58,7 @@ WHERE o.created_at > '2024-01-01';
 --               Buffers: shared hit=1
 ```
 
-### 阅读要点
+### 4.1 阅读要点
 
 1. **从内到外读**：最内层的节点先执行
 2. **关注 actual time**：`actual time=首行时间..总时间`
@@ -69,7 +69,7 @@ WHERE o.created_at > '2024-01-01';
 
 `pg_stat_statements` 是 PG 最重要的性能分析扩展，记录所有 SQL 的执行统计信息。
 
-## 安装与配置
+## 5. 安装与配置
 
 ```sql
 -- 安装扩展
@@ -81,7 +81,7 @@ CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 -- pg_stat_statements.track = all
 ```
 
-## 常用查询
+## 6. 常用查询
 
 ```sql
 -- Top 10 最耗时的 SQL（总耗时排序）
@@ -136,7 +136,7 @@ SET auto_explain.log_analyze = true;
 
 # 四、索引优化
 
-## 查找缺失索引
+## 7. 查找缺失索引
 
 ```sql
 -- 查找全表扫描次数最多的表（可能缺少索引）
@@ -168,7 +168,7 @@ WHERE idx_scan = 0
 ORDER BY pg_relation_size(indexrelid) DESC;
 ```
 
-## 索引优化建议
+## 8. 索引优化建议
 
 | 场景 | 推荐索引类型 | 示例 |
 |------|------------|------|
@@ -181,7 +181,7 @@ ORDER BY pg_relation_size(indexrelid) DESC;
 | 多列查询 | 联合索引 | `CREATE INDEX ON orders(user_id, status, created_at)` |
 | 部分数据查询 | 部分索引 | `CREATE INDEX ON orders(created_at) WHERE status = 'active'` |
 
-## 部分索引（Partial Index）
+## 9. 部分索引（Partial Index）
 
 PG 独有的特性，只对满足条件的行建索引，节省空间和维护成本：
 
@@ -197,7 +197,7 @@ EXPLAIN SELECT * FROM orders WHERE status = 'active' AND created_at > '2024-01-0
 
 # 五、配置调优
 
-## 内存相关
+## 10. 内存相关
 
 ```sql
 -- shared_buffers：共享缓冲区，推荐设为物理内存的 25%
@@ -217,7 +217,7 @@ SHOW work_mem;
 SHOW maintenance_work_mem;
 ```
 
-## 连接相关
+## 11. 连接相关
 
 ```sql
 -- max_connections：最大连接数，默认 100
@@ -225,7 +225,7 @@ SHOW maintenance_work_mem;
 SHOW max_connections;
 ```
 
-## WAL 相关
+## 12. WAL 相关
 
 ```sql
 -- wal_buffers：WAL 缓冲区，默认 -1（自动计算，通常 16MB）
@@ -235,7 +235,7 @@ SHOW wal_buffers;
 SHOW checkpoint_completion_target;
 ```
 
-## 推荐配置模板（16GB 内存服务器）
+## 13. 推荐配置模板（16GB 内存服务器）
 
 ```ini
 # 内存

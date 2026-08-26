@@ -38,9 +38,9 @@ CREATE INDEX idx_covering ON users(name, age) INCLUDE (email);
 -- 查询只需索引，不回表
 SELECT name, age, email FROM users WHERE name = '张三';
 ```
-## 5. 更多索引设计场景
+## 6. 更多索引设计场景
 
-### 5.1 多列索引的列顺序
+### 6.1 多列索引的列顺序
 
 ```sql
 -- 多列索引遵循最左前缀原则
@@ -60,7 +60,7 @@ SELECT * FROM orders WHERE created_at > '2024-01-01';
 -- 3. 选择性高的列放前面
 ```
 
-### 5.2 条件索引（Partial Index）
+### 6.2 条件索引（Partial Index）
 
 ```sql
 -- 只对活跃订单建索引（节省空间和维护成本）
@@ -79,7 +79,7 @@ SELECT * FROM orders WHERE created_at > '2024-01-01';
 -- ❌ 不使用 idx_active_orders（缺少 status = 'active' 条件）
 ```
 
-### 5.3 唯一索引与部分唯一
+### 6.3 唯一索引与部分唯一
 
 ```sql
 -- 普通唯一索引
@@ -95,7 +95,7 @@ INSERT INTO users (email, status) VALUES ('test@example.com', 'deleted');  -- �
 INSERT INTO users (email, status) VALUES ('test@example.com', 'active');   -- ❌ 冲突
 ```
 
-### 5.4 表达式索引
+### 6.4 表达式索引
 
 ```sql
 -- 大小写不敏感的 email 查询
@@ -111,7 +111,7 @@ CREATE INDEX idx_order_year ON orders(EXTRACT(YEAR FROM created_at));
 SELECT * FROM orders WHERE EXTRACT(YEAR FROM created_at) = 2024;
 ```
 
-### 5.5 INCLUDE 覆盖索引
+### 6.5 INCLUDE 覆盖索引
 
 ```sql
 -- INCLUDE 子句将非键列存储在索引叶子节点
@@ -125,7 +125,7 @@ WHERE user_id = 1 AND created_at > '2024-01-01';
 -- Index Only Scan（最优）
 ```
 
-### 5.6 并发创建索引
+### 6.6 并发创建索引
 
 ```sql
 -- CONCURRENTLY：不阻塞写操作（生产环境必备）
@@ -143,7 +143,7 @@ DROP INDEX CONCURRENTLY IF EXISTS idx_invalid;
 
 > **最佳实践**：生产环境创建索引务必使用 `CONCURRENTLY`，避免阻塞业务。但 CONCURRENTLY 不能在事务块内执行。
 
-### 5.7 索引维护
+### 6.7 索引维护
 
 ```sql
 -- 查看索引使用情况

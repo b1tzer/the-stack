@@ -1,4 +1,4 @@
-# 第三卷 Java 并发
+# Java 并发
 
 > 回答"多线程如何正确高效地共享资源"。按 竞争本质 → 线程 → 线程封闭 → JMM → volatile → synchronized → CAS → LockSupport/AQS → 并发集合 → 线程池 → 异步编程 → 虚拟线程 → 诊断 组织。
 

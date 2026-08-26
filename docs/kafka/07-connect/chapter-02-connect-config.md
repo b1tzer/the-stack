@@ -44,7 +44,7 @@
 
 ## 5. 转换器详解
 
-### JSON Converter
+### 5.1 JSON Converter
 ```json
 {
   "key.converter": "org.apache.kafka.connect.json.JsonConverter",
@@ -54,7 +54,7 @@
 }
 ```
 
-### Avro Converter（需要 Schema Registry）
+### 5.2 Avro Converter（需要 Schema Registry）
 ```json
 {
   "key.converter": "io.confluent.kafka.serializers.KafkaAvroSerializer",
@@ -112,7 +112,7 @@
 }
 ```
 
-## 最佳实践
+## 9. 最佳实践
 
 1. **使用 Schema 启用的转换器**：`schemas.enable=true` 可以验证数据格式，避免运行时错误。
 2. **配置死信队列**：避免一条错误消息导致整个 Connector 停止。

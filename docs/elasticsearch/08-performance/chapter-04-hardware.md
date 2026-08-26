@@ -55,7 +55,7 @@ path.data: /data/hdd1,/data/hdd2
 
 ## 6. 云环境配置
 
-### AWS 推荐
+### 6.1 AWS 推荐
 
 | 节点类型 | 实例类型 | 存储 |
 |---------|---------|------|
@@ -63,7 +63,7 @@ path.data: /data/hdd1,/data/hdd2
 | Warm Data | r6i.xlarge | st1 HDD |
 | Master | m6i.large | gp3 |
 
-### 阿里云推荐
+### 6.2 阿里云推荐
 
 | 节叶类型 | 实例类型 | 存储 |
 |---------|---------|------|

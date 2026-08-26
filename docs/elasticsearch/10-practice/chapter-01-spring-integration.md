@@ -59,7 +59,6 @@ public List<Product> search(String keyword) {
 }
 ```
 
----
 ## 6. 高级查询示例
 
 ```java

@@ -24,8 +24,6 @@ title: MCP 协议与 OpenClaw Skill 实战 —— 从协议规范到"网易云�
 > - Spring AI 的 `ChatClient` / `Advisor` / `VectorStore` → [SpringAI入门与MCP集成](04-SpringAI入门与MCP集成.md)
 > - MCP 协议底层 JSON-RPC 帧格式的逐字段解析 → 留给未来的《MCP 源码深度解析》篇（暂未写）
 
----
-
 ## 1. 类比：从"孤岛工具"到"USB-C 时代"
 
 2024 年 11 月之前，AI 工具生态有一个尴尬的现状：
@@ -80,8 +78,6 @@ flowchart LR
     **协议层：MCP**（统一规范，Anthropic 2024.11 发布、各家跟进）
     **封装层：Skill**（各家 Agent 平台对"一个可上架的 MCP Server"的元数据封装）
     **对开发者的含义**：**写 MCP Server = 写 Skill 的 90%**，剩下 10% 是各平台的上架元数据（logo / 简介 / 权限声明 / 分类标签）。
-
----
 
 ## 2. MCP 协议规范
 
@@ -191,8 +187,6 @@ flowchart TD
 - **`content`** 支持多种 `type`：`text` / `image` / `resource`，一个 Tool 可以返回多块内容（比如"建完歌单 + 附上封面图"）
 
 > 📖 `initialize` / `capabilities` 协商、`notifications/tools/list_changed` 等控制面消息已放入未来的《MCP 源码深度解析》篇，本文只给业务开发者最常用的 `tools/call`。
-
----
 
 ## 3. 用 Spring AI 写一个 MCP Server：网易云歌单 Skill
 
@@ -540,8 +534,6 @@ npx @modelcontextprotocol/inspector \
   duration: 1243ms
 ```
 
----
-
 ## 4. 发布到 OpenClaw（与通用 MCP Client）
 
 > 📌 OpenClaw 内网版只有腾讯员工可访问，外部读者可将其视为"**一个典型的 MCP Client 平台**"；本节给出的发布流程在 Claude Desktop、Cursor、Cherry Studio 等 Client 上同样适用。
@@ -630,13 +622,11 @@ sequenceDiagram
 - [ ] ✅ Client **完全退出**后重启（后台进程不刷新 Skill 列表）
 - [ ] ✅ 查看 Client 的日志（Claude Desktop：`~/Library/Logs/Claude/mcp*.log`）
 
----
-
 ## 5. 生产级 Skill 的 6 条工程规约
 
 这 6 条是笔者在线上跑 Skill 时踩过坑后总结的硬性规约，**一条都别省**。
 
-### 规约 1：Tool description 写"使用时机"而不是"是什么"
+### 5.1 规约 1：Tool description 写"使用时机"而不是"是什么"
 
 LLM 决定要不要调你的 Tool，**唯一**依据就是 `description`。写得模糊 → LLM 猜不到何时该用 → 你的 Skill 成摆设。
 
@@ -647,7 +637,7 @@ LLM 决定要不要调你的 Tool，**唯一**依据就是 `description`。写�
 
 **写法公式**：`当用户【动作模式1 / 动作模式2 / ...】时调用 + 输入示例 + 不适用场景`。
 
-### 规约 2：参数强校验 + 显式默认值
+### 5.2 规约 2：参数强校验 + 显式默认值
 
 ```java
 // ❌ 不校验：LLM 传 size=-1 也会执行，浪费 API 调用
@@ -663,7 +653,7 @@ public PlaylistResult createPlaylist(
 }
 ```
 
-### 规约 3：幂等：重复调用不应产生重复副作用
+### 5.3 规约 3：幂等：重复调用不应产生重复副作用
 
 LLM 会在网络重试 / 用户追问时重复发起同参 `tools/call`。**创建类 Tool 必须幂等**，否则会出现：
 
@@ -685,7 +675,7 @@ public PlaylistResult createPlaylist(String artist, String style, Integer size) 
 }
 ```
 
-### 规约 4：鉴权隔离：不要全局共享 API Key
+### 5.4 规约 4：鉴权隔离：不要全局共享 API Key
 
 **反例**：Skill 进程全局持有一个 `NETEASE_COOKIE` → 所有用户建的歌单挂在开发者自己账号下。
 
@@ -705,7 +695,7 @@ public PlaylistResult createPlaylist(
 }
 ```
 
-### 规约 5：错误结构化回传，不要抛异常出 MCP 边界
+### 5.5 规约 5：错误结构化回传，不要抛异常出 MCP 边界
 
 | ❌ 反例 | ✅ 正例 |
 | :-- | :-- |
@@ -713,7 +703,7 @@ public PlaylistResult createPlaylist(
 
 **判断标准**：**业务失败走 return，协议失败才走 throw**。
 
-### 规约 6：速率保护 + 熔断
+### 5.6 规约 6：速率保护 + 熔断
 
 外部 API 挂了，你的 Skill 也要能降级。推荐用 **Resilience4j**：
 
@@ -744,8 +734,6 @@ resilience4j:
         wait-duration-in-open-state: 30s
 ```
 
----
-
 ## 6. 踩坑 Checklist
 
 | # | 踩坑现象 | 根本原因 | 解决 |
@@ -760,8 +748,6 @@ resilience4j:
 | 8 | 升级 Spring AI 版本后 `@Tool` 失效 | API 迁移：旧版 `@AiFunction` → 新版 `@Tool` | 对齐当前版本（1.0.0-M6）的 API |
 | 9 | stdio 模式日志看不到 | console 被禁 + 没配 file appender | `logging.file.name` 落地到文件 |
 | 10 | Tool 参数里用了复杂嵌套对象 LLM 填不对 | JSON Schema 太复杂 | 扁平化参数，必要时拆成两个 Tool |
-
----
 
 ## 7. Q&A：排查与选型
 
@@ -795,14 +781,10 @@ resilience4j:
 
 > 三类能力慎做 Skill：① **需要大量上下文的**——如"分析这份 20MB 的日志"，应先让 Client 把日志摘要到 Prompt 里；② **实时交互的**——如"带用户走一个多步表单"，不适合无状态 Tool，应走 Agent 编排层；③ **需要 LLM 看到中间产物的**——如"生成图表 → 用户确认 → 再生成报告"，应拆成两个 Tool 让 LLM 串起来，而不是一个 Tool 闷头跑完。
 
----
-
 ## 8. 一句话口诀
 
 > **💡 MCP = LLM 世界的 USB-C；Tool/Resource/Prompt 三件套各司其职；Skill = 打包好的 MCP Server；Spring AI 让发 MCP Server 和写 `@Service` 一样简单；生产 Skill 的 6 条规约一条都别省。**
 
 把 MCP 吃透，你就从"调 LLM API 的工程师"升级成了"**给 LLM 造能力的工程师**"——这是 Agent 时代最值钱的一类人。
-
----
 
 > 🎉 至此，整个 **10-ai-engineering/** 专题的 5 篇文档全部完成：从 LLM 接口、RAG 架构、Function Calling/Agent、Spring AI 集成，到 MCP 协议与 Skill 实战，构成一条完整的"**Java 工程师 AI 应用工程**"学习路径。欢迎回到 [AI 工程概览](index.md) 选择你的下一步。

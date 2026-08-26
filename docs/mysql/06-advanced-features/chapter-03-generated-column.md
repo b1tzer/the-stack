@@ -139,4 +139,3 @@ SELECT * FROM products WHERE final_price < 100 ORDER BY final_price;
 4. **避免过度使用生成列** — 增加表结构复杂度
 5. **MySQL 8.0.13+ 虚拟列支持索引** — 优先使用虚拟列
 
----

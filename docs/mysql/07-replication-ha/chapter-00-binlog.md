@@ -131,4 +131,3 @@ mysqlbinlog --start-datetime='2024-01-01 12:31:00' \
 4. **监控 Binlog 磁盘空间** — 避免磁盘被 Binlog 写满
 5. **不要在线禁用 Binlog** — 影响复制和数据恢复能力
 
----

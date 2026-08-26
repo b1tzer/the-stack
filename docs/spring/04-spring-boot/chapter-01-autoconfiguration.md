@@ -1,10 +1,10 @@
-# 第4章 Spring Boot
+# Spring Boot
 
 > Spring Boot 的诞生回答了一个核心问题：**如何让 Spring 应用从"能跑"到"开箱即用"？** 本章将剖析 Spring Boot 如何通过自动配置、Starter 机制和统一配置体系，将开发者从繁琐的 XML 配置和依赖管理中解放出来，真正实现"约定优于配置"的理念。
 
-## 4.1 为什么需要 Spring Boot
+## 1. 为什么需要 Spring Boot
 
-### 4.1.1 传统 Spring 开发的痛点
+### 1.1 传统 Spring 开发的痛点
 
 在 Spring Boot 出现之前，搭建一个 Spring Web 项目需要经历一条漫长而痛苦的路径。让我们先回顾这段"黑暗岁月"：
 
@@ -61,7 +61,7 @@
 
 将打好的 WAR 包复制到 Tomcat 的 `webapps` 目录下，启动 Tomcat，祈祷没有 ClassNotFound 或版本冲突。
 
-### 4.1.2 三大痛点的对比
+### 1.2 三大痛点的对比
 
 | 痛点 | 传统 Spring | Spring Boot |
 |------|-------------|-------------|
@@ -71,7 +71,7 @@
 | **项目结构** | 需要遵循 Servlet 规范目录 | 约定目录结构，`main()` 启动 |
 | **开发效率** | 搭建脚手架可能花费半天 | Spring Initializr 几秒钟生成 |
 
-### 4.1.3 Spring Boot 的设计哲学
+### 1.3 Spring Boot 的设计哲学
 
 Spring Boot 并非一个全新的框架，而是 **Spring 的"脚手架"**。它的核心设计原则是：
 
@@ -91,9 +91,9 @@ public class MyApplication {
 
 运行这段代码，一个内嵌 Tomcat 就启动了，默认监听 8080 端口。没有 XML，没有 WAR 部署，没有外部 Tomcat。
 
-## 4.2 自动配置原理
+## 2. 自动配置原理
 
-### 4.2.1 注解分类全景
+### 2.1 注解分类全景
 
 开始拆 `@SpringBootApplication` 之前，先把 Spring Boot 的注解按职责归一次类。这一层分类能帮你回答两个问题：看到一个陌生注解时该往哪一类放，以及配置不生效时该从哪一类开始排查。
 
@@ -106,7 +106,7 @@ public class MyApplication {
 
 四类是一条流水线：启动注解是入口，配置注解声明"容器里有什么"，条件注解决定"这个 Bean 要不要进容器"，属性绑定注解解决"Bean 里的值从哪来"。前两类回答"是什么"，后两类回答"何时、何值"。
 
-### 4.2.2 @SpringBootApplication 拆解
+### 2.2 @SpringBootApplication 拆解
 
 `@SpringBootApplication` 看起来是一个注解，实际上是三个注解的组合：
 
@@ -121,7 +121,7 @@ public @interface SpringBootApplication { ... }
 
 自动配置的魔法集中在 `@EnableAutoConfiguration` 上。
 
-### 4.2.3 自动配置的加载流程
+### 2.3 自动配置的加载流程
 
 Spring Boot 2.7+ 使用新的加载机制，整个流程如下：
 
@@ -167,7 +167,7 @@ public class DataSourceAutoConfiguration {
 }
 ```
 
-### 4.2.4 条件注解家族
+### 2.4 条件注解家族
 
 Spring Boot 提供了一整套 `@Conditional` 注解，构成自动配置的"开关系统"：
 
@@ -180,15 +180,15 @@ Spring Boot 提供了一整套 `@Conditional` 注解，构成自动配置的"开
 | `@ConditionalOnResource` | classpath 存在指定资源 | 有 `logback.xml` 才使用自定义日志 |
 | `@ConditionalOnExpression` | SpEL 表达式为 true | 复杂条件组合 |
 
-### 4.2.5 自动配置的核心流程图
+### 2.5 自动配置的核心流程图
 
 ![springboot-startup](/spring/springboot-startup.svg)
 
 关键理解：**自动配置是"兜底"而非"强制"**。当开发者自己注册了同类型的 Bean 时，`@ConditionalOnMissingBean` 确保自动配置会"让路"。这就是"用户定义优先"原则。
 
-## 4.3 Starter 机制
+## 3. Starter 机制
 
-### 4.3.1 什么是 Starter
+### 3.1 什么是 Starter
 
 一个 Starter 是 **"依赖集合 + 自动配置类"** 的打包方案。它解决的核心问题是：**引入一个功能需要哪些 JAR？它们的版本是否兼容？**
 
@@ -200,7 +200,7 @@ Spring Boot 提供了一整套 `@Conditional` 注解，构成自动配置的"开
 | `spring-boot-starter-actuator` | Micrometer + Metrics | 健康检查、指标采集端点 |
 | `spring-boot-starter-test` | JUnit 5 + Mockito + AssertJ | 测试上下文、Mock 支持 |
 
-### 4.3.2 spring-boot-starter-web 拆解
+### 3.2 spring-boot-starter-web 拆解
 
 让我们看看最常用的 `spring-boot-starter-web` 到底引入了什么：
 
@@ -245,7 +245,7 @@ Spring Boot 就会自动：
 3. 配置 Jackson 进行 JSON 序列化/反序列化
 4. 注册 `HttpMessageConverter`、`ExceptionHandler` 等基础设施
 
-### 4.3.3 Starter 的类型
+### 3.3 Starter 的类型
 
 ```text
 spring-boot-starter-*
@@ -269,7 +269,7 @@ spring-boot-starter-*
 - 官方 Starter：`spring-boot-starter-{功能名}`
 - 第三方 Starter：`{框架名}-spring-boot-starter`
 
-### 4.3.4 自定义 Starter 的结构
+### 3.4 自定义 Starter 的结构
 
 创建一个自定义 Starter 需要两个模块：
 
@@ -325,9 +325,9 @@ com.example.autoconfigure.MyServiceAutoConfiguration
 </dependency>
 ```
 
-## 4.4 配置体系
+## 4. 配置体系
 
-### 4.4.1 配置文件的加载顺序
+### 4.1 配置文件的加载顺序
 
 Spring Boot 支持多种配置源，按优先级从高到低排列：
 
@@ -344,7 +344,7 @@ Spring Boot 支持多种配置源，按优先级从高到低排列：
 
 高优先级的配置会覆盖低优先级的同名配置，这使得不同环境的差异配置变得简单。
 
-### 4.4.2 application.yml 最佳实践
+### 4.2 application.yml 最佳实践
 
 ```yaml
 # application.yml - 所有环境共享的配置
@@ -370,7 +370,7 @@ myapp:
     allowed-types: jpg,png,pdf
 ```
 
-### 4.4.3 @ConfigurationProperties 类型安全绑定
+### 4.3 @ConfigurationProperties 类型安全绑定
 
 相比 `@Value("${myapp.jwt.secret}")`，`@ConfigurationProperties` 提供了类型安全的绑定方式：
 
@@ -462,7 +462,7 @@ myapp:
       password: slave123
 ```
 
-### 4.4.4 Profile 多环境配置
+### 4.4 Profile 多环境配置
 
 Profile 是 Spring Boot 实现多环境隔离的核心机制：
 
@@ -558,7 +558,7 @@ public class DataSourceConfig {
 }
 ```
 
-### 4.4.5 配置体系全景图
+### 4.5 配置体系全景图
 
 ```text
 ┌─────────────────────────────────────────────────────────┐

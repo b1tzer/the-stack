@@ -38,7 +38,6 @@ docker run -d --name es-exporter \
 - Elastic APM
 - Cerebro
 
----
 ## 5. 关键告警指标
 
 | 指标 | 告警阈值 | 说明 |

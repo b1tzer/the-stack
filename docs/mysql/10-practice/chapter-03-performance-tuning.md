@@ -182,4 +182,3 @@ List<User> findByIdAfter(@Param("lastId") Long lastId, Pageable pageable);
 | 架构层 | 读写分离、缓存、分库分表 | 10-100 倍 |
 | 硬件层 | SSD、更大内存、更快 CPU | 2-5 倍 |
 
----

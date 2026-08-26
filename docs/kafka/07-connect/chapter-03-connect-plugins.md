@@ -42,7 +42,7 @@
 
 ## 4. JDBC Connector 详解
 
-### Source Connector（从数据库读取）
+### 4.1 Source Connector（从数据库读取）
 ```json
 {
   "name": "jdbc-source",
@@ -63,7 +63,7 @@
 }
 ```
 
-### Sink Connector（写入数据库）
+### 4.2 Sink Connector（写入数据库）
 ```json
 {
   "name": "jdbc-sink",
@@ -177,7 +177,7 @@ public class MySourceConnector extends SourceConnector {
 }
 ```
 
-## 最佳实践
+## 8. 最佳实践
 
 1. **优先使用成熟的连接器**：Confluent Hub 上有大量经过验证的连接器，避免重复造轮子。
 2. **使用 Debezium 进行 CDC**：比轮询方式更实时、更高效，对源数据库压力更小。

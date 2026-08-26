@@ -2,15 +2,13 @@
 
 > 迁移到 Java 21 虚拟线程后，压测吞吐从 5000 跌到 800。`jfr print --events jdk.VirtualThreadPinned` 一跑，几千个 pinning 事件全部指向 `HikariCP.getConnection()` —— 老版本的 `synchronized` 把虚拟线程钉在了 carrier 上，8 核机器最多 8 个并发。另一台机器，所有接口全部超时—— `CompletableFuture` + DiscardPolicy 静默丢弃了 `FutureTask`，`allOf().join()` 永远等不到结果。并发问题最怕的不是死锁，是"看起来一切正常，但就是不动了"。
 
----
+## 1. 案例 4：虚拟线程 pinning —— 同步锁让 5000 QPS 跌到 800
 
-## 案例 4：虚拟线程 pinning —— 同步锁让 5000 QPS 跌到 800
-
-### 事故背景
+### 1.1 事故背景
 
 2025 年，某视频流媒体处理团队将核心服务从 JDK 17 升级到 JDK 21，并将 `ExecutorService` 替换为 `Executors.newVirtualThreadPerTaskExecutor()`。升级前压测吞吐 5000 QPS，升级后跌到 800。CPU 使用率 40%，但请求延迟暴涨。日志里没有任何异常，监控看起来一切正常——但就是变慢了。
 
-### 第一步：JFR 揪出看不见的瓶颈
+### 1.2 第一步：JFR 揪出看不见的瓶颈
 
 ```bash
 # 启动 60 秒 JFR 录制，关注虚拟线程事件
@@ -38,7 +36,7 @@ jdk.VirtualThreadPinned {
 
 几千个 `VirtualThreadPinned` 事件，全部指向 `HikariPool.getConnection()`。
 
-### 第二步：为什么 pinning 导致吞吐暴跌？
+### 1.3 第二步：为什么 pinning 导致吞吐暴跌？
 
 虚拟线程的工作原理：JDK 21 默认 `parallelism = CPU 核数` 个 **carrier 线程**（平台线程），海量虚拟线程在这少数几个 carrier 上被调度。虚拟线程遇到 I/O 阻塞时，JVM 自动将其从 carrier 上**卸载**，carrier 线程去执行其他就绪的虚拟线程。这就是虚拟线程能给高 IO 并发带来质变的原因。
 
@@ -52,7 +50,7 @@ jdk.VirtualThreadPinned {
 
 这就是吞吐从 5000 跌到 800 的数学解释。
 
-### 第三步：修复
+### 1.4 第三步：修复
 
 **方案 A（治本）：升级 HikariCP 到 5.1.0+**
 
@@ -104,7 +102,7 @@ public void processVideo(VideoRequest req) {
 
 JDK 24 的 JEP 491 消除了 `synchronized` 的 pinning 问题。在 JDK 24 以上，`synchronized` 块内的阻塞操作不再导致 pinning。如果团队能升到 JDK 24+，这是最干净的方案。JDK 25 LTS 将于 2025 年 9 月发布，届时虚拟线程的 pinning 问题将彻底成为历史。
 
-### 诊断信号
+### 1.5 诊断信号
 
 | 信号 | 工具 | 含义 |
 |------|------|------|
@@ -113,7 +111,7 @@ JDK 24 的 JEP 491 消除了 `synchronized` 的 pinning 问题。在 JDK 24 以�
 | 大量虚拟线程 `WAITING`、carrier 全部 `RUNNABLE` | `jcmd Thread.print` | carrier 被占满 |
 | `-Djdk.tracePinnedThreads=full` 输出 | JVM 参数 | JDK 21-23 可用，JDK 24+ 已移除 |
 
-### 总结
+### 1.6 总结
 
 虚拟线程不是"开了就快"的银弹。它的调度优势建立在"非 pinning 的阻塞操作"上。pinning 场景包括：
 - `synchronized` 块内的阻塞 I/O（JDK 21-23）
@@ -122,15 +120,13 @@ JDK 24 的 JEP 491 消除了 `synchronized` 的 pinning 问题。在 JDK 24 以�
 
 排查节奏：先看 JFR `VirtualThreadPinned` 事件 → 定位代码位置 → 判断框架是否可升级 → 不可升级则用 Semaphore 限流或把阻塞操作移到平台线程池。
 
----
+## 2. 案例 5：CompletableFuture + DiscardPolicy —— 静默丢弃任务导致永久阻塞
 
-## 案例 5：CompletableFuture + DiscardPolicy —— 静默丢弃任务导致永久阻塞
-
-### 事故背景
+### 2.1 事故背景
 
 某合同流程引擎服务，上线后偶尔出现"所有接口全部超时，必须重启才能恢复"的问题。监控显示 CPU 和内存都正常，但 `jstack` 显示 200 个 Tomcat 线程全部 `WAITING` 在 `CompletableFuture.join()`。
 
-### 第一步：线程栈显示了什么
+### 2.2 第一步：线程栈显示了什么
 
 ```bash
 jstack <pid> > thread.dump
@@ -150,7 +146,7 @@ jstack <pid> > thread.dump
 
 全部 WAITING 在 `CompletableFuture.join()`。说明这些 `Future` 的结果永远不会回来。
 
-### 第二步：看代码
+### 2.3 第二步：看代码
 
 ```java
 @Service
@@ -183,7 +179,7 @@ public class ContractService {
 }
 ```
 
-### 第三步：重现事故链
+### 2.4 第三步：重现事故链
 
 当并发请求足够大（比如 200 个 Tomcat 线程同时调用 `processFlow`），每个请求提交多个 `CompletableFuture` 任务到 `flowExecutor`：
 
@@ -198,7 +194,7 @@ public class ContractService {
 
 `DiscardPolicy` 不抛异常、不打日志、不通知调用者。被丢弃的那个 `CompletableFuture` 就像从未来过——但它的 `join()` 还在等。
 
-### 第四步：修复
+### 2.5 第四步：修复
 
 **方案 A：改拒绝策略 + 超时**
 
@@ -258,7 +254,7 @@ public FlowResult processFlow(FlowRequest request) throws InterruptedException {
 
 `StructuredTaskScope` 的优势（详见第 12 章）：父任务不会被抛弃不管，一个子任务失败时其他子任务自动取消，整个作用域的边界清晰。
 
-### 总结：DiscardPolicy 两条禁用场景
+### 2.6 总结：DiscardPolicy 两条禁用场景
 
 | 场景 | 为什么禁用 |
 |------|----------|
@@ -268,11 +264,9 @@ public FlowResult processFlow(FlowRequest request) throws InterruptedException {
 
 **黄金法则：如果任务的结果需要被等待，永远不要用 DiscardPolicy。**
 
----
+## 3. 案例 6：线程池 core = max + 无界队列 —— maxPoolSize 永远不触发
 
-## 案例 6：线程池 core = max + 无界队列 —— maxPoolSize 永远不触发
-
-### 事故背景
+### 3.1 事故背景
 
 2025 年某定时任务服务，凌晨并发处理上千个文件。线程池参数：
 
@@ -298,7 +292,7 @@ new ThreadPoolExecutor(
 
 只有 5 个线程在跑——`maxPoolSize=10` 从未被触发。
 
-### 根因：ThreadPoolExecutor 的任务提交流程
+### 3.2 根因：ThreadPoolExecutor 的任务提交流程
 
 JDK 的 `ThreadPoolExecutor.execute()` 源码逻辑（`ThreadPoolExecutor.java:1361`）：
 
@@ -320,7 +314,7 @@ public void execute(Runnable command) {
 
 关键在第 2 步：**只要队列没满，就不会走到第 3 步创建非核心线程。** `LinkedBlockingQueue` 无界（默认 `Integer.MAX_VALUE`），队列永远不会满。因此 `maxPoolSize=10` 永远不触发。线程池始终只有 5 个核心线程在工作，5 万任务全堆在队列里。
 
-### 修复
+### 3.3 修复
 
 ```java
 new ThreadPoolExecutor(
@@ -334,7 +328,7 @@ new ThreadPoolExecutor(
 
 关键：**队列必须有界。** 用 `LinkedBlockingQueue<>(500)` 或 `ArrayBlockingQueue<>(500)`。队列满后线程池才会扩容到 maxPoolSize。
 
-### 参数配置速查
+### 3.4 参数配置速查
 
 | 业务类型 | corePoolSize | maxPoolSize | 队列容量 | 说明 |
 |---------|-------------|-------------|---------|------|
@@ -342,13 +336,13 @@ new ThreadPoolExecutor(
 | IO 密集型 | CPU 核数 | CPU × 2 | 大（1024~4096） | 线程可在等待 IO 时出让 CPU |
 | 混合型 | CPU 核数 | CPU × 1.5 | 中等（512~1024） | 按实际压测调整 |
 
-### 为什么还有人用无界队列？
+### 3.5 为什么还有人用无界队列？
 
 因为 JDK 的 `Executors.newFixedThreadPool(10)` 内部用的是 `new LinkedBlockingQueue<>()`（无界）。很多开发者直接调这个工厂方法，不知道它默认无界。阿里巴巴 Java 开发手册 1.6.0 第 7 条明确禁止 `Executors` 工厂方法：
 
 > 【强制】线程池不允许使用 Executors 去创建，而是通过 ThreadPoolExecutor 的方式，这样的处理方式让写的同学更加明确线程池的运行规则，规避资源耗尽的风险。
 
-### 总结
+### 3.6 总结
 
 | 症状 | 根因 | 修复 |
 |------|------|------|
@@ -357,8 +351,6 @@ new ThreadPoolExecutor(
 | 觉得队里越大越好 | 误解队列作用 | 队列是缓冲，不是仓库 |
 
 **黄金法则：生产环境的线程池绝不用无界队列。** 队列容量和拒绝策略是线程池安全的两条安全带——不要自作聪明把它们拆掉。
-
----
 
 > **上一篇：** [第 13 章案例集（一）：死锁、线程池与并发集合实战](./chapter-13-diagnostics-cases-part1)
 >

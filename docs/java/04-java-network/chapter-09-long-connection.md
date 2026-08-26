@@ -1,12 +1,10 @@
-# 第9章 长连接与实时通信
+# 长连接与实时通信
 
 > 你用了三年 WebSocket 做推送通知——每次上线都写一套断线重连逻辑，心跳自己管，连接状态自己维护。直到有一天同事问："你这个场景为什么不用 SSE？"你才发现 WebSocket 的双向通道 90% 的时间只用了服务端→客户端这一个方向，半闲置的通道换来的是多一倍的代码量和排查难度。一个通知推送场景，三年前选了 WebSocket，三年后有人把它迁回了 SSE——不是 WebSocket 不好，是你选错了场景。
 
----
+## 1. 为什么需要长连接
 
-## 9.1 为什么需要长连接
-
-### 9.1.1 短连接的局限
+### 1.1 短连接的局限
 
 在传统的 HTTP 短连接模型中，每一次数据交换都需要经历完整的 TCP 三次握手 → 数据传输 → 四次挥手过程。对于偶尔请求的场景（如浏览网页），这是合理的；但对于以下场景，短连接的开销就变得不可接受：
 
@@ -18,7 +16,7 @@
 | 资源消耗 | 大量 TIME_WAIT，端口耗尽 | 少量连接承载大量消息 |
 | 适用场景 | REST API、网页浏览 | 聊天、实时行情、协同编辑、游戏 |
 
-### 9.1.2 轮询 vs 长连接
+### 1.2 轮询 vs 长连接
 
 在没有长连接的年代，开发者用各种轮询策略模拟实时通信：
 
@@ -52,11 +50,9 @@ public void pollMessages() {
 
 短轮询的问题很明显：大部分请求返回空结果，白白消耗服务端和网络资源。
 
----
+## 2. WebSocket
 
-## 9.2 WebSocket
-
-### 9.2.1 协议握手过程
+### 2.1 协议握手过程
 
 WebSocket 通过 HTTP Upgrade 机制升级连接，从 HTTP 协议切换到 WebSocket 协议：
 
@@ -88,7 +84,7 @@ WebSocket 通过 HTTP Upgrade 机制升级连接，从 HTTP 协议切换到 WebS
 - `Sec-WebSocket-Key` + 魔术字符串经 SHA-1 哈希后回传，防止缓存代理误处理
 - 握手完成后，HTTP 协议退场，后续通信使用 WebSocket 二进制帧
 
-### 9.2.2 Java 实现 WebSocket
+### 2.2 Java 实现 WebSocket
 
 **服务端（JSR 356 / Jakarta WebSocket）：**
 
@@ -178,7 +174,7 @@ public class ChatClient {
 }
 ```
 
-### 9.2.3 Spring WebSocket + STOMP
+### 2.3 Spring WebSocket + STOMP
 
 在实际项目中，通常使用 Spring 封装的 WebSocket + STOMP 协议，支持消息代理、订阅模式：
 
@@ -215,7 +211,7 @@ public class ChatController {
 }
 ```
 
-### 9.2.4 WebSocket 帧格式
+### 2.4 WebSocket 帧格式
 
 WebSocket 以帧（Frame）为单位传输数据，帧结构如下：
 
@@ -245,11 +241,9 @@ WebSocket 以帧（Frame）为单位传输数据，帧结构如下：
 | 0x9 | Ping |
 | 0xA | Pong |
 
----
+## 3. SSE（Server-Sent Events）
 
-## 9.3 SSE（Server-Sent Events）
-
-### 9.3.1 SSE 原理
+### 3.1 SSE 原理
 
 SSE 是 HTML5 规范的一部分，基于 HTTP 协议实现服务端到客户端的单向推送。它的核心特点是：**简单、基于 HTTP、自动重连**。
 
@@ -284,7 +278,7 @@ data: {"key":"value"}   ← 数据体（必须）
                         ← 空行表示一条消息结束
 ```
 
-### 9.3.2 Java 实现 SSE
+### 3.2 Java 实现 SSE
 
 ```java
 import org.springframework.http.MediaType;
@@ -339,7 +333,7 @@ public class SseController {
 }
 ```
 
-### 9.3.3 WebSocket vs SSE 对比
+### 3.3 WebSocket vs SSE 对比
 
 | 特性 | WebSocket | SSE |
 |------|-----------|-----|
@@ -358,13 +352,11 @@ public class SseController {
 - 需要最大兼容性和最简实现 → SSE
 - 高频双向数据交换 → WebSocket
 
----
-
-## 9.4 长连接保活
+## 4. 长连接保活
 
 长连接最大的生产问题是：连接会"悄无声息"地断开。原因包括 NAT 超时、防火墙空闲连接清理、ISP 中间设备重置等。保活机制是长连接稳定运行的生命线。
 
-### 9.4.1 双层保活策略
+### 4.1 双层保活策略
 
 ```text
 ┌─────────────────────────────────────────────────────────┐
@@ -387,7 +379,7 @@ public class SseController {
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 9.4.2 应用层心跳实现
+### 4.2 应用层心跳实现
 
 ```java
 import javax.websocket.Session;
@@ -450,7 +442,7 @@ public class HeartbeatManager {
 }
 ```
 
-### 9.4.3 TCP KeepAlive 参数调优
+### 4.3 TCP KeepAlive 参数调优
 
 ```bash
 # Linux 系统级 TCP KeepAlive 参数
@@ -481,7 +473,7 @@ channel.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
 channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
 ```
 
-### 9.4.4 重连策略
+### 4.4 重连策略
 
 客户端断线后不应立即重连（可能服务端正在重启），推荐指数退避 + 抖动策略：
 
@@ -515,13 +507,11 @@ public class ReconnectStrategy {
 }
 ```
 
----
-
-## 9.5 IM 系统设计
+## 5. IM 系统设计
 
 一个生产级的即时通讯系统是长连接技术的集大成者。本节从四个核心维度拆解 IM 系统设计。
 
-### 9.5.1 在线状态管理
+### 5.1 在线状态管理
 
 ```text
 ┌─────────────────────────────────────────────────────────┐
@@ -588,7 +578,7 @@ public class PresenceService {
 }
 ```
 
-### 9.5.2 消息路由
+### 5.2 消息路由
 
 当系统有多台消息服务器时，如何把消息投递到正确的服务器是核心问题：
 
@@ -661,7 +651,7 @@ public class MessageRouter {
 }
 ```
 
-### 9.5.3 消息可靠性
+### 5.3 消息可靠性
 
 IM 系统中消息不能丢，也不能重复。需要多层保障：
 
@@ -729,7 +719,7 @@ public class MessageAck {
 }
 ```
 
-### 9.5.4 消息顺序保证
+### 5.4 消息顺序保证
 
 消息顺序是 IM 系统的经典难题。严格全局有序代价太高，通常保证**单聊有序**和**群聊分区有序**：
 
@@ -767,7 +757,7 @@ public class SequenceGenerator {
 
 **客户端修正策略：** 当客户端收到乱序消息时，按 `sequenceNo` 排序后再展示。通常配合一个滑动窗口（如缓存 5 条消息），等待缺失消息到达后一起展示。
 
-### 9.5.5 IM 系统架构总览
+### 5.5 IM 系统架构总览
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -802,8 +792,6 @@ public class SequenceGenerator {
 │  └──────────────────────────────────────┘                          │
 └─────────────────────────────────────────────────────────────────────┘
 ```
-
----
 
 > **本章与其他章节的联系：**
 >

@@ -161,4 +161,3 @@ SELECT * FROM (
 4. **多个窗口函数可共用一个 OVER** — 减少重复定义
 5. **窗口帧默认行为** — ORDER BY 存在时默认 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
 
----

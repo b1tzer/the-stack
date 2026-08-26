@@ -278,7 +278,7 @@ public class AsyncTimeoutService {
 
 异步方法的异常处理取决于返回类型，两者机制完全不同。
 
-#### 返回 `void` 的异常处理
+#### 3.7.1 返回 `void` 的异常处理
 
 `void` 返回值的异步方法，异常不会抛回调用方，必须通过 `AsyncUncaughtExceptionHandler` 捕获：
 
@@ -325,7 +325,7 @@ public class AsyncConfig implements AsyncConfigurer {
 }
 ```
 
-#### 返回 `CompletableFuture` 的异常处理
+#### 3.7.2 返回 `CompletableFuture` 的异常处理
 
 `CompletableFuture` 返回值的异常会封装在 Future 中，由调用方处理：
 
@@ -378,7 +378,7 @@ public class AsyncFutureService {
 
 ### 3.8 线程池调优
 
-#### 核心参数
+#### 3.8.1 核心参数
 
 ```java
 ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
@@ -399,7 +399,7 @@ executor.setAwaitTerminationSeconds(30);             // 关闭等待超时
 | IO 密集型 | 线程数 = CPU 核心数 × 2 × (1 + IO 等待时间/CPU 时间) | 8 核、IO 占比 80% → 80 线程 |
 | 混合型 | 按实际压测调整，从 IO 密集型公式开始 | 先设 40，压测后微调 |
 
-#### 拒绝策略
+#### 3.8.2 拒绝策略
 
 当线程池和队列都满时，触发拒绝策略：
 
@@ -431,7 +431,7 @@ public class LoggingRejectedHandler implements RejectedExecutionHandler {
 }
 ```
 
-#### 线程池监控
+#### 3.8.3 线程池监控
 
 ```java
 @Component

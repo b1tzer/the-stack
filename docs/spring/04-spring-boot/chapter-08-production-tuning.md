@@ -12,8 +12,6 @@
 
 两个池子任一个成为短板，吞吐量就被它卡住。调优前先问同一个问题：**这个池子的上限，够不够承载预期的并发？** 下面分别回答。
 
----
-
 ## 2. 连接池：HikariCP
 
 Spring Boot 2.x 起默认连接池就是 HikariCP，配置前缀 `spring.datasource.hikari.*`。
@@ -59,8 +57,6 @@ HikariPool-1 - Connection is not available, request timed out after 5000ms.
 
 这通常不是「池太小」这么简单，更常见的根因是**连接泄漏**——借了连接没还。排查路径见 [Actuator 监控](./chapter-04-actuator.md) 里的连接池耗尽案例。
 
----
-
 ## 3. 内嵌 Tomcat
 
 配置前缀 `server.tomcat.*`，四个参数决定并发能力：
@@ -91,8 +87,6 @@ server:
 - 连接池 `maximum-pool-size=100`，Tomcat `threads.max=50`：最多 50 个线程并发，连接池用不满，线程是瓶颈。
 
 经验法则：**连接池大小 ≤ 真正会访问数据库的线程数，而不是 ≤ Tomcat 全部线程数**。先测出「数据库请求占比」，再据此定池大小。
-
----
 
 ## 4. 调优 checklist
 

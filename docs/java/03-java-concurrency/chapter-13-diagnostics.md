@@ -1,14 +1,12 @@
-# 第13章 并发问题诊断与性能优化
+# 并发问题诊断与性能优化
 
 > 系统卡住了：CPU 空转、请求堆积、Thread Dump 里满屏 `BLOCKED`。这些症状分别对应什么问题？定位到哪一行代码才算根因？找到之后怎么修才不是治标？
 
 并发 bug 的痛点不是"难修"，而是"难复现"。测试环境稳跑一整月，上生产两分钟就死锁。原因是并发问题的暴露时机取决于线程调度的微秒级顺序——你写的每一行同步代码，都是在替 JVM 和 CPU 打赌。**这一章不重讲通用 Thread Dump 语法**（那是第二卷第 6 章的内容），只讨论并发场景下的特化视角：症状识别、根因定位、修复策略。
 
----
+## 1. 并发问题的四种典型症状
 
-## 13.1 并发问题的四种典型症状
-
-### 13.1.1 症状全景
+### 1.1 症状全景
 
 线上并发问题的表现形式只有四种。识别到症状，就能快速缩小根因范围：
 
@@ -21,7 +19,7 @@
 
 **关键区分点**：死锁和活锁都表现为"没进展"，但 CPU 占用完全相反——死锁线程处于 `BLOCKED` / `WAITING`，CPU 曲线是平的；活锁线程处于 `RUNNABLE`，CPU 曲线是满的。这个区别决定了你查的方向。
 
-### 13.1.2 死锁（Deadlock）
+### 1.2 死锁（Deadlock）
 
 四种症状里最经典的一种。两条或更多线程互相持有对方需要的锁，谁都没法推进：
 
@@ -54,7 +52,7 @@ public class DeadlockDemo {
 
 两条线程各自持一把锁、又都在等对方那把——形成"环"。这个环一旦形成，除非有超时机制或外部干预，永远解不开。§13.2 会展开死锁的四个必要条件、检测方法和预防策略。
 
-### 13.1.3 活锁（Livelock）
+### 1.3 活锁（Livelock）
 
 线程一直在跑但没有推进。经典比喻：两个人在走廊迎面走来，都往同一边让，又同时往另一边让，永远错不开。
 
@@ -84,7 +82,7 @@ public class LivelockDemo {
 
 活锁在生产上不如死锁常见，但杀伤力不亚于死锁——**它把 CPU 打满，却不做任何有用功**。常见诱因：无退避的重试逻辑、"礼让"策略、乐观锁的高竞争 CAS 死循环。修复思路一致：**引入随机退避（jitter）打破对称性**。
 
-### 13.1.4 饥饿（Starvation）
+### 1.4 饥饿（Starvation）
 
 某些线程永远拿不到 CPU 时间片或永远拿不到锁：
 
@@ -107,17 +105,15 @@ for (int i = 0; i < 100; i++) {
 
 修复思路：改用公平锁（`new ReentrantLock(true)`），或者从根本上减少竞争强度。
 
-### 13.1.5 竞态条件（Race Condition）
+### 1.5 竞态条件（Race Condition）
 
 `count++` 结果时对时错，`HashMap` 在并发写下损坏得链表成环，`SimpleDateFormat` 并发解析抛 `NumberFormatException`——都是竞态。
 
 竞态的定位比死锁更难：**它没有可靠的症状**。表现只有一个"数据不对"，且无法稳定复现。诊断方法只有一条：**从数据错乱的形态反推**——比如"少了一条更新"通常对应 `count++` 型漏更新；"看到半初始化对象"通常对应 §4.5 讨论的发布不安全。
 
----
+## 2. 死锁：机制、检测、预防
 
-## 13.2 死锁：机制、检测、预防
-
-### 13.2.1 死锁的四个必要条件
+### 2.1 死锁的四个必要条件
 
 死锁的形成需要四个条件同时满足——**打破任何一个都能预防死锁**：
 
@@ -144,7 +140,7 @@ public static void transfer(Account from, Account to, int amount) {
 }
 ```
 
-### 13.2.2 用 `jstack` 定位死锁
+### 2.2 用 `jstack` 定位死锁
 
 `jstack` 是死锁诊断的第一把工具。JVM 在 Thread Dump 末尾会直接标出死锁信息，不需要肉眼扫栈：
 
@@ -186,7 +182,7 @@ Found 1 deadlock.
 
 **局限**：`jstack` 只能检测 `synchronized` 与 `ReentrantLock` 系的死锁。**如果死锁涉及 `LockSupport.park()` 无对象引用的挂起（第 8 章 §8.2），`jstack` 不报告死锁**——只会显示线程在 `park`。这种情况需要下一节的编程式检测。
 
-### 13.2.3 编程式死锁检测
+### 2.3 编程式死锁检测
 
 对生产环境常驻的服务，可以在监控线程里主动跑死锁检测：
 
@@ -205,7 +201,7 @@ scheduler.scheduleAtFixedRate(() -> {
 
 `findDeadlockedThreads` 覆盖 `synchronized` 和所有 AQS 系的锁。开销可控，生产上开着不影响性能。
 
-### 13.2.4 用 `tryLock(timeout)` 从代码层面消灭死锁
+### 2.4 用 `tryLock(timeout)` 从代码层面消灭死锁
 
 即便统一了锁顺序，业务复杂到多个模块交叉持锁时，仍可能出现意料之外的环。终极兜底方式是**给锁获取加超时**：
 
@@ -225,13 +221,11 @@ try {
 
 超时后返回 `false`，业务层可以选择重试或降级。**任何生产上"永远拿不到就永远等"的锁都是隐患**。
 
----
-
-## 13.3 Thread Dump 的并发特化视角
+## 3. Thread Dump 的并发特化视角
 
 Thread Dump 的通用获取方式（`jstack` / `jcmd Thread.print` / `kill -3` / VisualVM）和格式解析，已经在第二卷第 6 章"线上排查与诊断"讲过。**这一节只讨论并发场景下的读法**——同样一份 dump，通用视角看的是"哪条线程栈异常"，并发视角看的是"整体的锁竞争与阻塞形态"。
 
-### 13.3.1 线程状态分布：先看总盘
+### 3.1 线程状态分布：先看总盘
 
 拿到 dump 的第一件事不是逐条读栈——是**统计线程状态分布**：
 
@@ -254,7 +248,7 @@ grep "java.lang.Thread.State" threads.dump | sort | uniq -c | sort -rn
 | 大量 `WAITING` 在 `LinkedBlockingQueue.take` | 线程池空闲 | 正常，非问题 |
 | 大量 `WAITING` 在 `AQS.parkAndCheckInterrupt` | 有人在等 `Condition.signal` | 检查 `signal` 是否漏调 |
 
-### 13.3.2 顺着 `BLOCKED` 找热点锁
+### 3.2 顺着 `BLOCKED` 找热点锁
 
 `BLOCKED` 线程的栈里都会写明它在等哪把锁：
 
@@ -272,7 +266,7 @@ grep "java.lang.Thread.State" threads.dump | sort | uniq -c | sort -rn
 
 用 dump 里的 `- locked <0x00000007aab3b020>` 反查，就能定位持锁线程；再看它的栈，就知道它卡在临界区里的哪一步。80% 的锁竞争问题到这一步就能修：拆锁粒度、缩短临界区、换共享锁。
 
-### 13.3.3 `WAITING` 线程的三种典型形态
+### 3.3 `WAITING` 线程的三种典型形态
 
 `WAITING` 状态在栈上的顶部帧固定是 `Unsafe.park`。三种最常见的下文：
 
@@ -293,7 +287,7 @@ at java.util.concurrent.CompletableFuture$Signaller.block(...)
 
 排查时最容易被形态 1 干扰——线程池里几十个 `WAITING` 都是空闲 Worker，与问题无关。养成"先跳过空闲池、只看业务栈"的习惯。
 
-### 13.3.4 一个真实案例：从 dump 到根因的一次推进
+### 3.4 一个真实案例：从 dump 到根因的一次推进
 
 某个线上服务响应突然从 20ms 涨到 3s。Thread Dump 显示：
 
@@ -305,13 +299,11 @@ at java.util.concurrent.CompletableFuture$Signaller.block(...)
 
 这种"锁竞争不在业务代码里，而在公共组件里"的场景在生产上非常常见。dump 是唯一能定位到这类问题的手段。
 
----
-
-## 13.4 锁竞争分析
+## 4. 锁竞争分析
 
 Thread Dump 是**快照**——一次采样。要看锁竞争的**时序变化**，需要专门的工具。
 
-### 13.4.1 关键指标
+### 4.1 关键指标
 
 | 指标 | 含义 | 来源 |
 | :-- | :-- | :-- |
@@ -323,7 +315,7 @@ Thread Dump 是**快照**——一次采样。要看锁竞争的**时序变化**
 
 其中 **Lock Wait Time 分布** 最重要——它直接告诉你锁竞争到底影响了多少延迟。
 
-### 13.4.2 JFR：低开销的持续记录
+### 4.2 JFR：低开销的持续记录
 
 JDK Flight Recorder 是并发问题诊断的一等公民。它开销极低（通常 <1%），可以在生产环境长期开着：
 
@@ -343,7 +335,7 @@ java -XX:StartFlightRecording=duration=60s,filename=recording.jfr MyApp
 
 **排查节奏**：Thread Dump 看当前形态 → JFR 看时间维度上的竞争分布。两者结合，锁问题基本无处可藏。
 
-### 13.4.3 Arthas：在线看谁在阻塞谁
+### 4.3 Arthas：在线看谁在阻塞谁
 
 Arthas 是阿里开源的 Java 在线诊断工具，`thread -b` 一条命令直接告诉你**哪条线程在阻塞其他人**：
 
@@ -360,13 +352,11 @@ Arthas 是阿里开源的 Java 在线诊断工具，`thread -b` 一条命令直�
 
 对不能重启、不便开 JFR 的线上环境，Arthas 是最快的定位手段。
 
----
-
-## 13.5 六种并发性能优化策略
+## 5. 六种并发性能优化策略
 
 诊断到问题之后，剩下的是修。生产上被反复验证过的策略只有六种。
 
-### 13.5.1 减少锁粒度
+### 5.1 减少锁粒度
 
 大锁拆小锁，把"谁进来都要抢"改成"分区各管各的"。经典案例是 `ConcurrentHashMap` 从 JDK 7 的 Segment 分段锁到 JDK 8 的 bin 级锁的演进：
 
@@ -381,7 +371,7 @@ JDK 7：16 个 Segment，16 把锁                    JDK 8+：每个 bin 一把
 
 工程上直接换 `ConcurrentHashMap` 就够——无锁读、CAS 写、只有哈希冲突到 bin 级才加锁。
 
-### 13.5.2 无锁化：用 CAS 替代锁
+### 5.2 无锁化：用 CAS 替代锁
 
 `AtomicLong` / `LongAdder` 是最常见的两种：
 
@@ -408,7 +398,7 @@ public void inc() { count.increment(); }
 
 判断标准：**只需要"最终一致的累加"用 `LongAdder`；需要"每次读到最新准确值"用 `AtomicLong`**。
 
-### 13.5.3 读写分离
+### 5.3 读写分离
 
 读多写少的场景，共享读比独占读快一个数量级：
 
@@ -421,7 +411,7 @@ public void inc() { count.increment(); }
 
 `CopyOnWriteArrayList` 的写成本是 O(N) 数组复制，不适合频繁写入。**只有"读远大于写、且写操作可以合并成批"的场景**（配置、白名单、订阅者列表）才划算。
 
-### 13.5.4 批处理
+### 5.4 批处理
 
 减少加锁次数：
 
@@ -456,7 +446,7 @@ public void flush() {
 
 代价：**入库不再立即持久化，异常场景会丢队列里未 flush 的数据**。业务能容忍"一定时间窗口的数据丢失"再上这条策略。
 
-### 13.5.5 异步化
+### 5.5 异步化
 
 用户请求的响应路径上只做必要工作，非核心操作丢到异步线程：
 
@@ -482,7 +472,7 @@ public OrderResult create(OrderRequest req) {
 
 配合第 11 章 §11.3 的"每类任务用独立线程池"规则——异步任务不能扔到 `commonPool`。
 
-### 13.5.6 六种策略一览
+### 5.6 六种策略一览
 
 | 策略 | 核心思路 | 适用场景 | 代表工具 |
 | :-- | :-- | :-- | :-- |
@@ -493,13 +483,11 @@ public OrderResult create(OrderRequest req) {
 | 异步化 | 请求与处理解耦 | 非核心慢操作 | `CompletableFuture` / MQ |
 | 换工具 | 用无锁数据结构 | 队列、Map | `ConcurrentLinkedQueue` |
 
----
-
-## 13.6 虚拟线程的诊断专项
+## 6. 虚拟线程的诊断专项
 
 第 12 章介绍了虚拟线程的机制与 pinning 陷阱。诊断层面，虚拟线程带来了三个和平台线程完全不同的坑。
 
-### 13.6.1 pinning：虚拟线程独有的性能陷阱
+### 6.1 pinning：虚拟线程独有的性能陷阱
 
 平台线程被阻塞就是被阻塞，没有"钉住"这一说。虚拟线程不同——它挂在平台线程（carrier thread）上运行，遇到 `park` 会自动卸载，把 carrier 让给其他虚拟线程。但**遇到 `synchronized` 里的阻塞操作，虚拟线程会被"钉住"在 carrier 上，无法卸载**：
 
@@ -512,7 +500,7 @@ synchronized (lock) {
 
 后果是**吞吐量骤降**：虚拟线程的调度优势建立在"carrier 数量少但可以承载海量虚拟线程"上，pinning 让 carrier 一条条被占死，最坏情况下退化成"平台线程池"。第 12 章 §12.3 有完整讨论。
 
-### 13.6.2 检测 pinning：`-Djdk.tracePinnedThreads`
+### 6.2 检测 pinning：`-Djdk.tracePinnedThreads`
 
 启动时加上参数，pinning 发生时会打印栈：
 
@@ -533,7 +521,7 @@ Thread[#22,ForkJoinPool-1-worker-3,5,CarrierThreads]
 
 生产环境不建议一直开 `full`（栈打印有开销），可以改用 `short` 或走 JFR。
 
-### 13.6.3 JFR：生产环境的 pinning 持续监控
+### 6.3 JFR：生产环境的 pinning 持续监控
 
 JFR 有一个专门的事件 `jdk.VirtualThreadPinned`，只在 pinning 发生时记录：
 
@@ -546,7 +534,7 @@ jcmd <pid> JFR.start filename=vt.jfr duration=60s \
 
 修复思路一句话：**任何 `synchronized` 包住的阻塞操作，换成 `ReentrantLock`**。`ReentrantLock` 底层是 `LockSupport.park`（第 8 章 §8.2），虚拟线程 park 时能正常卸载。
 
-### 13.6.4 `jstack` 的输出差异
+### 6.4 `jstack` 的输出差异
 
 虚拟线程在 dump 里的表示和平台线程有明显不同：
 
@@ -570,11 +558,11 @@ jcmd <pid> Thread.dump_to_file -format=json vt-threads.json
 
 JSON 格式便于用工具分析（`jq` 或专用 dump 分析工具），比逐行 grep 高效得多。
 
-### 13.6.5 `ThreadMXBean` 的能力缺口
+### 6.5 `ThreadMXBean` 的能力缺口
 
 `ThreadMXBean.getThreadCount()` **不统计虚拟线程**——这是 API 设计的历史限制。想统计虚拟线程数、内存占用、状态分布，只能走 JFR 事件流或 Arthas。这一点在虚拟线程场景下的监控体系设计里要提前意识到。
 
-### 13.6.6 虚拟线程诊断规则速览
+### 6.6 虚拟线程诊断规则速览
 
 | 规则 | 说明 |
 | :-- | :-- |
@@ -599,9 +587,7 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 }
 ```
 
----
-
-## 13.7 上生产前的并发自检清单
+## 7. 上生产前的并发自检清单
 
 以下是这一卷全部内容凝练出的自检清单。发布前对着走一遍，能过滤掉绝大多数经典并发问题。
 
@@ -623,9 +609,7 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 | 死锁监控 | 生产开 `findDeadlockedThreads` 定时检测 | §13.2.3 |
 | JFR 常态录制 | 生产开 `duration=continuous` 的低采样 JFR | §13.4.2 |
 
----
-
-## 13.8 本章小结
+## 8. 本章小结
 
 | 症状 | 定位手段 | 修复方向 |
 | :-- | :-- | :-- |
@@ -637,9 +621,7 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 | 虚拟线程 pinning | `-Djdk.tracePinnedThreads` / JFR `VirtualThreadPinned` | `synchronized` → `ReentrantLock` |
 | 长 RT 请求 | Arthas `thread -b` 看谁在阻塞谁 | 缩短临界区 / 异步化 |
 
----
-
-## 13.9 实战案例集
+## 9. 实战案例集
 
 以上内容是并发诊断方法、工具和优化策略的速查手册。以下案例集从生产环境真实事故中精挑细选，每个案例都包含完整的事故背景、排查链路、根因定位和修复验证：
 
@@ -652,8 +634,6 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
   - 虚拟线程 pinning —— 同步锁让 5000 QPS 跌到 800
   - CompletableFuture + DiscardPolicy —— 静默丢弃任务导致永久阻塞
   - 线程池 core = max + 无界队列 —— maxPoolSize 永远不触发
-
----
 
 > **纵横联系**
 >

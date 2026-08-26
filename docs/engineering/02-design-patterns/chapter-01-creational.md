@@ -86,7 +86,7 @@ Payment payment = PaymentFactory.create("alipay");
 payment.pay(BigDecimal.valueOf(99.9));
 ```
 
-### 工厂模式选型指南
+### 6.1 工厂模式选型指南
 
 | 模式 | 复杂度 | 适用场景 |
 |------|--------|----------|

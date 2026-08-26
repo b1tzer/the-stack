@@ -169,4 +169,3 @@ String url = "jdbc:mysql://host:3306/mydb?serverTimezone=Asia/Shanghai&useSSL=fa
 | 1045 | 认证失败 | 检查用户名密码 |
 | 1146 | 表不存在 | 检查表名和数据库 |
 
----

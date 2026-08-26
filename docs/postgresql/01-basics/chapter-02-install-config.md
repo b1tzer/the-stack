@@ -2,12 +2,12 @@
 
 ## 1. 安装方式
 
-### Debian/Ubuntu
+### 1.1 Debian/Ubuntu
 ```bash
 sudo apt install postgresql-16 postgresql-contrib-16
 ```
 
-### RHEL/CentOS
+### 1.2 RHEL/CentOS
 ```bash
 sudo yum install postgresql16-server postgresql16-contrib
 sudo /usr/pgsql-16/bin/postgresql-16-setup initdb
@@ -15,7 +15,7 @@ sudo systemctl enable postgresql-16
 sudo systemctl start postgresql-16
 ```
 
-### Docker
+### 1.3 Docker
 ```bash
 docker run -d --name pg16 \
   -e POSTGRES_PASSWORD=secret \
@@ -151,7 +151,7 @@ log_statement = 'ddl'
 
 ## 9. 推荐配置模板
 
-### 8GB 内存服务器
+### 9.1 8GB 内存服务器
 
 ```ini
 shared_buffers = 2GB
@@ -165,7 +165,7 @@ random_page_cost = 1.1
 effective_io_concurrency = 200
 ```
 
-### 32GB 内存服务器
+### 9.2 32GB 内存服务器
 
 ```ini
 shared_buffers = 8GB

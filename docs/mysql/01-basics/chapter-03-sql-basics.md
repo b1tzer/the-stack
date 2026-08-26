@@ -15,7 +15,7 @@ CREATE TABLE users (
 
 ## 2. 数据类型
 
-### 数值
+### 2.1 数值
 | 类型 | 存储 | 范围 |
 |------|------|------|
 | TINYINT | 1字节 | -128~127 |
@@ -23,21 +23,21 @@ CREATE TABLE users (
 | BIGINT | 8字节 | 极大 |
 | DECIMAL(m,d) | 可变 | 精确小数 |
 
-### 字符串
+### 2.2 字符串
 | 类型 | 说明 |
 |------|------|
 | VARCHAR(n) | 可变长度，最大 65535 |
 | CHAR(n) | 固定长度 |
 | TEXT | 大文本 |
 
-### 日期时间
+### 2.3 日期时间
 | 类型 | 说明 |
 |------|------|
 | DATETIME | 日期时间，无时区 |
 | TIMESTAMP | 时间戳，自动转换时区 |
 | DATE | 仅日期 |
 
-## 4. DML 操作
+## 3. DML 操作
 
 ```sql
 -- INSERT
@@ -66,7 +66,7 @@ SELECT username, age FROM users WHERE age > 20 ORDER BY age DESC LIMIT 10;
 SELECT age, COUNT(*) AS cnt FROM users GROUP BY age HAVING cnt > 5;
 ```
 
-## 5. DCL 操作
+## 4. DCL 操作
 
 ```sql
 -- 创建用户
@@ -85,7 +85,7 @@ FLUSH PRIVILEGES;
 SHOW GRANTS FOR 'app_user'@'%';
 ```
 
-## 6. 事务控制
+## 5. 事务控制
 
 ```sql
 -- 开启事务
@@ -107,7 +107,7 @@ UPDATE accounts SET balance = balance - 50 WHERE id = 1;
 ROLLBACK TO sp1;  -- 只回滚到保存点
 ```
 
-## 7. 数据类型选择最佳实践
+## 6. 数据类型选择最佳实践
 
 | 场景 | 推荐类型 | 避免类型 | 原因 |
 |------|---------|---------|------|
@@ -120,4 +120,3 @@ ROLLBACK TO sp1;  -- 只回滚到保存点
 | 大文本 | TEXT | VARCHAR(65535) | 避免行溢出 |
 | JSON | JSON | TEXT | 内置函数支持 |
 
----

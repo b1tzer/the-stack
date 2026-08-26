@@ -125,4 +125,3 @@ ALTER TABLE myisam_table ENGINE = InnoDB;
 - 利用内存缓存减少磁盘 IO
 - Checkpoint 机制异步刷新脏页
 
----

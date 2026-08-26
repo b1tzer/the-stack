@@ -40,7 +40,6 @@ GET /my-index/_search
 { "query": { "range": { "price": { "gt": 100 } } } }
 ```
 
----
 ## 5. 使用 routing 优化查询
 
 ```json

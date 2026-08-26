@@ -2,7 +2,7 @@
 
 ## 1. 实现方式
 
-### 版本号机制
+### 1.1 版本号机制
 ```sql
 -- 表结构
 ALTER TABLE products ADD COLUMN version INT DEFAULT 0;
@@ -15,7 +15,7 @@ WHERE id = 1 AND version = 5;
 -- 检查影响行数，0 表示冲突
 ```
 
-### 时间戳机制
+### 1.2 时间戳机制
 ```sql
 UPDATE products 
 SET stock = stock - 1, updated_at = NOW() 
@@ -148,4 +148,3 @@ public void transfer(Long fromId, Long toId, BigDecimal amount) {
 | 订单状态流转 | 乐观锁 | 状态有限，冲突少 |
 | 抢红包 | Redis + Lua | 超高并发，MySQL 不适合 |
 
----

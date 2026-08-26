@@ -1,12 +1,10 @@
-# 第三章 泛型
+# 泛型
 
 > `List<String>` 运行时不是 `List<String>`——是 `List`。编译器替你做了 `(String) list.get(0)`，但 JVM 不知道你存的到底是什么。类型擦除不是 bug——是 Java 5 在不动字节码格式的前提下、把泛型塞进 Java 1.0 的 class 文件的唯一办法。代价会以各种隐晦的方式让你撞墙：桥接方法、堆污染、`instanceof` 对参数化类型返回 false——这些不是"高级特性"，是你迟早要排查的那种线上问题。
 
----
+## 1. 为什么需要泛型：从 Object 到类型安全
 
-## 3.1 为什么需要泛型：从 Object 到类型安全
-
-### Java 5 之前的问题
+### 1.1 Java 5 之前的问题
 
 在泛型出现之前，Java 的集合类只能存储 `Object`：
 
@@ -27,7 +25,7 @@ String s2 = (String) list.get(1); // ClassCastException！运行时崩溃
 2. **运行时错误**：类型错误只能在运行时发现，编译器帮不了你
 3. **无法表达类型约束**：`List` 不能表达"这个列表只能放 String"
 
-### 泛型的解决方案
+### 1.2 泛型的解决方案
 
 Java 5 引入泛型后：
 
@@ -39,13 +37,11 @@ list.add(123);           // 编译错误！编译器直接拒绝
 
 核心思想：**将类型约束从运行期提前到编译期。** 编译器在编译时就检查类型安全，消除了运行时的 `ClassCastException`。
 
----
-
-## 3.2 泛型类与泛型方法的定义
+## 2. 泛型类与泛型方法的定义
 
 理解了"为什么需要泛型"，接下来解决"怎么写"。泛型可以用在类和方法两个层面。
 
-### 泛型类
+### 2.1 泛型类
 
 在类名后面加类型参数，类内部就可以使用这个类型：
 
@@ -93,7 +89,7 @@ public class Pair<K, V> {
 Pair<String, Integer> entry = new Pair<>("age", 25);
 ```
 
-### 泛型方法
+### 2.2 泛型方法
 
 方法也可以有自己的类型参数——注意是**方法自己的**类型参数，不是类的：
 
@@ -132,7 +128,7 @@ Box<String> box = new Box<>("hello");
 box.inspect(42);  // U 是 Integer，T 是 String，互不影响
 ```
 
-### 有界类型参数
+### 2.3 有界类型参数
 
 类型参数可以加约束，限制传入的类型范围：
 
@@ -161,7 +157,7 @@ Integer max = findMax(nums);  // 5
 public static <T extends Serializable & Comparable<T>> void process(T item) { ... }
 ```
 
-### 泛型构造方法
+### 2.4 泛型构造方法
 
 构造方法也可以有自己的类型参数（虽然少见）：
 
@@ -178,9 +174,7 @@ public class Event<T> {
 
 实际上这种情况很少用到，知道即可。
 
----
-
-## 3.3 泛型与类型系统：为什么 List\<String\> 不是 List\<Object\>
+## 3. 泛型与类型系统：为什么 List\<String\> 不是 List\<Object\>
 
 这是很多人理解困难的地方。直觉上，既然 `String` is-a `Object`，那 `List<String>` 应该也是 `List<Object>` 吧？
 
@@ -200,7 +194,7 @@ List<String> list = new ArrayList<>();  // OK
 List<Object> objects = list;            // 编译错误！
 ```
 
-### 协变与逆变
+### 3.1 协变与逆变
 
 Java 通过通配符来实现有限的协变和逆变：
 
@@ -228,11 +222,9 @@ Object obj = list.get(0); // OK，但只能读取为 Object
 
 为什么读取只能是 `Object`？因为 `list` 可能是 `List<Number>`，取出的元素可能是 `Double`，不能保证是 `Integer`。`? super` 保证了**写入安全**。
 
----
+## 4. 通配符与 PECS 原则
 
-## 3.4 通配符与 PECS 原则
-
-### PECS：Producer Extends, Consumer Super
+### 4.1 PECS：Producer Extends, Consumer Super
 
 这是 Java 泛型使用的工程规则，来自 Josh Bloch 的《Effective Java》：
 
@@ -254,7 +246,7 @@ public void addIntegers(List<? super Integer> list) {
 }
 ```
 
-### 无界通配符 `?`
+### 4.2 无界通配符 `?`
 
 `List<?>` 表示"未知类型的列表"。只能读取（读出来是 `Object`），不能写入（除了 `null`）：
 
@@ -267,11 +259,9 @@ list.add(null);            // OK，null 是任何类型的合法值
 
 `?` 适合只读场景，或者你真的不关心元素类型时使用。
 
----
+## 5. 类型擦除：Java 泛型的核心设计
 
-## 3.5 类型擦除：Java 泛型的核心设计
-
-### 运行时看不到泛型
+### 5.1 运行时看不到泛型
 
 这是 Java 泛型最重要的特性，也是最容易让人困惑的特性：
 
@@ -284,7 +274,7 @@ strings.getClass() == integers.getClass()  // true!
 
 运行时，`List<String>` 和 `List<Integer>` 是同一个类——泛型信息被"擦除"了。
 
-### 擦除的机制
+### 5.2 擦除的机制
 
 编译器在编译时检查泛型类型安全，然后在生成的字节码中**移除泛型类型参数**，替换为它们的上界（通常是 `Object`）：
 
@@ -304,7 +294,7 @@ public class Box {
 }
 ```
 
-### 为什么选择擦除
+### 5.3 为什么选择擦除
 
 原因只有一个：**向后兼容**。
 
@@ -326,11 +316,9 @@ public <T> T create() {
 if (list instanceof List<String>) { }  // 编译错误
 ```
 
----
+## 6. 擦除之后：桥接方法、类型转换与字节码
 
-## 3.6 擦除之后：桥接方法、类型转换与字节码
-
-### 编译器自动插入类型转换
+### 6.1 编译器自动插入类型转换
 
 擦除后，编译器在必要的地方自动插入类型转换：
 
@@ -344,7 +332,7 @@ String s = (String) list.get(0);  // 对应字节码 checkcast 指令
 
 这就是为什么运行时不会出错——编译器帮你加了强制转换。
 
-### 桥接方法（Bridge Method）
+### 6.2 桥接方法（Bridge Method）
 
 泛型与继承结合时，编译器会自动生成桥接方法来保证多态正确性：
 
@@ -376,7 +364,7 @@ public class StringContainer implements Container<String> {
 }
 ```
 
-### Signature 属性
+### 6.3 Signature 属性
 
 虽然运行时擦除了泛型，但 Class 文件中仍然保留了泛型信息——存储在 `Signature` 属性中。这供反射和框架使用：
 
@@ -393,11 +381,9 @@ Type[] typeArgs = pt.getActualTypeArguments();
 
 Spring、MyBatis 等框架大量利用这个能力来获取泛型参数。第二卷 Class 文件章节会详细展开 `Signature` 属性的存储结构。
 
----
+## 7. 泛型的限制与未来
 
-## 3.7 泛型的限制与未来
-
-### 当前限制
+### 7.1 当前限制
 
 **不能使用基本类型：**
 ```java
@@ -419,7 +405,7 @@ List<Integer> b = new ArrayList<>();
 // 运行时无法区分 a 和 b 的泛型类型
 ```
 
-### 未来方向（Project Valhalla）
+### 7.2 未来方向（Project Valhalla）
 
 Oracle 正在开发的 Project Valhalla 计划解决这些问题：
 
@@ -428,9 +414,7 @@ Oracle 正在开发的 Project Valhalla 计划解决这些问题：
 
 这些改进将从根本上改变 Java 的类型系统和性能特征，但目前仍在开发中。
 
----
-
-## 3.8 泛型在框架中的应用
+## 8. 泛型在框架中的应用
 
 泛型在主流 Java 框架中无处不在：
 
@@ -455,7 +439,5 @@ List<String> list = objectMapper.readValue(json, new TypeReference<List<String>>
 ```
 
 `TypeReference` 利用了泛型擦除保留在 `Signature` 属性中的特性——匿名子类的 `getGenericSuperclass()` 可以获取到 `TypeReference<List<String>>` 的完整泛型信息。
-
----
 
 > 本章从"为什么需要泛型"出发，覆盖了类型安全、通配符与 PECS、类型擦除的原理与代价、桥接方法、以及泛型在框架中的工程应用。下一章《注解与 Lambda》将完成 Java 语言层的最后两块拼图：元数据驱动编程和行为抽象。

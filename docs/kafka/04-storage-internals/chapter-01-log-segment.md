@@ -66,7 +66,7 @@ kafka-dump-log.sh --files /var/kafka-logs/my-topic-0/00000000000000000000.index
 
 ## 7. 日志清理策略详解
 
-### 删除策略（Delete）
+### 7.1 删除策略（Delete）
 
 ```properties
 log.retention.hours=168          # 按时间保留（7天）
@@ -74,7 +74,7 @@ log.retention.bytes=-1           # 按大小保留（-1 表示不限制）
 log.retention.check.interval.ms=300000  # 检查间隔（5分钟）
 ```
 
-### 压缩策略（Compact）
+### 7.2 压缩策略（Compact）
 
 ```
 原始日志:
@@ -104,7 +104,7 @@ log.cleaner.delete.retention.ms=86400000  # 删除标记保留 24 小时
 - 索引文件满。
 - 使用了带时间戳的消息且时间戳超出当前段范围。
 
-## 最佳实践
+## 9. 最佳实践
 
 1. **使用 SSD 存储**：虽然 Kafka 主要是顺序写入，但 SSD 在索引查找和日志恢复时表现更好。
 2. **合理设置 log.segment.bytes**：太小会导致频繁创建新段，太大会影响日志清理效率。

@@ -146,4 +146,3 @@ SET GLOBAL server_audit_file_rotations = 10;
 7. **敏感数据脱敏** — 生产数据不暴露给非授权人员
 8. **开启审计日志** — 满足合规要求
 
----

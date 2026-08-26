@@ -4,7 +4,7 @@
 
 ## 1. 创建型模式在 JDK 中
 
-### 单例模式：Runtime
+### 1.1 单例模式：Runtime
 
 ```java
 // JDK 最经典的单例：Runtime
@@ -19,7 +19,7 @@ public class Runtime {
 }
 ```
 
-### 工厂模式：Calendar / NumberFormat
+### 1.2 工厂模式：Calendar / NumberFormat
 
 ```java
 // Calendar：简单工厂 + 工厂方法
@@ -33,7 +33,7 @@ NumberFormat pf = NumberFormat.getPercentInstance();   // 百分比格式
 // 底层根据参数创建不同的具体实现，客户端不需要知道具体类
 ```
 
-### 建造者模式：StringBuilder / Stream.Builder
+### 1.3 建造者模式：StringBuilder / Stream.Builder
 
 ```java
 // StringBuilder：链式构建字符串
@@ -51,7 +51,7 @@ Stream<String> stream = Stream.<String>builder()
     .build();
 ```
 
-### 原型模式：clone()
+### 1.4 原型模式：clone()
 
 ```java
 // ArrayList 的 clone
@@ -64,7 +64,7 @@ List<String> copy = ((ArrayList<String>) original).clone(); // 浅拷贝
 
 ## 2. 结构型模式在 JDK 中
 
-### 适配器模式：InputStreamReader
+### 2.1 适配器模式：InputStreamReader
 
 ```java
 // InputStreamReader 将字节流适配为字符流
@@ -77,7 +77,7 @@ String[] array = {"a", "b", "c"};
 List<String> list = Arrays.asList(array); // 数组 → List 适配器
 ```
 
-### 装饰器模式：IO 流（最经典！）
+### 2.2 装饰器模式：IO 流（最经典！）
 
 ```java
 // IO 流是装饰器模式的教科书实现
@@ -103,7 +103,7 @@ InputStream is = new DataInputStream(         // 装饰器2
 //     └── PushbackInputStream（具体装饰器：回退）
 ```
 
-### 代理模式：Proxy / InvocationHandler
+### 2.3 代理模式：Proxy / InvocationHandler
 
 ```java
 // JDK 动态代理
@@ -121,7 +121,7 @@ Subject proxy = (Subject) Proxy.newProxyInstance(
 proxy.request(); // 调用代理方法
 ```
 
-### 组合模式：Container / Component
+### 2.4 组合模式：Container / Component
 
 ```java
 // AWT/Swing 的组件树
@@ -138,7 +138,7 @@ frame.add(panel);                      // 容器包含容器
 // 递归操作：frame.setVisible(true) 会递归设置所有子组件
 ```
 
-### 享元模式：String 常量池 / IntegerCache
+### 2.5 享元模式：String 常量池 / IntegerCache
 
 ```java
 // String 常量池：相同字面量共享同一对象
@@ -158,7 +158,7 @@ System.out.println(m == n); // false，超出缓存范围
 
 ## 3. 行为型模式在 JDK 中
 
-### 策略模式：Comparator
+### 3.1 策略模式：Comparator
 
 ```java
 // Comparator 是策略模式的经典实现
@@ -178,7 +178,7 @@ names.sort(Comparator.comparingInt(String::length).reversed());
 names.sort((a2, b) -> a2.substring(0, 1).compareTo(b.substring(0, 1)));
 ```
 
-### 观察者模式：Observable（已废弃）
+### 3.2 观察者模式：Observable（已废弃）
 
 ```java
 // JDK 1.0 的 Observable（JDK 9 废弃，推荐用 Spring Event 或 RxJava）
@@ -195,7 +195,7 @@ bean.addPropertyChangeListener("name", evt -> {
 });
 ```
 
-### 模板方法模式：AbstractList / HttpServlet
+### 3.3 模板方法模式：AbstractList / HttpServlet
 
 ```java
 // AbstractList：定义 List 的骨架，子类实现 get() 和 size()
@@ -217,7 +217,7 @@ public abstract class AbstractList<E> implements List<E> {
 // ArrayList 实现 get() 和 size()，其他方法从 AbstractList 继承
 ```
 
-### 迭代器模式：Iterator / Iterable
+### 3.4 迭代器模式：Iterator / Iterable
 
 ```java
 // 所有集合都实现了 Iterable，支持 for-each
@@ -234,7 +234,7 @@ while (it.hasNext()) {
 }
 ```
 
-### 责任链模式：FilterChain
+### 3.5 责任链模式：FilterChain
 
 ```java
 // Servlet FilterChain 是责任链的经典实现
@@ -254,7 +254,7 @@ public class AuthFilter implements Filter {
 }
 ```
 
-### 命令模式：Runnable / Callable
+### 3.6 命令模式：Runnable / Callable
 
 ```java
 // Runnable 和 Callable 是命令模式的实现

@@ -9,7 +9,7 @@ title: PostgreSQL 核心特性与选型
 >
 > **检验标准**：学完每个模块后，能口述"这个技术解决了什么问题？不用它会怎样？工作中有哪些坑？"
 
-## 版本发展
+## 1. 版本发展
 
 ```mermaid
 timeline
@@ -29,7 +29,7 @@ timeline
 
 > 📌 本站聚焦 **v14 / v15 / v16** 版本，覆盖 JSONB、窗口函数、CTE、MVCC/VACUUM 等核心特性。
 
-## 整体知识地图
+## 2. 整体知识地图
 
 ```mermaid
 mindmap
@@ -68,13 +68,13 @@ mindmap
             实战场景
 ```
 
-## 一、PostgreSQL vs MySQL
+## 3. PostgreSQL vs MySQL
 
-### 为什么要了解选型差异？
+### 3.1 为什么要了解选型差异？
 
 不了解两者差异，就无法在技术选型时给出有依据的建议，也无法解释"为什么这个场景要用 PG 而不是 MySQL"。
 
-### 核心差异速览
+### 3.2 核心差异速览
 
 | 维度 | PostgreSQL | MySQL | 选择依据 |
 | :--- | :--- | :--- | :--- |
@@ -86,13 +86,13 @@ mindmap
 
 > 详细对比 → [PG与MySQL对比](chapter-05-pg-vs-mysql.md)
 
-## 二、MVCC 原理与表膨胀
+## 4. MVCC 原理与表膨胀
 
-### 为什么要理解 MVCC？
+### 4.1 为什么要理解 MVCC？
 
 不理解 PG 的 MVCC 实现，就无法解释为什么 PG 会有表膨胀问题，也无法正确配置 VACUUM 策略。
 
-### 核心机制
+### 4.2 核心机制
 
 每行数据有两个隐藏字段：`xmin`（插入该行的事务 ID）和 `xmax`（删除/更新该行的事务 ID）。UPDATE 时不修改原行，而是**插入新行并标记旧行的 xmax**，旧行成为 Dead Tuple。
 
@@ -111,13 +111,13 @@ flowchart LR
 
 > 详细原理 → [MVCC与VACUUM机制](../03-internals/chapter-04-mvcc.md)
 
-## 三、索引类型
+## 5. 索引类型
 
-### 为什么要了解多种索引类型？
+### 5.1 为什么要了解多种索引类型？
 
 MySQL 主要只有 B-tree，而 PG 提供了多种索引类型。选错索引类型，JSONB 查询可能退化为全表扫描。
 
-### 索引类型速览
+### 5.2 索引类型速览
 
 | 索引类型 | 适用场景 | 核心优势 |
 |---------|---------|---------|
@@ -130,9 +130,9 @@ MySQL 主要只有 B-tree，而 PG 提供了多种索引类型。选错索引类
 
 > 详细说明 → [索引类型详解](../04-index-optimization/chapter-01-index-types.md)
 
-## 四、高级特性
+## 6. 高级特性
 
-### 4.1 窗口函数
+### 6.1 窗口函数
 
 在不改变结果行数的情况下，对每行数据进行跨行计算（排名、累计、前后行对比）。
 
@@ -145,7 +145,7 @@ MySQL 主要只有 B-tree，而 PG 提供了多种索引类型。选错索引类
 
 > 详细说明 → [窗口函数](../02-sql-advanced/chapter-01-window-function.md)
 
-### 4.2 CTE 与递归查询
+### 6.2 CTE 与递归查询
 
 CTE 将复杂查询拆分为可读的命名子查询；递归 CTE 支持查询树形结构（组织架构、分类层级）。
 
@@ -162,7 +162,7 @@ SELECT * FROM org_tree ORDER BY level;
 
 > 详细说明 → [CTE与递归查询](../02-sql-advanced/chapter-02-cte-recursive.md)
 
-### 4.3 物化视图
+### 6.3 物化视图
 
 将复杂查询结果持久化存储，查询时直接读取预计算结果，适合报表统计等实时性要求不高的场景。
 
@@ -174,13 +174,13 @@ SELECT * FROM org_tree ORDER BY level;
 
 > 详细说明 → [物化视图](../06-advanced-features/chapter-07-materialized-view.md)
 
-## 五、VACUUM 机制
+## 7. VACUUM 机制
 
-### 为什么要理解 VACUUM？
+### 7.1 为什么要理解 VACUUM？
 
 不了解 VACUUM，就无法处理 PG 的表膨胀问题，也无法解释为什么长事务会导致表空间持续增长。
 
-### VACUUM 命令对比
+### 7.2 VACUUM 命令对比
 
 | 命令 | 是否锁表 | 空间归还 OS | 适用场景 |
 |------|---------|-----------|---------|
@@ -192,7 +192,7 @@ SELECT * FROM org_tree ORDER BY level;
 
 > 详细说明 → [MVCC与VACUUM机制](../03-internals/chapter-04-mvcc.md)
 
-## 高频面试速查
+## 8. 高频面试速查
 
 | 问题 | 关键答案 |
 |------|---------|
@@ -204,7 +204,7 @@ SELECT * FROM org_tree ORDER BY level;
 | VACUUM 和 VACUUM FULL 的区别？ | VACUUM 不锁表，空间标记可复用；VACUUM FULL 锁表，彻底回收空间归还 OS |
 | 为什么长事务导致表膨胀？ | VACUUM 不能清理比最老活跃事务更新的 Dead Tuple，长事务期间 Dead Tuple 无法清理 |
 
-## 常见问题速查
+## 9. 常见问题速查
 
 | 问题现象 | 根本原因 | 解决方案 |
 |---------|---------|---------|
@@ -215,13 +215,13 @@ SELECT * FROM org_tree ORDER BY level;
 | 递归 CTE 死循环 | 数据中存在循环引用 | 添加深度限制 `WHERE level < 10` |
 | 长事务阻塞 VACUUM | 事务未及时提交 | 监控 `pg_stat_activity`，及时终止长事务 |
 
-## 六、事务与锁机制
+## 10. 事务与锁机制
 
-### 为什么要了解 PG 的锁机制？
+### 10.1 为什么要了解 PG 的锁机制？
 
 PG 的锁机制比 MySQL 更细粒度（8 种表锁、4 种行锁），且提供了独特的咨询锁（Advisory Lock）。理解这些差异能帮助你在 PG 中写出更高效的并发代码。
 
-### 核心差异
+### 10.2 核心差异
 
 | 对比项 | PostgreSQL | MySQL |
 |--------|-----------|-------|
@@ -233,13 +233,13 @@ PG 的锁机制比 MySQL 更细粒度（8 种表锁、4 种行锁），且提供
 
 > 详细说明 → [事务与锁机制](../05-transaction-concurrency/chapter-01-transaction.md)
 
-## 七、性能优化与调优
+## 11. 性能优化与调优
 
-### 为什么要掌握 PG 的性能分析工具？
+### 11.1 为什么要掌握 PG 的性能分析工具？
 
 PG 提供了 `pg_stat_statements`、`auto_explain`、部分索引等强大的性能分析和优化工具，掌握这些工具能帮助你快速定位和解决性能瓶颈。
 
-### 核心工具
+### 11.2 核心工具
 
 | 工具 | 用途 | 使用场景 |
 |------|------|----------|
@@ -250,13 +250,13 @@ PG 提供了 `pg_stat_statements`、`auto_explain`、部分索引等强大的性
 
 > 详细说明 → [性能优化与调优](../09-practice/chapter-02-performance-tuning.md)
 
-## 八、JSONB 高级用法
+## 12. JSONB 高级用法
 
-### 为什么 JSONB 是 PG 的核心优势？
+### 12.1 为什么 JSONB 是 PG 的核心优势？
 
 PG 的 JSONB 是二进制存储，支持 GIN 索引，查询性能远优于 MySQL 的 JSON。在半结构化数据场景（商品属性、用户配置、日志元数据）中，JSONB 让你兼具关系型数据库的可靠性和 NoSQL 的灵活性。
 
-### 核心操作符
+### 12.2 核心操作符
 
 | 操作符 | 含义 | 示例 |
 |--------|------|------|

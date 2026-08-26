@@ -1,10 +1,8 @@
-# 第8章 企业系统部署
+# 企业系统部署
 
 > 应用写完了，怎么打包才能在任何环境一致运行？怎么部署才能快速、可回滚、能弹性伸缩？本章从 Docker 容器化、Kubernetes 编排、多环境配置三个维度，讲清楚企业级 Java 应用的部署方式。
 
 > 认证授权、数据安全已收敛到 [Spring 安全](../../spring/05-security/chapter-01-security-architecture.md) 与 [软件工程 · 安全](../../engineering/07-security/chapter-01-security-overview.md)，本文不再重复。
-
----
 
 ## 1. Docker 容器化
 
@@ -92,8 +90,6 @@ docker run -d \
 ```
 
 最终镜像不包含 JDK、Maven、源代码，体积大幅缩小，攻击面也更小。
-
----
 
 ## 2. Kubernetes 基础
 
@@ -218,8 +214,6 @@ data:
 
 **最佳实践**：ConfigMap 和 Secret 的值可以在 Pod 内以环境变量或文件挂载的方式使用。环境变量适合简单配置，文件挂载适合配置文件（如 `application.yml`）。
 
----
-
 ## 3. 多环境配置
 
 ### 3.1 Spring Profiles 机制
@@ -326,11 +320,7 @@ Spring Boot 的配置优先级从高到低：
 
 **设计原则**：公共配置放 `application.yml`，环境差异配置放 `application-{profile}.yml`，敏感信息通过环境变量或 Secret 注入，**永远不要将密码写在代码仓库中**。
 
----
-
----
-
-## 本章小结
+## 4. 本章小结
 
 容器化部署解决的是「环境一致性」与「交付效率」问题。Docker 把应用和依赖打包成镜像，Kubernetes 管理副本、滚动更新与自愈，Spring Profiles 隔离多环境配置。三者配合，让 Java 应用从「手动部署」走向「声明式交付」。
 

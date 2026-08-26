@@ -113,4 +113,3 @@ SHOW VARIABLES LIKE 'innodb_max_purge_lag';  -- Purge 延迟阈值
 4. **监控 Purge 延迟** — Purge 落后会导致 Undo 膨胀
 5. **大批量删除分批执行** — 避免单事务产生过多 Undo Log
 
----

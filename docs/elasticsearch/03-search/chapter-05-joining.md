@@ -24,7 +24,7 @@ ES 中 JSON 对象数组会被扁平化存储，导致对象边界丢失：
 
 `nested` 类型将数组中的每个对象作为独立的隐藏文档存储，保留对象边界。
 
-### 定义 Nested 映射
+### 2.1 定义 Nested 映射
 
 ```json
 PUT /orders
@@ -45,7 +45,7 @@ PUT /orders
 }
 ```
 
-### Nested 查询
+### 2.2 Nested 查询
 
 ```json
 GET /orders/_search
@@ -67,7 +67,7 @@ GET /orders/_search
 }
 ```
 
-### Nested 聚合
+### 2.3 Nested 聚合
 
 ```json
 GET /orders/_search
@@ -91,7 +91,7 @@ GET /orders/_search
 
 Parent-Child 关系将关联文档存储在同一个索引中但不同的文档里，通过 Join Field 建立关联。
 
-### 定义 Join 映射
+### 3.1 定义 Join 映射
 
 ```json
 PUT /company
@@ -111,7 +111,7 @@ PUT /company
 }
 ```
 
-### 索引 Parent 和 Child 文档
+### 3.2 索引 Parent 和 Child 文档
 
 ```json
 // 索引部门（Parent）
@@ -132,7 +132,7 @@ PUT /company/_doc/emp_1?routing=dept_1
 }
 ```
 
-### Has Child 查询
+### 3.3 Has Child 查询
 
 ```json
 // 查找有 "张三" 员工的部门
@@ -149,7 +149,7 @@ GET /company/_search
 }
 ```
 
-### Has Parent 查询
+### 3.4 Has Parent 查询
 
 ```json
 // 查找 "技术部" 的所有员工

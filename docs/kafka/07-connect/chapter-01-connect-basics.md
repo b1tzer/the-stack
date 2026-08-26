@@ -79,7 +79,7 @@ Sink Connector:
 
 ## 8. Standalone vs Distributed 模式详解
 
-### Standalone 模式
+### 8.1 Standalone 模式
 ```bash
 # 配置文件：connect-standalone.properties
 bootstrap.servers=localhost:9092
@@ -91,7 +91,7 @@ offset.storage.file.filename=/tmp/connect.offsets
 connect-standalone.sh connect-standalone.properties my-connector.properties
 ```
 
-### Distributed 模式
+### 8.2 Distributed 模式
 ```bash
 # 配置文件：connect-distributed.properties
 bootstrap.servers=localhost:9092
@@ -109,7 +109,7 @@ curl -X POST http://localhost:8083/connectors \
     -d '{"name": "my-connector", "config": {...}}'
 ```
 
-## 最佳实践
+## 9. 最佳实践
 
 1. **生产环境使用 Distributed 模式**：支持高可用、负载均衡、动态扩展。
 2. **合理设置 tasks.max**：通常等于源/目标系统的分区数或表数。

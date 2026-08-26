@@ -210,8 +210,6 @@ public class SlowSqlInterceptor implements Interceptor {
 3. **批量操作注意分批**——MySQL 的 `max_allowed_packet` 限制单条 SQL 大小
 4. **慢 SQL 监控**——拦截器记录超过阈值的 SQL，及时优化
 
----
-
 ## 5. 原理：Mapper 为什么能注入
 
 MyBatis 的 Mapper 接口没有任何实现类，`@Autowired UserMapper` 却不会报错。这背后是 `@MapperScan` 的三步注册，以及 `MapperProxy` 的动态代理。
@@ -300,8 +298,6 @@ public class MapperProxy<T> implements InvocationHandler {
 
 这就是 Mapper 接口不需要实现类的根本原因：每一次方法调用都被代理拦截，转化为 SQL 执行。
 
----
-
 ## 6. 原理：SqlSessionTemplate 的线程安全设计
 
 ### 6.1 DefaultSqlSession 的问题
@@ -360,8 +356,6 @@ private class SqlSessionInterceptor implements InvocationHandler {
 | 事务感知 | ❌ 不感知 Spring 事务 | ✅ 自动绑定到当前事务 |
 | 异常转换 | ❌ 抛 MyBatis 原生异常 | ✅ 转换为 Spring DataAccessException |
 | 生命周期管理 | ❌ 需手动 close | ✅ finally 中自动关闭 |
-
----
 
 ## 7. 原理：一级缓存为什么「失效」
 
@@ -426,5 +420,3 @@ public void testCache() {
 | 不需要缓存 | 不加 `@Transactional`，每次拿最新数据 |
 | 跨方法复用缓存 | 把多次查询放进同一个 `@Transactional` 方法 |
 | 高并发场景 | 慎用一级缓存，考虑 Redis 等分布式缓存 |
-
-

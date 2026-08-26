@@ -119,4 +119,3 @@ SET SESSION sql_log_bin = ON;
 4. **定期备份 GTID 集合** — 便于故障恢复
 5. **使用 Orchestrator/MHA 管理 GTID 故障切换**
 
----

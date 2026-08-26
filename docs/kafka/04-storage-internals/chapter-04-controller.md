@@ -46,7 +46,7 @@ Broker 启动
 
 ## 6. Controller 核心职责详解
 
-### 分区 Leader 选举
+### 6.1 分区 Leader 选举
 ```
 Broker 宕机
     │
@@ -63,7 +63,7 @@ Controller 检查受影响的分区
 通知所有 Broker 更新元数据
 ```
 
-### Topic 管理
+### 6.2 Topic 管理
 ```java
 // Controller 处理 Topic 创建请求
 // 1. 在 ZooKeeper 中创建 /brokers/topics/[topic] 节点
@@ -95,7 +95,7 @@ Controller 通过 ZooKeeper 的 Watch 机制监听以下事件：
 - 避免频繁的分区重分配。
 - 升级到 KRaft 模式（多 Controller 并行处理）。
 
-## 最佳实践
+## 9. 最佳实践
 
 1. **监控 Controller 状态**：`kafka-metadata.sh` 查看当前 Controller 信息。
 2. **避免 Controller 所在 Broker 过载**：Controller 需要处理额外的元数据请求，建议分配独立资源。

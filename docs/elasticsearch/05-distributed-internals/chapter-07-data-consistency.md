@@ -7,9 +7,7 @@ title: ES 数据一致性：MySQL 与 ES 同步方案
 
 > **核心问题**：如何保证 MySQL 和 ES 的数据一致性？ES 的 Near Real-Time 机制是什么？写入后为什么不能立即查到？版本冲突如何处理？
 
----
-
-## 它解决了什么问题？
+## 1. 它解决了什么问题？
 
 在实际项目中，MySQL 是主数据源，ES 是搜索引擎。两者之间的数据同步是一个经典的分布式一致性问题：
 
@@ -19,13 +17,11 @@ title: ES 数据一致性：MySQL 与 ES 同步方案
 
 理解 ES 的写入机制和同步方案，才能在"实时性"和"一致性"之间做出正确的权衡。
 
----
-
 # 一、ES 的 Near Real-Time 机制
 
 ES 不是实时搜索引擎，而是**近实时（Near Real-Time, NRT）** 搜索引擎。写入的文档需要经过 refresh 才能被搜索到。
 
-### 写入流程
+### 1.1 写入流程
 
 ```mermaid
 flowchart TD
@@ -36,7 +32,7 @@ flowchart TD
     TLog -->|"flush 时清空"| Disk
 ```
 
-### refresh、flush、fsync 的区别
+### 1.2 refresh、flush、fsync 的区别
 
 | 操作 | 触发时机 | 做了什么 | 效果 |
 |------|---------|---------|------|
@@ -44,7 +40,7 @@ flowchart TD
 | **flush** | 默认每 30 分钟或 translog 达到 512MB | 执行 fsync 将 Segment 持久化到磁盘，清空 translog | 数据**持久化** |
 | **fsync** | flush 时调用 | 操作系统级别的磁盘同步 | 确保数据写入物理磁盘 |
 
-### 为什么写入后不能立即查到？
+### 1.3 为什么写入后不能立即查到？
 
 ```
 时间线：
@@ -74,8 +70,6 @@ PUT /my_index/_settings
 ```
 
 > ⚠️ **注意**：频繁 refresh 会产生大量小 Segment，增加合并压力，降低写入性能。生产环境中，批量写入时建议临时关闭 refresh（设为 `-1`），写入完成后再手动 refresh。
-
----
 
 # 二、Translog 与崩溃恢复
 
@@ -112,13 +106,11 @@ PUT /my_index/_settings
 }
 ```
 
----
-
 # 三、版本控制与并发冲突
 
 ES 使用**乐观并发控制**，通过版本号避免并发更新导致的数据覆盖。
 
-### 3.1 内部版本号（_version）
+### 1.4 内部版本号（_version）
 
 ```bash
 # 首次创建文档，_version = 1
@@ -135,7 +127,7 @@ PUT /my_index/_doc/1?if_seq_no=1&if_primary_term=1
 # 如果 seq_no 或 primary_term 不匹配，返回 409 Conflict
 ```
 
-### 3.2 外部版本号（version_type=external）
+### 1.5 外部版本号（version_type=external）
 
 当 MySQL 是主数据源时，可以用 MySQL 的更新时间戳或版本号作为 ES 的外部版本号：
 
@@ -148,7 +140,7 @@ PUT /my_index/_doc/1?version=1681234567&version_type=external
 # 这样即使同步消息乱序，也不会用旧数据覆盖新数据
 ```
 
-### 3.3 并发冲突处理策略
+### 1.6 并发冲突处理策略
 
 ```mermaid
 flowchart TD
@@ -168,11 +160,9 @@ POST /my_index/_update/1?retry_on_conflict=3
 }
 ```
 
----
-
 # 四、MySQL 与 ES 数据同步方案
 
-### 方案一：Canal 监听 MySQL Binlog（推荐）
+### 1.7 方案一：Canal 监听 MySQL Binlog（推荐）
 
 ```mermaid
 flowchart LR
@@ -203,7 +193,7 @@ canal.instance.dbPassword=canal
 canal.instance.filter.regex=mydb\\..*  # 监听 mydb 下所有表
 ```
 
-### 方案二：双写（同步写入）
+### 1.8 方案二：双写（同步写入）
 
 ```mermaid
 flowchart LR
@@ -240,7 +230,7 @@ public void syncToES(String message) {
 }
 ```
 
-### 方案三：定时任务（全量/增量同步）
+### 1.9 方案三：定时任务（全量/增量同步）
 
 ```mermaid
 flowchart LR
@@ -255,8 +245,6 @@ flowchart LR
 - 依赖 `update_time` 字段，物理删除的数据无法感知
 - 全量同步时对 MySQL 有查询压力
 
----
-
 # 五、方案对比与选型
 
 | 方案 | 实时性 | 一致性 | 复杂度 | 侵入性 | 推荐场景 |
@@ -266,7 +254,7 @@ flowchart LR
 | **双写（异步MQ）** | 秒级 | 较高 | 中 | 中 | 无法部署 Canal 时 |
 | **定时任务** | 分钟级 | 中 | 低 | 无 | 对实时性要求低 |
 
-### 选型建议
+### 1.10 选型建议
 
 ```mermaid
 flowchart TD
@@ -278,11 +266,9 @@ flowchart TD
     RT -->|"毫秒级"| Sync["同步双写<br>⚠️ 注意一致性风险"]
 ```
 
----
-
 # 六、同步异常处理
 
-### 6.1 消息丢失
+### 1.11 消息丢失
 
 ```
 问题：MQ 消息丢失导致 ES 数据缺失
@@ -292,7 +278,7 @@ flowchart TD
   3. 定期全量对账（比对 MySQL 和 ES 的数据量和关键字段）
 ```
 
-### 6.2 消息乱序
+### 1.12 消息乱序
 
 ```
 问题：同一条数据的多次更新消息乱序到达，旧数据覆盖新数据
@@ -301,7 +287,7 @@ flowchart TD
   2. 同一主键的消息路由到同一分区（保证分区内有序）
 ```
 
-### 6.3 同步延迟监控
+### 1.13 同步延迟监控
 
 ```bash
 # 监控同步延迟：比较 MySQL 最新更新时间和 ES 最新更新时间的差值
@@ -316,8 +302,6 @@ GET /orders/_search
   "_source": ["update_time"]
 }
 ```
-
----
 
 # 七、常见问题
 

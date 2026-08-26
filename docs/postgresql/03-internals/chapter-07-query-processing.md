@@ -27,7 +27,6 @@ EXPLAIN ANALYZE SELECT * FROM users WHERE age > 25;
 --   Rows Removed by Filter: 500
 ```
 
----
 ## 4. 查询处理详解
 
 ### 4.1 Parser 阶段

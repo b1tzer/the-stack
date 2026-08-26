@@ -1,14 +1,12 @@
-# 第5章 `volatile`：最轻的同步
+# `volatile`：最轻的同步
 
 > 修饰一个变量到底修饰了什么？它凭什么能让 DCL 恢复正确？为什么它明明有"可见性 + 有序性"，却还是撑不起一个 `count++`？
 
 第 4 章的 JMM 定义了规则——线程之间怎么看到彼此的数据、什么样的重排允许发生。`volatile` 是这份规则里最小的执行工具：**只作用于单个变量的读写边界**。它比 `synchronized` 便宜得多，也比 `synchronized` 弱得多。这一章讨论它到底在什么位置、能做什么、不能做什么。
 
----
+## 1. `volatile` 解决的问题
 
-## 5.1 `volatile` 解决的问题
-
-### 5.1.1 从一个停不下来的循环开始
+### 1.1 从一个停不下来的循环开始
 
 先看这段代码。它试图用一个 `boolean` 字段做"停机标志"：
 
@@ -46,7 +44,7 @@ private volatile boolean running = true;
 
 **这一步 `volatile` 建立的语义是**：每次 `running` 的读必须从主内存重新拿；每次写必须立刻刷回主内存。JIT 也不再允许把这次读提升出循环。
 
-### 5.1.2 `volatile` 明面上的两个保证
+### 1.2 `volatile` 明面上的两个保证
 
 `volatile` 给单个变量的读写建立了两条硬承诺：
 
@@ -55,7 +53,7 @@ private volatile boolean running = true;
 
 一句更精确的表述：**`volatile` 建立的是变量读写边界上的 happens-before 关系**——第 4 章 §4.4.2 的规则 2。理解这一点，`volatile` 剩下所有行为都能推理出来。
 
-### 5.1.3 与 JMM 的位置关系
+### 1.3 与 JMM 的位置关系
 
 再回顾第 4 章的三层图，`volatile` 处在语言层：
 
@@ -69,11 +67,9 @@ CPU 层 ─── 屏障映射到具体架构的一致性协议行为
 
 `volatile` 的能力和边界都由 JVM 在读写两侧插入的屏障决定。所以要理解 `volatile` "为什么能"和"为什么不能"，接下来要拆开的就是屏障。
 
----
+## 2. 四类屏障与 `volatile` 的读写语义
 
-## 5.2 四类屏障与 `volatile` 的读写语义
-
-### 5.2.1 屏障的作用回顾
+### 2.1 屏障的作用回顾
 
 第 4 章 §4.6 完整定义了四类内存屏障（LoadLoad / LoadStore / StoreStore / StoreLoad）及其作用。`volatile` 用到其中三类，位置固定：
 
@@ -85,7 +81,7 @@ CPU 层 ─── 屏障映射到具体架构的一致性协议行为
 
 `LoadStore` 在其他屏障组合中也有出现，但 `volatile` 的核心行为只由这四种插入位置决定。下面分别看写侧和读侧。
 
-### 5.2.2 写侧：`StoreStore` + `StoreLoad`
+### 2.2 写侧：`StoreStore` + `StoreLoad`
 
 `volatile` 写周围插入的屏障：
 
@@ -106,7 +102,7 @@ CPU 层 ─── 屏障映射到具体架构的一致性协议行为
 
 "`volatile` 写比 `volatile` 读贵得多"的成本差距就在 `StoreLoad`。
 
-### 5.2.3 读侧：`LoadLoad` + `LoadStore`
+### 2.3 读侧：`LoadLoad` + `LoadStore`
 
 `volatile` 读周围插入的屏障：
 
@@ -122,7 +118,7 @@ CPU 层 ─── 屏障映射到具体架构的一致性协议行为
 
 两条屏障保证的事：**只要 `volatile` 读拿到了新值，后面所有普通读写都必须发生在这次读之后**。也就是说，读端拿到 `volatile` 变量的新值后，还能"顺带"看到写端在这次 `volatile` 写之前完成的所有普通写。
 
-### 5.2.4 一张时序图收尾
+### 2.4 一张时序图收尾
 
 把两侧屏障串起来看：
 
@@ -144,7 +140,7 @@ volatile 写：ready = true
 
 一旦 B 看到 `ready = true`，A 在 `volatile` 写之前完成的 `data` 和 `readyExtra` 也一并对 B 可见。这套模式在 JDK 源码里反复出现，一般被称为 **发布-订阅模式**——`volatile` 变量本身只是发布信号，携带的信息是它周围的普通字段。
 
-### 5.2.5 缓存一致性协议帮 `volatile` 落到硬件
+### 2.5 缓存一致性协议帮 `volatile` 落到硬件
 
 屏障解决顺序问题。可见性还要靠 CPU 的**缓存一致性协议**——最常见的形式是 MESI：
 
@@ -174,7 +170,7 @@ Core 0（线程 A）                 Core 1（线程 B）
 
 JMM 定义 Java 层语义，JVM 用屏障翻译语义，MESI 让屏障在硬件上真正生效。三者协作，`volatile` 的可见性才成立。
 
-### 5.2.6 x86 与 ARM 的差异
+### 2.6 x86 与 ARM 的差异
 
 不同 CPU 架构下屏障成本差别很大：
 
@@ -183,13 +179,11 @@ JMM 定义 Java 层语义，JVM 用屏障翻译语义，MESI 让屏障在硬件�
 
 一段没加 `volatile` 的代码在 x86 上"看着能跑"，只是 x86 帮忙兜住了部分顺序；换到 ARM 常常立刻暴露。真正稳定的保证只有一个来源：**JMM 语义 + JVM 插入的屏障**，不是"这台机器恰好帮我兜住了"。
 
----
-
-## 5.3 用 `volatile` 完整修复 DCL
+## 3. 用 `volatile` 完整修复 DCL
 
 第 4 章 §4.3.3 提到过 DCL 需要 `volatile` 修复。这一节把机制彻底剖开——它是理解"`volatile` 有序性到底防了什么"的最好案例。
 
-### 5.3.1 `new Singleton()` 不是原子的
+### 3.1 `new Singleton()` 不是原子的
 
 一行 `instance = new Singleton()` 在字节码层面有三步：
 
@@ -207,7 +201,7 @@ c. 把引用赋值给 instance   ← instance 已非 null
 b. 执行构造函数            ← 字段还没写完
 ```
 
-### 5.3.2 半初始化对象是怎么被别的线程看到的
+### 3.2 半初始化对象是怎么被别的线程看到的
 
 有了 c → b 重排后的 DCL：
 
@@ -244,7 +238,7 @@ b. 执行构造函数                       访问 instance 字段 → 全部是
 
 关键在于**外层 `if` 的读根本没有进临界区**。线程 B 从 `instance` 读到的引用是"已赋值、未构造"的中间状态。
 
-### 5.3.3 `volatile` 关掉这一段重排
+### 3.3 `volatile` 关掉这一段重排
 
 给 `instance` 加 `volatile`：
 
@@ -270,13 +264,11 @@ private static volatile Singleton instance;
 
 修复的本质不是"volatile 强制刷缓存"这种模糊说法，而是**用 `StoreStore` 关掉了 b/c 之间的重排，用 volatile 写-读的 happens-before 把这个顺序传递给了读端**。
 
----
-
-## 5.4 `volatile` 的能力边界
+## 4. `volatile` 的能力边界
 
 上面全部展示了 `volatile` 能做什么。生产上更容易踩坑的是它做不到的事。
 
-### 5.4.1 `count++` 为什么撑不住
+### 4.1 `count++` 为什么撑不住
 
 `count++` 在字节码层面是三步：
 
@@ -301,7 +293,7 @@ putstatic  count      // 4. 写
 
 结论：**`volatile` 支撑不了任何"读-改-写"复合操作**。
 
-### 5.4.2 `check-then-act` 同样不行
+### 4.2 `check-then-act` 同样不行
 
 不止 `count++`。所有形如"先读一下，根据读的结果再写"的模式都不能只靠 `volatile`：
 
@@ -319,7 +311,7 @@ public void updateIfNull(Config c) {
 
 修复要么用 `synchronized`、要么用 `AtomicReference.compareAndSet`（第 7 章展开）。
 
-### 5.4.3 `volatile` 只保护引用本身，不保护指向的对象
+### 4.3 `volatile` 只保护引用本身，不保护指向的对象
 
 ```java
 // ❌ 引用是 volatile，指向的 ArrayList 不是线程安全的
@@ -334,7 +326,7 @@ list.get(0);              // 可能抛 IndexOutOfBoundsException
 
 `volatile List` 只保证"`list` 这个引用变量被替换时"新引用对其他线程立刻可见——比如 `list = new ArrayList<>()` 这样的重新赋值。它**完全不管** `list` 内部的字段并发访问。要线程安全的列表：`CopyOnWriteArrayList` 或 `Collections.synchronizedList`（第 9 章展开）。
 
-### 5.4.4 能力边界总表
+### 4.4 能力边界总表
 
 | 能力 | 结论 | 说明 |
 | :-- | :-- | :-- |
@@ -345,19 +337,17 @@ list.get(0);              // 可能抛 IndexOutOfBoundsException
 | 引用指向对象内部的并发安全 | ❌ | 只保护引用变量本身 |
 | 数组元素的可见性 | ❌ | `volatile int[] arr` 只保护 `arr` 引用，不保护 `arr[i]`（要用 `AtomicIntegerArray`） |
 
-### 5.4.5 `long` / `double` 的特殊性
+### 4.5 `long` / `double` 的特殊性
 
 JMM 规范里有一条容易被忽略的细节：**普通 `long` / `double` 的读写在 32 位 JVM 上不保证原子**——它可能被拆成两次 32 位的操作，读端读到"高位来自旧值、低位来自新值"的撕裂结果。
 
 `volatile long` / `volatile double` 明确要求原子读写，即便在 32 位平台上也不会撕裂。在 64 位 JVM 上这两种类型的普通读写虽然事实上是原子的，但**规范并不强制**——写代码时依赖 JMM 明确保证的路径最稳。
 
----
-
-## 5.5 `volatile` 的三个正确场景
+## 5. `volatile` 的三个正确场景
 
 理解了边界，正确使用场景就自然浮现。三种都是 JDK 源码里反复出现的形态。
 
-### 5.5.1 停机标志（一写多读）
+### 5.1 停机标志（一写多读）
 
 §5.1.1 的 `running` 就是这类：
 
@@ -367,7 +357,7 @@ private volatile boolean running = true;
 
 判断标准很直接：**只有一条线程写，多条线程读**。此时不存在"多个线程同时写导致竞态"的问题，`volatile` 天然够用。
 
-### 5.5.2 DCL 单例（防重排 + 安全发布）
+### 5.2 DCL 单例（防重排 + 安全发布）
 
 §5.3 的完整案例。这里 `volatile` 同时承担两件事：
 
@@ -376,7 +366,7 @@ private volatile boolean running = true;
 
 现代 JDK 里更简洁的替代是 **静态内部类** 模式（借助类初始化锁完成安全发布，见第 4 章 §4.5.3）。但 DCL 仍是理解 `volatile` 语义的最佳案例。
 
-### 5.5.3 安全发布配置对象
+### 5.3 安全发布配置对象
 
 热更新场景常用：
 
@@ -402,7 +392,7 @@ public class ConfigHolder {
 
 如果 `Config` 内部字段还会被修改，`volatile` 就守不住了——`Config` 内部的修改不在 `volatile` 的保护范围里。
 
-### 5.5.4 `volatile` + CAS：`AtomicInteger` 的组合
+### 5.4 `volatile` + CAS：`AtomicInteger` 的组合
 
 `volatile` 在 `java.util.concurrent.atomic` 里几乎无处不在。它和 CAS 的分工非常清晰：
 
@@ -421,13 +411,11 @@ public class AtomicInteger {
 
 `AtomicInteger` 的完整机制在第 7 章展开。
 
----
-
-## 5.6 `volatile` 与 `synchronized` 的选型
+## 6. `volatile` 与 `synchronized` 的选型
 
 `volatile` 和 `synchronized` 常被拿来对比。它们不在同一层。
 
-### 5.6.1 三维对比
+### 6.1 三维对比
 
 | 维度 | `volatile` | `synchronized` |
 | :-- | :-- | :-- |
@@ -439,14 +427,14 @@ public class AtomicInteger {
 | 死锁风险 | ❌ | ✅ 需要小心持锁顺序 |
 | 单次操作成本 | 低（一条屏障或几条屏障） | 中 → 高（走 JVM 锁升级路径） |
 
-### 5.6.2 什么时候用 `volatile`
+### 6.2 什么时候用 `volatile`
 
 - 只有一个线程写，其他线程读
 - 需要发布一个不可变对象或状态变化的信号
 - 需要防止 DCL 里的构造重排
 - 作为原子类的可见性基础（`AtomicXxx` 内部）
 
-### 5.6.3 什么时候用 `synchronized`
+### 6.3 什么时候用 `synchronized`
 
 - 需要复合操作原子性（读-改-写）
 - 多个线程同时写同一个字段
@@ -455,7 +443,7 @@ public class AtomicInteger {
 
 选型规则的一条简短版本：**只发布不修改，用 `volatile`；要修改，用 `synchronized` 或原子类**。
 
-### 5.6.4 两个都用的常见组合
+### 6.4 两个都用的常见组合
 
 生产代码里两者经常同时出现：
 
@@ -482,9 +470,7 @@ public class TokenBucket {
 
 `tokens` 需要复合更新，走 `synchronized`；`lastRefillNanos` 只作为一个"发布点"给监控读，走 `volatile` 让监控不必抢锁。这种"临界区管修改，volatile 管旁路读"的模式，在框架代码里非常常见。
 
----
-
-## 5.7 本章小结
+## 7. 本章小结
 
 | 问题 | 根源 | 解决方案 |
 | :-- | :-- | :-- |
@@ -495,12 +481,9 @@ public class TokenBucket {
 | 32 位平台 `long` 撕裂 | 普通 `long` 非原子 | `volatile long` 或 `AtomicLong` |
 | 高频写变量竞争严重 | `StoreLoad` 屏障成本高 | 分散写热点（`LongAdder`）或缩窄临界区 |
 
----
-
 > **纵横联系**
 >
 > - **向前依赖**：本章所有的读写语义建立在第 4 章 JMM 的 happens-before 与内存屏障之上；§5.5.3 安全发布用到第 4 章 §4.5 的 `final` 初始化保证。
 > - **向后使用**：第 6 章 `synchronized` 的临界区内存语义与本章的 volatile 语义构成互补；第 7 章 `AtomicInteger` / `LongAdder` 内部大量使用 `volatile` 承担可见性；第 8 章 AQS 的 `state` 就是 `volatile int`。
 > - **跨卷关系**：第二卷 JIT 章节讨论"何时能把变量提升到寄存器"，是本章 §5.1.1 那个"停不下来的循环"的编译器视角；第七卷分布式一致性讨论跨节点的可见性，是本章语义在网络场景下的对应问题。
 
----

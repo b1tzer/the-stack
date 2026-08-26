@@ -2,15 +2,13 @@
 
 > 凌晨两点，定时对账任务准时启动。下单服务突然卡死——接口 RT 从 200ms 暴涨到 20 秒，所有下单请求无响应。`jstack` 一跑——死锁。下单线程和对账线程互相拿着对方要的锁，四条锁交叉成一个环。重启恢复，第二天同一时间再次触发。另一家大促现场，优惠券服务也挂了——2000 任务的队列满了，CallerRunsPolicy 把 Tomcat 的 IO 线程全占死，网关层 504。还有个调度系统，`ConcurrentHashMap` 里同一个 Task 对象存了 3 份——因为 `setStatus()` 改了 hashCode。并发 bug 的残酷在于：它不靠逻辑犯错，靠时间犯错。99.99% 的时间，线程调度碰不到那个窗口，碰到了就是事故。
 
----
+## 1. 案例 1：对账与下单的死锁 —— 两个团队，两个锁序
 
-## 案例 1：对账与下单的死锁 —— 两个团队，两个锁序
-
-### 事故背景
+### 1.1 事故背景
 
 这是一个真实线上事故。某电商平台的订单服务日常运行稳定，但连续两天凌晨 2:00 定时对账任务启动后，订单服务就突然卡死——接口 RT 从 200ms 暴涨到 20s+，用户反馈"点了下单没反应"。CPU 使用率只有 8%，但线程数飙到 400+——经典死锁信号。第一次值班同事手快重启了服务，现场丢了，白白多等了两个小时等它复现。第二天同一时间问题再次出现，这次没人敢重启了，先 dump。
 
-### 第一步：jstack 取证
+### 1.2 第一步：jstack 取证
 
 ```bash
 jstack <pid> > thread.dump
@@ -43,7 +41,7 @@ Java stack information for the threads listed above:
 
 `jstack` 直接给出了答案：两条线程互相等待对方持有的锁——下单线程拿着 `orderLock` 等 `stockLock`，对账线程拿着 `stockLock` 等 `orderLock`。
 
-### 第二步：看代码 —— 两个团队，两个锁序
+### 1.3 第二步：看代码 —— 两个团队，两个锁序
 
 顺着 jstack 给出的行号找到代码。下单业务和对账任务分属两个开发组维护：
 
@@ -116,7 +114,7 @@ public class ReconciliationService {
 
 两个团队各自独立开发，没人注意到对方的锁顺序。当对账任务在凌晨 2:00 启动，恰好与还活着的下单线程并发执行——死锁的四个条件齐了。
 
-### 第三步：死锁的形成机制
+### 1.4 第三步：死锁的形成机制
 
 当凌晨 2:00 对账任务启动，`reconciliation-thread` 遍历订单列表时，恰好与还在处理实时下单请求的 `order-process-thread` 在锁边界上撞车：
 
@@ -127,7 +125,7 @@ public class ReconciliationService {
 
 死锁一旦形成，不会自动解开。下单线程和对账线程都永久卡住，后续所有调用 `createOrder` 的请求也会在 `orderLock` 上排队阻塞。最终整个订单服务的下单路径全部挂起。
 
-### 修复：两管齐下
+### 1.5 修复：两管齐下
 
 **第一，统一锁顺序（治本）。** 两个团队对齐，所有方法统一按 `orderLock → stockLock` 获取。一旦锁顺序全局一致，循环等待不可能形成：
 
@@ -188,7 +186,7 @@ public void reconcileOrder() {
 
 **第三，代码审查规约。** 团队在 CR 检查清单里加了一条："多锁场景，锁获取顺序是否全局一致？不一致直接打回。"
 
-### 总结
+### 1.6 总结
 
 | 信号 | 含义 | 工具 |
 |------|------|------|
@@ -200,11 +198,9 @@ public void reconcileOrder() {
 
 **教训：** 任何涉及多把锁的方法，必须定义全局统一的加锁顺序（如按锁对象的 `identityHashCode` 排序），并给所有锁获取加超时。这个案例的致命组合（两个团队独立开发，锁顺序相反）在真实生产环境中反复出现——根源是跨团队协作时缺少锁资源申请的全局视图。
 
----
+## 2. 案例 2：618 的雪崩 —— CallerRunsPolicy 把 Tomcat 线程全拖下水
 
-## 案例 2：618 的雪崩 —— CallerRunsPolicy 把 Tomcat 线程全拖下水
-
-### 事故背景
+### 2.1 事故背景
 
 2024 年 618 大促，某电商优惠券领取接口。预估 QPS 2 万，线程池配置如下：
 
@@ -228,7 +224,7 @@ new ThreadPoolExecutor(
 00:35  降级为 DiscardOldestPolicy，系统恢复。总资损约 300w
 ```
 
-### 根因分析：CallerRunsPolicy 的正反馈效应
+### 2.2 根因分析：CallerRunsPolicy 的正反馈效应
 
 CallerRunsPolicy 的语义是：**当线程池满了，提交任务的线程（调用者）自己执行这个任务。** 听起来是"不丢任务"的好策略。但在高并发 Web 场景下，调用者就是 Tomcat 的 IO 线程（`http-nio-8080-exec-*`）。
 
@@ -256,7 +252,7 @@ CallerRunsPolicy 的语义是：**当线程池满了，提交任务的线程（�
 
 业务线程在跑（CPU 高），但 Tomcat 线程全部被 CallerRuns 占用，无法接收新请求。
 
-### 修复：重新设计线程池
+### 2.3 修复：重新设计线程池
 
 ```java
 // ❌ 错误配置
@@ -292,7 +288,7 @@ new ThreadPoolExecutor(
 
 **注意：`DiscardOldestPolicy` 会丢任务。** 如果你的业务不能接受任务丢失，至少要满足两个条件之一：(1) 丢失的任务有幂等重试机制；(2) 设置独立的业务线程池并通过快速失败（AbortPolicy）+ 上游重试来保证可靠。
 
-### 更根本的方案：IO 密集任务用虚拟线程
+### 2.4 更根本的方案：IO 密集任务用虚拟线程
 
 如果升级到 JDK 21+，直接换虚拟线程，无需池化、无需拒绝策略：
 
@@ -306,7 +302,7 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 
 详见第 12 章虚拟线程的原理和本卷案例集（二）的虚拟线程案例。
 
-### 总结
+### 2.5 总结
 
 | 问题 | 根因 | 修复方向 |
 |------|------|---------|
@@ -315,15 +311,13 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 | 重启无效 | 配置未变 | 修复配置后再部署；紧急降级用 DiscardOldest |
 | 正反馈放大 | 超时重试 + 用户刷新 | 上游限流 + 快速失败 |
 
----
+## 3. 案例 3：ConcurrentHashMap 去重失效 —— 可变 key 的 hashCode 陷阱
 
-## 案例 3：ConcurrentHashMap 去重失效 —— 可变 key 的 hashCode 陷阱
-
-### 事故背景
+### 3.1 事故背景
 
 某任务调度系统，主线程定时从数据库读取未完成的任务，存入 `ConcurrentHashMap` 做**去重**——如果任务已在处理中，就不重复提交。结果线上频繁 OOM。排查发现：同一个 Task 对象在 `ConcurrentHashMap` 里存了 3 份，等于同一任务被调度了 3 次。
 
-### 第一步：复现
+### 3.2 第一步：复现
 
 ```java
 @Data  // Lombok: 生成 getter/setter/equals/hashCode（基于所有字段）
@@ -359,7 +353,7 @@ taskDao.update(task);
 runningTasks.put(task, true);  // 去重失败！同一个 Task 存了第二份
 ```
 
-### 第二步：看 ConcurrentHashMap 的 key 定位逻辑
+### 3.3 第二步：看 ConcurrentHashMap 的 key 定位逻辑
 
 JDK 8 `ConcurrentHashMap.putVal()` 的关键代码：
 
@@ -377,7 +371,7 @@ for (Node<K,V> f = tabAt(tab, i); f != null; f = f.next) {
 
 同一把钥匙（Task id=1），因为 hashCode 变了，落到了不同的桶。`ConcurrentHashMap` 用 hash 值做快速过滤——hash 不等，直接跳过，根本不会调 `equals`。所以即使 `equals` 认为它们是同一个对象，也无济于事。
 
-### 第三步：修复
+### 3.4 第三步：修复
 
 **根因：可变字段参与了 hashCode 计算。** 修复方案 —— 重写 `hashCode` 和 `equals`，只用不变的字段（id）：
 
@@ -403,7 +397,7 @@ public class Task {
 
 修复后，同一个 Task（id=1）无论 status 怎么变，hashCode 始终一致，`ConcurrentHashMap` 的去重能力恢复正常。
 
-### 延伸：这不是 ConcurrentHashMap 的 bug
+### 3.5 延伸：这不是 ConcurrentHashMap 的 bug
 
 `ConcurrentHashMap` 的文档明确写了：它是线程安全的，但**不保证复合操作的原子性**，且 **key 的 equals/hashCode 必须稳定**。这是使用者必须遵守的契约，不是容器的 bug。
 
@@ -411,7 +405,7 @@ public class Task {
 - `HashSet` / `ConcurrentHashSet`（基于 `ConcurrentHashMap` 实现）：如果你 `add(task)` 之后又改了 task 的字段，`set.contains(task)` 可能返回 `false`
 - 任何依赖 `hashCode` 的容器（`HashMap`、`HashSet`、`LinkedHashMap`）都有这个问题
 
-### 总结
+### 3.6 总结
 
 | 症状 | 根因 | 修复 |
 |------|------|------|
@@ -421,7 +415,5 @@ public class Task {
 | 根本原则 | **放在哈希容器中的 key 必须是不可变的** | 用 `record` / 不可变类 / 只用 id 做 key |
 
 **教训：** 可变对象作为 Map 的 key = 定时炸弹。代码审查里如果看到 `Map<某可变对象, ...>`，直接问一句："这个对象的 hashCode 会不会变？" 如果答案是"会"——别让它做 key。
-
----
 
 > **下一篇：** [第 13 章案例集（二）：虚拟线程与综合并发诊断实战](./chapter-13-diagnostics-cases-part2) —— 虚拟线程 pinning 导致 Tomcat 停摆、CompletableFuture + DiscardPolicy 永久阻塞、线程池 core=max + 无界队列陷阱。

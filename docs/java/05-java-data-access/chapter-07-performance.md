@@ -1,10 +1,10 @@
-# 第7章 数据访问性能优化
+# 数据访问性能优化
 
 > 一个接口 200ms，优化 SQL 后降到 150ms，还是慢。瓶颈不在 SQL，在连接池——200 个请求排队等 10 个连接，每个等 50ms。数据库连接的创建有多昂贵？HikariCP 为什么比 DBCP 快 3 倍？批处理和链路分析怎么用？本章从连接池原理到实战排查，建立一套数据访问层的性能优化方法论。
 
-## 7.1 连接池：HikariCP
+## 1. 连接池：HikariCP
 
-### 7.1.1 为什么需要连接池
+### 1.1 为什么需要连接池
 
 每次执行 SQL 之前，如果都要经历一次完整的连接建立过程，代价是这样的：
 
@@ -27,7 +27,7 @@
 
 **连接池的本质**：预先创建一批连接，应用需要时借出，用完归还。把「建连 → 用 → 关闭」变成了「借 → 用 → 还」。
 
-### 7.1.2 HikariCP 核心参数
+### 1.2 HikariCP 核心参数
 
 HikariCP 是 Spring Boot 2.x 起的默认连接池，以极致的性能和简洁的设计著称。它的快来自两个关键设计：用 `ConcurrentBag` 替代传统的锁竞争，用 `javassist` 字节码生成替代 JDK 动态代理。
 
@@ -56,7 +56,7 @@ HikariCP 是 Spring Boot 2.x 起的默认连接池，以极致的性能和简洁
               ↑ 问题：池太小 → 应用排队等待
 ```
 
-### 7.1.3 连接池监控
+### 1.3 连接池监控
 
 HikariCP 通过 JMX 暴露指标，Spring Boot Actuator 也能采集：
 
@@ -90,9 +90,9 @@ public class ConnectionPoolMonitor {
 | `connectionTimeoutRate` | 获取连接超时率 | > 1% |
 | `connectionCreationTime` | 创建连接耗时 | > 1s |
 
-## 7.2 批处理
+## 2. 批处理
 
-### 7.2.1 逐条操作的代价
+### 2.1 逐条操作的代价
 
 考虑一个导入 10000 条记录的场景。逐条插入的执行流程：
 
@@ -114,7 +114,7 @@ for (User user : userList) {
 
 每次插入都是一次完整的网络往返加一次事务提交。10000 条数据，70 秒才能跑完——而且数据库的 redo log 刷盘次数也是 10000 次。
 
-### 7.2.2 JDBC Batch
+### 2.2 JDBC Batch
 
 JDBC 的批处理机制将多条 SQL 合并为一次网络传输：
 
@@ -160,7 +160,7 @@ public void batchInsert(List<User> users) throws SQLException {
 提升：350 倍
 ```
 
-### 7.2.3 MyBatis 批量操作
+### 2.3 MyBatis 批量操作
 
 MyBatis 提供了两种批处理方式：
 
@@ -215,9 +215,9 @@ try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH, fals
 | 适用场景 | 小批量（< 1000 条） | 大批量（万级以上） |
 | 错误处理 | 整批失败 | 可定位到具体批次 |
 
-## 7.3 数据访问链路分析
+## 3. 数据访问链路分析
 
-### 7.3.1 全链路视角
+### 3.1 全链路视角
 
 一次数据访问请求的完整链路：
 

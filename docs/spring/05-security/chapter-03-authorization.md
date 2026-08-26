@@ -224,8 +224,6 @@ public class CustomUserDetailsService implements UserDetailsService {
 }
 ```
 
----
-
 **最佳实践：**
 
 1. **权限粒度**——菜单权限 + 按钮权限 + 数据权限，三层控制

@@ -2,8 +2,6 @@
 
 > **核心问题**：如何做好 Code Review？Review 的标准是什么？如何让 Code Review 成为团队文化？
 
----
-
 ## 1. Code Review 的价值
 
 | 价值 | 说明 |

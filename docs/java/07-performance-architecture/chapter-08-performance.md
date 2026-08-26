@@ -2,9 +2,9 @@
 
 > 一个接口响应时间从 50ms 飙到 2s，CPU 使用率从 30% 涨到 95%，你该如何系统性地定位问题？性能工程的核心问题是：**如何建立指标体系、用正确的方法定位瓶颈、用科学的流程持续优化？**
 
-## 8.1 性能指标体系
+## 1. 性能指标体系
 
-### 8.1.1 四个黄金信号（Google SRE）
+### 1.1 四个黄金信号（Google SRE）
 
 Google 在《Site Reliability Engineering》中提出四个黄金信号，是衡量服务健康的基本框架：
 
@@ -15,7 +15,7 @@ Google 在《Site Reliability Engineering》中提出四个黄金信号，是衡
 | **Error Rate** | 错误率 | 失败请求占比 | < 0.1% |
 | **Saturation** | 资源饱和度 | CPU/内存/线程池/连接池使用率 | CPU < 70% |
 
-### 8.1.2 延迟的百分位数
+### 1.2 延迟的百分位数
 
 平均值（Average）会掩盖长尾问题。假设 100 个请求中 99 个 10ms、1 个 5000ms，平均值 59.9ms 看起来很好，但那个 5s 的请求对用户是灾难。
 
@@ -39,7 +39,7 @@ Google 在《Site Reliability Engineering》中提出四个黄金信号，是衡
 | P99 | 99% 的请求在此时间内完成 | 核心交易 |
 | P999 | 99.9% 的请求在此时间内完成 | 金融级 |
 
-### 8.1.3 延迟的组成
+### 1.3 延迟的组成
 
 一个请求的延迟不仅仅是代码执行时间：
 
@@ -65,11 +65,9 @@ cacheSample.stop(registry.timer("order.cache.query"));
 sample.stop(registry.timer("order.api.total"));
 ```
 
----
+## 2. 性能分析方法
 
-## 8.2 性能分析方法
-
-### 8.2.1 工具全景
+### 2.1 工具全景
 
 | 类别 | 工具 | 用途 | 特点 |
 |------|------|------|------|
@@ -82,7 +80,7 @@ sample.stop(registry.timer("order.api.total"));
 | **监控** | Prometheus + Grafana | 指标采集与展示 | 时序数据库 + 可视化 |
 | **追踪** | SkyWalking / Jaeger | 分布式链路追踪 | 可视化调用链 |
 
-### 8.2.2 Arthas：线上诊断利器
+### 2.2 Arthas：线上诊断利器
 
 Arthas 是阿里开源的 Java 诊断工具，可以 attach 到运行中的 JVM 进行诊断：
 
@@ -106,7 +104,7 @@ jad com.example.service.OrderService
 watch com.example.service.OrderService createOrder '{params, returnObj, throwExp}'
 ```
 
-### 8.2.3 async-profiler：CPU 火焰图
+### 2.3 async-profiler：CPU 火焰图
 
 火焰图的横轴是采样占比（越宽说明耗时越多），纵轴是调用栈深度：
 
@@ -137,7 +135,7 @@ watch com.example.service.OrderService createOrder '{params, returnObj, throwExp
       横轴宽度 = CPU 采样占比，越宽越需要优化
 ```
 
-### 8.2.4 JMH：微基准测试
+### 2.4 JMH：微基准测试
 
 JMH（Java Microbenchmark Harness）是 OpenJDK 官方的基准测试框架，消除 JIT 预热、死代码消除等干扰：
 
@@ -179,7 +177,7 @@ stringBuilder               avgt   10   17.891 ±  0.443  ns/op
 stringFormat                avgt   10   68.215 ±  1.876  ns/op  ← 慢 3-4 倍
 ```
 
-### 8.2.5 压测方法论
+### 2.5 压测方法论
 
 ```text
 压测流程：
@@ -201,11 +199,9 @@ wrk -t4 -c200 -d60s --latency http://localhost:8080/api/orders
 #    99%  256.78ms
 ```
 
----
+## 3. JVM 性能诊断实战
 
-## 8.3 JVM 性能诊断实战
-
-### 8.3.1 场景一：CPU 100%
+### 3.1 场景一：CPU 100%
 
 **症状**：机器 CPU 使用率持续 100%，接口超时。
 
@@ -234,7 +230,7 @@ jstack <pid> | grep -A 30 "nid=0x1a2b"
 | 频繁 Full GC | `VM Thread` 占 CPU | 排查内存泄漏 |
 | 死锁 | `BLOCKED` 状态，waiting for monitor | 重构锁顺序 |
 
-### 8.3.2 场景二：内存泄漏
+### 3.2 场景二：内存泄漏
 
 **症状**：堆内存持续增长，最终 OOM。
 
@@ -293,7 +289,7 @@ public List<Order> query(String sql) {
 }
 ```
 
-### 8.3.3 场景三：频繁 GC
+### 3.3 场景三：频繁 GC
 
 **症状**：接口延迟毛刺，GC 日志显示频繁 Full GC。
 
@@ -320,7 +316,7 @@ GC 调优思路：
 或调整 -XX:NewRatio      或增大 -Xmx
 ```
 
-### 8.3.4 场景四：接口变慢
+### 3.4 场景四：接口变慢
 
 **症状**：某个接口从 50ms 逐渐增长到 2s，但 CPU/内存正常。
 
@@ -348,11 +344,9 @@ EXPLAIN SELECT * FROM orders WHERE user_id = 123 AND status = 'PAID';
 ALTER TABLE orders ADD INDEX idx_user_status (user_id, status);
 ```
 
----
+## 4. 优化方法论
 
-## 8.4 优化方法论
-
-### 8.4.1 性能优化的六步循环
+### 4.1 性能优化的六步循环
 
 ```text
     ┌──→ 发现问题 ──→ 定位瓶颈 ──→ 提出假设 ──┐
@@ -370,7 +364,7 @@ ALTER TABLE orders ADD INDEX idx_user_status (user_id, status);
 | **验证** | 压测对比、A/B 测试 | 对比改动前后的指标 |
 | **监控** | 持续观测，防止劣化 | 设置告警阈值 |
 
-### 8.4.2 SQL 慢查询诊断：EXPLAIN 实战
+### 4.2 SQL 慢查询诊断：EXPLAIN 实战
 
 一个接口慢，你用 Arthas trace 了一下，发现 80% 的时间花在一条 SQL 上。这条 SQL 为什么慢？答案在 `EXPLAIN` 的输出里。很多开发者看到 EXPLAIN 的十几列就头大，其实只需要关注四列。
 
@@ -412,7 +406,7 @@ EXPLAIN SELECT * FROM orders WHERE user_id = 123;
 
 **经验法则**：`type` 至少达到 `range` 级别，`rows` 控制在千以内，避免 `Using filesort` 和 `Using temporary`。
 
-### 8.4.3 没有测量就没有优化
+### 4.3 没有测量就没有优化
 
 ```java
 // ❌ 错误：凭感觉优化
@@ -427,7 +421,7 @@ EXPLAIN SELECT * FROM orders WHERE user_id = 123;
 // 6. 监控：观察一周，确认无劣化
 ```
 
-### 8.4.3 优化的层次
+### 4.4 优化的层次
 
 从高到低，优化的收益递减但难度递增：
 
@@ -449,7 +443,7 @@ EXPLAIN SELECT * FROM orders WHERE user_id = 123;
 └─────────────────────────────────────────┘
 ```
 
-### 8.4.4 常见优化 Checklist
+### 4.5 常见优化 Checklist
 
 | 层次 | 优化项 | 预期收益 |
 |------|--------|---------|
@@ -461,7 +455,7 @@ EXPLAIN SELECT * FROM orders WHERE user_id = 123;
 | **序列化** | JSON → Protobuf / Hessian | 序列化耗时降低 50-70% |
 | **压缩** | 响应体 Gzip 压缩 | 网络传输减少 60-80% |
 
-### 8.4.5 性能优化的反模式
+### 4.6 性能优化的反模式
 
 ```text
 ❌ 过早优化："代码还没写完就开始调优"
@@ -479,7 +473,5 @@ EXPLAIN SELECT * FROM orders WHERE user_id = 123;
 ❌ 忽视基线：优化完不记录基线数据
    → 下次劣化时无法判断是新问题还是回归
 ```
-
----
 
 > 前八章覆盖了从架构到性能的完整知识体系。下一章是终章——三个真实案例（秒杀、Feed 流、分布式事务），把前八章的技术组合运用，展示"面对真实场景该怎么设计"。

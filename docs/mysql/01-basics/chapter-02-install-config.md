@@ -2,7 +2,7 @@
 
 ## 1. 安装方式
 
-### Docker
+### 1.1 Docker
 ```bash
 docker run -d --name mysql8 \
   -e MYSQL_ROOT_PASSWORD=secret \
@@ -10,7 +10,7 @@ docker run -d --name mysql8 \
   mysql:8.0
 ```
 
-### apt/yum
+### 1.2 apt/yum
 ```bash
 # Ubuntu
 apt install mysql-server-8.0
@@ -151,4 +151,3 @@ datadir = /var/lib/mysql2
 socket = /var/run/mysqld/mysqld2.sock
 ```
 
----

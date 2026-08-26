@@ -2,8 +2,6 @@
 
 > 系统能用 ≠ 系统好用。当你的服务每秒处理十万请求时，一次 10 秒的故障意味着什么？本章从可用性的量化定义出发，逐步拆解单点消除、冗余设计、故障隔离与优雅降级，让你理解"高可用"不是一句口号，而是一套可计算、可验证、可演练的工程体系。
 
----
-
 ## 1. 可用性量化
 
 ### 1.1 从"几个 9"说起
@@ -75,8 +73,6 @@ $$
 \text{可用性} = \frac{\text{MTBF}}{\text{MTBF} + \text{MTTR}}
 $$
 
----
-
 ## 2. 消除单点故障
 
 ### 2.1 什么是单点
@@ -131,8 +127,6 @@ public class DataSourceConfig {
     }
 }
 ```
-
----
 
 ## 3. 冗余设计
 
@@ -207,8 +201,6 @@ public class OrderService {
 | 同步复制 | 所有副本写入成功才返回 | 强一致 | 慢 | 金融核心 |
 | 半同步复制 | 多数副本写入即返回 | 较强 | 中 | MySQL Group Replication |
 | 异步复制 | 主库写入即返回 | 最终一致 | 快 | 日志、非关键数据 |
-
----
 
 ## 4. 故障隔离
 
@@ -331,8 +323,6 @@ private StockResult inventoryFallback(Long productId, Throwable t) {
 | 数据库隔离 | 核心库与非核心库分开 | 订单库和日志库物理隔离 |
 | 缓存隔离 | 热点 Key 独立 Redis 实例 | 避免大 Key 影响正常业务 |
 | 消息队列隔离 | 不同业务使用独立 Topic/Group | 避免消费积压相互影响 |
-
----
 
 ## 5. 优雅降级
 
@@ -466,4 +456,3 @@ public class ChaosInterceptor implements HandlerInterceptor {
 
 Netflix 的 Chaos Monkey、阿里集团的 MonkeyKing、美团的 FailFast 都是类似理念：**在生产环境中有计划地制造故障，验证系统的容错能力**。
 
----

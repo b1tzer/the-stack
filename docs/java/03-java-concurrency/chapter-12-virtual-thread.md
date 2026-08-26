@@ -1,4 +1,4 @@
-# 第12章 虚拟线程与结构化并发（JDK 21）
+# 虚拟线程与结构化并发（JDK 21）
 
 > 如果一条线程可以像一个对象那样廉价，过去十年围绕线程池积累的工程直觉，还剩下多少是对的？
 
@@ -6,11 +6,9 @@ Java 21 把虚拟线程从预览特性升级为 GA。它不是一种新语言语
 
 本章讨论：这次改动改到了哪里，改到了什么程度，改动之外还剩下什么。
 
----
+## 1. 平台线程走到尽头的原因
 
-## 12.1 平台线程走到尽头的原因
-
-### 12.1.1 一条平台线程的成本清单
+### 1.1 一条平台线程的成本清单
 
 在 JDK 21 之前，`new Thread()` 得到的每一条 Java 线程背后都对应一条 OS 线程（HotSpot 的 1:1 模型，见第 2 章）。这条 OS 线程要付出的固定成本：
 
@@ -23,7 +21,7 @@ Java 21 把虚拟线程从预览特性升级为 GA。它不是一种新语言语
 
 一台 16 GB 堆外余量的应用，能开出的平台线程数量级在 **5 000–15 000**。真正压死线程数量的通常不是栈占用，而是 **上下文切换的边际收益**：线程数超过 CPU 核数几十倍后，CPU 花在切换本身上的时间就超过了业务代码。
 
-### 12.1.2 高并发场景下的两难
+### 1.2 高并发场景下的两难
 
 一个典型的后端接口，处理链路是这样的：
 
@@ -52,7 +50,7 @@ N = QPS × RT = 10 000 × 0.2s = 2 000
 - **限并发**：Tomcat 的 `maxThreads=200`，多余请求排队 —— 用户在门口等
 - **改异步**：Netty、Reactor、`CompletableFuture` 链 —— 一条线程处理成千上万条连接
 
-### 12.1.3 Reactor 路径的隐藏成本
+### 1.3 Reactor 路径的隐藏成本
 
 异步方案不是没有代价。写过 `WebFlux` 或者 Netty 应用的人知道下面这几件事：
 
@@ -86,15 +84,13 @@ Reactor 版本换来的是吞吐，付出的是：
 
 也就是说，Reactor 让 CPU 更闲了，但让人更累了。
 
-### 12.1.4 虚拟线程要解决的问题
+### 1.4 虚拟线程要解决的问题
 
 虚拟线程给出的答案是：**同步代码风格 + 异步执行效率**。让开发者继续用 `Thread` / `ExecutorService` / try-catch / `ThreadLocal`，同时把 IO 阻塞时的"线程占坑"问题在 JVM 层面消掉。
 
----
+## 2. 虚拟线程：M:N 调度与 continuation
 
-## 12.2 虚拟线程：M:N 调度与 continuation
-
-### 12.2.1 虚拟线程与平台线程的对照
+### 2.1 虚拟线程与平台线程的对照
 
 ![vt-mapping](/java/vt-mapping.svg)
 
@@ -104,7 +100,7 @@ Reactor 版本换来的是吞吐，付出的是：
 
 关键设计：**当 VT 阻塞在 JDK 阻塞点（如 `Socket.read`、`Thread.sleep`、`LockSupport.park`）时，JVM 会把 VT 从 Carrier 上卸载，Carrier 立即去执行别的 VT**。等阻塞条件满足，VT 被重新挂到某条 Carrier 上继续跑。
 
-### 12.2.2 continuation：可挂起可恢复的执行片段
+### 2.2 continuation：可挂起可恢复的执行片段
 
 虚拟线程的挂起/恢复能力，来自一个更底层的机制——`Continuation`（`jdk.internal.vm.Continuation`）。
 
@@ -119,7 +115,7 @@ Reactor 版本换来的是吞吐，付出的是：
 
 对读者的意义是：**虚拟线程不是操作系统线程，也不是协程库，而是"栈可搬家的 Java 线程"**。Java 语言不需要 `async` / `await` 关键字，因为搬家的动作发生在 JDK 内部的 IO 调用里，业务代码看不见。
 
-### 12.2.3 调度器与 Carrier 池
+### 2.3 调度器与 Carrier 池
 
 默认 Carrier 池的属性可以用系统属性调整：
 
@@ -136,7 +132,7 @@ Reactor 版本换来的是吞吐，付出的是：
 
 生产环境几乎不需要动这些参数——默认值已经是"CPU 核数"，这也是**平台线程池 IO 密集配置的经验值 `2 × N_CPU` 都被虚拟线程重新定义**的原因：CPU 核数由 Carrier 决定，与 VT 数量无关。
 
-### 12.2.4 创建虚拟线程的四种方式
+### 2.4 创建虚拟线程的四种方式
 
 | 方式 | 场景 | 特点 |
 | :-- | :-- | :-- |
@@ -165,11 +161,9 @@ try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
 
 **注意 `newVirtualThreadPerTaskExecutor` 的语义**：它不是"共享一批固定 Carrier 的池"，而是"每提交一个任务就新起一条虚拟线程"。它更接近 `newCachedThreadPool`，但没有创建上限——因为 VT 本身就是廉价的。
 
----
+## 3. pinning：`synchronized` 造成的钉住问题
 
-## 12.3 pinning：`synchronized` 造成的钉住问题
-
-### 12.3.1 什么是 pinning
+### 3.1 什么是 pinning
 
 虚拟线程遇到阻塞点时，JVM 应当把它从 Carrier 卸载下来，让 Carrier 空出手服务别的 VT。但在两种情况下卸载会失败——这条 VT 被"钉"在了 Carrier 上，直到阻塞返回。这种现象叫 **pinning**。
 
@@ -187,7 +181,7 @@ try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
 
 如果 Carrier 池只有 8 条，且业务大量使用 `synchronized` 包裹阻塞 IO，8 条 Carrier 全部被钉死之后，虚拟线程的调度就彻底退化为传统线程池——**看上去有百万虚拟线程，实际吞吐还不如一个配置合理的固定线程池**。
 
-### 12.3.2 造成 pinning 的两类场景
+### 3.2 造成 pinning 的两类场景
 
 | 场景 | 原因 | JDK 21 表现 | JDK 24 表现 |
 | :-- | :-- | :-- | :-- |
@@ -196,7 +190,7 @@ try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
 
 JDK 21–23 里 `synchronized` 是 pinning 的最大来源。JDK 24（2025-03）通过 JEP 491 让 `synchronized` 也能挂起虚拟线程，问题才被彻底解决。但生产环境很多团队仍停留在 JDK 21 LTS，因此这个问题短期内仍需处理。
 
-### 12.3.3 迁移建议：从 synchronized 到 ReentrantLock
+### 3.3 迁移建议：从 synchronized 到 ReentrantLock
 
 ```java
 // ❌ JDK 21 下会 pinning
@@ -231,7 +225,7 @@ public class OrderService {
 
 `ReentrantLock` 底层通过 `LockSupport.park` 挂起，而 `park` 是 JVM 感知的 yield 点，所以不会 pinning。**如果无法确保运行在 JDK 24+，虚拟线程场景下 `synchronized` + 阻塞 IO 的组合应当被视为反模式**。
 
-### 12.3.4 pinning 的检测手段
+### 3.4 pinning 的检测手段
 
 生产环境常用三条路径：
 
@@ -260,13 +254,11 @@ Thread[#42,ForkJoinPool-1-worker-3,5,CarrierThreads]
 
 `<monitors:>` 后列出的 monitor 就是钉住的元凶。
 
----
-
-## 12.4 何时不要用虚拟线程
+## 4. 何时不要用虚拟线程
 
 虚拟线程不是万能替代。以下四种场景下，平台线程仍然是更好的选择。
 
-### 12.4.1 CPU 密集任务
+### 4.1 CPU 密集任务
 
 虚拟线程解决的是"线程数受限"的问题，不是"CPU 算得慢"的问题。一段跑满 CPU 的循环，无论跑在虚拟线程还是平台线程上，占用的 Carrier / OS 时间片是一样的。
 
@@ -289,7 +281,7 @@ ExecutorService pool = Executors.newFixedThreadPool(
 
 **判断规则**：任务的墙钟时间中 CPU 占比超过 50%，就应该用平台线程池。
 
-### 12.4.2 需要严格限流的场景
+### 4.2 需要严格限流的场景
 
 传统线程池天然通过 `maxPoolSize` + `workQueue` 提供背压。虚拟线程模型下"来一个任务起一条 VT"，如果下游是有并发上限的资源（数据库连接池、下游 API 的 QPS 配额），需要**外挂 `Semaphore` 做限流**。
 
@@ -319,7 +311,7 @@ try (var pool = Executors.newVirtualThreadPerTaskExecutor()) {
 }
 ```
 
-### 12.4.3 `ThreadLocal` 密集使用的路径
+### 4.3 `ThreadLocal` 密集使用的路径
 
 虚拟线程完全支持 `ThreadLocal`（在第 3 章讨论过它的存储结构）。但在 VT 场景下要提防一件事：**百万级 VT × 每 VT 若干 TL 值 = 内存爆炸**。
 
@@ -331,7 +323,7 @@ try (var pool = Executors.newVirtualThreadPerTaskExecutor()) {
 - 拆分 TL：只把真正需要跨方法透传的东西放进 TL，其余通过参数传递
 - 关键路径改造完之前，用 `-XX:NativeMemoryTracking` 观察堆外增长
 
-### 12.4.4 依赖平台线程语义的库
+### 4.4 依赖平台线程语义的库
 
 少量库依赖 `Thread` 的平台线程语义，例如：
 
@@ -341,11 +333,9 @@ try (var pool = Executors.newVirtualThreadPerTaskExecutor()) {
 
 对这些场景，如果切到虚拟线程后行为异常，最保险的做法是：**入口保持平台线程，把 IO 密集部分显式提交到 `newVirtualThreadPerTaskExecutor`**。
 
----
+## 5. 结构化并发：`StructuredTaskScope`
 
-## 12.5 结构化并发：`StructuredTaskScope`
-
-### 12.5.1 传统 fire-and-forget 的问题
+### 5.1 传统 fire-and-forget 的问题
 
 有了廉价的虚拟线程，人们开始一次派生成百上千的子任务。此时"父子任务生命周期"变成了新问题：
 
@@ -373,7 +363,7 @@ try {
 - 子任务的异常传播路径复杂，必须手写 try/finally 骨架
 - 从 thread dump 看不出"这几条 VT 属于同一个父任务"
 
-### 12.5.2 结构化并发的核心约束
+### 5.2 结构化并发的核心约束
 
 **结构化并发（Structured Concurrency）** 用一个语法块把父子任务生命周期绑在一起：**作用域内派生的所有任务必须在作用域退出前完成**。
 
@@ -398,7 +388,7 @@ try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
 | 任一子任务失败，`ShutdownOnFailure` 立即取消其余 | 快速失败 |
 | Thread dump 能看到父子层级 | 排查友好 |
 
-### 12.5.3 两种收敛策略
+### 5.3 两种收敛策略
 
 | 策略 | 语义 | 典型场景 |
 | :-- | :-- | :-- |
@@ -424,7 +414,7 @@ try (var scope = new StructuredTaskScope.ShutdownOnSuccess<Result>()) {
 }
 ```
 
-### 12.5.4 超时与取消
+### 5.4 超时与取消
 
 `StructuredTaskScope` 天然支持超时和外部取消：
 
@@ -445,13 +435,11 @@ try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
 
 比起手工写 `Future.get(timeout, unit)` 加上一堆 cancel，代码短得多且更难写错。
 
-### 12.5.5 API 稳定性提示
+### 5.5 API 稳定性提示
 
 `StructuredTaskScope` 在 JDK 21 是 preview（第一轮），JDK 22–24 经过多轮 preview，**JDK 25 正式 GA，API 名称有小幅调整**（例如 `ShutdownOnFailure` 变为 `Joiner.awaitAllSuccessfulOrThrow()` 风格）。生产使用时以目标 JDK 版本的 JEP 为准。
 
----
-
-## 12.6 虚拟线程时代重新评估线程池
+## 6. 虚拟线程时代重新评估线程池
 
 用一张表总结虚拟线程 GA 之后传统线程池经验哪些还成立、哪些需要重估：
 
@@ -469,9 +457,7 @@ try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
 
 ![vt-decision-tree](/java/vt-decision-tree.svg)
 
----
-
-## 12.7 一段完整示例：从传统 API 迁移到虚拟线程
+## 7. 一段完整示例：从传统 API 迁移到虚拟线程
 
 假设一个订单详情接口：聚合 `UserService`、`OrderService`、`InventoryService` 三处数据，任一失败即失败，总超时 500 ms。
 
@@ -513,9 +499,7 @@ public Profile loadProfile(String id) throws Exception {
 
 代码行数减半，异常传播路径清晰，超时语义直观，子任务的生命周期由作用域托管。这就是虚拟线程与结构化并发组合带来的最直接收益。
 
----
-
-## 12.8 本章小结
+## 8. 本章小结
 
 | 问题 | 根源 | 解决方案 |
 | :-- | :-- | :-- |
@@ -525,8 +509,6 @@ public Profile loadProfile(String id) throws Exception {
 | CPU 密集任务用虚拟线程无收益 | Carrier 数量仍受 CPU 核数限制 | CPU 密集仍用平台线程池 |
 | 无天然背压导致下游被打挂 | `newVirtualThreadPerTaskExecutor` 无并发上限 | 外挂 `Semaphore` 或专用限流器 |
 | 子任务派生后失控、异常传播复杂 | 平面式的 `Future` 组合 | `StructuredTaskScope` 结构化并发 |
-
----
 
 > **纵横联系**
 >

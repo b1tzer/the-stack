@@ -22,7 +22,7 @@
 
 ## 2. 行格式
 
-### Compact 格式
+### 2.1 Compact 格式
 ```
 ┌─────────────────┐
 │ 变长字段长度列表 │
@@ -37,7 +37,7 @@
 └─────────────────┘
 ```
 
-### Dynamic 格式 (默认)
+### 2.2 Dynamic 格式 (默认)
 - 与 Compact 类似
 - 大字段完全溢出，只存 20 字节指针
 
@@ -130,4 +130,3 @@ SHOW ENGINE INNODB STATUS;  -- 在 INSERT BUFFER AND ADAPTIVE HASH INDEX 部分
 4. **控制单行数据大小** — 尽量不超过 8KB
 5. **TEXT/BLOB 列单独拆表** — 减少主表的行溢出概率
 
----

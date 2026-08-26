@@ -71,7 +71,7 @@ kafka-server-start.sh server.properties
 
 ## 8. 迁移步骤详解
 
-### 全新部署
+### 8.1 全新部署
 ```bash
 # 1. 生成集群 UUID
 UUID=$(kafka-storage.sh random-uuid)
@@ -83,7 +83,7 @@ kafka-storage.sh format -t $UUID -c config/kraft/server.properties
 kafka-server-start.sh config/kraft/server.properties
 ```
 
-### 从 ZooKeeper 迁移
+### 8.2 从 ZooKeeper 迁移
 ```bash
 # 1. 配置 KRaft 模式
 # 在 server.properties 中添加：
@@ -120,7 +120,7 @@ controller.listener.names=CONTROLLER
 advertised.listeners=PLAINTEXT://broker1:9092
 ```
 
-## 最佳实践
+## 10. 最佳实践
 
 1. **新项目直接使用 KRaft**：无需部署 ZooKeeper，运维更简单。
 2. **Controller 节点至少 3 个**：Raft 共识需要多数派存活，3 个节点可容忍 1 个故障。

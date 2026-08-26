@@ -113,7 +113,7 @@ producer.close();
 producer.close(Duration.ofSeconds(30));
 ```
 
-## 最佳实践
+## 8. 最佳实践
 
 1. **生产者是线程安全的**：多个线程可以共享同一个 KafkaProducer 实例，无需为每个线程创建独立实例。
 2. **务必调用 close()**：不关闭生产者会导致资源泄漏，未发送的消息丢失。

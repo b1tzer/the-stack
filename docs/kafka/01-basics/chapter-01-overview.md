@@ -71,7 +71,7 @@ kafka-console-producer.sh --topic test --bootstrap-server localhost:9092
 kafka-console-consumer.sh --topic test --from-beginning --bootstrap-server localhost:9092
 ```
 
-## 最佳实践
+## 8. 最佳实践
 
 1. **生产环境至少 3 个 Broker**：保证高可用，支持副本因子为 3。
 2. **合理规划分区数**：分区数 = 期望的消费者并发数，分区一旦创建只能增加不能减少。

@@ -1,14 +1,12 @@
-# 第7章 CAS 与原子类：无锁并发思想
+# CAS 与原子类：无锁并发思想
 
 > 锁是并发编程的"重武器"——可靠，但代价高昂。有没有一种方式，能在不阻塞线程的情况下完成共享变量的安全更新？答案是 CPU 级别的原子指令，而 JDK 将其封装为 CAS 和 Atomic 系列类。本章将从 CAS 的底层原理讲起，逐步揭示无锁并发的实现机制、适用场景和固有局限。
 
----
-
-## 7.1 为什么需要无锁技术
+## 1. 为什么需要无锁技术
 
 `synchronized` 与 `ReentrantLock` 走的是悲观路线：假设冲突一定会发生，先拿锁再操作、操作完再释放。安全，但代价明确。
 
-### 锁的三大痛点
+### 1.1 锁的三大痛点
 
 | 问题 | 描述 | 影响 |
 | :-- | :-- | :-- |
@@ -28,11 +26,9 @@ STORE 寄存器 → count
 
 这就是无锁并发的出发点：**利用硬件提供的原子指令，避免线程阻塞，提升吞吐量**。
 
----
+## 2. CAS 原理
 
-## 7.2 CAS 原理
-
-### Compare And Swap：硬件级的乐观锁
+### 2.1 Compare And Swap：硬件级的乐观锁
 
 CAS（Compare And Swap）是一条 CPU 原子指令，其语义可以用伪代码描述：
 
@@ -50,7 +46,7 @@ boolean cas(内存地址 V, 期望值 A, 新值 B) {
 
 关键点：**"比较"和"交换"是一条不可分割的 CPU 指令**，不存在中间状态。
 
-### 用 CAS 实现无锁计数器
+### 2.2 用 CAS 实现无锁计数器
 
 ```java
 public class CasCounter {
@@ -91,13 +87,11 @@ Thread A                          Thread B
 
 这就是**自旋（spin）**：失败了不阻塞，重新读取再试。当竞争不激烈时，这种方式比锁的效率高得多。
 
----
-
-## 7.3 CAS 的底层支持
+## 3. CAS 的底层支持
 
 CAS 并非 Java 发明的概念，它是从硬件到 JDK 层层封装的结果。
 
-### CPU 层面：cmpxchg 指令
+### 3.1 CPU 层面：cmpxchg 指令
 
 在 x86 架构上，CAS 对应的是 `cmpxchg` 指令。单核 CPU 上这条指令天然原子，但在多核环境下，需要加 `lock` 前缀来保证总线锁或缓存一致性：
 
@@ -112,7 +106,7 @@ lock cmpxchg [mem], new_val
 - 早期处理器：锁定总线（成本高）
 - 现代处理器：缓存一致性协议（MESI），锁定缓存行即可
 
-### JDK 层面：Unsafe → VarHandle
+### 3.2 JDK 层面：Unsafe → VarHandle
 
 JDK 内部通过两种方式暴露 CAS 能力：
 
@@ -208,13 +202,11 @@ public class AtomicInteger {
 > **为什么 AtomicInteger 的字段必须是 `volatile`？**
 > CAS 只保证单次操作的原子性。如果 `value` 不是 `volatile`，线程 A 的写入可能对线程 B 不可见——B 看到的仍是旧值，CAS 的"比较"就失去了意义。`volatile` 保证了可见性，配合 CAS 实现了原子性 + 可见性。
 
----
-
-## 7.4 CAS 的三大问题
+## 4. CAS 的三大问题
 
 CAS 并非万能灵药。它有三个已知的经典问题。
 
-### 问题一：ABA 问题
+### 4.1 问题一：ABA 问题
 
 ```text
 线程 A：读取 V = A
@@ -249,7 +241,7 @@ boolean success = ref.compareAndSet(
 | `AtomicStampedReference` | 引用 + 版本号 | 需要检测 ABA |
 | `AtomicMarkableReference` | 引用 + boolean 标记 | 只需知道"是否被修改过" |
 
-### 问题二：自旋消耗
+### 4.2 问题二：自旋消耗
 
 竞争激烈时，CAS 可能长时间自旋却不成功，白白消耗 CPU。
 
@@ -266,7 +258,7 @@ while (!cas(expected, newVal)) {
 1. **`LongAdder` / `LongAccumulator`**（JDK 8+）：将单个计数器拆分为多个 cell，每个线程写自己的 cell，最后汇总。用空间换时间。
 2. **竞争激烈时退化为锁**：这是 `synchronized` 在 JDK 6+ 中的策略——自旋几次后仍然拿不到锁，就升级为重量级锁挂起线程。
 
-### 问题三：单变量限制
+### 4.3 问题三：单变量限制
 
 CAS 一次只能保证一个变量的原子性。如果需要同时更新两个变量呢？
 
@@ -289,13 +281,11 @@ do {
 } while (!pairRef.compareAndSet(oldPair, newPair));
 ```
 
----
-
-## 7.5 Atomic 系列演进
+## 5. Atomic 系列演进
 
 CAS 自旋只是基石。真正让业务代码能直接用上的，是建在 CAS 之上的 `java.util.concurrent.atomic` 一系列封装。按使用形态横向归类：
 
-### 分类一览
+### 5.1 分类一览
 
 | 类别 | 代表类 | 说明 |
 | :-- | :-- | :-- |
@@ -305,7 +295,7 @@ CAS 自旋只是基石。真正让业务代码能直接用上的，是建在 CAS
 | 字段更新器 | `AtomicIntegerFieldUpdater`, `AtomicReferenceFieldUpdater` | 对 volatile 字段的 CAS 操作，节省内存 |
 | 累加器 | `LongAdder`, `LongAccumulator`, `DoubleAdder`, `DoubleAccumulator` | 高并发累加，分段汇总 |
 
-### LongAdder vs AtomicLong
+### 5.2 LongAdder vs AtomicLong
 
 这是理解"从单点 CAS 到分段 CAS"的典型例子。
 
@@ -341,7 +331,7 @@ acc.accumulate(20);
 long max = acc.get(); // 20
 ```
 
-### 性能对比
+### 5.3 性能对比
 
 ```text
 场景：16 线程并发自增，100 万次
@@ -352,7 +342,7 @@ LongAdder:    ~180ms    （分散到 cell，几乎无竞争）
 
 > **选型规则**：需要精确的单点值读取（如序列号生成器）用 `AtomicLong`；只需要最终汇总结果（如统计计数器）用 `LongAdder`。
 
-### 字段更新器：节省内存的利器
+### 5.4 字段更新器：节省内存的利器
 
 当一个类有大量实例，每个实例都需要一个原子字段时，用 `AtomicInteger` 作为字段会导致每个实例多一个对象头。字段更新器可以避免这个问题：
 
@@ -372,9 +362,7 @@ public class Node {
 
 每个 `Node` 实例只多了一个 `volatile int` 字段（4 字节），而不是一个 `AtomicInteger` 对象（16+ 字节）。ConcurrentHashMap 的 `Node` 节点正是用这种方式来实现桶内节点的 CAS 更新。
 
----
-
-## 7.6 CAS vs 锁：何时选择哪种
+## 6. CAS vs 锁：何时选择哪种
 
 CAS 与锁各有适用边界。选型的核心变量只有两个：**竞争激烈度**与**操作复杂度**。
 
@@ -388,7 +376,7 @@ CAS 与锁各有适用边界。选型的核心变量只有两个：**竞争激�
 | **代码复杂度** | 循环 + CAS，逻辑分散 | 同步块，逻辑清晰 |
 | **公平性** | 不保证（可能饥饿） | 可选公平锁（`new ReentrantLock(true)`） |
 
-### 决策指南
+### 6.1 决策指南
 
 ```text
 需要更新的变量数量？
@@ -404,7 +392,7 @@ CAS 与锁各有适用边界。选型的核心变量只有两个：**竞争激�
     └── 复杂业务逻辑 → 锁
 ```
 
-### 实际案例：无锁栈
+### 6.2 实际案例：无锁栈
 
 ```java
 public class LockFreeStack<T> {
@@ -440,9 +428,7 @@ public class LockFreeStack<T> {
 
 > 注意：这个栈的 `pop` 操作存在 ABA 问题——如果节点被弹出后又压入一个相同值的新节点，CAS 会错误地成功。实际生产中需要使用 `AtomicStampedReference` 来解决。
 
----
-
-## 本章小结
+## 7. 本章小结
 
 | 概念 | 核心要点 |
 | :-- | :-- |
@@ -454,8 +440,6 @@ public class LockFreeStack<T> {
 | CAS vs 锁 | 低竞争单变量用 CAS，复杂逻辑用锁 |
 
 无锁并发覆盖"低竞争 + 单变量"这条主线；一旦跨过这条线，锁与 AQS 仍然是更合适的工具。理解 CAS 的原理与局限，才能在正确的场景做出正确的选择。
-
----
 
 > **纵横联系**
 >

@@ -1,10 +1,8 @@
-# 第3章 线程封闭：`ThreadLocal` 与无共享编程
+# 线程封闭：`ThreadLocal` 与无共享编程
 
 > 每条线程持有一份独立数据，那些让人焦头烂额的并发问题会不会凭空消失？
 
----
-
-## 3.1 面对竞争的两条路
+## 1. 面对竞争的两条路
 
 第 1 章已经明确：并发 bug 的根源是**共享 + 可变 + 状态**三者同时成立。锁、CAS、内存屏障走的都是同一条路——**允许共享，但严格约束共享的时序**。这条路走得下去，但每一步都在付出代价：
 
@@ -16,7 +14,7 @@
 
 如果一份数据只被一条线程读写，那"竞争"这个词就无从谈起——不需要锁，不需要 happens-before 推理，不需要屏障。这条路叫**线程封闭（Thread Confinement）**。
 
-### 3.1.1 三种线程封闭方式
+### 1.1 三种线程封闭方式
 
 Java 中的线程封闭有三种典型形态：
 
@@ -28,7 +26,7 @@ Java 中的线程封闭有三种典型形态：
 
 前两种依赖工程纪律，一旦有人打破约定，编译器不会报错、运行时不会告警。`ThreadLocal` 是唯一有 JDK 语义支撑的形态，也是本章的主角。
 
-### 3.1.2 一个能立刻救命的场景
+### 1.2 一个能立刻救命的场景
 
 `SimpleDateFormat` 是线程不安全的。生产上最经典的 bug 就是把它作为静态字段共享：
 
@@ -69,7 +67,7 @@ private static final DateTimeFormatter FMT =
 
 三种方案各有取舍：JDK 8+ 优先选方案三；无法升级或需要复用重量级对象时，方案二是标准姿势。方案二就是线程封闭的最小案例。
 
-### 3.1.3 共享同步与线程封闭的边界
+### 1.3 共享同步与线程封闭的边界
 
 | 维度 | 共享 + 同步 | 线程封闭 |
 | :-- | :-- | :-- |
@@ -81,13 +79,11 @@ private static final DateTimeFormatter FMT =
 
 规则很直接：**只要能封闭，就不要共享**。剩下的场景（多线程必须协同）才轮到锁、CAS、并发集合出场。
 
----
-
-## 3.2 `ThreadLocal` 的存储结构
+## 2. `ThreadLocal` 的存储结构
 
 理解 `ThreadLocal` 的行为，必须先破除一个常见误解：**值不存在 `ThreadLocal` 对象里，也不存在某个全局 `Map` 里**。
 
-### 3.2.1 值挂在 `Thread` 对象上
+### 2.1 值挂在 `Thread` 对象上
 
 每一个 `Thread` 实例有两个字段：
 
@@ -124,7 +120,7 @@ public class Thread implements Runnable {
 - `set(v)` 写入的是**当前线程**的 `ThreadLocalMap`，与 `ThreadLocal` 实例无关
 - 线程死亡时，`Thread.threadLocals` 随对象回收，值一并消失（前提是线程真的能死）
 
-### 3.2.2 `ThreadLocalMap` 的独立实现
+### 2.2 `ThreadLocalMap` 的独立实现
 
 `ThreadLocalMap` 不是 `HashMap`，是 `ThreadLocal` 内部的一个私有类。它有三处刻意的偏离：
 
@@ -156,7 +152,7 @@ static class Entry extends WeakReference<ThreadLocal<?>> {
 
 后一条就是内存泄漏的种子，3.3 节展开。
 
-### 3.2.3 `get` / `set` / `remove` 的调用路径
+### 2.3 `get` / `set` / `remove` 的调用路径
 
 ```text
     ThreadLocal.set(v)
@@ -181,13 +177,11 @@ static class Entry extends WeakReference<ThreadLocal<?>> {
 - `set(null)` 并**不等价于** `remove()`：前者只是把 value 置空，Entry 仍然占着槽位
 - `remove()` 在清空 Entry 的同时会触发一次相邻槽位的过期清理（`expungeStaleEntry`）
 
----
-
-## 3.3 内存泄漏的形成机制
+## 3. 内存泄漏的形成机制
 
 关于 `ThreadLocal` 的内存泄漏，网上流传最广的说法是"因为 key 是弱引用所以会泄漏"。这个说法把因果关系讲反了。
 
-### 3.3.1 泄漏路径的完整链条
+### 3.1 泄漏路径的完整链条
 
 看引用链：
 
@@ -228,7 +222,7 @@ void handleRequest() {
 
 关键洞察：**弱引用不是导致泄漏的原因，而是留下"我已经过期，请清理我"的信号**。如果 key 也是强引用，情况会更糟——连"这个槽位已经无主"的信号都没有。
 
-### 3.3.2 线程池是泄漏放大器
+### 3.2 线程池是泄漏放大器
 
 单线程应用里，线程死了 `threadLocals` 一起回收，泄漏被限制在线程生命周期内。线程池打破了这个前提：Worker 线程被反复复用，可能存活数小时甚至数天，`threadLocals` 只增不减。
 
@@ -249,7 +243,7 @@ executor.execute(() -> {
 - Heap Dump 显示大量 `ThreadLocalMap$Entry`，`value` 指向业务对象
 - 触发 OOM 时通常伴随线程池 Worker 长期不重建
 
-### 3.3.3 `remove()` 的强制性
+### 3.3 `remove()` 的强制性
 
 正确的姿势永远是 try-finally：
 
@@ -269,7 +263,7 @@ executor.execute(() -> {
 
 有一种依赖被动清理的思路：让 `get`/`set` 顺路做过期清理。这在小 Map 上尚可，但一旦线程长时间只写不读、或者线性探测的步长很短，过期 Entry 就长期赖在槽位里。**不要指望被动清理，`remove()` 是唯一确定的解**。
 
-### 3.3.4 内存泄漏诊断路径
+### 3.4 内存泄漏诊断路径
 
 生产环境的排查步骤：
 
@@ -294,13 +288,11 @@ grep 代码库：ThreadLocal.set 且缺 remove
 
 MAT 有一个专用视图 `Path to GC Roots → exclude weak references`，能直接看到 value 从 Worker 线程被强引用的完整链路。
 
----
-
-## 3.4 `InheritableThreadLocal`：父子线程的传递
+## 4. `InheritableThreadLocal`：父子线程的传递
 
 普通 `ThreadLocal` 只服务当前线程。如果需要子线程读到父线程写入的值，就要换 `InheritableThreadLocal`。
 
-### 3.4.1 复制发生的时机
+### 4.1 复制发生的时机
 
 ```text
 Thread parent = Thread.currentThread();
@@ -319,7 +311,7 @@ if (parent.inheritableThreadLocals != null) {
 
 复制**只发生在 `new Thread()` 那一刻**，且只复制一次。这条规则决定了它的所有边界。
 
-### 3.4.2 复制语义
+### 4.2 复制语义
 
 - **浅拷贝**：Entry 的 value 引用被直接复制，父子共享同一个对象
 - **单向快照**：复制后父线程再修改，子线程看不见；子线程修改，父线程也看不见
@@ -335,7 +327,7 @@ InheritableThreadLocal<Map<String, String>> ctx =
     };
 ```
 
-### 3.4.3 线程池场景下的失效
+### 4.3 线程池场景下的失效
 
 `InheritableThreadLocal` 的传递语义假设了"父线程创建子线程"这个动作与"业务任务提交"是同一件事。在线程池模型下这个假设不成立：
 
@@ -359,13 +351,11 @@ InheritableThreadLocal<Map<String, String>> ctx =
 
 `InheritableThreadLocal` 在线程池下不仅是"不生效"，还可能是"错误生效"——保留了错误的旧值。
 
----
-
-## 3.5 线程池下的正确解法：`TransmittableThreadLocal`
+## 5. 线程池下的正确解法：`TransmittableThreadLocal`
 
 阿里开源的 `TransmittableThreadLocal`（TTL）解决的正是上一节的问题。核心思路是**把复制时机从"线程创建"改到"任务提交"**。
 
-### 3.5.1 抓拍—回放模型
+### 5.1 抓拍—回放模型
 
 ```text
 Main 线程                         Worker 线程
@@ -398,7 +388,7 @@ Main 线程                         Worker 线程
 - 在**执行前**灌进 Worker，执行完**还原**，避免污染下一个任务
 - 抓拍—回放的开销与 TTL 数量成正比，通常在纳秒级
 
-### 3.5.2 使用方式
+### 5.2 使用方式
 
 ```java
 public class TraceContext {
@@ -418,7 +408,7 @@ pool.execute(() -> handle(request));
 // 通过字节码增强，甚至第三方线程池代码都能自动传递
 ```
 
-### 3.5.3 TTL 的代价与边界
+### 5.3 TTL 的代价与边界
 
 | 维度 | `ThreadLocal` | `InheritableThreadLocal` | `TransmittableThreadLocal` |
 | :-- | :-- | :-- | :-- |
@@ -430,7 +420,7 @@ pool.execute(() -> handle(request));
 
 TTL 不是免费午餐——每次任务提交都要抓拍所有已注册的 TTL 值。如果一个应用有几十个 TTL 且任务提交极其频繁（每秒百万级），抓拍的分配开销值得关注。
 
-### 3.5.4 生产上的典型使用
+### 5.4 生产上的典型使用
 
 第六卷「企业架构」会详细展开这些组件，本章只点出它们与 `ThreadLocal` 的关系：
 
@@ -439,9 +429,7 @@ TTL 不是免费午餐——每次任务提交都要抓拍所有已注册的 TTL
 - **Spring Security 上下文**：`SecurityContextHolder` 默认策略是 `ThreadLocal`；异步方法里拿不到用户凭证也是同源问题
 - **SkyWalking / OpenTelemetry**：链路 span 依赖 `ThreadLocal` 保存当前 span，跨线程场景必须靠 TTL 或专门的 context propagation 包
 
----
-
-## 3.6 反模式一览
+## 6. 反模式一览
 
 | 反模式 | 现象 | 正确做法 |
 | :-- | :-- | :-- |
@@ -452,9 +440,7 @@ TTL 不是免费午餐——每次任务提交都要抓拍所有已注册的 TTL
 | 把 `ThreadLocal` 当"隐式参数"传递跨越太多层 | 代码可读性下降，重构风险高 | 显式方法参数优先，`ThreadLocal` 只在真正跨层的场景（日志、事务、追踪）用 |
 | `set(null)` 当 `remove` 用 | Entry 槽位仍占着，泄漏依旧 | 明确调用 `remove()` |
 
----
-
-## 3.7 本章小结
+## 7. 本章小结
 
 | 问题 | 根源 | 解决方案 |
 | :-- | :-- | :-- |
@@ -464,8 +450,6 @@ TTL 不是免费午餐——每次任务提交都要抓拍所有已注册的 TTL
 | 线程池跨提交传递 | 复制发生太早，快照过期 | `TransmittableThreadLocal` 抓拍—回放 |
 
 `ThreadLocal` 是并发工具箱里最"反直觉"的一件——它不解决共享，而是干脆放弃共享。用得好，能把一整片同步代码变成无锁；用得不好，会带来更隐蔽的内存问题。
-
----
 
 > **纵横联系**
 >

@@ -2,17 +2,15 @@
 
 > 升级到 JDK 21 虚拟线程后，服务运行正常。某天凌晨 3 点，整个服务突然无响应——没有 CPU 飙升、没有 OOM、没有死锁日志。`jstack` 输出的线程栈全是 `WAITING`，`Thread.getAllStackTraces()` 也看不到任何 `BLOCKED`。重启恢复，第二天再次发生。问题藏在一个意想不到的角落：虚拟线程 pinning——当所有 carrier 线程都被钉住时，虚拟线程调度器静默死锁，**没有任何常规监控能发现**。另一台机器，某个第三方服务挂了 10 秒——但整个系统为此停摆了 3 小时。RestTemplate 没有设置 `connectTimeout` 和 `readTimeout`，Tomcat 线程在 `SocketInputStream.socketRead0()` 上永远阻塞——200 个线程全部卡死，服务完全瘫痪。这两种问题有一个共同特点——不是系统"坏了"，而是系统设计时缺失了关键的**超时防御**和**退化感知**。
 
----
+## 1. 案例 7：虚拟线程静默死锁 —— N 个 carrier 全部 pinning 后调度器失灵
 
-## 案例 7：虚拟线程静默死锁 —— N 个 carrier 全部 pinning 后调度器失灵
-
-### 事故背景
+### 1.1 事故背景
 
 2025 年，某团队将核心服务从 JDK 17 升到 JDK 21，将所有 `ExecutorService` 替换为 `Executors.newVirtualThreadPerTaskExecutor()`。服务运行稳定，压测数据也正常。但上线后每隔几小时服务就突然无响应——接口全部超时，`/health` 也挂了。CPU 使用率只有 5%，内存正常，GC 正常。`jstack` 看完没有死锁，日志没有异常。运维重启服务后恢复，但几小时后再次复发。
 
 这个问题在生产中反复出现，直到在 OpenJDK Bug 系统里找到 JDK-8334304，才发现这不是代码 bug——是 JVM 的行为。
 
-### 第一步：jstack 为什么看不出问题
+### 1.2 第一步：jstack 为什么看不出问题
 
 ```bash
 jstack <pid> > thread.dump
@@ -39,7 +37,7 @@ grep -c "java.lang.Thread.State" thread.dump
 
 所有 carrier 都在 `WAITING`——每个都承载着一个被 `synchronized` pinning 的虚拟线程，这些虚拟线程又在等待另一个尚未被调度的虚拟线程释放某个资源。
 
-### 第二步：真正的诊断手段 —— JFR
+### 1.3 第二步：真正的诊断手段 —— JFR
 
 传统 `jstack` 对虚拟线程不可见，需要 JFR：
 
@@ -65,7 +63,7 @@ jdk.VirtualThreadPinned {
 
 几百个 `VirtualThreadPinned` 事件，持续时间从几秒到几十分钟。这些虚拟线程被钉在了 carrier 上——它们的 `synchronized` 块内发生了阻塞操作，JVM 无法卸载它们。
 
-### 第三步：静默死锁的机制
+### 1.4 第三步：静默死锁的机制
 
 虚拟线程的调度模型：JDK 21 默认 `parallelism = CPU 核数` 个 carrier 线程。比如 8 核机器有 8 个 carrier。正常情况下，虚拟线程在 I/O 阻塞时被自动从 carrier 上卸载，carrier 去跑其他就绪的虚拟线程。8 个 carrier 可以支撑几万个虚拟线程。
 
@@ -84,7 +82,7 @@ jdk.VirtualThreadPinned {
 
 JDK-8334304 的复现代码清晰地演示了这个问题：当 `pinned VT 数量 > availableProcessors()` 时，调度器不会补偿。OpenJDK 团队的回复是：这不是 bug——是设计如此。虚拟线程调度器不像 `ForkJoinPool` 那样在饱和时动态增加线程。
 
-### 第四步：为什么会触发
+### 1.5 第四步：为什么会触发
 
 该团队使用了 MySQL Connector/J 8.0.x。这个版本的驱动内部有大量 `synchronized` 方法：
 
@@ -101,7 +99,7 @@ public synchronized boolean getAutoCommit() throws SQLException {
 3. 其他虚拟线程 B/C/D 也需要拿数据库连接，但连接池里的连接被 A 占着
 4. 如果此时恰好承载 A 到 H 的 8 个 carrier 都被类似情况 pin 住了，其他所有虚拟线程——包括那些可能释放资源的——永远得不到调度机会
 
-### 第五步：修复
+### 1.6 第五步：修复
 
 **方案 A（JDK 24+ 一劳永逸）：升级 JDK**
 
@@ -163,7 +161,7 @@ public void doDatabaseWork() {
 
 这只是拖延，不是解决。真正的问题是 pinning 本身——但作为紧急止血手段有效。
 
-### 总结
+### 1.7 总结
 
 | 信号 | 含义 | 工具 |
 |------|------|------|
@@ -174,17 +172,15 @@ public void doDatabaseWork() {
 
 **教训：** 虚拟线程的 pinning 和死锁在常规监控中完全不可见。`jstack` 不输出虚拟线程，`Thread.getAllStackTraces()` 也不包含它们。唯一的诊断窗口是 JFR 的 `jdk.VirtualThreadPinned` 事件。迁移到虚拟线程前，必须确保第三方库（JDBC 驱动、HTTP 客户端、消息队列客户端）不依赖 `synchronized` + 阻塞操作的组合。JDK 24+ 已从根本上解决此问题，但大量生产环境仍运行在 JDK 21 LTS 上。
 
----
+## 2. 案例 8：RestTemplate 无超时 —— 一个下游挂了 10 秒，整个系统瘫痪 3 小时
 
-## 案例 8：RestTemplate 无超时 —— 一个下游挂了 10 秒，整个系统瘫痪 3 小时
-
-### 事故背景
+### 2.1 事故背景
 
 2025 年某支付系统，订单创建接口内部调用风控服务做风险校验。某天下午，风控服务因数据库故障响应变慢，10 秒后才开始出现超时报错。但这 10 秒的变慢造成了比风控服务本身故障更大的灾难——订单服务的 Tomcat 线程池被全部卡死在等风控服务返回，整个支付系统停止响应，持续了 3 小时直到手动重启。
 
 故障链路：风控服务慢 10 秒 → 支付服务的 Tomcat 线程全部卡在 `SocketInputStream.socketRead0()` → 所有接口不可用 → 用户疯狂刷新 → 更多线程卡死 → 死循环。
 
-### 第一步：jstack 看到什么
+### 2.2 第一步：jstack 看到什么
 
 ```bash
 jstack <pid> > thread.dump
@@ -227,7 +223,7 @@ grep "java.lang.Thread.State" thread.dump | sort | uniq -c | sort -rn
 
 `RUNNABLE` 但 CPU 低的原因是：`socketRead0` 是 Native 方法，线程实际在操作系统层面处于 **非忙等**状态——它在等 TCP 数据到达。JVM 视角看是 `RUNNABLE`（线程没有被 Java 级别的锁阻塞），但 OS 视角线程在 `recvfrom()` 系统调用上挂着。
 
-### 第二步：看代码
+### 2.3 第二步：看代码
 
 ```java
 @Configuration
@@ -252,7 +248,7 @@ public class RiskService {
 
 `new RestTemplate()` 底层使用 `SimpleClientHttpRequestFactory`，基于 `java.net.HttpURLConnection`。**`HttpURLConnection` 的默认超时是 `0`——表示无限等待。** 没有 `connectTimeout`，没有 `readTimeout`。当风控服务变慢时，HTTP 请求永远等下去，Tomcat 线程永不释放。
 
-### 第三步：事故链
+### 2.4 第三步：事故链
 
 ```text
 13:00  风控服务数据库故障，响应时间从 50ms → 10s
@@ -270,7 +266,7 @@ public class RiskService {
 
 如果 `RestTemplate` 设置了 3 秒 `readTimeout`，故障窗口只有风控服务故障的 10 秒——10 秒后所有请求快速失败并释放线程，系统在 10 秒后恢复正常。没有超时 = 一次下游故障 = 整个系统永久的线程窒息。
 
-### 第四步：修复
+### 2.5 第四步：修复
 
 ```java
 @Configuration
@@ -304,7 +300,7 @@ public class RestTemplateConfig {
 
 **不设超时 = 把服务的生死交给了下游。** 下游慢了，你就死了。
 
-### 第五步：超时之外 —— 熔断和隔离
+### 2.6 第五步：超时之外 —— 熔断和隔离
 
 超时是第一条防线。但即使设置了 3 秒超时，如果风控服务一直不可用，每次请求都要等 3 秒才失败——高并发下仍然会有大量线程被临时阻塞。需要补充熔断：
 
@@ -333,7 +329,7 @@ public class RiskService {
 
 熔断器的作用：当风控服务连续失败 N 次，熔断器跳闸（OPEN），后续请求直接走降级，不再等待 3 秒超时。风控服务恢复后，熔断器自动闭合（CLOSED）。这是防止下游故障级联放大成系统整体雪崩的关键机制。
 
-### 总结：三条防线的体系
+### 2.7 总结：三条防线的体系
 
 ```text
 第一道防线：超时
@@ -372,7 +368,7 @@ public class HttpClientConfig {
 }
 ```
 
-### 总结
+### 2.8 总结
 
 | 信号 | 含义 | 工具 |
 |------|------|------|
@@ -384,8 +380,6 @@ public class HttpClientConfig {
 **教训：** 任何跨网络的调用，必须设置超时。没有例外。`connectTimeout`、`readTimeout`、`connectionRequestTimeout` 三个参数缺一不可。超时值的选择原则：宁可快失败也不慢等待。失败可以重试，但等待会耗尽线程。
 
 此外：默认 `RestTemplate()` 的底层 `SimpleClientHttpRequestFactory` 没有连接池，每个请求新建一个 TCP 连接——在大并发下不仅慢，还导致 TIME_WAIT 连接堆积。生产环境必须使用 `HttpComponentsClientHttpRequestFactory`（Apache HttpClient 5）或 `Netty4ClientHttpRequestFactory`（WebClient），并显式配置超时。
-
----
 
 > **上一篇：** [第 13 章案例集（二）：虚拟线程与综合并发诊断实战](./chapter-13-diagnostics-cases-part2)
 >

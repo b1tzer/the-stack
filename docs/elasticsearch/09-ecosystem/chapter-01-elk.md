@@ -53,7 +53,6 @@ output.elasticsearch:
 - 创建 Index Pattern
 - 可视化分析
 
----
 ## 5. Logstash 高级配置
 
 ```ruby

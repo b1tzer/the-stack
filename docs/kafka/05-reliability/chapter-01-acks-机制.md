@@ -97,7 +97,7 @@ isolation.level=read_committed
 | acks=all + min.insync.replicas=1 | 高 | 中 | 中 |
 | acks=all + min.insync.replicas=2 | 最高 | 较低 | 较高 |
 
-## 最佳实践
+## 9. 最佳实践
 
 1. **生产环境使用 acks=all + min.insync.replicas=2**：这是平衡可靠性和性能的最佳配置。
 2. **禁用 Unclean Leader 选举**：宁可服务不可用，也不要数据丢失。

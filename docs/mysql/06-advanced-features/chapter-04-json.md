@@ -166,4 +166,3 @@ public class JsonConverter implements AttributeConverter<Map<String, Object>, St
 5. **多值索引用于数组查询** — MySQL 8.0.17+ 的重要特性
 6. **结构化字段用传统列，半结构化用 JSON** — 不要滥用 JSON
 
----

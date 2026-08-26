@@ -143,4 +143,3 @@ xtrabackup --prepare --target-dir=/backup/full
 6. **监控备份任务** — 确保备份成功完成
 7. **保留至少 2 份备份** — 防止备份损坏
 
----

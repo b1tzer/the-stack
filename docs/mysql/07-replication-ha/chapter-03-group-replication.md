@@ -134,4 +134,3 @@ SELECT * FROM performance_schema.replication_group_member_stats;
 5. **所有表必须有主键** — MGR 强制要求
 6. **配合 MySQL Router 实现自动路由**
 
----

@@ -2,7 +2,8 @@
 
 ## 1. 安装方式
 
-### Docker
+### 1.1 Docker
+
 ```bash
 docker run -d --name es \
   -e "discovery.type=single-node" \
@@ -11,7 +12,8 @@ docker run -d --name es \
   elasticsearch:8.12.0
 ```
 
-### apt/yum
+### 1.2 apt/yum
+
 ```bash
 # Debian/Ubuntu
 apt install elasticsearch
@@ -48,8 +50,6 @@ bootstrap.memory_lock: true
 ```
 
 建议：堆内存不超过物理内存的 50%，不超过 32GB。
-
----
 
 ## 4. 生产环境关键配置
 
@@ -157,5 +157,3 @@ volumes:
 - **多路径数据目录**：配置多个 `path.data` 路径，分散 IO 压力
 - **生产环境至少 3 个节点**：满足 Master 选举的最低要求（需过半节点存活）
 - **专用 Master 节点**：大型集群中，将 Master 和 Data 角色分离
-
----

@@ -1,16 +1,14 @@
-# 第9章 并发集合：为共享数据挑一把合适的容器
+# 并发集合：为共享数据挑一把合适的容器
 
 > 多线程直接用 `HashMap` 会出什么问题？`ConcurrentHashMap` 从 JDK 7 到 JDK 8 换掉了 Segment，靠什么把并发度撑起来？想要一个"读完全无锁"的队列，代价是什么？
 
 前面的章节讲的是**如何用锁、原子类、AQS 保护共享变量**。这一章换个视角：**JDK 已经把常见的并发场景封装成了容器**——`ConcurrentHashMap`、`CopyOnWriteArrayList`、`ConcurrentLinkedQueue`、`BlockingQueue` 家族。理解它们的内部结构，一是能选对；二是能推理性能形态——什么场景下这个容器会退化、什么场景下它比自己加锁快十倍。
 
----
-
-## 9.1 普通集合为什么不能并发使用
+## 1. 普通集合为什么不能并发使用
 
 Java 标准库里 `ArrayList` / `HashMap` / `TreeMap` 的 Javadoc 都写着一句几乎相同的话："If multiple threads access an instance concurrently, and at least one of the threads modifies it structurally, it must be synchronized externally." 这不是建议，是硬性约束。
 
-### 9.1.1 `ArrayList` 的 `size++` 竞态
+### 1.1 `ArrayList` 的 `size++` 竞态
 
 `ArrayList.add()` 简化到最短：
 
@@ -33,7 +31,7 @@ public boolean add(E e) {
 
 结果：**一次自增被吞掉**、一个位置被覆盖，`elementData` 里丢了一个元素；`size` 也可能出现"越界指向 null 位置"，触发后续 `ArrayIndexOutOfBoundsException`。这是最经典的"丢更新 + 结构损坏"复合症状。
 
-### 9.1.2 `HashMap` 的死循环（JDK 7）
+### 1.2 `HashMap` 的死循环（JDK 7）
 
 JDK 7 的 `HashMap` 有一个上过面试题几百次的 bug：**并发扩容时可能形成环形链表，导致 `get()` 死循环、CPU 100%**。
 
@@ -53,7 +51,7 @@ JDK 7 的 `HashMap` 有一个上过面试题几百次的 bug：**并发扩容时
 
 JDK 8 换成**尾插法**——迁移时保持链表原顺序，从根本上消除了环形链表。**但 `HashMap` 本身仍然不是线程安全的**：数据丢失、`resize` 期间读到中间状态、并发 put 的结构损坏都还存在。JDK 8 只是修了那一个死循环。
 
-### 9.1.3 一张表总结普通集合的并发风险
+### 1.3 一张表总结普通集合的并发风险
 
 | 集合 | 并发问题 | 根因 |
 | :-- | :-- | :-- |
@@ -65,13 +63,11 @@ JDK 8 换成**尾插法**——迁移时保持链表原顺序，从根本上消�
 
 粗粒度的 `Collections.synchronizedMap` 能修正确性问题，代价是把整个 Map 变成串行访问——高并发下等于自杀。这是并发集合存在的意义：**用更细的粒度、或者干脆无锁的算法，把安全与并发度同时保住**。
 
----
-
-## 9.2 `ConcurrentHashMap`：从 Segment 到 bin 级锁
+## 2. `ConcurrentHashMap`：从 Segment 到 bin 级锁
 
 `ConcurrentHashMap` 是 `java.util.concurrent` 里用得最多的容器。它的实现在 JDK 7 到 JDK 8 之间发生了一次结构性重写。
 
-### 9.2.1 JDK 7：Segment 分段锁
+### 2.1 JDK 7：Segment 分段锁
 
 思路是**分段加锁**——把整个 Map 切成若干段（Segment），每段有独立的锁，不同段的操作可以并行：
 
@@ -103,7 +99,7 @@ final Segment<K,V>[] segments;   // 默认 16
 - **热点 key 集中在少数 Segment**：并发度退化到几乎为 1
 - **Segment 本身占内存**：每个 Segment 都是一个 `ReentrantLock` + 独立的 `HashEntry[]`
 
-### 9.2.2 JDK 8：CAS + `synchronized` 锁 bin
+### 2.2 JDK 8：CAS + `synchronized` 锁 bin
 
 JDK 8 抛弃了 Segment，回到**单个 `Node[]` 数组 + bin 级锁**：
 
@@ -152,7 +148,7 @@ final V putVal(K key, V value, boolean onlyIfAbsent) {
 - **空 bin 走 CAS**：完全无锁，写热点分散到不同 bin 时几乎无竞争
 - **非空 bin 走 `synchronized`**：锁粒度到"单个 bin 的头节点"，比 Segment 细一个数量级
 
-### 9.2.3 JDK 8 为什么从 `ReentrantLock` 换回 `synchronized`
+### 2.3 JDK 8 为什么从 `ReentrantLock` 换回 `synchronized`
 
 反直觉的一件事：JDK 7 用的是 `ReentrantLock`（因为 Segment 继承它），JDK 8 换成了 `synchronized`。三个直接的原因：
 
@@ -160,7 +156,7 @@ final V putVal(K key, V value, boolean onlyIfAbsent) {
 - **粒度更细意味着单锁的竞争度更低**：每个 bin 的头节点独立当锁，绝大多数并发写落到不同 bin 上，走的都是偏向锁 / 轻量级锁路径。
 - **`synchronized` 内部由 JVM 管理，减少对象元数据**：`ReentrantLock` 本身是 Java 对象，每个 Segment 都要单独维护同步状态；`synchronized` 直接用 Node 的对象头，节省内存。
 
-### 9.2.4 `size()` 的分散计数
+### 2.4 `size()` 的分散计数
 
 并发计数最容易撞的坑是"所有线程 CAS 同一个变量"。JDK 8 用 **`baseCount` + `CounterCell[]`** 分散热点：
 
@@ -181,7 +177,7 @@ public int size() {
 
 这套思路和 `LongAdder`（第 7 章 §7.5）完全一致——**同一套代码在两个地方用**。代价是 `size()` 是"接近实时"的估算，不保证瞬时精确。
 
-### 9.2.5 JDK 7 vs JDK 8 一览
+### 2.5 JDK 7 vs JDK 8 一览
 
 | 维度 | JDK 7 Segment | JDK 8+ CAS + `synchronized` |
 | :-- | :-- | :-- |
@@ -192,13 +188,11 @@ public int size() {
 | 锁类型 | `ReentrantLock` | `synchronized`（走锁升级） |
 | 计数 | 每个 Segment 计数 | `baseCount` + `CounterCell[]` |
 
----
-
-## 9.3 `CopyOnWrite` 容器：读完全无锁
+## 3. `CopyOnWrite` 容器：读完全无锁
 
 `CopyOnWriteArrayList` / `CopyOnWriteArraySet` 的思路和 `ConcurrentHashMap` 完全不同：**读端根本不加锁**，写端通过复制整个底层数组来隔离读写。
 
-### 9.3.1 写时复制的工作过程
+### 3.1 写时复制的工作过程
 
 ```text
 当前数组：[A, B, C, D]   ← array 引用指向这里
@@ -236,7 +230,7 @@ public class CopyOnWriteArrayList<E> {
 
 读的成本 = 一次数组访问，**没有 CAS、没有屏障之外的任何同步开销**。
 
-### 9.3.2 迭代器是"快照"
+### 3.2 迭代器是"快照"
 
 `CopyOnWriteArrayList.iterator()` 拿到的是**创建那一刻的 `array` 引用**，之后无论谁 add / remove，迭代器一无所知：
 
@@ -256,7 +250,7 @@ while (it.hasNext()) {
 
 这解决了 `ArrayList` 常见的 `ConcurrentModificationException`——迭代期间不会因为并发修改而抛异常。代价是**读到的可能是旧数据**（弱一致性）。
 
-### 9.3.3 写成本 O(N) 决定了适用场景
+### 3.3 写成本 O(N) 决定了适用场景
 
 | 维度 | 优势 | 代价 |
 | :-- | :-- | :-- |
@@ -272,7 +266,7 @@ while (it.hasNext()) {
 
 不适合任何需要频繁写的场景——写 100 万次意味着复制 100 万次整个数组。
 
-### 9.3.4 一个典型用法
+### 3.4 一个典型用法
 
 ```java
 public class EventBus {
@@ -291,13 +285,11 @@ public class EventBus {
 
 listeners 变化频率极低（一般只在启动或组件生命周期变化时），fire 高频调用。这是 CopyOnWrite 最舒服的场景。
 
----
-
-## 9.4 `ConcurrentSkipListMap`：有序并发
+## 4. `ConcurrentSkipListMap`：有序并发
 
 `ConcurrentHashMap` 不保证遍历顺序。需要"线程安全 + 按 key 有序 + 支持范围查询"时，`ConcurrentSkipListMap` 是标准答案。
 
-### 9.4.1 跳表结构
+### 4.1 跳表结构
 
 跳表（Skip List）是一种概率平衡的有序数据结构。它通过多层索引加速查找：
 
@@ -309,7 +301,7 @@ Level 1:  head ► 10 ────► 20 ────► 30 ────► 50 �
 
 查找 `50`：从 Level 3 直接跳到 50，一步命中。平均查找 O(log N)，与红黑树相当，**但插入 / 删除只需要调整链表指针，不涉及旋转**——这也是它比红黑树更适合并发的原因。
 
-### 9.4.2 无锁插入的关键机制
+### 4.2 无锁插入的关键机制
 
 `ConcurrentSkipListMap.put` 完全靠 CAS 完成，不使用 `synchronized`：
 
@@ -319,7 +311,7 @@ Level 1:  head ► 10 ────► 20 ────► 30 ────► 50 �
 
 这套无锁算法让 `ConcurrentSkipListMap` 的读写都不需要加锁，代价是弱一致性（遍历时可能看到并发写入的中间状态，但不会抛异常）。
 
-### 9.4.3 与 `ConcurrentHashMap` 的选型
+### 4.3 与 `ConcurrentHashMap` 的选型
 
 | 维度 | `ConcurrentHashMap` | `ConcurrentSkipListMap` |
 | :-- | :-- | :-- |
@@ -331,13 +323,11 @@ Level 1:  head ► 10 ────► 20 ────► 30 ────► 50 �
 
 代表场景：时间线索引（key 是时间戳）、按分数排名的排行榜、按前缀过滤的路由表。
 
----
-
-## 9.5 无锁队列与阻塞队列
+## 5. 无锁队列与阻塞队列
 
 队列是线程池、Reactor、事件总线、日志异步落盘的底层零件。JDK 里有两大家族：**无锁队列**（`ConcurrentLinkedQueue` / `LinkedTransferQueue`）与**阻塞队列**（`BlockingQueue` 家族）。
 
-### 9.5.1 `ConcurrentLinkedQueue`：Michael-Scott 算法的直接实现
+### 5.1 `ConcurrentLinkedQueue`：Michael-Scott 算法的直接实现
 
 `ConcurrentLinkedQueue` 是无界、无锁、线程安全的 FIFO 队列。它的实现是 Michael 和 Scott 在 1996 年发表的**M&S 无锁队列算法**——教科书级的经典。
 
@@ -400,7 +390,7 @@ public boolean offer(E e) {
 
 **出队（`poll`）同样两步 CAS**：把 `head.next.item` CAS 成 null 取出数据，再 CAS 推进 head。
 
-### 9.5.2 无锁队列的正确性来源
+### 5.2 无锁队列的正确性来源
 
 无锁队列听着神奇——没有锁，凭什么保证并发正确？三个关键点：
 
@@ -410,7 +400,7 @@ public boolean offer(E e) {
 
 M&S 队列是**无锁**（lock-free）而非**无等待**（wait-free）——不能保证每条线程都在有限步内完成，但保证整体上一定有线程在推进（不会全体死锁）。
 
-### 9.5.3 `size()` 是 O(N)
+### 5.3 `size()` 是 O(N)
 
 一个必须记住的坑：`ConcurrentLinkedQueue.size()` **不是 O(1)**——它遍历整个队列计数：
 
@@ -428,7 +418,7 @@ public int size() {
 
 原因是无锁算法里没法用 `AtomicInteger` 维护精确计数——每次入队 / 出队都用 CAS 更新一个全局计数会成为热点，反而拖垮性能。**生产代码里对 `ConcurrentLinkedQueue` 频繁调 `size()` 是常见反模式**：直接把 O(1) 期望的接口用出了 O(N) 的成本。
 
-### 9.5.4 `LinkedTransferQueue`：`ConcurrentLinkedQueue` + 传递语义
+### 5.4 `LinkedTransferQueue`：`ConcurrentLinkedQueue` + 传递语义
 
 `LinkedTransferQueue`（JDK 7 引入）是同源家族里的加强版：**同时是无锁队列，又支持"必须有消费者才成功"的传递语义**：
 
@@ -456,7 +446,7 @@ queue.tryTransfer(task, 1, TimeUnit.SECONDS);   // 超时版
 
 它比 `SynchronousQueue` 更灵活（因为可以 `offer` 不等）、比 `ConcurrentLinkedQueue` 更强大（因为可以 `transfer` 等）。**生产上凡是同时需要"异步入队 + 偶尔精确交接"的场景，都优先考虑 `LinkedTransferQueue`**。
 
-### 9.5.5 `BlockingQueue` 家族一览
+### 5.5 `BlockingQueue` 家族一览
 
 `BlockingQueue` 的核心语义：**队列满时 `put` 阻塞，队列空时 `take` 阻塞**。天然适合生产者-消费者模型。JDK 提供五种实现：
 
@@ -470,7 +460,7 @@ queue.tryTransfer(task, 1, TimeUnit.SECONDS);   // 超时版
 
 其中 `LinkedBlockingQueue` 的**两把锁**设计（`putLock` 和 `takeLock`）是它高吞吐的核心——生产者和消费者可以真正并行，而非 `ArrayBlockingQueue` 那种交替执行。
 
-### 9.5.6 生产者-消费者的标准形态
+### 5.6 生产者-消费者的标准形态
 
 ```java
 BlockingQueue<Task> queue = new ArrayBlockingQueue<>(1000);
@@ -494,7 +484,7 @@ new Thread(() -> {
 
 对比第 6 章 §6.3 那种自己写 `wait/notify` 的版本，`BlockingQueue` 少了三个坑：条件判断的 `while` 循环、`notifyAll` 惊群、忘了持锁的 `IllegalMonitorStateException`。所有这些都被封装到容器里。
 
-### 9.5.7 三类队列的选型
+### 5.7 三类队列的选型
 
 | 需求 | 推荐 |
 | :-- | :-- |
@@ -506,9 +496,7 @@ new Thread(() -> {
 
 第 10 章 `ThreadPoolExecutor` 的 `workQueue` 就是从这里挑一种——不同队列直接决定线程池的调度形态（第 10 章 §10.2）。
 
----
-
-## 9.6 选型：安全、并发度、开销的三角权衡
+## 6. 选型：安全、并发度、开销的三角权衡
 
 并发容器的差异，本质是三个维度上的取舍：
 
@@ -533,9 +521,7 @@ new Thread(() -> {
 
 判断选哪个的一条起手线：**先想清楚读写比、有无顺序需求、能不能容忍弱一致性**。三个问题回答完，选型基本就出来了。
 
----
-
-## 9.7 本章小结
+## 7. 本章小结
 
 | 问题 | 根源 | 解决方案 |
 | :-- | :-- | :-- |
@@ -549,8 +535,6 @@ new Thread(() -> {
 | 需要"精确交接"的队列 | `SynchronousQueue` 太受限 | `LinkedTransferQueue` |
 | `size()` O(N) 陷阱 | 无锁队列不维护实时计数 | 不要频繁调 `size()`，用其他指标监控 |
 | 生产者-消费者语义 | 手写 `wait/notify` 易错 | `BlockingQueue` 家族 |
-
----
 
 > **纵横联系**
 >

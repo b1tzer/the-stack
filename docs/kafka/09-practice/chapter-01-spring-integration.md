@@ -184,7 +184,7 @@ public class KafkaProducerTest {
 }
 ```
 
-## 最佳实践
+## 10. 最佳实践
 
 1. **使用 @KafkaListener 而非手动创建消费者**：Spring 管理的消费者更易于配置和测试。
 2. **配置错误处理**：使用 `DefaultErrorHandler` 处理消费失败，避免消息丢失。

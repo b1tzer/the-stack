@@ -1,18 +1,16 @@
-# 第六章案例集（一）：CPU 飙升与内存泄漏实战
+# 案例集（一）：CPU 飙升与内存泄漏实战
 
 > 凌晨 3 点，监控告警：支付网关 CPU 774%，支付成功率从 99.98% 跌到 12.3%。`top -Hp` → `jstack` → 线程栈全指着 `Pattern.matches()`——正则表达式回溯了 1.9 亿次，一个请求能吃掉全部 CPU。三个小时后，另一台机器 Metaspace OOM，Spring Cloud Gateway 在 K8s 上滚动重启，17 分钟内 14.7 万笔订单创建失败。排查方向从「流量太大」180 度转向「一行正则烧了银行」，从「堆不够用」转向「类加载器没释放」。排障现场最残酷的不是找不到根因——是你找到了，但已经在错误的道路上跑了三个小时。
 
----
+## 1. 案例 1：正则灾难性回溯 —— 一行正则烧了银行
 
-## 案例 1：正则灾难性回溯 —— 一行正则烧了银行
-
-### 事故背景
+### 1.1 事故背景
 
 2024 年 6 月，广州某股份制银行核心支付网关集群，3 台 Pod 同时 CPU 100%。支付成功率从 99.98% 跌到 12.3%，平均延迟从 320ms 飙升到 8.4 秒，Kafka 消费积压暴涨 4200 倍，17 分钟内约 14.7 万笔订单创建失败。
 
 你可能会想：银行系统应该很稳定。但事实是，越是核心系统，越容易在角落藏一颗「性能炸弹」——平时流量小不触发，大促、结算日高峰一到，炸给你看。
 
-### 第一步：确认谁在烧 CPU
+### 1.2 第一步：确认谁在烧 CPU
 
 ```bash
 # 1. 找吃 CPU 的 Java 进程
@@ -48,7 +46,7 @@ jstack 24789 | grep -A 30 "0x6145"
 
 栈顶全是 `Pattern$Curly.match` 的递归。这不是正常匹配——这是灾难性回溯（Catastrophic Backtracking）。
 
-### 第二步：翻出那行正则
+### 1.3 第二步：翻出那行正则
 
 ```java
 // PaymentValidator.java:78
@@ -83,7 +81,7 @@ public class PaymentValidator {
 
 注意：如果输入第一个字符就不匹配 `[A-Z0-9]`（比如全小写的 `"merchant_abcdefghijk"`），`matches()` 在第一步就返回 false，**不会回溯**。灾难性回溯的前提是前半段能匹配上、结尾锚点失败——让引擎在分组方式里穷举。
 
-### 第三步：量化回溯成本
+### 1.4 第三步：量化回溯成本
 
 用一段简单的 Java 代码验证：
 
@@ -115,7 +113,7 @@ public static void main(String[] args) {
 
 长度为 20 时一个请求就要 160ms。这个接口 QPS 300，意味着 48 个线程同时在回溯——CPU 瞬间打满。长度每增加 1，时间翻倍——这就是指数级增长在真实系统里的代价。
 
-### 第四步：根因与修复
+### 1.5 第四步：根因与修复
 
 **为什么之前没暴露？** 支付网关的请求中，merchantId 之前一直是大写字母+数字，正好匹配 `[A-Z0-9]+`，正则秒过。问题爆发是因为新增了一个第三方渠道，传的 merchantId 带了小写字母——不匹配的输入触发了最坏情况。
 
@@ -148,7 +146,7 @@ public boolean validate(String input) {
 }
 ```
 
-### 总结：为什么这道题会考倒一群人
+### 1.6 总结：为什么这道题会考倒一群人
 
 1. **正则写对了逻辑但写错了性能**——`([A-Z]+)+` 看起来和 `[A-Z]+` 一样，但嵌套量词的灾难性回溯在特定输入下是灾难。
 2. **正常输入下测不出来**——符合预期的 merchantId 都秒过，只有「异常输入」才暴露。
@@ -159,15 +157,13 @@ public boolean validate(String input) {
 - CPU 高但 `vmstat` 显示 context switch 不高（不是锁竞争）
 - 线程状态全部 `RUNNABLE`（线程确实在工作，只是在做无意义的工作）
 
----
+## 2. 案例 2：本地缓存无上限 —— 把整个订单表装进内存
 
-## 案例 2：本地缓存无上限 —— 把整个订单表装进内存
-
-### 事故背景
+### 2.1 事故背景
 
 某电商平台订单服务，双十一大促压测期间，服务运行 30 分钟后接口响应时间从 80ms 飙升到 3200ms。`jstat -gcutil` 显示 Full GC 每 15~25 秒触发一次，每次耗时 1.8~3.2 秒。老年代使用率始终在 96%~99%。
 
-### 第一步：确认是内存泄漏还是堆配置不够
+### 2.2 第一步：确认是内存泄漏还是堆配置不够
 
 ```bash
 jstat -gcutil <pid> 1000 10
@@ -184,7 +180,7 @@ jstat -gcutil <pid> 1000 10
 
 关键发现：老年代（O）每次 Full GC 后几乎不降——从 97.12% → 97.98%。如果是堆配置不够，Full GC 后应该有明显下降。**不降，就是泄漏。**
 
-### 第二步：抓 dump 分析
+### 2.3 第二步：抓 dump 分析
 
 ```bash
 jmap -dump:format=b,file=/tmp/order_heap.hprof <pid>
@@ -211,7 +207,7 @@ Problem Suspect 1:
 
 一个静态 `ConcurrentHashMap`，占了堆的 78%，2GB。
 
-### 第三步：Dominator Tree 确认
+### 2.4 第三步：Dominator Tree 确认
 
 ```text
 Class Name                                    | Shallow Heap | Retained Heap
@@ -225,7 +221,7 @@ java.lang.Thread @ main                       | 48 B         | 2,323 MB
 
 `OrderCacheManager.CACHE` 的 Retained Heap = 2GB，持有近 100 万条订单对象。每个订单对象约 2KB（包含商品明细、用户信息、物流状态等）。
 
-### 第四步：看代码
+### 2.5 第四步：看代码
 
 ```java
 public class OrderCacheManager {
@@ -245,7 +241,7 @@ public class OrderCacheManager {
 
 缓存设计的初衷是减少数据库查询，提高订单详情接口的响应速度。但只实现了「加缓存」，没有实现「过期淘汰」。大促期间订单量是平时的 20 倍，缓存 30 分钟就膨胀到 100 万条。
 
-### 第五步：修复
+### 2.6 第五步：修复
 
 ```java
 import com.github.benmanes.caffeine.cache.Cache;
@@ -272,7 +268,7 @@ public class OrderCacheManager {
 }
 ```
 
-### 修复后验证
+### 2.7 修复后验证
 
 ```bash
 jstat -gcutil <pid> 1000 10
@@ -285,7 +281,7 @@ jstat -gcutil <pid> 1000 10
 
 老年代使用率稳定在 38%，Full GC 消失。接口 P99 从 3200ms 回落到 85ms。
 
-### 总结
+### 2.8 总结
 
 | 信号 | 含义 |
 |------|------|
@@ -296,15 +292,13 @@ jstat -gcutil <pid> 1000 10
 
 **教训：** 任何本地缓存都必须有 TTL 和容量上限。`ConcurrentHashMap` 不是缓存——它只是一个线程安全的 Map。做缓存用 Caffeine、Guava Cache，或者 Redis。**用 Map 当缓存 = 把应用当操作系统。**
 
----
+## 3. 案例 3：CGLIB 动态代理未复用 —— 爆掉 256MB Metaspace
 
-## 案例 3：CGLIB 动态代理未复用 —— 爆掉 256MB Metaspace
-
-### 事故背景
+### 3.1 事故背景
 
 某报表服务上线一个月后，频繁出现 `java.lang.OutOfMemoryError: Metaspace`，服务不定时重启。查看监控发现 Metaspace 使用量从 45MB 单调增长到 256MB，Full GC 无法回收。接口每次调用后 `jcmd <pid> VM.class_stats | wc -l` 显示类数量增加约 1000 个——且永不回落。
 
-### 第一步：确认是 Metaspace 问题
+### 3.2 第一步：确认是 Metaspace 问题
 
 ```bash
 jstat -gc <pid> 1000 5
@@ -323,7 +317,7 @@ Timestamp        S0C    S1C    S0U    S1U      EC       EU        OC         OU 
 
 MU 每秒涨约 2MB，MC 随之膨胀。Full GC 后 MU 不降——类没有被卸载。
 
-### 第二步：统计加载了哪些类
+### 3.3 第二步：统计加载了哪些类
 
 ```bash
 jcmd <pid> VM.class_stats | head -30
@@ -449,10 +443,6 @@ jcmd <pid> VM.class_stats | wc -l
 
 另外：生产环境**必须**设置 `-XX:MaxMetaspaceSize=256m`。JDK 8+ 的 Metaspace 默认无上限（受限于物理内存），设置这个参数能让你在泄漏发生时拿到 OOM dump 而不是让整个机器被拖死。
 
----
-
----
-
 ## 案例 4：背靠背 Full GC —— 双十一订单服务蜕变
 
 ### 事故背景
@@ -525,8 +515,6 @@ jmap -dump:format=b,file=/tmp/heap_after.hprof <pid>
 | MAT 分析 | 热点对象类型正常，只是量大 | 特定类型持续增长 |
 | 修复方向 | 调整年轻代/Survivor/晋升阈值 | 代码层修复引用 |
 | 是否重启有效 | 无效（流量恢复后重现） | 暂时有效（需要时间重新堆积） |
-
----
 
 ## 案例 5：连接池耗尽 —— 200 个线程全卡在 getConnection()
 
@@ -708,8 +696,6 @@ public class OrderService {
 
 但如果有长事务（2 秒+），并发事务数 = 100 × 2 = 200，需要 240 个连接——这就超过了数据库的承受能力。**解决方案不是加连接，是缩短事务。**
 
----
-
 ## 案例 6：Arthas + JFR 综合诊断 —— 接口从 50ms 变成 3000ms 的全链路追踪
 
 ### 事故背景
@@ -866,10 +852,6 @@ public class FieldFilter {
 | 内存分配热点 | JFR | `jdk.ObjectAllocationInNewTLAB` / `jdk.ObjectAllocationOutsideTLAB` |
 
 **黄金组合：Arthas 快速定位 + JFR 精确量化。** Arthas 告诉你「哪个方法慢了」，JFR 告诉你「它在等什么、分配了什么、锁了什么」。两者互补，缺一不可。
-
----
-
----
 
 > **下一篇：** [第六章案例集（二）：低内存低 CPU 下的 GC 疑难杂症与堆外内存杀手](./chapter-06-diagnostics-cases-part2)
 >

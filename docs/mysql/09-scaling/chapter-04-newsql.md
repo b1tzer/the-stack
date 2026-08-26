@@ -138,4 +138,3 @@ cockroach sql --insecure --host=localhost:26257
 5. **使用 AUTO_RANDOM 替代 AUTO_INCREMENT** — 避免热点写入
 6. **监控 Region 分布** — 确保数据均匀分布
 
----

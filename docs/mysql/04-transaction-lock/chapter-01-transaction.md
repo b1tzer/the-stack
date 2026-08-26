@@ -129,4 +129,3 @@ JOIN information_schema.innodb_trx b ON w.blocking_trx_id = b.trx_id;
 5. **避免在事务中做 RPC/HTTP 调用** — 外部调用会延长事务时间
 6. **使用 `SET MAX_EXECUTION_TIME` 限制查询时间**
 
----

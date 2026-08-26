@@ -7,13 +7,13 @@ title: CTE 与递归查询
 
 > **核心问题**：CTE 解决了什么问题？如何用递归 CTE 查询树形结构？
 
-## 它解决了什么问题？
+## 1. 它解决了什么问题？
 
 **CTE（公共表表达式）** 将复杂查询拆分为可读的命名子查询，解决两个问题：
 1. **可读性**：将多层嵌套子查询改写为线性结构，易于理解和维护
 2. **递归查询**：支持查询树形结构（组织架构、分类层级、评论回复等），这是普通 SQL 无法做到的
 
-## 普通 CTE：提高可读性
+## 2. 普通 CTE：提高可读性
 
 ```sql
 -- ❌ 嵌套子查询：难以阅读
@@ -41,7 +41,7 @@ SELECT * FROM dept_stats WHERE cnt > 5;
 - 可以被多次引用（避免重复写相同子查询）
 - 便于调试（可以单独查询某个 CTE）
 
-## 递归 CTE：查询树形结构
+## 3. 递归 CTE：查询树形结构
 
 **语法结构**：
 
@@ -58,7 +58,7 @@ WITH RECURSIVE cte_name AS (
 SELECT * FROM cte_name;
 ```
 
-## 实战：查询组织架构树
+## 4. 实战：查询组织架构树
 
 ```sql
 -- 表结构
@@ -99,7 +99,7 @@ flowchart TD
     D --> E["合并所有结果返回"]
 ```
 
-## 实战：查询分类层级
+## 5. 实战：查询分类层级
 
 ```sql
 -- 查询某个分类及其所有子分类（电商商品分类树）
@@ -117,9 +117,9 @@ WITH RECURSIVE category_tree AS (
 SELECT * FROM category_tree ORDER BY depth, id;
 ```
 
-## 工作中的坑
+## 6. 工作中的坑
 
-### 坑1：递归 CTE 死循环
+### 6.1 坑1：递归 CTE 死循环
 
 ```sql
 -- ❌ 如果数据中存在循环引用（A 的上级是 B，B 的上级是 A），会无限递归
@@ -138,7 +138,7 @@ WITH RECURSIVE org_tree AS (
 SELECT * FROM org_tree;
 ```
 
-### 坑2：CTE 在 PostgreSQL 中默认是优化屏障
+### 6.2 坑2：CTE 在 PostgreSQL 中默认是优化屏障
 
 ```sql
 -- PostgreSQL 12 之前，CTE 是优化屏障（Optimization Fence）
@@ -150,7 +150,7 @@ WITH MATERIALIZED cte AS (...)  -- 强制物化
 WITH NOT MATERIALIZED cte AS (...) -- 允许内联优化
 ```
 
-## 常见问题
+## 7. 常见问题
 
 **Q：CTE 和子查询有什么区别？什么时候用 CTE？**
 

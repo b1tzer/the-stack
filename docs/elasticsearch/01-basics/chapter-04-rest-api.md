@@ -63,8 +63,6 @@ POST /_bulk
 - 访问 `http://localhost:5601/app/dev_tools`
 - 支持语法高亮、自动补全
 
----
-
 ## 6. 搜索查询
 
 ```bash

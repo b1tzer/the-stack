@@ -120,4 +120,3 @@ SHOW STATUS LIKE 'Innodb_buffer_pool_load%';
 | AHI | 默认开启，高并发写入时可关闭 |
 | 预热 | 生产环境务必开启 dump/load |
 
----

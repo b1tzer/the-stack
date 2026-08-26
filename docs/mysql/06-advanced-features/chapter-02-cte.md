@@ -133,4 +133,3 @@ SELECT * FROM paths WHERE end_node = 'Z' ORDER BY hops LIMIT 1;  -- 最短路径
 4. **需要索引时用临时表替代 CTE** — CTE 不支持索引
 5. **同一 CTE 可多次引用** — 避免重复计算
 
----

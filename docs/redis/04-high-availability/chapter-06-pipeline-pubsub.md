@@ -1,14 +1,12 @@
-# 第6章 Pipeline 与 PubSub
+# Pipeline 与 PubSub
 
 > Pipeline 与发布订阅是 Redis 的两个辅助能力：Pipeline 用批量发送优化网络往返，PubSub 用订阅机制实现消息广播。本章讲解两者的用法与适用场景。
 
----
-
-## 6.1 Pipeline
+## 1. Pipeline
 
 Pipeline（管道）把多条命令批量发送给 Redis，一次性接收全部结果，减少网络往返（RTT）。
 
-### 问题：RTT 开销
+### 1.1 问题：RTT 开销
 
 一次命令一个往返，N 条命令就有 N 次网络往返：
 
@@ -16,7 +14,7 @@ Pipeline（管道）把多条命令批量发送给 Redis，一次性接收全部
 无 Pipeline：发送 → 等待 → 接收（重复 N 次）
 ```
 
-### Pipeline 的改进
+### 1.2 Pipeline 的改进
 
 把 N 条命令打包发送，一次性接收 N 个结果：
 
@@ -31,7 +29,7 @@ pipeline.incr("a");
 List<Object> results = pipeline.syncAndReturnAll();  // 一次性返回所有结果
 ```
 
-### 关键点
+### 1.3 关键点
 
 | 要点 | 说明 |
 | :-- | :-- |
@@ -41,9 +39,7 @@ List<Object> results = pipeline.syncAndReturnAll();  // 一次性返回所有结
 
 > Pipeline 与事务、Lua 的区别：Pipeline 只是「网络层的批量发送」，命令之间可以被其他客户端插入；事务和 Lua 才是「执行层的原子性」。三者经常被混淆。
 
----
-
-## 6.2 发布订阅
+## 2. 发布订阅
 
 发布订阅（Pub/Sub）实现消息的广播：发布者向频道发消息，订阅者收到消息。
 
@@ -55,7 +51,7 @@ PSUBSCRIBE news.*               # 按模式订阅（匹配多个频道）
 
 ![发布订阅广播架构](/redis/04-high-availability-chapter-06-pipeline-pubsub-2.svg)
 
-### 关键点
+### 2.1 关键点
 
 | 要点 | 说明 |
 | :-- | :-- |
@@ -66,9 +62,7 @@ PSUBSCRIBE news.*               # 按模式订阅（匹配多个频道）
 
 > Pub/Sub 的消息不持久化、不保证送达，不适合可靠性要求高的消息场景。需要可靠消息用 Stream（见第一卷）或专业消息队列（Kafka、RocketMQ）。
 
----
-
-## 6.3 三者对比
+## 3. 三者对比
 
 | 维度 | Pipeline | 事务（MULTI/EXEC） | Lua 脚本 |
 | :-- | :-- | :-- | :-- |

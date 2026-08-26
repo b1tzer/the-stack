@@ -100,7 +100,7 @@ for (TopicPartition tp : partitions) {
 }
 ```
 
-## 最佳实践
+## 9. 最佳实践
 
 1. **消费者数 ≤ 分区数**：超出的消费者会空闲，浪费资源。
 2. **使用 CooperativeSticky 策略**：避免 Stop-the-World 式的 Rebalance。

@@ -113,7 +113,7 @@ kafka-topics.sh --create --topic my-topic \
 - 使用 Rack Awareness 时，副本分布在不同机架上。
 - 分区 Leader 尽量均匀分布在各 Broker 上。
 
-## 最佳实践
+## 9. 最佳实践
 
 1. **副本因子设为 3**：兼顾可靠性和存储开销。
 2. **min.insync.replicas = 2**：配合 `acks=all`，保证至少 2 个副本同步成功。

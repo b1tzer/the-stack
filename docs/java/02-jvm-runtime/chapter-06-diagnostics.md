@@ -1,10 +1,8 @@
-# 第六章 线上排查与诊断
+# 线上排查与诊断
 
 > 凌晨三点 CPU 100% 告警。`top` 看 pid → `jstack` dump 线程栈 → 几百个 `RUNNABLE` 线程栈顶全是 `HashMap.get()`——你以为找到了根因。但再看 `vmstat`，context switch 每秒才 200——不是业务线程在烧 CPU，是所有线程在 `while(true)` 自旋等锁。排查方向从「慢查询」180 度转向「锁竞争」——只差一个 `vmstat`。线上排障最怕的不是查不到，是查对了方向但看了错误的数据。
 
----
-
-## 6.1 JVM 常见故障速查
+## 1. JVM 常见故障速查
 
 | 现象 | 首选诊断方向 |
 |------|-------------|
@@ -14,9 +12,7 @@
 | StackOverflow | 检查无限递归 / 过深调用栈 |
 | Metaspace OOM | 检查动态代理/反射/脚本引擎是否生成大量类 |
 
----
-
-## 6.2 CPU 100% 诊断流程
+## 2. CPU 100% 诊断流程
 
 ```bash
 # 1. 找到 Java 进程 PID
@@ -72,11 +68,9 @@ jstack <pid> | grep -A 30 "<tid in hex>"
 
 特征：`top -Hp` 中 CPU 最高的是 `CompilerThread`，说明 JIT 正在编译大量代码。通常是正常的预热行为，如果持续占用则需检查 CodeCache。
 
----
+## 3. Heap Dump 分析
 
-## 6.3 Heap Dump 分析
-
-### 获取方式
+### 3.1 获取方式
 
 ```bash
 # 方式 1：OOM 时自动生成（推荐，线上必开）
@@ -90,7 +84,7 @@ jmap -dump:format=b,file=heap.hprof <pid>
 heapdump /path/to/heap.hprof
 ```
 
-### MAT（Memory Analyzer Tool）四大核心功能
+### 3.2 MAT（Memory Analyzer Tool）四大核心功能
 
 **1. Leak Suspects Report。** 自动分析 dump 文件，识别可疑的内存泄漏点。
 
@@ -100,7 +94,7 @@ heapdump /path/to/heap.hprof
 
 **4. Path to GC Roots。** 从某个对象出发，追溯到 GC Root 的引用链。回答"为什么这个对象没有被回收"。
 
-### MAT 实战：分析一次内存泄漏
+### 3.3 MAT 实战：分析一次内存泄漏
 
 **场景：** 应用运行一段时间后 OOM，拿到 dump 文件用 MAT 分析。
 
@@ -137,9 +131,7 @@ com.example.CacheManager @ 0x7f8b2c012300
 
 CacheManager 是一个单例，`cache` 字段是一个只增不减的 HashMap。添加 TTL 和容量限制后问题解决。
 
----
-
-## 6.4 Thread Dump 分析
+## 4. Thread Dump 分析
 
 ```bash
 # 获取方式
@@ -148,7 +140,7 @@ kill -3 <pid>             # 输出到 stdout
 Arthas: thread            # 交互式分析
 ```
 
-### 关键线程状态
+### 4.1 关键线程状态
 
 | 状态 | 含义 | 关注点 |
 |------|------|--------|
@@ -157,7 +149,7 @@ Arthas: thread            # 交互式分析
 | WAITING | 无限期等待 | `wait()`、`join()`、`park()` |
 | TIMED_WAITING | 限时等待 | `sleep()`、`wait(timeout)` |
 
-### 死锁检测
+### 4.2 死锁检测
 
 `jstack` 输出末尾会自动检测死锁：
 
@@ -172,9 +164,7 @@ Found one Java-level deadlock:
   which is held by "Thread-1"
 ```
 
----
-
-### 非死锁场景：多线程 BLOCKED 在同一把锁
+### 4.3 非死锁场景：多线程 BLOCKED 在同一把锁
 
 比死锁更常见的情况是多个线程 BLOCKED 在同一把锁上：
 
@@ -212,7 +202,7 @@ Found one Java-level deadlock:
 
 修复方向：将同步 I/O 移出 synchronized 块，或改用异步 I/O。
 
-## 6.5 Arthas 核心命令
+## 5. Arthas 核心命令
 
 Arthas 是阿里开源的 Java 诊断工具，无需重启即可实时诊断线上问题。
 
@@ -227,7 +217,7 @@ Arthas 是阿里开源的 Java 诊断工具，无需重启即可实时诊断线�
 | `heapdump` | 生成 dump 文件 | `heapdump /tmp/dump.hprof` |
 | `ognl` | 执行表达式 | `ognl '@com.example.Config@getInstance()'` |
 
-### 常用诊断场景
+### 5.1 常用诊断场景
 
 **场景 1：接口变慢**
 
@@ -262,9 +252,7 @@ params[0]: 12345
 returnObj: User{id=12345, name='Tom', age=25}
 ```
 
----
-
-## 6.6 JFR（Java Flight Recorder）
+## 6. JFR（Java Flight Recorder）
 
 JFR 是 JDK 内置的低开销性能分析工具，可以在生产环境持续录制，事后用 JDK Mission Control（JMC）分析。
 
@@ -302,7 +290,7 @@ jmc
 
 JMC 提供自动分析功能，能标记出潜在的性能问题（如"方法编译时间过长"、"GC 停顿过长"）。JFR 的优势是开销极低（< 1%），适合生产环境 7×24 持续录制。
 
-### JFR 分析实战
+### 6.1 JFR 分析实战
 
 **场景：** 用 JFR 录制了 60 秒的生产环境运行数据，用 JMC 打开分析。
 
@@ -334,9 +322,7 @@ JMC 打开 `.jfr` 文件后，左侧 "Rule Results" 中自动标记了问题：
 
 将字符串拼接改为预分配的 `StringBuilder`，减少临时对象分配。再次录制确认 CPU 和 GC 均有改善。
 
----
-
-## 6.7 工具选择指南
+## 7. 工具选择指南
 
 遇到问题时，选对工具能事半功倍：
 
@@ -351,7 +337,7 @@ JMC 打开 `.jfr` 文件后，左侧 "Rule Results" 中自动标记了问题：
 | 综合性能分析 | JFR（持续录制） | JMC 可视化分析 |
 | CodeCache 问题 | `jstat -compiler` | `-Xlog:compilation*` |
 
-### 端到端排查案例：接口变慢
+### 7.1 端到端排查案例：接口变慢
 
 **现象：** 某个 API 接口从 200ms 降到 3 秒。
 
@@ -394,9 +380,7 @@ jad com.example.ReportGenerator
 
 将 `ArrayList` 改为请求级局部变量，或添加清理逻辑。修复后部署，用 `jstat` 确认老年代使用率稳定，Full GC 消失。
 
----
-
-## 6.8 JVM 核心参数速查
+## 8. JVM 核心参数速查
 
 | 类别 | 参数 | 说明 |
 |------|------|------|
@@ -411,9 +395,7 @@ jad com.example.ReportGenerator
 | Metaspace | `-XX:MaxMetaspaceSize=256m` | 限制 Metaspace 大小 |
 | 压缩指针 | `-XX:+UseCompressedOops` | 64 位 JVM 默认开启 |
 
----
-
-## 6.9 实战案例集
+## 9. 实战案例集
 
 以上内容是诊断工具和方法的速查手册。以下案例集从生产环境真实事故中精挑细选，每个案例都包含完整的事故背景、排查链路、根因定位和修复验证：
 
@@ -432,8 +414,6 @@ jad com.example.ReportGenerator
   - 索引热更新的 Survivor 复制风暴 —— 500MB 对象在新生代来回搬家
   - SafePoint 同步延迟 —— GC 只花了 0.14 秒，线程却停了 2.26 秒
   - Log4j2 + PretenureSizeThreshold 组合技 —— 2MB 的"日志炸弹"直冲老年代
-
----
 
 > 第二卷到此结束。从字节码 → 类加载 → 内存模型 → 对象模型 → GC → JIT → 线上排查，读者已经建立起 Java 代码从源码到机器执行的完整心智模型。
 >

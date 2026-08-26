@@ -84,7 +84,7 @@ checkpoints.topic.replication.factor=1
 
 ## 7. 跨集群复制场景
 
-### 场景1：跨数据中心复制
+### 7.1 场景1：跨数据中心复制
 ```properties
 # 配置双向复制
 east->west.enabled=true
@@ -94,7 +94,7 @@ west->east.enabled=true
 replication.policy.class=org.apache.kafka.connect.mirror.DefaultReplicationPolicy
 ```
 
-### 场景2：灾难恢复
+### 7.2 场景2：灾难恢复
 ```properties
 # 配置单向复制（主集群 → 灾备集群）
 primary->backup.enabled=true
@@ -104,7 +104,7 @@ backup->primary.enabled=false
 # 激活灾备时，切换生产者到灾备集群
 ```
 
-### 场景3：数据迁移
+### 7.3 场景3：数据迁移
 ```properties
 # 从旧集群迁移到新集群
 old->new.enabled=true
@@ -139,7 +139,7 @@ curl -s http://localhost:8083/connectors/east->west.MirrorSourceConnector/status
 | LinkedIn Brooklin | LinkedIn 开发，实时复制 | 实时数据管道 |
 | Confluent Replicator | 商业版，支持更多功能 | 企业级复制 |
 
-## 最佳实践
+## 10. 最佳实践
 
 1. **使用 MirrorMaker2**：官方推荐，功能完善，社区活跃。
 2. **监控复制延迟**：确保灾备集群的数据与主集群保持同步。

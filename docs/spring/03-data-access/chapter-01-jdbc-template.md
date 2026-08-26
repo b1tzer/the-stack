@@ -1,10 +1,10 @@
-# 第5章 Spring 整合数据访问
+# Spring 整合数据访问
 
 > 独立使用 MyBatis，20 行模板代码：创建 SqlSessionFactory、获取 SqlSession、获取 Mapper、执行 SQL、处理异常、关闭 SqlSession。整合 Spring 后，一个 `@Autowired UserMapper mapper` 就够了，其余全部消失。Spring 到底对 MyBatis 做了什么，让 Mapper 接口可以直接注入、事务自动生效、缓存行为发生变化？
 
-## 5.1 核心问题：独立 vs 整合
+## 1. 核心问题：独立 vs 整合
 
-### 5.1.1 独立使用 MyBatis 的完整流程
+### 1.1 独立使用 MyBatis 的完整流程
 
 在没有 Spring 的情况下，使用 MyBatis 需要手动完成每一步：
 
@@ -34,7 +34,7 @@ session.close();
 
 每一个步骤都不能省略，每一步都可能出错（忘记关闭、忘记提交、异常时未回滚）。
 
-### 5.1.2 Spring 整合后的使用方式
+### 1.2 Spring 整合后的使用方式
 
 ```java
 @Service
@@ -51,7 +51,7 @@ public class UserService {
 }
 ```
 
-### 5.1.3 核心差异对比
+### 1.3 核心差异对比
 
 | 维度 | 独立 MyBatis | Spring 整合后 |
 |------|-------------|--------------|
@@ -89,9 +89,9 @@ Spring 整合后流程：
                     └──────────────┘  └──────────────┘
 ```
 
-## 5.2 @MapperScan 原理
+## 2. @MapperScan 原理
 
-### 5.2.1 没有 @MapperScan 时的问题
+### 2.1 没有 @MapperScan 时的问题
 
 MyBatis 的 Mapper 接口没有 `@Component` 注解，Spring 默认不会扫描它们。如果不做任何配置，直接 `@Autowired UserMapper` 会报错：
 
@@ -110,7 +110,7 @@ public interface UserMapper {
 
 但当项目有几十上百个 Mapper 时，逐个添加注解非常繁琐。`@MapperScan` 就是为了解决批量注册的问题。
 
-### 5.2.2 @MapperScan 的使用
+### 2.2 @MapperScan 的使用
 
 ```java
 @SpringBootApplication
@@ -124,7 +124,7 @@ public class MyApplication {
 
 一行注解，`com.example.mapper` 包下的所有接口都会被注册为 Spring Bean。
 
-### 5.2.3 源码解析：三步完成 Mapper 注册
+### 2.3 源码解析：三步完成 Mapper 注册
 
 `@MapperScan` 的核心流程分为三步：
 
@@ -174,7 +174,7 @@ public class MapperFactoryBean<T> extends SqlSessionDaoSupport
 
 ![spring-mybatis-integration](/spring/spring-mybatis-integration.svg)
 
-### 5.2.4 MapperProxy 的本质
+### 2.4 MapperProxy 的本质
 
 MyBatis 的 Mapper 接口并没有实现类。`getMapper()` 返回的是一个 **JDK 动态代理**对象：
 
@@ -201,9 +201,9 @@ public class MapperProxy<T> implements InvocationHandler {
 
 这就是为什么 Mapper 接口不需要实现类——每一次方法调用都被代理拦截，转化为 SQL 执行。
 
-## 5.3 SqlSessionTemplate
+## 3. SqlSessionTemplate
 
-### 5.3.1 DefaultSqlSession 的问题
+### 3.1 DefaultSqlSession 的问题
 
 MyBatis 默认的 `DefaultSqlSession` 有一个致命问题：**非线程安全**。
 
@@ -222,7 +222,7 @@ public class DefaultSqlSession implements SqlSession {
 - `dirty` 标记被并发修改，事务状态不确定
 - 缓存操作不是线程安全的
 
-### 5.3.2 SqlSessionTemplate 的设计
+### 3.2 SqlSessionTemplate 的设计
 
 Spring 提供的 `SqlSessionTemplate` 实现了 `SqlSession` 接口，同时实现了 `DisposableBean`。它的核心设计是：
 
@@ -282,7 +282,7 @@ private class SqlSessionInterceptor implements InvocationHandler {
 }
 ```
 
-### 5.3.3 对比总结
+### 3.3 对比总结
 
 | 特性 | DefaultSqlSession | SqlSessionTemplate |
 |------|-------------------|-------------------|
@@ -305,9 +305,9 @@ Thread-3 ──→ [SqlSession C] ──→ 正常执行 → 自动关闭
             （每次调用获取新 Session，互不干扰）
 ```
 
-## 5.4 一级缓存"失效"的真相
+## 4. 一级缓存"失效"的真相
 
-### 5.4.1 一级缓存的基本原理
+### 4.1 一级缓存的基本原理
 
 MyBatis 的一级缓存是 SqlSession 级别的缓存。在同一个 SqlSession 中，执行相同的查询会命中缓存：
 
@@ -322,7 +322,7 @@ User user2 = mapper.selectById(1L);  // 命中一级缓存，不查数据库
 System.out.println(user1 == user2);  // true，同一个对象
 ```
 
-### 5.4.2 Spring 中一级缓存"失效"的困惑
+### 4.2 Spring 中一级缓存"失效"的困惑
 
 很多开发者在 Spring 中发现一级缓存"不生效"了：
 
@@ -343,7 +343,7 @@ public class UserService {
 
 两次查询之间没有更新操作，按理说第二次应该命中缓存，但实际上每次都查了数据库。这是为什么？
 
-### 5.4.3 原因分析：SqlSession 的生命周期
+### 4.3 原因分析：SqlSession 的生命周期
 
 答案在于 `SqlSessionTemplate` 的设计。回顾前面的拦截器代码：
 
@@ -365,7 +365,7 @@ try {
 
 所以两次 `selectById` 使用的是不同的 SqlSession，缓存自然无法命中。
 
-### 5.4.4 加上 @Transactional 后的变化
+### 4.4 加上 @Transactional 后的变化
 
 ```java
 @Service
@@ -412,7 +412,7 @@ public class UserService {
     └── closeSqlSession()    → 关闭 SqlSession-1
 ```
 
-### 5.4.5 Spring 的设计选择
+### 4.5 Spring 的设计选择
 
 这不是 Bug，而是 Spring 的 **刻意设计**。理由如下：
 
@@ -449,7 +449,7 @@ public class UserService {
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 5.4.6 实践建议
+### 4.6 实践建议
 
 | 场景 | 建议 |
 |------|------|

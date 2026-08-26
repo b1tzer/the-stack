@@ -69,7 +69,6 @@ PUT /_ilm/policy/my-policy
 }
 ```
 
----
 ## 4. Reindex（重建索引）
 
 当需要修改 Mapping（如字段类型变更）时，需要通过 Reindex 重建索引：

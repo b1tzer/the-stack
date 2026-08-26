@@ -19,7 +19,7 @@ Client → Coordinating Node → Primary Shard
                             Replica Shard 2
 ```
 
-### 同步写入流程
+### 2.1 同步写入流程
 
 1. 客户端发送写入请求到协调节点
 2. 协调节点路由到主分片

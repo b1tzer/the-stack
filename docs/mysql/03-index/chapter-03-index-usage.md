@@ -124,4 +124,3 @@ SELECT * FROM users USE INDEX(idx_name) WHERE name = '张三';
 4. **OR 条件确保两边都有索引** — 或改用 UNION
 5. **定期用 EXPLAIN 验证关键查询** — 确保索引被正确使用
 
----

@@ -1,10 +1,10 @@
-# 第7章 分布式系统治理
+# 分布式系统治理
 
 > 当单体应用拆分为数十个微服务后，配置散落各处、一个服务故障引发雪崩、流量突增时系统瘫痪、请求链路如同黑盒——这些是分布式系统必须直面的治理难题。本章将系统讲解配置中心、服务容错、限流降级和链路追踪四大核心治理手段，让你的微服务集群从"能跑"走向"可控"。
 
-## 7.1 配置中心（Nacos Config + @RefreshScope 热更新）
+## 1. 配置中心（Nacos Config + @RefreshScope 热更新）
 
-### 7.1.1 为什么需要配置中心
+### 1.1 为什么需要配置中心
 
 在单体时代，配置通常写在 `application.yml` 里，改一次重启一下就行。但微服务架构下，几十个服务实例分散在不同机器上，手动修改配置文件既低效又危险：
 
@@ -17,7 +17,7 @@
 
 配置中心的核心价值：**集中管理、动态生效、版本回滚、环境隔离**。
 
-### 7.1.2 Nacos Config 架构
+### 1.2 Nacos Config 架构
 
 Nacos（Naming and Configuration Service）是阿里巴巴开源的服务发现与配置管理平台。其配置中心的工作流程如下：
 
@@ -38,7 +38,7 @@ Nacos（Naming and Configuration Service）是阿里巴巴开源的服务发现�
 
 Nacos 使用**长轮询（Long Polling）**机制：客户端每隔 30 秒向服务端发起请求，服务端会 hold 住连接直到配置变更或超时。这样既避免了推送的连接维护成本，又比短轮询更及时。
 
-### 7.1.3 Spring Boot 集成 Nacos Config
+### 1.3 Spring Boot 集成 Nacos Config
 
 **第一步：引入依赖**
 
@@ -110,7 +110,7 @@ public class OrderController {
 }
 ```
 
-### 7.1.4 @RefreshScope 的工作原理
+### 1.4 @RefreshScope 的工作原理
 
 `@RefreshScope` 是 Spring Cloud 提供的注解，其本质是将 Bean 的作用域设为 `refresh`：
 
@@ -133,7 +133,7 @@ ContextRefresher.refresh()
 - 只有通过 `@Value` 和 `@ConfigurationProperties` 绑定的属性才会刷新
 - 如果 Bean 被其他 Bean 以字段注入方式引用，刷新后引用方拿到的仍是旧对象，建议配合 `@Lazy` 或方法注入使用
 
-### 7.1.5 配置的 Namespace / Group / Data ID 三层结构
+### 1.5 配置的 Namespace / Group / Data ID 三层结构
 
 Nacos 用三层结构组织配置，适合多团队、多环境的管理需求：
 
@@ -151,9 +151,9 @@ Namespace（命名空间）── 通常按环境划分：dev / test / prod
             └── Data ID: common-datasource.yml
 ```
 
-## 7.2 服务容错（超时 / 重试 / 熔断）
+## 2. 服务容错（超时 / 重试 / 熔断）
 
-### 7.2.1 分布式系统中的级联故障
+### 2.1 分布式系统中的级联故障
 
 在微服务调用链中，任何一个节点出问题都可能引发连锁反应：
 
@@ -177,7 +177,7 @@ Namespace（命名空间）── 通常按环境划分：dev / test / prod
 
 这就是**级联故障（Cascading Failure）**，也叫雪崩效应。服务容错的核心目标：**阻止故障扩散，保护系统整体可用性**。
 
-### 7.2.2 三大容错策略对比
+### 2.2 三大容错策略对比
 
 | 策略 | 含义 | 适用场景 | 风险 |
 |------|------|---------|------|
@@ -185,7 +185,7 @@ Namespace（命名空间）── 通常按环境划分：dev / test / prod
 | **重试（Retry）** | 调用失败后按策略重新发起请求 | 网络抖动、瞬时故障 | 重试放大效应：下游已过载，重试反而加重负担 |
 | **熔断（Circuit Breaker）** | 检测到下游故障率超过阈值后，短时间直接拒绝请求 | 下游服务不稳定或不可用 | 熔断恢复时机不当可能导致反复熔断 |
 
-### 7.2.3 超时设置原则
+### 2.3 超时设置原则
 
 ```java
 // Feign 客户端超时配置
@@ -218,7 +218,7 @@ public class FeignConfig {
 
 建议：**逐层递减超时**。Gateway 层 10s → OrderService 8s → PaymentService 5s → AccountService 3s。这样每层都能在上游超时前返回。
 
-### 7.2.4 重试策略设计
+### 2.4 重试策略设计
 
 ```java
 // Spring Retry 示例
@@ -257,7 +257,7 @@ public class RetryConfig {
 2. **指数退避 + 随机抖动**：避免所有客户端同时重试形成"惊群效应"
 3. **限制重试次数**：通常 2~3 次，超过则快速失败
 
-### 7.2.5 熔断器状态机
+### 2.5 熔断器状态机
 
 熔断器（Circuit Breaker）是容错的核心机制，其工作状态可以用一个三态状态机描述：
 
@@ -288,9 +288,9 @@ public class RetryConfig {
 | OPEN | 直接拒绝所有请求，返回降级响应 | 失败率超过阈值（如 50%） |
 | HALF-OPEN | 放行少量探测请求，检验下游是否恢复 | OPEN 状态持续一段时间后自动进入 |
 
-## 7.3 限流与降级（Sentinel）
+## 3. 限流与降级（Sentinel）
 
-### 7.3.1 Sentinel 核心概念
+### 3.1 Sentinel 核心概念
 
 Sentinel 是阿里巴巴开源的流量治理组件，其核心功能可以概括为四个方面：
 
@@ -301,7 +301,7 @@ Sentinel 是阿里巴巴开源的流量治理组件，其核心功能可以概�
 | **热点参数限流** | 针对请求中的热点参数做精细化限流 | 商品 ID=1001 访问量过大，单独限制 |
 | **系统自适应保护** | 根据系统负载（CPU、RT、QPS）自适应调整流量 | 系统 CPU 超过 80% 时自动降低入口流量 |
 
-### 7.3.2 流量控制规则
+### 3.2 流量控制规则
 
 ```java
 // 代码方式定义流控规则
@@ -332,7 +332,7 @@ Sentinel 提供四种流控效果：
 | 排队等待 | 匀速通过，多余的请求排队，超时则丢弃 |
 | 关联限流 | 当关联资源的 QPS 超过阈值时，限制当前资源 |
 
-### 7.3.3 热点参数限流
+### 3.3 热点参数限流
 
 热点参数限流可以针对请求参数中的特定值做精细化控制：
 
@@ -367,7 +367,7 @@ public void initParamFlowRules() {
 - 访问 `/product/1001`（热门商品）：允许 200 QPS
 - 访问其他商品：只允许 50 QPS
 
-### 7.3.4 熔断降级规则
+### 3.4 熔断降级规则
 
 ```java
 @PostConstruct
@@ -390,7 +390,7 @@ public void initDegradeRules() {
 }
 ```
 
-### 7.3.5 系统自适应保护
+### 3.5 系统自适应保护
 
 系统自适应保护不需要为每个资源配置规则，而是从全局视角保护系统：
 
@@ -408,9 +408,9 @@ public void initSystemRules() {
 }
 ```
 
-## 7.4 分布式链路追踪
+## 4. 分布式链路追踪
 
-### 7.4.1 为什么需要链路追踪
+### 4.1 为什么需要链路追踪
 
 一个用户请求在微服务架构中可能经过 5~10 个服务，当请求变慢或出错时，如何快速定位问题发生在哪个环节？
 
@@ -426,7 +426,7 @@ public void initSystemRules() {
 
 没有链路追踪时，排查方式是逐个查看每个服务的日志，用时间戳和关键词去关联——在几十个服务、数百个实例中，这几乎是不可能完成的任务。
 
-### 7.4.2 TraceID 与 Span 模型
+### 4.2 TraceID 与 Span 模型
 
 分布式链路追踪的核心数据模型由 Google Dapper 论文提出：
 
@@ -473,7 +473,7 @@ public class Span {
 }
 ```
 
-### 7.4.3 SkyWalking Java Agent 无侵入追踪
+### 4.3 SkyWalking Java Agent 无侵入追踪
 
 SkyWalking 是 Apache 基金会的顶级项目，其最大优势是**无侵入**——不需要在业务代码中添加任何追踪代码，通过 Java Agent 在字节码层面自动埋点。
 
@@ -524,7 +524,7 @@ java -javaagent:/path/skywalking-agent.jar \
 | 消息队列 | RocketMQ、Kafka、RabbitMQ |
 | 定时任务 | Spring @Scheduled、Quartz |
 
-### 7.4.4 TraceID 传递与日志关联
+### 4.4 TraceID 传递与日志关联
 
 为了让链路追踪真正发挥作用，需要将 TraceID 注入日志，这样在排查问题时可以：
 
@@ -549,7 +549,7 @@ SkyWalking Agent 会自动将 TraceID 注入 MDC（Mapped Diagnostic Context）�
 
 三条日志通过 `TID:abc-123-def` 关联起来，即使它们分散在不同服务器上，也能通过 TraceID 一键检索。
 
-## 本章小结
+## 5. 本章小结
 
 | 治理手段 | 核心目标 | 代表技术 |
 |---------|---------|---------|

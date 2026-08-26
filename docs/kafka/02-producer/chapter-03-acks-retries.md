@@ -110,7 +110,7 @@ producer.send(record, (metadata, exception) -> {
 });
 ```
 
-## 最佳实践
+## 9. 最佳实践
 
 1. **生产环境必须开启幂等性**：`enable.idempotence=true`，几乎没有性能损耗，但能避免重复消息。
 2. **不要设置 retries=0**：除非你明确知道后果。网络抖动是常态，重试是必要的。

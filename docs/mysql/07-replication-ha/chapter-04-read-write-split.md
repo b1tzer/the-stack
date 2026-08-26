@@ -174,4 +174,3 @@ public class OrderService {
 4. **读写分离中间件选择** — ProxySQL（运维友好）> ShardingSphere（Java 生态）> MySQL Router（官方）
 5. **从库数量合理** — 2-3 个从库即可满足大多数场景
 
----

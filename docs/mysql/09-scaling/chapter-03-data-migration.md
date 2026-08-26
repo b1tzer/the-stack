@@ -158,4 +158,3 @@ SELECT COUNT(*) FROM orders WHERE created_at > '2024-01-01';
 6. **监控迁移进度** — 确保迁移正常完成
 7. **切换前停止写入** — 避免数据不一致
 
----

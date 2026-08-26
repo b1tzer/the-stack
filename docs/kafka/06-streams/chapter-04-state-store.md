@@ -139,7 +139,7 @@ public class StreamsQueryController {
 }
 ```
 
-## 最佳实践
+## 8. 最佳实践
 
 1. **为状态存储指定有意义的名称**：便于调试和交互式查询。
 2. **合理使用缓存**：`withCachingEnabled()` 可以减少 Changelog Topic 的写入频率。

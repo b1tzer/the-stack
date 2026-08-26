@@ -56,7 +56,6 @@ GET /my-index/_search
 }
 ```
 
----
 ## 5. weighted_avg 聚合（加权平均）
 
 ```json

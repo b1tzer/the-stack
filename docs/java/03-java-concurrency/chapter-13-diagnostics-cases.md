@@ -2,15 +2,13 @@
 
 > 凌晨两点，定时对账任务准时启动。下单服务突然卡死——接口 RT 从 200ms 暴涨到 20 秒，所有下单请求无响应。`jstack` 一跑——死锁。下单线程和对账线程互相拿着对方要的锁，四条锁交叉成一个环。重启恢复，第二天同一时间再次触发。另一家大促现场，优惠券服务也挂了——2000 任务的队列满了，CallerRunsPolicy 把 Tomcat 的 IO 线程全占死，网关层 504。还有个调度系统，`ConcurrentHashMap` 里同一个 Task 对象存了 3 份——因为 `setStatus()` 改了 hashCode。并发 bug 最残酷的地方在于：它不靠逻辑犯错，靠时间犯错。升级到 JDK 21 虚拟线程后，压测吞吐从 5000 跌到 800——`synchronized` 把虚拟线程钉在了 carrier 上。另一台机器，`CompletableFuture` + DiscardPolicy 静默丢弃了 `FutureTask`，`allOf().join()` 永远等不到结果。还有线程池 core=max+无界队列——maxPoolSize 永远不触发。迁移到虚拟线程后，某个凌晨 3 点整个服务突然无响应——所有 carrier 线程都被 pin 住，虚拟线程调度器静默死锁，任何常规监控都无法发现。以及 RestTemplate 没有 `readTimeout`——下游挂了 10 秒，整个系统瘫痪 3 小时。
 
----
+## 1. 案例 1：对账与下单的死锁 —— 两个团队，两个锁序
 
-## 案例 1：对账与下单的死锁 —— 两个团队，两个锁序
-
-### 事故背景
+### 1.1 事故背景
 
 这是一个真实线上事故。某电商平台的订单服务日常运行稳定，但连续两天凌晨 2:00 定时对账任务启动后，订单服务就突然卡死——接口 RT 从 200ms 暴涨到 20s+，用户反馈"点了下单没反应"。CPU 使用率只有 8%，但线程数飙到 400+——经典死锁信号。第一次值班同事手快重启了服务，现场丢了，白白多等了两个小时等它复现。第二天同一时间问题再次出现，这次没人敢重启了，先 dump。
 
-### 第一步：jstack 取证
+### 1.2 第一步：jstack 取证
 
 ```bash
 jstack <pid> > thread.dump
@@ -43,7 +41,7 @@ Java stack information for the threads listed above:
 
 `jstack` 直接给出了答案：两条线程互相等待对方持有的锁——下单线程拿着 `orderLock` 等 `stockLock`，对账线程拿着 `stockLock` 等 `orderLock`。
 
-### 第二步：看代码 —— 两个团队，两个锁序
+### 1.3 第二步：看代码 —— 两个团队，两个锁序
 
 顺着 jstack 给出的行号找到代码。下单业务和对账任务分属两个开发组维护：
 
@@ -116,7 +114,7 @@ public class ReconciliationService {
 
 两个团队各自独立开发，没人注意到对方的锁顺序。当对账任务在凌晨 2:00 启动，恰好与还活着的下单线程并发执行——死锁的四个条件齐了。
 
-### 第三步：死锁的形成机制
+### 1.4 第三步：死锁的形成机制
 
 当凌晨 2:00 对账任务启动，`reconciliation-thread` 遍历订单列表时，恰好与还在处理实时下单请求的 `order-process-thread` 在锁边界上撞车：
 
@@ -127,7 +125,7 @@ public class ReconciliationService {
 
 死锁一旦形成，不会自动解开。下单线程和对账线程都永久卡住，后续所有调用 `createOrder` 的请求也会在 `orderLock` 上排队阻塞。最终整个订单服务的下单路径全部挂起。
 
-### 修复：两管齐下
+### 1.5 修复：两管齐下
 
 **第一，统一锁顺序（治本）。** 两个团队对齐，所有方法统一按 `orderLock → stockLock` 获取。一旦锁顺序全局一致，循环等待不可能形成：
 
@@ -188,7 +186,7 @@ public void reconcileOrder() {
 
 **第三，代码审查规约。** 团队在 CR 检查清单里加了一条："多锁场景，锁获取顺序是否全局一致？不一致直接打回。"
 
-### 总结
+### 1.6 总结
 
 | 信号 | 含义 | 工具 |
 |------|------|------|
@@ -200,11 +198,9 @@ public void reconcileOrder() {
 
 **教训：** 任何涉及多把锁的方法，必须定义全局统一的加锁顺序（如按锁对象的 `identityHashCode` 排序），并给所有锁获取加超时。这个案例的致命组合（两个团队独立开发，锁顺序相反）在真实生产环境中反复出现——根源是跨团队协作时缺少锁资源申请的全局视图。
 
----
+## 2. 案例 2：618 的雪崩 —— CallerRunsPolicy 把 Tomcat 线程全拖下水
 
-## 案例 2：618 的雪崩 —— CallerRunsPolicy 把 Tomcat 线程全拖下水
-
-### 事故背景
+### 2.1 事故背景
 
 2024 年 618 大促，某电商优惠券领取接口。预估 QPS 2 万，线程池配置如下：
 
@@ -228,7 +224,7 @@ new ThreadPoolExecutor(
 00:35  降级为 DiscardOldestPolicy，系统恢复。总资损约 300w
 ```
 
-### 根因分析：CallerRunsPolicy 的正反馈效应
+### 2.2 根因分析：CallerRunsPolicy 的正反馈效应
 
 CallerRunsPolicy 的语义是：**当线程池满了，提交任务的线程（调用者）自己执行这个任务。** 听起来是"不丢任务"的好策略。但在高并发 Web 场景下，调用者就是 Tomcat 的 IO 线程（`http-nio-8080-exec-*`）。
 
@@ -256,7 +252,7 @@ CallerRunsPolicy 的语义是：**当线程池满了，提交任务的线程（�
 
 业务线程在跑（CPU 高），但 Tomcat 线程全部被 CallerRuns 占用，无法接收新请求。
 
-### 修复：重新设计线程池
+### 2.3 修复：重新设计线程池
 
 ```java
 // ❌ 错误配置
@@ -292,7 +288,7 @@ new ThreadPoolExecutor(
 
 **注意：`DiscardOldestPolicy` 会丢任务。** 如果你的业务不能接受任务丢失，至少要满足两个条件之一：(1) 丢失的任务有幂等重试机制；(2) 设置独立的业务线程池并通过快速失败（AbortPolicy）+ 上游重试来保证可靠。
 
-### 更根本的方案：IO 密集任务用虚拟线程
+### 2.4 更根本的方案：IO 密集任务用虚拟线程
 
 如果升级到 JDK 21+，直接换虚拟线程，无需池化、无需拒绝策略：
 
@@ -306,7 +302,7 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 
 详见第 12 章虚拟线程的原理。
 
-### 总结
+### 2.5 总结
 
 | 问题 | 根因 | 修复方向 |
 |------|------|---------|
@@ -315,15 +311,13 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 | 重启无效 | 配置未变 | 修复配置后再部署；紧急降级用 DiscardOldest |
 | 正反馈放大 | 超时重试 + 用户刷新 | 上游限流 + 快速失败 |
 
----
+## 3. 案例 3：ConcurrentHashMap 去重失效 —— 可变 key 的 hashCode 陷阱
 
-## 案例 3：ConcurrentHashMap 去重失效 —— 可变 key 的 hashCode 陷阱
-
-### 事故背景
+### 3.1 事故背景
 
 某任务调度系统，主线程定时从数据库读取未完成的任务，存入 `ConcurrentHashMap` 做**去重**——如果任务已在处理中，就不重复提交。结果线上频繁 OOM。排查发现：同一个 Task 对象在 `ConcurrentHashMap` 里存了 3 份，等于同一任务被调度了 3 次。
 
-### 第一步：复现
+### 3.2 第一步：复现
 
 ```java
 @Data  // Lombok: 生成 getter/setter/equals/hashCode（基于所有字段）
@@ -359,7 +353,7 @@ taskDao.update(task);
 runningTasks.put(task, true);  // 去重失败！同一个 Task 存了第二份
 ```
 
-### 第二步：看 ConcurrentHashMap 的 key 定位逻辑
+### 3.3 第二步：看 ConcurrentHashMap 的 key 定位逻辑
 
 JDK 8 `ConcurrentHashMap.putVal()` 的关键代码：
 
@@ -377,7 +371,7 @@ for (Node<K,V> f = tabAt(tab, i); f != null; f = f.next) {
 
 同一把钥匙（Task id=1），因为 hashCode 变了，落到了不同的桶。`ConcurrentHashMap` 用 hash 值做快速过滤——hash 不等，直接跳过，根本不会调 `equals`。所以即使 `equals` 认为它们是同一个对象，也无济于事。
 
-### 第三步：修复
+### 3.4 第三步：修复
 
 **根因：可变字段参与了 hashCode 计算。** 修复方案 —— 重写 `hashCode` 和 `equals`，只用不变的字段（id）：
 
@@ -403,14 +397,14 @@ public class Task {
 
 修复后，同一个 Task（id=1）无论 status 怎么变，hashCode 始终一致，`ConcurrentHashMap` 的去重能力恢复正常。
 
-### 延伸：这不是 ConcurrentHashMap 的 bug
+### 3.5 延伸：这不是 ConcurrentHashMap 的 bug
 
 `ConcurrentHashMap` 的文档明确写了：它是线程安全的，但**不保证复合操作的原子性**，且 **key 的 equals/hashCode 必须稳定**。这是使用者必须遵守的契约，不是容器的 bug。
 
 类似的陷阱还包括：
 - `HashSet` / 任何依赖 `hashCode` 的容器都有这个问题
 
-### 总结
+### 3.6 总结
 
 | 症状 | 根因 | 修复 |
 |------|------|------|
@@ -421,15 +415,13 @@ public class Task {
 
 **教训：** 可变对象作为 Map 的 key = 定时炸弹。代码审查里如果看到 `Map<某可变对象, ...>`，直接问一句："这个对象的 hashCode 会不会变？" 如果答案是"会"——别让它做 key。
 
----
+## 4. 案例 4：虚拟线程 pinning —— 同步锁让 5000 QPS 跌到 800
 
-## 案例 4：虚拟线程 pinning —— 同步锁让 5000 QPS 跌到 800
-
-### 事故背景
+### 4.1 事故背景
 
 2025 年，某视频流媒体处理团队将核心服务从 JDK 17 升级到 JDK 21，并将 `ExecutorService` 替换为 `Executors.newVirtualThreadPerTaskExecutor()`。升级前压测吞吐 5000 QPS，升级后跌到 800。CPU 使用率 40%，但请求延迟暴涨。日志里没有任何异常，监控看起来一切正常——但就是变慢了。
 
-### 第一步：JFR 揪出看不见的瓶颈
+### 4.2 第一步：JFR 揪出看不见的瓶颈
 
 ```bash
 # 启动 60 秒 JFR 录制，关注虚拟线程事件
@@ -457,7 +449,7 @@ jdk.VirtualThreadPinned {
 
 几千个 `VirtualThreadPinned` 事件，全部指向 `HikariPool.getConnection()`。
 
-### 第二步：为什么 pinning 导致吞吐暴跌？
+### 4.3 第二步：为什么 pinning 导致吞吐暴跌？
 
 虚拟线程的工作原理：JDK 21 默认 `parallelism = CPU 核数` 个 **carrier 线程**（平台线程），海量虚拟线程在这少数几个 carrier 上被调度。虚拟线程遇到 I/O 阻塞时，JVM 自动将其从 carrier 上**卸载**，carrier 线程去执行其他就绪的虚拟线程。这就是虚拟线程能给高 IO 并发带来质变的原因。
 
@@ -471,7 +463,7 @@ jdk.VirtualThreadPinned {
 
 这就是吞吐从 5000 跌到 800 的数学解释。
 
-### 第三步：修复
+### 4.4 第三步：修复
 
 **方案 A（治本）：升级 HikariCP 到 5.1.0+**
 
@@ -521,7 +513,7 @@ public void processVideo(VideoRequest req) {
 
 JDK 24 的 JEP 491 消除了 `synchronized` 的 pinning 问题。JDK 25 LTS 将于 2025 年 9 月发布。
 
-### 诊断信号
+### 4.5 诊断信号
 
 | 信号 | 工具 | 含义 |
 |------|------|------|
@@ -530,7 +522,7 @@ JDK 24 的 JEP 491 消除了 `synchronized` 的 pinning 问题。JDK 25 LTS 将�
 | 大量虚拟线程 `WAITING`、carrier 全部 `RUNNABLE` | `jcmd Thread.print` | carrier 被占满 |
 | `-Djdk.tracePinnedThreads=full` 输出 | JVM 参数 | JDK 21-23 可用，JDK 24+ 已移除 |
 
-### 总结
+### 4.6 总结
 
 虚拟线程不是"开了就快"的银弹。它的调度优势建立在"非 pinning 的阻塞操作"上。pinning 场景包括：
 - `synchronized` 块内的阻塞 I/O（JDK 21-23）
@@ -539,15 +531,13 @@ JDK 24 的 JEP 491 消除了 `synchronized` 的 pinning 问题。JDK 25 LTS 将�
 
 排查节奏：先看 JFR `VirtualThreadPinned` 事件 → 定位代码位置 → 判断框架是否可升级 → 不可升级则用 Semaphore 限流或把阻塞操作移到平台线程池。
 
----
+## 5. 案例 5：CompletableFuture + DiscardPolicy —— 静默丢弃任务导致永久阻塞
 
-## 案例 5：CompletableFuture + DiscardPolicy —— 静默丢弃任务导致永久阻塞
-
-### 事故背景
+### 5.1 事故背景
 
 某合同流程引擎服务，上线后偶尔出现"所有接口全部超时，必须重启才能恢复"的问题。监控显示 CPU 和内存都正常，但 `jstack` 显示 200 个 Tomcat 线程全部 `WAITING` 在 `CompletableFuture.join()`。
 
-### 第一步：线程栈显示了什么
+### 5.2 第一步：线程栈显示了什么
 
 ```bash
 jstack <pid> > thread.dump
@@ -567,7 +557,7 @@ jstack <pid> > thread.dump
 
 全部 WAITING 在 `CompletableFuture.join()`。说明这些 `Future` 的结果永远不会回来。
 
-### 第二步：看代码
+### 5.3 第二步：看代码
 
 ```java
 @Service
@@ -600,7 +590,7 @@ public class ContractService {
 }
 ```
 
-### 第三步：重现事故链
+### 5.4 第三步：重现事故链
 
 当并发请求足够大（比如 200 个 Tomcat 线程同时调用 `processFlow`），每个请求提交多个 `CompletableFuture` 任务到 `flowExecutor`：
 
@@ -615,7 +605,7 @@ public class ContractService {
 
 `DiscardPolicy` 不抛异常、不打日志、不通知调用者。被丢弃的那个 `CompletableFuture` 就像从未来过——但它的 `join()` 还在等。
 
-### 第四步：修复
+### 5.5 第四步：修复
 
 **方案 A：改拒绝策略 + 超时**
 
@@ -675,7 +665,7 @@ public FlowResult processFlow(FlowRequest request) throws InterruptedException {
 
 `StructuredTaskScope` 的优势（详见第 12 章）：父任务不会被抛弃不管，一个子任务失败时其他子任务自动取消，整个作用域的边界清晰。
 
-### 总结：DiscardPolicy 两条禁用场景
+### 5.6 总结：DiscardPolicy 两条禁用场景
 
 | 场景 | 为什么禁用 |
 |------|----------|
@@ -685,11 +675,9 @@ public FlowResult processFlow(FlowRequest request) throws InterruptedException {
 
 **黄金法则：如果任务的结果需要被等待，永远不要用 DiscardPolicy。**
 
----
+## 6. 案例 6：线程池 core = max + 无界队列 —— maxPoolSize 永远不触发
 
-## 案例 6：线程池 core = max + 无界队列 —— maxPoolSize 永远不触发
-
-### 事故背景
+### 6.1 事故背景
 
 2025 年某定时任务服务，凌晨并发处理上千个文件。线程池参数：
 
@@ -715,7 +703,7 @@ new ThreadPoolExecutor(
 
 只有 5 个线程在跑——`maxPoolSize=10` 从未被触发。
 
-### 根因：ThreadPoolExecutor 的任务提交流程
+### 6.2 根因：ThreadPoolExecutor 的任务提交流程
 
 JDK 的 `ThreadPoolExecutor.execute()` 源码逻辑：
 
@@ -736,7 +724,7 @@ public void execute(Runnable command) {
 
 关键在第 2 步：**只要队列没满，就不会走到第 3 步创建非核心线程。** `LinkedBlockingQueue` 无界（默认 `Integer.MAX_VALUE`），队列永远不会满。因此 `maxPoolSize=10` 永远不触发。
 
-### 修复
+### 6.3 修复
 
 ```java
 new ThreadPoolExecutor(
@@ -750,7 +738,7 @@ new ThreadPoolExecutor(
 
 关键：**队列必须有界。** 用 `LinkedBlockingQueue<>(500)` 或 `ArrayBlockingQueue<>(500)`。队列满后线程池才会扩容到 maxPoolSize。
 
-### 参数配置速查
+### 6.4 参数配置速查
 
 | 业务类型 | corePoolSize | maxPoolSize | 队列容量 | 说明 |
 |---------|-------------|-------------|---------|------|
@@ -758,13 +746,13 @@ new ThreadPoolExecutor(
 | IO 密集型 | CPU 核数 | CPU × 2 | 大（1024~4096） | 线程可在等待 IO 时出让 CPU |
 | 混合型 | CPU 核数 | CPU × 1.5 | 中等（512~1024） | 按实际压测调整 |
 
-### 为什么还有人用无界队列？
+### 6.5 为什么还有人用无界队列？
 
 因为 JDK 的 `Executors.newFixedThreadPool(10)` 内部用的是 `new LinkedBlockingQueue<>()`（无界）。很多开发者直接调这个工厂方法，不知道它默认无界。阿里巴巴 Java 开发手册第 7 条明确禁止 `Executors` 工厂方法：
 
 > 【强制】线程池不允许使用 Executors 去创建，而是通过 ThreadPoolExecutor 的方式，这样的处理方式让写的同学更加明确线程池的运行规则，规避资源耗尽的风险。
 
-### 总结
+### 6.6 总结
 
 | 症状 | 根因 | 修复 |
 |------|------|------|
@@ -774,17 +762,15 @@ new ThreadPoolExecutor(
 
 **黄金法则：生产环境的线程池绝不用无界队列。** 队列容量和拒绝策略是线程池安全的两条安全带——不要自作聪明把它们拆掉。
 
----
+## 7. 案例 7：虚拟线程静默死锁 —— N 个 carrier 全部 pinning 后调度器失灵
 
-## 案例 7：虚拟线程静默死锁 —— N 个 carrier 全部 pinning 后调度器失灵
-
-### 事故背景
+### 7.1 事故背景
 
 2025 年，某团队将核心服务从 JDK 17 升到 JDK 21，将所有 `ExecutorService` 替换为 `Executors.newVirtualThreadPerTaskExecutor()`。服务运行稳定，压测数据也正常。但上线后每隔几小时服务就突然无响应——接口全部超时，`/health` 也挂了。CPU 使用率只有 5%，内存正常，GC 正常。`jstack` 看完没有死锁，日志没有异常。运维重启服务后恢复，但几小时后再次复发。
 
 这个问题在生产中反复出现，直到在 OpenJDK Bug 系统里找到 JDK-8334304，才发现这不是代码 bug——是 JVM 的行为。
 
-### 第一步：jstack 为什么看不出问题
+### 7.2 第一步：jstack 为什么看不出问题
 
 ```bash
 jstack <pid> > thread.dump
@@ -811,7 +797,7 @@ grep -c "java.lang.Thread.State" thread.dump
 
 所有 carrier 都在 `WAITING`——每个都承载着一个被 `synchronized` pinning 的虚拟线程，这些虚拟线程又在等待另一个尚未被调度的虚拟线程释放某个资源。
 
-### 第二步：真正的诊断手段 —— JFR
+### 7.3 第二步：真正的诊断手段 —— JFR
 
 传统 `jstack` 对虚拟线程不可见，需要 JFR：
 
@@ -837,7 +823,7 @@ jdk.VirtualThreadPinned {
 
 几百个 `VirtualThreadPinned` 事件，持续时间从几秒到几十分钟。这些虚拟线程被钉在了 carrier 上。
 
-### 第三步：静默死锁的机制
+### 7.4 第三步：静默死锁的机制
 
 虚拟线程的调度模型：JDK 21 默认 `parallelism = CPU 核数` 个 carrier 线程。正常情况下，虚拟线程在 I/O 阻塞时被自动从 carrier 上卸载，carrier 去跑其他就绪的虚拟线程。
 
@@ -854,7 +840,7 @@ jdk.VirtualThreadPinned {
 
 JDK-8334304 的复现代码清晰地演示了这个问题：当 `pinned VT 数量 > availableProcessors()` 时，调度器不会补偿。
 
-### 第四步：为什么会触发
+### 7.5 第四步：为什么会触发
 
 该团队使用了 MySQL Connector/J 8.0.x。这个版本的驱动内部有大量 `synchronized` 方法：
 
@@ -865,7 +851,7 @@ public synchronized boolean getAutoCommit() throws SQLException { ... }
 
 当高并发 + 数据库偶发慢查询时，虚拟线程被 pin 在 carrier 上等待 socket read——但因为 `synchronized`，无法卸载。如果 8 个 carrier 都被类似情况 pin 住，其他所有虚拟线程永远得不到调度。
 
-### 第五步：修复
+### 7.6 第五步：修复
 
 **方案 A（JDK 24+ 一劳永逸）：升级 JDK。** JDK 24 的 JEP 491 消除了 `synchronized` 的 pinning 问题。
 
@@ -879,7 +865,7 @@ private static final Semaphore DB_SEMAPHORE = new Semaphore(4); // 小于 carrie
 
 **方案 D（运营排查期）：** 临时增加 carrier 数 `-Djdk.virtualThreadScheduler.parallelism=32`。
 
-### 总结
+### 7.7 总结
 
 | 信号 | 含义 | 工具 |
 |------|------|------|
@@ -890,17 +876,15 @@ private static final Semaphore DB_SEMAPHORE = new Semaphore(4); // 小于 carrie
 
 **教训：** 虚拟线程的 pinning 和死锁在常规监控中完全不可见。唯一的诊断窗口是 JFR 的 `jdk.VirtualThreadPinned` 事件。迁移到虚拟线程前，必须确保第三方库不依赖 `synchronized` + 阻塞操作的组合。
 
----
+## 8. 案例 8：RestTemplate 无超时 —— 一个下游挂了 10 秒，整个系统瘫痪 3 小时
 
-## 案例 8：RestTemplate 无超时 —— 一个下游挂了 10 秒，整个系统瘫痪 3 小时
-
-### 事故背景
+### 8.1 事故背景
 
 2025 年某支付系统，订单创建接口内部调用风控服务做风险校验。某天下午，风控服务因数据库故障响应变慢，10 秒后才开始出现超时报错。但这 10 秒的变慢造成了比风控服务本身故障更大的灾难——订单服务的 Tomcat 线程池被全部卡死在等风控服务返回，整个支付系统停止响应，持续了 3 小时直到手动重启。
 
 故障链路：风控服务慢 10 秒 → 支付服务的 Tomcat 线程全部卡在 `SocketInputStream.socketRead0()` → 所有接口不可用 → 用户疯狂刷新 → 更多线程卡死。
 
-### 第一步：jstack 看到什么
+### 8.2 第一步：jstack 看到什么
 
 ```bash
 jstack <pid> > thread.dump
@@ -924,7 +908,7 @@ grep "java.lang.Thread.State" thread.dump | sort | uniq -c | sort -rn
 
 `RUNNABLE` 但 CPU 低的原因是：`socketRead0` 是 Native 方法，线程实际在操作系统层面处于非忙等状态——它在等 TCP 数据到达。
 
-### 第二步：看代码
+### 8.3 第二步：看代码
 
 ```java
 @Configuration
@@ -949,7 +933,7 @@ public class RiskService {
 
 `new RestTemplate()` 底层使用 `SimpleClientHttpRequestFactory`，基于 `java.net.HttpURLConnection`。**`HttpURLConnection` 的默认超时是 `0`——表示无限等待。**
 
-### 第三步：事故链
+### 8.4 第三步：事故链
 
 ```text
 13:00  风控服务数据库故障，响应时间从 50ms → 10s
@@ -963,7 +947,7 @@ public class RiskService {
 
 **3 小时停摆。** 如果 `RestTemplate` 设置了 3 秒 `readTimeout`，10 秒后所有请求快速失败并释放线程，系统在 10 秒后恢复正常。
 
-### 第四步：修复
+### 8.5 第四步：修复
 
 ```java
 @Configuration
@@ -996,7 +980,7 @@ public class RestTemplateConfig {
 
 **不设超时 = 把服务的生死交给了下游。**
 
-### 第五步：超时之外 —— 熔断和隔离
+### 8.6 第五步：超时之外 —— 熔断和隔离
 
 ```java
 @Service
@@ -1017,7 +1001,7 @@ public class RiskService {
 }
 ```
 
-### 总结：三条防线的体系
+### 8.7 总结：三条防线的体系
 
 ```
 第一道防线：超时 —— 每次调用都有截止时间，过期不候
@@ -1025,7 +1009,7 @@ public class RiskService {
 第三道防线：隔离 —— 为不同下游分配独立线程池
 ```
 
-### 总结
+### 8.8 总结
 
 | 信号 | 含义 | 工具 |
 |------|------|------|
@@ -1035,7 +1019,5 @@ public class RiskService {
 | 重启→卡死→重启循环 | 重启不能解决问题，因为代码未变 | 降级优先于重启 |
 
 **教训：** 任何跨网络的调用，必须设置超时。没有例外。`connectTimeout`、`readTimeout`、`connectionRequestTimeout` 三个参数缺一不可。超时值的选择原则：宁可快失败也不慢等待。失败可以重试，但等待会耗尽线程。
-
----
 
 > **回到第 13 章正文：** [并发问题诊断与性能优化](./chapter-13-diagnostics)

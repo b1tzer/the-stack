@@ -7,13 +7,13 @@ title: 事务与锁机制
 
 > **核心问题**：PostgreSQL 的事务隔离级别有哪些？与 MySQL 有什么区别？PG 的锁机制有哪些类型？咨询锁是什么？
 
-## 它解决了什么问题？
+## 1. 它解决了什么问题？
 
 事务保证一组操作的原子性和一致性，锁机制保证并发操作的正确性。PG 的事务和锁机制与 MySQL 有显著差异——PG 真正实现了 Serializable 隔离级别（基于 SSI），且提供了独特的**咨询锁（Advisory Lock）**，理解这些差异对正确使用 PG 至关重要。
 
 # 一、事务隔离级别
 
-## PG 支持的隔离级别
+## 2. PG 支持的隔离级别
 
 | 隔离级别 | 脏读 | 不可重复读 | 幻读 | 序列化异常 | PG 实现方式 |
 |---------|------|-----------|------|-----------|------------|
@@ -28,7 +28,7 @@ title: 事务与锁机制
 > - PG 的 Repeatable Read **真正防止幻读**（通过快照隔离），MySQL 的 RR 只能部分防止
 > - PG 的 Serializable 基于 SSI 算法，性能远优于 MySQL 的串行化（加锁实现）
 
-## 设置隔离级别
+## 3. 设置隔离级别
 
 ```sql
 -- 设置当前事务的隔离级别
@@ -44,7 +44,7 @@ SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL READ COMMITTED;
 SHOW transaction_isolation;
 ```
 
-## SSI（Serializable Snapshot Isolation）
+## 4. SSI（Serializable Snapshot Isolation）
 
 PG 的 Serializable 隔离级别使用 SSI 算法，而非简单的加锁：
 
@@ -74,7 +74,7 @@ public void transferMoney(Long fromId, Long toId, BigDecimal amount) {
 
 # 二、锁的类型
 
-## 表级锁
+## 5. 表级锁
 
 | 锁模式 | 典型触发语句 | 与自身冲突 | 说明 |
 |--------|------------|-----------|------|
@@ -86,7 +86,7 @@ public void transferMoney(Long fromId, Long toId, BigDecimal amount) {
 
 > **与 MySQL 的区别**：PG 的表级锁更细粒度，有 8 种模式；MySQL 的表锁只有读锁和写锁两种。
 
-## 行级锁
+## 6. 行级锁
 
 ```sql
 -- FOR UPDATE：排他行锁，阻塞其他事务的 FOR UPDATE 和修改
@@ -111,7 +111,7 @@ SELECT * FROM accounts WHERE id = 1 FOR KEY SHARE;
 
 > **PG 独有的优势**：`FOR NO KEY UPDATE` 和 `FOR KEY SHARE` 是 PG 特有的细粒度行锁。外键检查使用 `FOR KEY SHARE`，不会阻塞 `FOR NO KEY UPDATE`，大幅减少了外键场景下的锁冲突。
 
-## NOWAIT 和 SKIP LOCKED
+## 7. NOWAIT 和 SKIP LOCKED
 
 ```sql
 -- NOWAIT：获取不到锁时立即报错，而非等待
@@ -128,7 +128,7 @@ ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED;
 
 咨询锁是 PG 独有的**应用层锁**，不与任何数据库对象关联，完全由应用程序控制语义。
 
-## 与普通锁的区别
+## 8. 与普通锁的区别
 
 | 对比项 | 普通锁（行锁/表锁） | 咨询锁（Advisory Lock） |
 |--------|-------------------|----------------------|
@@ -137,7 +137,7 @@ ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED;
 | 释放时机 | 事务结束自动释放 | 会话级：手动释放或会话结束；事务级：事务结束 |
 | 用途 | 保护数据一致性 | 应用层的分布式锁、防重复执行 |
 
-## 使用方式
+## 9. 使用方式
 
 ```sql
 -- 会话级咨询锁（需要手动释放）
@@ -155,7 +155,7 @@ SELECT pg_advisory_xact_lock(12345);  -- 事务结束自动释放
 COMMIT;
 ```
 
-## 实战场景
+## 10. 实战场景
 
 ```java
 // 场景1：防止定时任务重复执行（多实例部署时）
@@ -221,7 +221,7 @@ JOIN pg_stat_activity blocking ON blocking.pid = kl.pid
 WHERE NOT bl.granted;
 ```
 
-### 避免死锁的实践
+### 10.1 避免死锁的实践
 
 1. **固定加锁顺序**：多个事务操作相同的表/行时，按固定顺序加锁
 2. **缩短事务时间**：减少锁持有时间

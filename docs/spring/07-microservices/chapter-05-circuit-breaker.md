@@ -178,8 +178,6 @@ public class CircuitBreakerMonitor {
 4. **熔断阈值要根据业务调整**——不能所有服务用同一个阈值
 5. **监控是必须的**——熔断器状态、调用次数、失败率都要有监控
 
----
-
 ## 4. 熔断器状态机原理
 
 ### 4.1 三状态模型
@@ -250,8 +248,6 @@ resilience4j:
         failure-rate-threshold: 50
 ```
 
----
-
 ## 5. 熔断与降级的区别
 
 ### 5.1 概念辨析
@@ -315,8 +311,6 @@ public class OrderService {
     }
 }
 ```
-
----
 
 ## 6. Sentinel 集成
 
@@ -471,8 +465,6 @@ public void initDegradeRules() {
     DegradeRuleManager.loadRules(rules);
 }
 ```
-
----
 
 ## 7. 生产环境实战
 

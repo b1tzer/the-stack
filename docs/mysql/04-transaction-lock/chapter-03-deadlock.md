@@ -139,4 +139,3 @@ RECORD LOCKS space id 0 page no 307 n bits 72 index PRIMARY of table `mydb`.`use
 5. **开启死锁日志** — `innodb_print_all_deadlocks = ON`
 6. **监控死锁频率** — `SHOW GLOBAL STATUS LIKE 'Innodb_deadlocks';`
 
----

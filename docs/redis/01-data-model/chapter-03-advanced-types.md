@@ -1,10 +1,8 @@
-# 第3章 高级数据类型
+# 高级数据类型
 
 > 除了五种基础类型，Redis 还提供了四类高级数据类型：BitMap、HyperLogLog、Geo、Stream。它们并非全新的底层结构，而是对基础类型的巧妙封装——BitMap 与 HyperLogLog 基于 String，Geo 基于 ZSet，Stream 基于专属的 Radix Tree。
 
----
-
-## 3.1 BitMap：位操作
+## 1. BitMap：位操作
 
 BitMap 不是独立类型，而是 String 上的一组位操作命令——把 String 当作一个可以按位读写的比特数组。
 
@@ -23,9 +21,7 @@ BITOP AND dest key1 key2      # 位运算（AND/OR/XOR/NOT）
 
 **优势**：一个 bit 记录一个状态，内存效率极高。1 亿用户签到只需约 12MB 内存。
 
----
-
-## 3.2 HyperLogLog：基数统计
+## 2. HyperLogLog：基数统计
 
 HyperLogLog 用于统计「不重复元素的数量」（基数），典型场景是 UV（独立访客）统计。它基于 String，用概率算法在固定内存下估算基数。
 
@@ -47,9 +43,7 @@ PFMERGE dest uv:1 uv:2                # 合并多个 HLL
 
 > HyperLogLog 只能估算基数，不能返回具体元素。如果需要「去重后还能取出元素」，请用 Set。
 
----
-
-## 3.3 Geo：地理位置
+## 3. Geo：地理位置
 
 Geo 基于 ZSet 实现，将经纬度编码为 Geohash 分值，从而复用 ZSet 的范围查询能力。
 
@@ -68,9 +62,7 @@ GEOSEARCH cities FROMMEMBER "北京" BYRADIUS 1000 km   # 附近查询
 
 **底层原理**：Redis 用 Geohash 算法把二维坐标降维成一维字符串，再以 ZSet 的 score 存储。所以 Geo 天然继承了 ZSet 的「范围查询 O(log n)」能力。
 
----
-
-## 3.4 Stream：消息流
+## 4. Stream：消息流
 
 Stream 是 Redis 5.0 引入的专属数据类型，底层采用 Radix Tree（基数树），用于实现完整的消息队列语义。
 
@@ -93,9 +85,7 @@ XREADGROUP GROUP group1 c1 STREAMS mystream >   # 消费者组读取
 
 **对比 List 做队列**：List 的 `BLPOP` 实现的是「消费即销毁」，消息被弹出后无法回溯；Stream 的消息读取后仍保留，配合消费者组可支持 ACK 与重试，语义更接近 Kafka 这类消息系统。
 
----
-
-## 3.5 高级类型速查
+## 5. 高级类型速查
 
 | 类型 | 底层 | 核心命令 | 典型场景 | 关键限制 |
 | :-- | :-- | :-- | :-- | :-- |
@@ -104,11 +94,9 @@ XREADGROUP GROUP group1 c1 STREAMS mystream >   # 消费者组读取
 | Geo | ZSet | `GEOADD`/`GEOSEARCH` | 附近的人、配送 | 精度约 1 米 |
 | Stream | Radix Tree | `XADD`/`XREADGROUP` | 消息队列 | 需消费者组管理 |
 
----
+## 6. 实操演示：四种高级类型场景
 
-## 3.6 实操演示：四种高级类型场景
-
-### 场景一：每日签到（BitMap）
+### 6.1 场景一：每日签到（BitMap）
 
 把用户 ID 当作位偏移量，1 表示当天已签到。
 
@@ -120,7 +108,7 @@ GETBIT sign:20240101 100       # (integer) 1  用户 100 已签到
 BITCOUNT sign:20240101         # (integer) 3  当天共 3 人签到
 ```
 
-### 场景二：独立访客 UV（HyperLogLog）
+### 6.2 场景二：独立访客 UV（HyperLogLog）
 
 ```bash
 PFADD uv:20240101 user1 user2 user3 user3   # (integer) 1  重复的 user3 只记一次
@@ -132,7 +120,7 @@ PFCOUNT uv:week                              # (integer) 5
 
 > 注意 `PFCOUNT` 返回的是**估算值**（有 0.81% 误差），别拿它做精确对账。它只回答「大约多少人」，不回答「具体是谁」。
 
-### 场景三：附近的人（Geo）
+### 6.3 场景三：附近的人（Geo）
 
 ```bash
 GEOADD cities 116.40 39.90 "北京" 121.47 31.23 "上海" 113.26 23.13 "广州"
@@ -142,7 +130,7 @@ GEOSEARCH cities FROMMEMBER "北京" BYRADIUS 1500 km ASC
 # 1) "北京" 2) "上海" 3) "广州"   按距离升序
 ```
 
-### 场景四：可靠消息队列（Stream 消费者组）
+### 6.4 场景四：可靠消息队列（Stream 消费者组）
 
 Stream 解决 List 的「消费即销毁」问题，支持 ACK 与重试。先创建消费者组，再消费：
 
