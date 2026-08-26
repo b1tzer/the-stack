@@ -1,12 +1,12 @@
 # 建造者模式
 
-## 🏠 生活类比
+## 1. 🏠 生活类比
 
 点奶茶：大杯/中杯/小杯 + 去冰/少冰/正常冰 + 三分糖/五分糖/全糖 + 珍珠/椰果。
 
 你不需要记所有组合，一步步选就行。
 
-## 💩 烂代码
+## 2. 💩 烂代码
 
 ```java
 // 构造函数参数爆炸
@@ -15,7 +15,7 @@ new User("张三", 25, "zhangsan@example.com", "13800138000",
 // 谁知道第 4 个参数是啥？
 ```
 
-## ✨ 建造者模式
+## 3. ✨ 建造者模式
 
 ```java
 User user = User.builder()
@@ -29,7 +29,7 @@ User user = User.builder()
     .build();
 ```
 
-## ✨ 实现
+## 4. ✨ 实现
 
 ```java
 public class User {
@@ -58,17 +58,14 @@ public class User {
 }
 ```
 
-## 🔧 框架应用
+## 5. 🔧 框架应用
 
 - Spring: `BeanDefinitionBuilder`
 - JDK: `StringBuilder`、`Stream.Builder`
 - Lombok: `@Builder`
 
-## ⚠️ 适用场景
+## 6. ⚠️ 适用场景
 
 - 参数多（>4 个）
 - 参数可选
 - 需要不可变对象
-
----
-*原型模式 →*

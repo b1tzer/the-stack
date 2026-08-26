@@ -2,7 +2,7 @@
 
 > **一句话记忆口诀**：组合模式统一叶子和容器的接口，递归处理树形结构，文件系统和菜单树是最经典的例子。
 
-## 🏠 生活类比
+## 1. 🏠 生活类比
 
 公司组织架构：公司有多个部门，每个部门有多个员工。计算"薪资总额"时：
 
@@ -12,7 +12,7 @@
 
 无论你拿到的是"员工"还是"部门"，都可以统一调用 `getSalary()` 方法。
 
-## 💩 烂代码：到处都是 instanceof
+## 2. 💩 烂代码：到处都是 instanceof
 
 ```java
 // ❌ 反例：客户端必须区分叶子节点和容器节点
@@ -35,7 +35,7 @@ public long calculateSize(Object node) {
 
 **问题根因**：叶子节点和容器节点接口不统一，客户端必须区分处理，违反开闭原则。
 
-## ✨ 组合模式方案
+## 3. ✨ 组合模式方案
 
 ```mermaid
 classDiagram
@@ -62,7 +62,7 @@ classDiagram
     DirectoryNode o-- FileSystemNode : 包含子节点
 ```
 
-## 💻 完整代码实现
+## 4. 💻 完整代码实现
 
 ```java
 import java.util.*;
@@ -197,7 +197,7 @@ public class Main {
 }
 ```
 
-### 进阶示例：组织架构薪资计算
+### 4.1 进阶示例：组织架构薪资计算
 
 ```java
 // ===== 抽象组件 =====
@@ -279,7 +279,7 @@ System.out.println("公司总人数: " + company.headcount());     // 3
 System.out.println("公司月薪总额: " + company.calculateSalary()); // 75000
 ```
 
-## 🔧 框架应用
+## 5. 🔧 框架应用
 
 | 框架/类 | 说明 |
 |--------|------|
@@ -290,18 +290,20 @@ System.out.println("公司月薪总额: " + company.calculateSalary()); // 75000
 | Spring Security `AccessDecisionVoter` | 投票器组合 |
 | HTML DOM | Document → Element → Text Node 树形结构 |
 
-## ⚠️ 适用场景
+## 6. ⚠️ 适用场景
 
 **适合：**
+
 - 需要表示**部分-整体**的树形结构
 - 希望客户端**统一处理**单个对象和组合对象
 - 文件系统、菜单、组织架构、UI 组件树
 
 **不适合：**
+
 - 不是树形结构
 - 叶子和容器的行为差异很大，统一接口没有意义
 
-### 安全组合 vs 透明组合
+### 6.1 安全组合 vs 透明组合
 
 | 方式 | add/remove 放在哪 | 优点 | 缺点 |
 |------|------------------|------|------|
@@ -309,5 +311,3 @@ System.out.println("公司月薪总额: " + company.calculateSalary()); // 75000
 | **安全组合** | 只在容器中 | 接口干净 | 客户端需要区分类型 |
 
 > JDK 用的是**透明组合**：`java.awt.Component` 中有 `add()` 方法，叶子节点调用会抛异常。
-
-> **一句话记忆口诀**：组合模式让叶子和容器实现同一接口，递归处理树形结构，`java.awt.Container` 和文件系统是最经典的例子。

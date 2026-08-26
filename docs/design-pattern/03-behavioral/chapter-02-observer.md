@@ -9,7 +9,7 @@ title: 观察者模式（Observer Pattern）
 
 ## 1. 引入：它解决了什么问题？
 
-### 没有观察者模式时的问题
+### 1.1 没有观察者模式时的问题
 
 当一个对象状态变化需要通知多个其他对象时，直接调用会导致强耦合：
 
@@ -44,7 +44,7 @@ public class OrderService {
 2. 通知逻辑与业务逻辑混在一起，违反单一职责原则
 3. 某个通知失败会影响其他通知的执行
 
-### 工作中的典型应用场景
+### 1.2 工作中的典型应用场景
 
 | 场景 | Spring/JDK 中的例子 |
 |------|-------------------|
@@ -56,7 +56,7 @@ public class OrderService {
 
 ## 2. 类比：用生活模型建立直觉
 
-### 生活类比：微信公众号订阅
+### 2.1 生活类比：微信公众号订阅
 
 一个公众号（被观察者/Subject）发布文章时，所有订阅了该公众号的用户（观察者/Observer）都会收到推送通知。用户可以随时订阅或取消订阅，公众号不需要知道具体有哪些用户。
 
@@ -68,13 +68,13 @@ public class OrderService {
   - 具体用户（`UserA`、`UserB`）：实现接收通知的逻辑
 - **调用方**：公众号运营者（`Client`），触发文章发布
 
-### 抽象定义
+### 2.2 抽象定义
 
 > 观察者模式定义对象间的一种一对多的依赖关系，当一个对象的状态发生改变时，所有依赖于它的对象都得到通知并被自动更新。
 
 ## 3. 原理：逐步拆解核心机制
 
-### UML 类图
+### 3.1 UML 类图
 
 ```mermaid
 classDiagram
@@ -113,7 +113,7 @@ classDiagram
     note for OrderEventPublisher "Subject 维护观察者列表<br/>状态变化时逐一通知"
 ```
 
-### Java 代码示例（手动实现）
+### 3.2 Java 代码示例（手动实现）
 
 ```java
 // ===== 事件对象（携带通知数据）=====
@@ -207,7 +207,7 @@ public class Main {
 }
 ```
 
-### Spring 事件机制（工作中最常用）
+### 3.3 Spring 事件机制（工作中最常用）
 
 ```java
 // ===== Spring 事件对象 =====
@@ -256,7 +256,7 @@ public class InventoryUpdater {
 }
 ```
 
-### 核心流程图
+### 3.4 核心流程图
 
 ```mermaid
 flowchart TD
@@ -275,7 +275,7 @@ flowchart TD
 
 ## 4. 特性：关键对比
 
-### 观察者模式 vs 发布-订阅模式
+### 4.1 观察者模式 vs 发布-订阅模式
 
 | 对比维度 | 观察者模式 | 发布-订阅模式 |
 |---------|----------|------------|
@@ -284,7 +284,7 @@ flowchart TD
 | **中间层** | 无 | 有（消息中间件/事件总线） |
 | **典型例子** | JDK `Observable`、Spring `ApplicationEvent` | Kafka、RabbitMQ |
 
-### 在 Spring / JDK 中的应用
+### 4.2 在 Spring / JDK 中的应用
 
 | 框架/类 | 说明 |
 |--------|------|
@@ -296,7 +296,7 @@ flowchart TD
 
 ## 5. 边界：异常情况与常见误区
 
-### 误区一：观察者抛异常导致后续观察者不执行（运行期问题）
+### 5.1 误区一：观察者抛异常导致后续观察者不执行（运行期问题）
 
 ```java
 // ❌ 错误：没有异常处理，一个观察者失败导致后续都不执行
@@ -319,7 +319,7 @@ public void notifyObservers(OrderCompletedEvent event) {
 }
 ```
 
-### 误区二：Spring @EventListener 默认同步执行，影响主流程性能（运行期问题）
+### 5.2 误区二：Spring @EventListener 默认同步执行，影响主流程性能（运行期问题）
 
 ```java
 // ❌ 问题：@EventListener 默认同步执行，耗时操作会阻塞主流程
@@ -339,7 +339,7 @@ public void onOrderCompleted(OrderCompletedEvent event) {
 // 注意：@Async 需要在配置类上加 @EnableAsync
 ```
 
-### 误区三：观察者持有 Subject 引用，形成循环依赖（设计问题）
+### 5.3 误区三：观察者持有 Subject 引用，形成循环依赖（设计问题）
 
 ```java
 // ❌ 错误：观察者持有 Subject 引用，在 update 中修改 Subject 状态
@@ -364,7 +364,7 @@ public class InventoryObserver implements OrderObserver {
 
 ## 6. 总结：面试标准化表达
 
-### 高频问题
+### 6.1 高频问题
 
 **Q1：观察者模式解决了什么问题？Spring 如何实现？**
 
@@ -377,5 +377,3 @@ public class InventoryObserver implements OrderObserver {
 **Q3：使用观察者模式有哪些注意事项？**
 
 > 三个主要注意点：①异常隔离——每个观察者的异常应该被捕获，避免一个观察者失败影响其他观察者；②异步处理——耗时的观察者逻辑应该异步执行（Spring `@Async`），避免阻塞主流程；③避免循环依赖——观察者不应该修改 Subject 的状态，否则可能触发再次通知形成无限循环。另外，观察者列表应使用线程安全的集合（如 `CopyOnWriteArrayList`），避免并发修改异常。
-
-> **一句话记忆口诀**：观察者一对多通知，Subject 维护列表，状态变化逐一通知，Spring `@EventListener` 是最优雅的实现，注意异常隔离和异步处理。

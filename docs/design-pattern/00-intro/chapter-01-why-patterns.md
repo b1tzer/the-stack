@@ -43,6 +43,3 @@ public void pay(String type, BigDecimal amount) {
 4. 💻 **代码实现** — 可运行
 5. 🔧 **框架应用** — Spring/JDK 中的真实例子
 6. ⚠️ **适用场景** — 什么时候用、什么时候不用
-
----
-*准备好了吗？从工厂模式开始。*

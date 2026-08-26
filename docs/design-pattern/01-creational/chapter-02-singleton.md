@@ -1,10 +1,10 @@
 # 单例模式
 
-## 🏠 生活类比
+## 1. 🏠 生活类比
 
 一个国家只能有一个总统，一个公司只能有一个 CEO。
 
-## 💩 烂代码
+## 2. 💩 烂代码
 
 ```java
 // 每次都 new 一个，浪费资源
@@ -14,9 +14,10 @@ Config config3 = new Config();  // 再读一次
 // 配置文件被读了 3 次！
 ```
 
-## ✨ 7 种写法
+## 3. ✨ 7 种写法
 
-### 1. 饿汉式（线程安全，推荐简单场景）
+### 3.1 饿汉式（线程安全，推荐简单场景）
+
 ```java
 class Singleton {
     private static final Singleton INSTANCE = new Singleton();
@@ -24,7 +25,7 @@ class Singleton {
 }
 ```
 
-### 2. 懒汉式（线程不安全，别用）
+### 3.2 懒汉式（线程不安全，别用）
 ```java
 class Singleton {
     private static Singleton instance;
@@ -35,7 +36,8 @@ class Singleton {
 }
 ```
 
-### 3. 双重检查锁（DCL）
+### 3.3 双重检查锁（DCL）
+
 ```java
 class Singleton {
     private static volatile Singleton instance;
@@ -50,7 +52,8 @@ class Singleton {
 }
 ```
 
-### 4. 静态内部类（推荐）
+### 3.4 静态内部类（推荐）
+
 ```java
 class Singleton {
     private static class Holder {
@@ -60,7 +63,8 @@ class Singleton {
 }
 ```
 
-### 5. 枚举单例（Effective Java 推荐，最佳）
+### 3.5 枚举单例（Effective Java 推荐，最佳）
+
 ```java
 enum Singleton {
     INSTANCE;
@@ -68,15 +72,12 @@ enum Singleton {
 }
 ```
 
-## 🔧 框架应用
+## 4. 🔧 框架应用
 
 - Spring: Bean 默认单例作用域
 - JDK: `Runtime.getRuntime()`
 
-## ⚠️ 适用场景
+## 5. ⚠️ 适用场景
 
 - 配置管理、连接池、线程池、日志
 - 确实只需要一个实例的场景
-
----
-*建造者模式 →*

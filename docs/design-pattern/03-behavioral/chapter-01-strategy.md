@@ -1,10 +1,10 @@
 # 策略模式
 
-## 🏠 生活类比
+## 1. 🏠 生活类比
 
 去餐厅付款：可以现金、刷卡、支付宝、微信。你选一种方式就行，餐厅不需要改收银系统。
 
-## 💩 烂代码
+## 2. 💩 烂代码
 
 ```java
 public void pay(String type, BigDecimal amount) {
@@ -19,7 +19,7 @@ public void pay(String type, BigDecimal amount) {
 }
 ```
 
-## ✨ 策略模式
+## 3. ✨ 策略模式
 
 ```java
 // 策略接口
@@ -54,16 +54,13 @@ ctx.setStrategy(new Alipay());
 ctx.pay(new BigDecimal("100"));
 ```
 
-## 🔧 框架应用
+## 4. 🔧 框架应用
 
 - Spring: `Resource` 接口（ClassPathResource/FileSystemResource）
 - JDK: `Comparator`、`ThreadPoolExecutor` 的拒绝策略
 
-## ⚠️ 适用场景
+## 5. ⚠️ 适用场景
 
 - 多种算法/策略
 - 需要运行时切换
 - 消除 if-else
-
----
-*观察者模式 →*

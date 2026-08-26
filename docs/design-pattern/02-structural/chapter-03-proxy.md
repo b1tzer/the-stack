@@ -9,7 +9,7 @@ title: 代理模式（Proxy Pattern）
 
 ## 1. 引入：它解决了什么问题？
 
-### 没有代理模式时的问题
+### 1.1 没有代理模式时的问题
 
 在不修改原始类的前提下，需要为方法添加日志、权限校验、事务管理等横切逻辑时：
 
@@ -45,7 +45,7 @@ public class OrderService {
 
 **问题根因**：业务逻辑与横切关注点（日志、事务、权限）混在一起，违反**单一职责原则**，且横切逻辑无法复用。
 
-### 工作中的典型应用场景
+### 1.2 工作中的典型应用场景
 
 | 场景 | Spring/JDK 中的例子 |
 |------|-------------------|
@@ -57,7 +57,7 @@ public class OrderService {
 
 ## 2. 类比：用生活模型建立直觉
 
-### 生活类比：明星经纪人
+### 2.1 生活类比：明星经纪人
 
 一位明星（真实对象）只负责表演（核心业务）。经纪人（代理）负责处理合同谈判、档期安排、费用收取（横切逻辑）。粉丝（调用方）联系经纪人，经纪人在适当时候让明星出场。
 
@@ -66,13 +66,13 @@ public class OrderService {
 - **代理角色**：经纪人（`AgentProxy`），控制对明星的访问，在表演前后处理杂务
 - **调用方**：演出商（`Client`），只与经纪人打交道
 
-### 抽象定义
+### 2.2 抽象定义
 
 > 代理模式为另一个对象提供一个替身或占位符，以控制对这个对象的访问。
 
 ## 3. 原理：逐步拆解核心机制
 
-### UML 类图
+### 3.1 UML 类图
 
 ```mermaid
 classDiagram
@@ -98,9 +98,9 @@ classDiagram
     note for Proxy "代理和真实对象实现同一接口<br/>调用方无感知"
 ```
 
-### 三种代理方式逐一对比
+### 3.2 三种代理方式逐一对比
 
-#### 方式一：静态代理（编译期确定）
+#### 3.2.1 方式一：静态代理（编译期确定）
 
 ```java
 // ===== 公共接口 =====
@@ -154,7 +154,7 @@ public class LoggingOrderServiceProxy implements OrderService {
 
 > ⚠️ **静态代理的代价**：接口有 N 个方法，代理类就要实现 N 个方法，且每个方法都要写重复的前置/后置逻辑。如果有 100 个 Service 接口，就要写 100 个代理类。
 
-#### 方式二：JDK 动态代理（运行期生成，基于接口）
+#### 3.2.2 方式二：JDK 动态代理（运行期生成，基于接口）
 
 ```java
 import java.lang.reflect.InvocationHandler;
@@ -211,7 +211,7 @@ public class Main {
 > **JDK 动态代理的底层原理**：
 > `Proxy.newProxyInstance()` 在运行期通过 `ProxyGenerator` 生成一个继承 `Proxy` 类并实现目标接口的字节码，加载到 JVM 中。代理类的每个方法都调用 `InvocationHandler.invoke()`，实现统一拦截。
 
-#### 方式三：CGLIB 动态代理（运行期生成，基于继承）
+#### 3.2.3 方式三：CGLIB 动态代理（运行期生成，基于继承）
 
 ```java
 import net.sf.cglib.proxy.Enhancer;
@@ -253,7 +253,7 @@ public class Main {
 }
 ```
 
-### 核心流程图
+### 3.3 核心流程图
 
 ```mermaid
 flowchart TD
@@ -278,7 +278,7 @@ flowchart TD
 
 ## 4. 特性：关键对比
 
-### 三种代理方式对比
+### 4.1 三种代理方式对比
 
 | 对比维度 | 静态代理 | JDK 动态代理 | CGLIB 动态代理 |
 |---------|---------|------------|--------------|
@@ -290,7 +290,7 @@ flowchart TD
 | **维护成本** | 高（每个接口写一个代理类） | 低 | 低 |
 | **Spring 使用** | 不使用 | 有接口时优先使用 | 无接口时使用 |
 
-### 代理模式 vs 装饰器模式（最容易混淆）
+### 4.2 代理模式 vs 装饰器模式（最容易混淆）
 
 | 对比维度 | 代理模式 | 装饰器模式 |
 |---------|---------|----------|
@@ -299,7 +299,7 @@ flowchart TD
 | **透明性** | 调用方不知道在访问代理 | 调用方知道在使用装饰器 |
 | **典型例子** | Spring AOP、Feign Client | `BufferedInputStream`、`Collections.unmodifiableList()` |
 
-### Spring AOP 代理选择策略
+### 4.3 Spring AOP 代理选择策略
 
 ```mermaid
 flowchart TD
@@ -313,7 +313,7 @@ flowchart TD
 
 > ⚠️ **Spring Boot 2.x 的变化**：Spring Boot 2.0 开始默认将 `spring.aop.proxy-target-class=true`，即默认使用 CGLIB 代理，即使目标类有接口。原因是避免某些场景下 JDK 代理导致的类型转换异常。
 
-### 在 Spring / JDK 中的应用
+### 4.4 在 Spring / JDK 中的应用
 
 | 框架/类 | 代理类型 | 说明 |
 |--------|---------|------|
@@ -325,7 +325,7 @@ flowchart TD
 
 ## 5. 边界：异常情况与常见误区
 
-### 误区一：Spring AOP 自调用失效（运行期问题）
+### 5.1 误区一：Spring AOP 自调用失效（运行期问题）
 
 ```java
 // ❌ 错误：同一个类中方法 A 调用方法 B，B 上的 @Transactional 不生效
@@ -366,7 +366,7 @@ public class OrderService {
 // ✅ 解决方案二：拆分到不同 Service 类
 ```
 
-### 误区二：CGLIB 代理 final 类/方法（运行期异常）
+### 5.2 误区二：CGLIB 代理 final 类/方法（运行期异常）
 
 ```java
 // ❌ 错误：对 final 类使用 CGLIB 代理
@@ -389,7 +389,7 @@ public class UserServiceImpl implements UserService {
 }
 ```
 
-### 误区三：JDK 动态代理强转为实现类（运行期 ClassCastException）
+### 5.3 误区三：JDK 动态代理强转为实现类（运行期 ClassCastException）
 
 ```java
 // ❌ 错误：将 JDK 动态代理对象强转为实现类
@@ -406,7 +406,7 @@ proxy.createOrder(order); // 通过接口调用
 
 ## 6. 总结：面试标准化表达
 
-### 高频问题
+### 6.1 高频问题
 
 **Q1：JDK 动态代理和 CGLIB 代理有什么区别？Spring 如何选择？**
 
@@ -419,5 +419,3 @@ proxy.createOrder(order); // 通过接口调用
 **Q3：代理模式和装饰器模式有什么区别？**
 
 > 两者结构相似，都持有被包装对象的引用，但目的不同：代理模式的目的是**控制访问**，代理通常自己创建或持有真实对象，调用方不知道在访问代理（透明代理），典型例子是 Spring AOP、Feign Client；装饰器模式的目的是**增强功能**，被装饰对象由外部传入，调用方知道在使用装饰器，典型例子是 `BufferedInputStream` 包装 `FileInputStream`。
-
-> **一句话记忆口诀**：代理控制访问，JDK 代理基于接口（必须有接口），CGLIB 基于继承（不能 final），Spring Boot 2.x 默认 CGLIB，自调用会绕过代理导致 AOP 失效。
