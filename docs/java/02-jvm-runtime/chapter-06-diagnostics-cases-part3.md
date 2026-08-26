@@ -1,14 +1,14 @@
-# 第六章案例集（三）：低内存低 CPU 下的 GC 疑难杂症
+# 案例集（三）：低内存低 CPU 下的 GC 疑难杂症
 
 > 监控大屏一切正常：堆内存 40%、CPU 35%、无 Full GC。但接口 P99 从 50ms 飙到了 450ms，上游超时率 7%。`jstat -gcutil` 每秒跑一次才揭穿谎言：Young GC 每秒 3 次，单次 150ms，累积停顿超过 400ms/秒——45% 的 CPU 时间花在 GC 线程上。这种"温水煮青蛙"式的性能退化最容易被忽视：没有 OOM、没有 CPU 100%、没有 Full GC，所有常规告警全部沉默。排查这类问题的第一原则：**GC 看的是分配速率和对象寿命，不是堆使用率。**
 
-## 案例 7：支付回调的 Young GC 风暴 —— 日志拼接每秒造 300MB 垃圾
+## 1. 案例 7：支付回调的 Young GC 风暴 —— 日志拼接每秒造 300MB 垃圾
 
-### 事故背景
+### 1.1 事故背景
 
 2025 年某支付系统，回调接口 QPS 稳定在 300+。上线后 P99 从 50ms 逐步爬升到 450ms，隔几秒就有一个请求超时。监控显示堆内存只有 35%，CPU 约 40%，无 Full GC。运维排查了一圈：数据库慢查询、网络延迟、下游服务——都没问题。最后看了一眼 GC 日志，问题藏在这里。
 
-### 第一步：看 GC 频率
+### 1.2 第一步：看 GC 频率
 
 ```bash
 jstat -gcutil <pid> 1000
@@ -24,7 +24,7 @@ jstat -gcutil <pid> 1000
 
 Eden 区每秒从 12% 冲到 98% 再清零——每秒一次 Young GC。单次 YGCT 差 = 134ms。**每秒 134ms 的 STW**，意味着每个请求有约 13% 的概率刚好落在 GC 停顿里，延迟从 50ms 暴涨到 200ms+。
 
-### 第二步：找谁在造垃圾
+### 1.3 第二步：找谁在造垃圾
 
 用 JFR 的分配采样：
 
@@ -43,7 +43,7 @@ java.lang.StringBuilder.append()            | 2.8 GB          | 11.7%
 
 每秒分配约 136MB 对象。堆只有 4G，Eden 约 1.3G——10 秒就能打满一次。
 
-### 第三步：定位代码
+### 1.4 第三步：定位代码
 
 ```java
 @Service
@@ -73,7 +73,7 @@ public class PaymentCallbackService {
 
 300 QPS × 2KB = 600KB/s 的日志字符串。加上迭代器、`Map.Entry`、临时 `StringBuilder`——实际分配速率远超这个数字。JFR 显示 60 秒分配了 8.2GB，平均 137MB/s。堆 4G + Eden 1.3G → 约 10 秒触发一次 Young GC → 单次 134ms → P99 被拉高。
 
-### 修复：三管齐下
+### 1.5 修复：三管齐下
 
 ```java
 @Service
@@ -93,7 +93,7 @@ public class PaymentCallbackService {
 
 参数化日志的核心优势：SLF4J 在日志级别不匹配时，**不会执行参数拼接**，也不创建临时 `StringBuilder`。即使用 `logger.info("...{}...{}...", a, b)`，`a` 和 `b` 只传引用，不在调用处创建新字符串。
 
-### 效果对比
+### 1.6 效果对比
 
 | 指标 | 修复前 | 修复后 |
 |------|--------|--------|
@@ -103,7 +103,7 @@ public class PaymentCallbackService {
 | P99 | 450 ms | 62 ms |
 | CPU（GC 线程占比） | ~45% | ~5% |
 
-### 教训
+### 1.7 教训
 
 日志拼接是 Java 服务中最容易被忽视的 GC 压力源。两个常见高危模式：
 1. `logger.info("xxx " + a + " yyy " + b)` —— 即使日志级别是 WARN，拼接也照样执行
@@ -111,15 +111,15 @@ public class PaymentCallbackService {
 
 **规则：生产环境日志一律用 `{}` 占位符，永远不要在日志参数中拼接字符串。**
 
-## 案例 8：索引热更新的 Survivor 复制风暴 —— 500MB 对象在新生代来回搬家
+## 2. 案例 8：索引热更新的 Survivor 复制风暴 —— 500MB 对象在新生代来回搬家
 
-### 事故背景
+### 2.1 事故背景
 
 2025 年京东某高并发系统（QPS 40 万），纯内存计算型服务，无数据库、无缓存、无 RPC。每 15 分钟全量替换一次内存中的业务索引（约 500MB 的复杂 Map 结构）。索引替换后，P99 出现周期性毛刺，上游超时率上升 37%。
 
 关键现象：CPU 和系统负载均正常，排除流量激增、外部依赖、锁竞争。GC 日志暴露了真相。
 
-### 第一步：看 GC 日志中的 Object Copy 阶段
+### 2.2 第一步：看 GC 日志中的 Object Copy 阶段
 
 ```bash
 -XX:+PrintGCDetails -XX:+PrintGCDateStamps -Xloggc:gc.log
@@ -136,7 +136,7 @@ public class PaymentCallbackService {
 
 G1 日志中关注的对象复制（Object Copy）耗时异常——**420ms**。
 
-### 第二步：看 Survivor 区发生了什么
+### 2.3 第二步：看 Survivor 区发生了什么
 
 索引热更新的过程：
 
@@ -150,7 +150,7 @@ G1 日志中关注的对象复制（Object Copy）耗时异常——**420ms**。
 
 **根因**：500MB 长生命索引对象在 Survivor 区反复复制，Object Copy 阶段耗时被放大到正常值的 10 倍以上。每次索引替换，有 33%~67% 的概率引发一次长暂停 Young GC。
 
-### 第三步：修复
+### 2.4 第三步：修复
 
 **方案 A（JVM 参数）：反向调 `MaxTenuringThreshold`**
 
@@ -193,16 +193,16 @@ public void switchIndex(String indexPath) {
 
 效果：索引切换时的 P99 恢复正常，系统可用率从 95% 提升到 99.995%。
 
-### 总结
+### 2.5 总结
 
 | 场景特征 | 表象 | 根因 | 修复方向 |
 |---------|------|------|---------|
 | 大规模长生命对象 | 间歇性 Young GC 耗时暴增 | Object Copy 阶段过大 | `MaxTenuringThreshold=1` / 断流预热 |
 | 15 分钟周期 + P99 毛刺同步 | 毛刺与索引更新时间吻合 | 索引替换触发的复制风暴 | 灰度分批 + 断流预热 |
 
-## 案例 9：SafePoint 同步延迟 —— GC 只花了 0.14 秒，线程却停了 2.26 秒
+## 3. 案例 9：SafePoint 同步延迟 —— GC 只花了 0.14 秒，线程却停了 2.26 秒
 
-### 事故背景
+### 3.1 事故背景
 
 某离线 HBase 集群，JDK 8 + G1，`-XX:MaxGCPauseMillis=500`。运行一段时间后，垃圾收集停顿经常达到 3 秒以上。GC 日志暴露了一个令人困惑的事实：
 
@@ -212,7 +212,7 @@ public void switchIndex(String indexPath) {
 
 user=0.12 秒——GC 线程实际干活只花了 120ms。但 real=2.26 秒——业务线程停了 2260ms。中间的 2.14 秒花在哪了？
 
-### 第一步：开 SafePoint 日志
+### 3.2 第一步：开 SafePoint 日志
 
 ```bash
 -XX:+PrintSafepointStatistics -XX:PrintSafepointStatisticsCount=1
@@ -229,7 +229,7 @@ GC(12) [ 482   3    0 ] [ 2255  0   2   0  140  ] 0
 
 **GC 本身不慢，慢的是等线程"靠边停车"。**
 
-### 第二步：揪出不肯停车的线程
+### 3.3 第二步：揪出不肯停车的线程
 
 ```bash
 -XX:+SafepointTimeout -XX:SafepointTimeoutDelay=2000
@@ -246,7 +246,7 @@ GC(12) [ 482   3    0 ] [ 2255  0   2   0  140  ] 0
 
 罪魁祸首是 `RpcServer.listener` 线程，处于 `RUNNABLE`——它在跑，但跑在一个没有 SafePoint 检查点的代码路径上。
 
-### 第三步：为什么会没有 SafePoint？
+### 3.4 第三步：为什么会没有 SafePoint？
 
 HotSpot 在方法调用、循环回边、异常跳转等位置插入 SafePoint 检查。但为了性能，JIT 编译器做了一项优化：对于 **"可数循环"**（`for (int i = 0; i < N; i++)`，索引是 `int` 类型），不插入 SafePoint 检查——因为 JIT 认为可数循环执行时间可控。
 
@@ -267,7 +267,7 @@ while (true) {
 }
 ```
 
-### 修复
+### 3.5 修复
 
 **JDK 8 的案发现场修复：**
 
@@ -279,11 +279,11 @@ while (true) {
 
 **代码层兜底：** 长循环内插入 `Thread.yield()` 或轻量级方法调用（如 `new Object()`），让线程有机会碰到 SafePoint。
 
-### 效果
+### 3.6 效果
 
 `spin` 时间从 2255ms 降到 3ms，GC 停顿从 2.26 秒恢复到正常的 140ms。
 
-### 延伸：SafePoint 延迟的常见元凶
+### 3.7 延伸：SafePoint 延迟的常见元凶
 
 | 元凶 | 原因 | 修复 |
 |------|------|------|
@@ -292,13 +292,13 @@ while (true) {
 | jstack 触发 ThreadDump vmop | jstack 本身需要 SafePoint | 低峰期操作，用 `jcmd Thread.dump_to_file` |
 | Native 方法长时间不返回 | Native 代码中无法响应 SafePoint | 拆分长 JNI 调用，加超时 |
 
-## 案例 10：Log4j2 + PretenureSizeThreshold 组合技 —— 2MB 的"日志炸弹"直冲老年代
+## 4. 案例 10：Log4j2 + PretenureSizeThreshold 组合技 —— 2MB 的"日志炸弹"直冲老年代
 
-### 事故背景
+### 4.1 事故背景
 
 2024 年某线上服务，Full GC 每天 40 次。监控显示堆内存使用率 60%，CPU 40%，不属于典型的"堆打满"场景。但 `jstat -gcutil` 显示老年代在 Full GC 前后几乎不变——说明老年代有大量短命大对象。
 
-### 第一步：MAT 分析找大对象元凶
+### 4.2 第一步：MAT 分析找大对象元凶
 
 ```bash
 jmap -dump:format=b,file=heap.hprof <pid>
@@ -320,7 +320,7 @@ java.lang.StringBuilder          512,234,567 bytes
 → 来自 StringBuilder 的预分配机制
 ```
 
-### 第二步：查 JVM 参数
+### 4.3 第二步：查 JVM 参数
 
 ```bash
 jcmd <pid> VM.flags
@@ -336,7 +336,7 @@ jcmd <pid> VM.flags
 
 但日志框架的 `StringBuilder` 在拼接长日志时，内部 `char[]` 会扩容到 2MB 以上——然后被这个参数判定为"大对象"，直接写入老年代。
 
-### 第三步：链条复盘
+### 4.4 第三步：链条复盘
 
 ```text
 1. 业务代码用 StringBuilder 拼接日志（扩展参数多、内容长）
@@ -347,7 +347,7 @@ jcmd <pid> VM.flags
 6. 但 Full GC 后这些对象被回收 → 堆使用率看起来不高
 ```
 
-### 修复
+### 4.5 修复
 
 ```bash
 # 去掉 PretenureSizeThreshold，让 JVM 自己判断
@@ -368,15 +368,15 @@ logger.info("回调处理完成: orderId={}, channel={}, params={}",
     truncate(req.getExtendParams(), 200));  // 最多 200 字符
 ```
 
-### 效果
+### 4.6 效果
 
 Full GC 从每天 40 次降到不到 1 次，老年代使用率稳定在 35%。
 
-### 总结
+### 4.7 总结
 
 `PretenureSizeThreshold` 是一把双刃剑。它在"确实有大对象需要跳过新生代"时有用（如缓存的大 ByteBuffer），但如果设置过低，会误伤大量"恰好超过阈值"的短命对象——把它门直接送进老年代，制造碎片和 Full GC。**除非你精确知道自己的大对象是什么、有多大，否则不要设置这个参数。**
 
-## 四个案例的共同诊断信号
+## 5. 四个案例的共同诊断信号
 
 | 信号 | 工具 | 本案例编号 |
 |------|------|----------|
@@ -390,4 +390,4 @@ Full GC 从每天 40 次降到不到 1 次，老年代使用率稳定在 35%。
 >
 > **下一篇：** [第六章案例集（四）：堆正常但服务崩了 —— TCP 层与堆外内存的隐形杀手](./chapter-06-diagnostics-cases-part4)
 >
-> **回到第六章正文：** [线上排查与诊断](./chapter-06-diagnostics)
+> **回到[第六章](./chapter-06-diagnostics)正文：** [线上排查与诊断](./chapter-06-diagnostics)

@@ -1,12 +1,10 @@
-# 第3章 Java Socket 编程：网络抽象的起点
+# Java Socket 编程：网络抽象的起点
 
 > **核心问题：** 你线上报过 `Too many open files`，调过 `ulimit -n 65535`，配过连接池的 `maxConnections`——但你有没有想过，fd 到底是什么？一个 `new Socket()` 在内核里到底分配了什么？`read()` 卡住的时候，线程去哪了？一台机器到底能撑多少连接？本章从 OS 内核视角出发，把 Socket 从"一个 Java 对象"拆回它的本质：一个文件描述符、两块内核缓冲区、两对队列。
 
----
+## 1. Socket 的本质：OS 如何抽象网络通信
 
-## 3.1 Socket 的本质：OS 如何抽象网络通信
-
-### 3.1.1 从网卡到进程：数据的旅程
+### 1.1 从网卡到进程：数据的旅程
 
 当一台机器的网线收到一个 TCP 包，数据要经过层层处理才能到达应用程序：
 
@@ -16,7 +14,7 @@
 
 Socket 的价值就在这里：**它把复杂的网络协议栈封装成了一个"读写缓冲区"**。对应用程序而言，网络通信和读写文件在接口层面几乎没有区别。
 
-### 3.1.2 Socket = 文件描述符 + 协议栈
+### 1.2 Socket = 文件描述符 + 协议栈
 
 在 Unix/Linux 中，Socket 本质上是一个**文件描述符（File Descriptor, fd）**。操作系统把一切 I/O 资源都抽象为 fd——普通文件、管道、设备、网络连接，对应用来说都是一个 `int` 数字。
 
@@ -32,7 +30,7 @@ Socket 的价值就在这里：**它把复杂的网络协议栈封装成了一�
 
 > **Java 层面的映射**：Java 的 `Socket` 和 `ServerSocket` 对象内部持有一个 OS fd。`socket.close()` 最终调用的就是 OS 的 `close(fd)`。如果 Java 对象被 GC 回收但没有显式 `close()`，fd 的释放要等 `finalize()`（JDK 9+ 改为 `Cleaner`），期间 fd 一直被占着——这就是为什么必须用 try-with-resources 显式关闭 Socket。
 
-### 3.1.3 五元组与连接标识
+### 1.3 五元组与连接标识
 
 一个 TCP 连接由**五元组**唯一标识：
 
@@ -70,7 +68,7 @@ Client C (10.0.0.6:51782) ──连接──► Server:8080  → accept() → fd
 
 实际生产中，连接数的瓶颈**从来不是端口数**，而是下一节要讲的 fd 限制和内核资源。
 
-### 3.1.4 Socket 的两种类型
+### 1.4 Socket 的两种类型
 
 | 类型 | 协议 | 特点 | 典型场景 |
 | :-- | :-- | :-- | :-- |
@@ -79,13 +77,11 @@ Client C (10.0.0.6:51782) ──连接──► Server:8080  → accept() → fd
 
 本书以 TCP Stream Socket 为主线，因为 Java 企业级开发中绝大多数网络通信基于 TCP。
 
----
-
-## 3.2 Socket 系统调用与 Java 映射
+## 2. Socket 系统调用与 Java 映射
 
 Socket 编程的本质就是按顺序调用一组**系统调用**。每一步都对应一个 OS 内核操作，Java 对这些操作做了面向对象封装。
 
-### 3.2.1 `socket()`：创建端点
+### 2.1 `socket()`：创建端点
 
 ```c
 // OS 层
@@ -102,7 +98,7 @@ Socket clientSocket = new Socket();               // 内部调用 socket()
 
 Java 的 `new ServerSocket()` 在构造时就调用了 OS 的 `socket()`，拿到一个 fd。
 
-### 3.2.2 `bind()` + `listen()`：绑定端口、开始监听
+### 2.2 `bind()` + `listen()`：绑定端口、开始监听
 
 ```c
 // OS 层
@@ -123,7 +119,7 @@ serverSocket.bind(new InetSocketAddress(8080), 128);  // bind() + listen()
 ServerSocket serverSocket = new ServerSocket(8080);    // 内部自动 bind + listen，backlog 默认 50
 ```
 
-### 3.2.3 `accept()`：从全连接队列取出连接
+### 2.3 `accept()`：从全连接队列取出连接
 
 ```c
 // OS 层（阻塞）
@@ -150,7 +146,7 @@ Socket client = serverSocket.accept();  // 阻塞，直到有新连接
 
 > `accept()` 返回的是一个**新的 Socket**，和原来的 `ServerSocket` 完全独立。`ServerSocket` 只负责监听，不负责数据传输。数据传输由 `accept()` 返回的 `Socket` 完成。
 
-### 3.2.4 `connect()`：客户端发起三次握手
+### 2.4 `connect()`：客户端发起三次握手
 
 ```c
 // OS 层
@@ -165,7 +161,7 @@ connect(fd, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
 Socket socket = new Socket("192.168.1.1", 8080);  // 内部调用 socket() + connect()
 ```
 
-### 3.2.5 `read()` / `write()`：数据在内核缓冲区的流转
+### 2.5 `read()` / `write()`：数据在内核缓冲区的流转
 
 连接建立后，数据的读写路径：
 
@@ -187,7 +183,7 @@ byte[] buf = new byte[1024];
 int len = in.read(buf);          // 从内核接收缓冲区读取
 ```
 
-### 3.2.6 `close()`：四次挥手与 fd 释放
+### 2.6 `close()`：四次挥手与 fd 释放
 
 ```c
 // OS 层
@@ -225,11 +221,9 @@ write(connFd) ────► read(fd) ────►│
 close(connFd)  ◄── 四次挥手 ──── close(fd)
 ```
 
----
+## 3. 内核视角：Socket 背后的数据结构
 
-## 3.3 内核视角：Socket 背后的数据结构
-
-### 3.3.1 发送缓冲区与接收缓冲区
+### 3.1 发送缓冲区与接收缓冲区
 
 每个 TCP Socket 在内核中有两块缓冲区：
 
@@ -265,7 +259,7 @@ close(connFd)  ◄── 四次挥手 ──── close(fd)
 
 **接收缓冲区空会怎样？** `read()` 会**阻塞**，直到有数据到达。这就是"读阻塞"——它不是因为没有连接，而是因为对方还没发数据。
 
-### 3.3.2 全连接队列与半连接队列
+### 3.2 全连接队列与半连接队列
 
 > **活动期间，你发现新连接全部超时，但服务端 CPU 和内存都正常。** 同事怀疑是网络设备问题，你用 `ss -tln | grep 8080` 看了一眼—— `Recv-Q` 已经超过了 `Send-Q`。请求不慢，是它们根本没进到应用层。accept queue 满了，内核已经在悄悄丢包了。
 
@@ -299,7 +293,7 @@ $ netstat -s | grep "listen"
 
 这个数字持续增长，说明应用的 `accept()` 速度跟不上连接到达速度——要么加快 accept（多线程 accept），要么增大 backlog。
 
-### 3.3.3 阻塞的本质：线程在内核的哪里等
+### 3.3 阻塞的本质：线程在内核的哪里等
 
 当应用调用 `read()` 但接收缓冲区为空时，线程到底发生了什么？
 
@@ -326,7 +320,7 @@ $ netstat -s | grep "listen"
 
 这就是 BIO 的核心代价：**线程不消耗 CPU，但消耗内存和调度资源**。一个阻塞在 `read()` 上的线程，CPU 利用率为 0，但内存和 fd 一直被占着。
 
-### 3.3.4 一台机器能承载多少 Socket
+### 3.4 一台机器能承载多少 Socket
 
 这是一个工程问题，瓶颈在多个层次：
 
@@ -354,13 +348,11 @@ $ netstat -s | grep "listen"
 
 这就是为什么高并发场景必须用 NIO——不是因为 BIO "慢"，而是因为 BIO 用线程做等待，内存扛不住。
 
----
-
-## 3.4 Socket 选项：生产中真正要调的参数
+## 4. Socket 选项：生产中真正要调的参数
 
 Socket 选项通过 `setsockopt()` 系统调用设置，Java 中通过 `ServerSocket.setOption()` / `Socket.setOption()` 或 `ServerSocketChannel` 设置。
 
-### 3.4.1 `SO_REUSEADDR` 与 `SO_REUSEPORT`
+### 4.1 `SO_REUSEADDR` 与 `SO_REUSEPORT`
 
 **`SO_REUSEADDR`**：允许绑定处于 `TIME_WAIT` 状态的地址。
 
@@ -381,7 +373,7 @@ ssc.setOption(StandardSocketOptions.SO_REUSEPORT, true);
 ssc.bind(new InetSocketAddress(8080));
 ```
 
-### 3.4.2 `TCP_NODELAY`：禁用 Nagle 算法
+### 4.2 `TCP_NODELAY`：禁用 Nagle 算法
 
 Nagle 算法会把小包合并后再发送，以提高网络利用率。但对延迟敏感的场景（游戏、实时通信、RPC），这个合并会引入额外延迟。
 
@@ -391,7 +383,7 @@ socket.setTcpNoDelay(true);  // TCP_NODELAY = true，禁用 Nagle
 
 **经验法则**：RPC 框架（Dubbo、gRPC）默认开启 `TCP_NODELAY`；HTTP 服务器通常不开。
 
-### 3.4.3 `SO_KEEPALIVE`：TCP 层保活
+### 4.3 `SO_KEEPALIVE`：TCP 层保活
 
 TCP KeepAlive 在空闲连接上定期发送探测包，检测对端是否存活。
 
@@ -409,7 +401,7 @@ TCP KeepAlive 的默认参数（Linux）：
 
 > **注意**：默认 2 小时才开始探测，对于长连接服务来说太慢了。生产中通常结合**应用层心跳**（如每 30 秒发一次 ping/pong），TCP KeepAlive 只作为兜底。
 
-### 3.4.4 `SO_RCVBUF` / `SO_SNDBUF`：缓冲区大小
+### 4.4 `SO_RCVBUF` / `SO_SNDBUF`：缓冲区大小
 
 控制内核为每个 Socket 分配的收发缓冲区大小。
 
@@ -426,7 +418,7 @@ socket.setSendBufferSize(256 * 1024);      // SO_SNDBUF = 256KB
 
 Linux 内核会自动在 `tcp_rmem` / `tcp_wmem` 范围内调整缓冲区大小（自动调优），通常不需要手动设置。
 
-### 3.4.5 在 Java 中设置 Socket 选项
+### 4.5 在 Java 中设置 Socket 选项
 
 | 选项 | ServerSocket | Socket | Channel |
 | :-- | :-- | :-- | :-- |
@@ -439,13 +431,11 @@ Linux 内核会自动在 `tcp_rmem` / `tcp_wmem` 范围内调整缓冲区大小�
 
 > **注意**：Socket 选项必须在 `connect()` / `bind()` **之前**设置，部分选项在连接建立后修改不生效。
 
----
-
-## 3.5 动手：用 Java Socket 跑通一个 Echo
+## 5. 动手：用 Java Socket 跑通一个 Echo
 
 前面四节讲的是 Socket 的"是什么"和"怎么工作"。这一节用最小的代码示例把理论变成可运行的程序。
 
-### 3.5.1 Echo Server
+### 5.1 Echo Server
 
 ```java
 import java.io.*;
@@ -479,7 +469,7 @@ public class EchoServer {
 }
 ```
 
-### 3.5.2 Echo Client
+### 5.2 Echo Client
 
 ```java
 import java.io.*;
@@ -503,7 +493,7 @@ public class EchoClient {
 }
 ```
 
-### 3.5.3 代码剖析
+### 5.3 代码剖析
 
 **为什么 `out.flush()` 是必要的？**
 
@@ -513,7 +503,7 @@ public class EchoClient {
 
 `CachedThreadPool` 无上限，连接暴涨时会创建过多线程。`FixedThreadPool` 限制并发线程数，超出的任务在队列中等待——这是保护服务端的基本手段。
 
-### 3.5.4 一连接一线程的局限
+### 5.4 一连接一线程的局限
 
 上面的 Echo Server 是经典的 BIO 模型：**每个连接占一个线程**。线程大部分时间阻塞在 `read()` 上，不消耗 CPU，但消耗内存和调度资源。
 
@@ -524,9 +514,7 @@ public class EchoClient {
 
 这个局限不是 Socket 的问题，而是 **BIO 线程模型**的问题。解决方案是 NIO——用一个线程通过 **Selector** 监听多个 Channel 的事件，线程只在"有数据可读"时才被唤醒，不需要为每个连接阻塞一个线程。这是下一章的内容。
 
----
-
-## 本章小结
+## 6. 本章小结
 
 | 概念 | 要点 |
 | :-- | :-- |
@@ -540,11 +528,9 @@ public class EchoClient {
 | Socket 选项 | `SO_REUSEADDR`、`TCP_NODELAY`、`SO_KEEPALIVE` 等是生产必调项 |
 | BIO 的局限 | 一连接一线程，内存扛不住 → 需要 NIO |
 
----
-
 > **纵横联系**
 >
-> - **本卷第2章** 已经介绍了 TCP/IP 协议基础和三次握手/四次挥手，本章的系统调用链（`connect`/`accept`/`close`）正是这些协议在编程层面的体现。
-> - **本卷第4章** 将深入讲解 Java NIO，它是对本章 BIO 模型的根本性革新——用 Selector 事件驱动替代线程阻塞等待。
+> - **本卷[第2章](./chapter-02-tcp-ip)** 已经介绍了 TCP/IP 协议基础和三次握手/四次挥手，本章的系统调用链（`connect`/`accept`/`close`）正是这些协议在编程层面的体现。
+> - **本卷[第4章](./chapter-04-nio)** 将深入讲解 Java NIO，它是对本章 BIO 模型的根本性革新——用 Selector 事件驱动替代线程阻塞等待。
 > - **第三卷《并发》** 中的线程与线程池知识（`ExecutorService`、线程栈内存、上下文切换）是理解本章 §3.3（内核视角）和 §3.5（BIO 局限）的前置基础。
 > - **第五卷《数据访问》** 中数据库连接池的底层实现本质上也是 Socket 连接管理——连接池的大小受限于本章讨论的 fd 和内核资源。

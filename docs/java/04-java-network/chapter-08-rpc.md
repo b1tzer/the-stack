@@ -1,18 +1,16 @@
-# 第8章 RPC 与微服务通信
+# RPC 与微服务通信
 
 > 你的 Dubbo 接口报了 `TimeoutException`。监控显示 P99 延迟从 20ms 飙到了 3500ms。你打开链路追踪，只看到一个巨大的耗时条挂在「Dubbo Invoke」上——但它背后到底卡在序列化、网络传输、服务端处理、还是 GC 停顿？这一章从你每次 RPC 超时都要拆的这个黑盒开始，一层层拆回去。
 
 > **📖 阅读建议**：如果你正盯着 Dubbo 超时告警排障，直接从 §8.3 开始。只想理解 RPC 基本原理的，§8.1-§8.2 已足够。§8.4 序列化、§8.5 服务发现和负载均衡在选型和调优时回头查。
 
----
-
-## 8.1 一次 Dubbo 调用超时，到底卡在哪一层
+## 1. 一次 Dubbo 调用超时，到底卡在哪一层
 
 你在代码里写了 `@DubboReference(timeout=1000) private UserService userService`。某个深夜，告警响了——这个接口大量超时。你在 ELK 里看日志，所有报错都是同一句话：`TimeoutException: Waiting server-side response timeout`。
 
 但这句话什么也没告诉你。你需要拆的是：**这 1000ms 里，每 1ms 花在哪了。**
 
-### 8.1.1 Dubbo Profiler 拆解——6 个环节的耗时
+### 1.1 Dubbo Profiler 拆解——6 个环节的耗时
 
 Dubbo 3.x 内置了请求耗时采样（simple profiler 和 detail profiler）。一次超时请求会被打上完整的时间轴：
 
@@ -44,7 +42,7 @@ Start time: 285965612316294
 
 但如果 Consumer 侧显示 990ms、Provider 侧却只有 50ms 呢？这就是**网络传输吃掉 940ms**——不是你代码慢，是链路有问题。内网 RTT 通常在 1-5ms，超过 10ms 就要查交换机、防火墙、对端负载。
 
-### 8.1.2 GC 导致的「静默超时」——RPC 超时排查最隐蔽的坑
+### 1.2 GC 导致的「静默超时」——RPC 超时排查最隐蔽的坑
 
 上面那个案例是「服务端确实慢」。但还有一种超时，日志里**什么线索都没有**：
 
@@ -71,13 +69,11 @@ grep "2026-08-09 12:00" gc.log | grep "pause"
 -XX:+ParallelRefProcEnabled
 ```
 
----
-
-## 8.2 RPC 到底做了什么：一次远程调用的完整旅程
+## 2. RPC 到底做了什么：一次远程调用的完整旅程
 
 从 §8.1 你已经知道超时可以拆成多个环节了。现在把镜头拉远，看一次 RPC 调用从 `userService.findById(1)` 到 `return User{...}` 经过的全部流程。
 
-### 8.2.1 一句话总览
+### 2.1 一句话总览
 
 ```text
 Consumer 端                                       Provider 端
@@ -99,7 +95,7 @@ userService.findById(1)
 
 和你写本地方法 `userService.findById(1)` 的区别只在于：这 7 步中间插了一个网络。
 
-### 8.2.2 各环节在你线上能表现出什么问题
+### 2.2 各环节在你线上能表现出什么问题
 
 | 环节 | 正常表现 | 线上出问题的表现 |
 |------|---------|----------------|
@@ -111,7 +107,7 @@ userService.findById(1)
 | ⑥ 反射调用 | < 1ms | 业务代码慢（慢 SQL / 外部依赖） |
 | ⑦ 写回 | 1-5ms | 客户端已超时断开 → 写入 `Broken pipe` |
 
-### 8.2.3 HTTP vs RPC：你该用哪个
+### 2.3 HTTP vs RPC：你该用哪个
 
 | 维度 | HTTP REST | RPC (Dubbo/gRPC) |
 |------|-----------|------------------|
@@ -123,13 +119,11 @@ userService.findById(1)
 
 **选择很简单**：对外用 HTTP REST，对内用 RPC。
 
----
-
-## 8.3 RPC 超时排查三板斧
+## 3. RPC 超时排查三板斧
 
 从 §8.1 你已经知道 Dubbo Profiler 能告诉你耗时在哪个阶段。但在没装上 Profiler 之前（或你用的不是 Dubbo），你需要这三步：
 
-### 第一板斧：确定超时发生在 Consumer 还是 Provider
+### 3.1 第一板斧：确定超时发生在 Consumer 还是 Provider
 
 ```bash
 # Consumer 侧 filter 日志（Dubbo 默认打印的 ElapsedFilter）
@@ -143,7 +137,7 @@ grep "cost .* ms, this invocation almost (maybe already) timeout" provider.log
 如果 Consumer 有 900ms+、Provider 只有 50ms → 网络问题或 Consumer GC。
 如果两边都没有明显耗时但 Consumer 报超时 → **timeout 设得太短**（默认 1s）。
 
-### 第二板斧：GC 日志
+### 3.2 第二板斧：GC 日志
 
 ```bash
 # 拿 GC 日志，找 STW 时间 > 500ms 的
@@ -152,7 +146,7 @@ grep "Total time for which application threads were stopped" gc.log | awk '{if (
 
 如果 RPC 超时时间点恰好处于一次长 GC pause 内 → STW 是根因。
 
-### 第三板斧：网络抓包
+### 3.3 第三板斧：网络抓包
 
 ```bash
 # Provider 侧抓 Dubbo 端口
@@ -164,13 +158,11 @@ tcpdump -i eth0 port 20880 -w rpc_capture.pcap
 
 如果同一个 TCP stream 里有大量重传 → 网络丢包。丢包原因可能是交换机过载、网卡 ring buffer 小、或宿主机 CPU 争用。
 
----
-
-## 8.4 序列化：你的对象为什么传得比想象的慢
+## 4. 序列化：你的对象为什么传得比想象的慢
 
 RPC 框架不管内部逻辑多复杂，最终要做的就是从 bytes 到对象、再从对象到 bytes。不同的序列化方案差异可达 10 倍。
 
-### 8.4.1 性能对比
+### 4.1 性能对比
 
 ```text
 序列化速度 (ops/s，越高越好):
@@ -187,7 +179,7 @@ JSON     ██████████████                        450,0
 | Hessian | 中等 | ✅ | Dubbo 默认 |
 | JSON | 最大 | ✅ | REST API |
 
-### 8.4.2 典型踩坑：Protobuf 默认值陷阱
+### 4.2 典型踩坑：Protobuf 默认值陷阱
 
 ```protobuf
 message User {
@@ -207,13 +199,11 @@ int age = user.getAge();  // user.getAge() 返回 Integer null
 int age = Optional.ofNullable(user.getAge()).orElse(0);
 ```
 
----
-
-## 8.5 服务发现：「该调谁」的问题
+## 5. 服务发现：「该调谁」的问题
 
 前面讨论的都是「怎么调」。但在有多副本的环境里，首先要解决「调哪个」。
 
-### 8.5.1 注册中心的本质
+### 5.1 注册中心的本质
 
 ```text
 Provider 集群                       注册中心                      Consumer
@@ -231,7 +221,7 @@ Consumer 启动 → 拉取 `user-service` 的所有实例 → 本地缓存 → �
 
 注册中心挂了？Consumer 用本地缓存继续调用已缓存的实例。但新实例加不进来、下线实例不会被感知。
 
-### 8.5.2 负载均衡策略
+### 5.2 负载均衡策略
 
 | 策略 | 算法 | 什么时候用 |
 |------|------|-----------|
@@ -240,11 +230,9 @@ Consumer 启动 → 拉取 `user-service` 的所有实例 → 本地缓存 → �
 | LeastActive | 选当前负载最轻的 | 请求耗时差异大 |
 | ConsistentHash | 相同参数 → 同一实例 | 有状态服务、本地缓存 |
 
----
-
 > **纵横联系**
 >
-> - **第3章 Socket** 的 `connect()`、`write()`、`read()` 是 Dubbo 底层 `NettyChannel` 调用的 OS 操作。accept 队列溢出导致客户端超时（§8.1.2）本质是 TCP 全连接队列满。
-> - **第4章 NIO** 的 Selector + Channel 是 Dubbo/Netty 网络层的基石。Dubbo Provider 线程池满 → 新请求在 Netty 的 IO 线程上排队 → 延迟飙升。
-> - **第5章 Netty** 是 Dubbo 默认的传输实现。Consumer 和 Provider 之间的字节流收发、心跳、重连全部基于 Netty 的 Pipeline 和 EventLoop。
-> - **第6章 HTTP** 的 gRPC 基于 HTTP/2。Triple 协议（Dubbo 3.x）也是 HTTP/2 → 可以直接用 curl 调 Dubbo，也可以和 gRPC 互通。
+> - **[第3章](./chapter-03-socket) Socket** 的 `connect()`、`write()`、`read()` 是 Dubbo 底层 `NettyChannel` 调用的 OS 操作。accept 队列溢出导致客户端超时（§8.1.2）本质是 TCP 全连接队列满。
+> - **[第4章](./chapter-04-nio) NIO** 的 Selector + Channel 是 Dubbo/Netty 网络层的基石。Dubbo Provider 线程池满 → 新请求在 Netty 的 IO 线程上排队 → 延迟飙升。
+> - **[第5章](./chapter-05-netty) Netty** 是 Dubbo 默认的传输实现。Consumer 和 Provider 之间的字节流收发、心跳、重连全部基于 Netty 的 Pipeline 和 EventLoop。
+> - **[第6章](./chapter-06-http) HTTP** 的 gRPC 基于 HTTP/2。Triple 协议（Dubbo 3.x）也是 HTTP/2 → 可以直接用 curl 调 Dubbo，也可以和 gRPC 互通。

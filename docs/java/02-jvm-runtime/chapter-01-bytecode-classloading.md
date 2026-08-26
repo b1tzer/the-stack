@@ -1,14 +1,12 @@
-# 第一章 字节码与类加载
+# 字节码与类加载
 
 > `ServiceLoader.load(Driver.class)` 找 JDBC 驱动——这行代码背后藏了 JVM 最经典的设计冲突。驱动在 classpath 里，但 `ServiceLoader` 用的是 `Thread Context ClassLoader`，而双亲委派要求先问父加载器——结果：核心库 `rt.jar` 里的代码找不到应用路径下的 jar。SPI 打破了双亲委派，不是设计缺陷，是权衡。本章从「为什么需要字节码」到「双亲委派何时该打破」，建立"源码 → 字节码 → JVM"的完整认知。
 
----
-
-## 1.1 为什么需要字节码
+## 1. 为什么需要字节码
 
 Java 不像 C/C++ 那样直接编译成机器码，而是编译成一种中间格式——字节码（Bytecode），存储在 `.class` 文件中。
 
-### 三个核心原因
+### 1.1 三个核心原因
 
 **1. 平台无关。** 同一份 `.class` 文件可以在 Windows、Linux、macOS 的 JVM 上运行。JVM 屏蔽了操作系统的差异。
 
@@ -24,9 +22,7 @@ Kotlin： Source → Bytecode → JVM → Machine Code → 任何平台
 
 字节码这一层抽象，是 Java 跨平台能力和运行时优化能力的根基。
 
----
-
-## 1.2 Class 文件结构概览
+## 2. Class 文件结构概览
 
 一个 `.class` 文件的结构：
 
@@ -53,7 +49,7 @@ ClassFile {
 
 不需要记住每个字段的偏移量，理解三个核心概念就够了：
 
-### 常量池（Constant Pool）
+### 2.1 常量池（Constant Pool）
 
 常量池是 Class 文件的"信息仓库"——类名、方法名、字段名、字符串字面量、方法描述符都存在这里。
 
@@ -66,7 +62,7 @@ ClassFile {
 
 为什么不直接在各处保存字符串？因为常量池通过索引引用，避免重复存储，减小文件体积。
 
-### 方法表（Methods）
+### 2.2 方法表（Methods）
 
 每个方法包含：访问标志、方法名、描述符、属性表。方法的**字节码指令**存储在 `Code` 属性中：
 
@@ -86,17 +82,15 @@ method_info {
 }
 ```
 
-### 属性表（Attributes）
+### 2.3 属性表（Attributes）
 
 属性表是可扩展的元数据容器。注解存储在 `RuntimeVisibleAnnotations` 中，泛型签名存储在 `Signature` 中，Lambda 信息通过 `BootstrapMethods` 存储。第一卷讲的泛型、注解、Lambda，在 Class 文件中都有对应的存储位置。
 
----
-
-## 1.3 字节码指令分类认知
+## 3. 字节码指令分类认知
 
 JVM 字节码指令约 200 条，不需要全部记住，建立分类认知即可：
 
-### 加载与存储
+### 3.1 加载与存储
 
 将数据在局部变量表和操作数栈之间移动：
 
@@ -105,11 +99,11 @@ int a = 10;        // bipush 10 → istore_1（将 10 压入栈，存到局部�
 int b = a + 20;    // iload_1 → bipush 20 → iadd → istore_2
 ```
 
-### 算术运算
+### 3.2 算术运算
 
 `iadd`（int 加）、`lsub`（long 减）、`imul`（int 乘）等。基本类型的算术运算直接映射为字节码指令。
 
-### 对象操作
+### 3.3 对象操作
 
 ```java
 User user = new User();     // new User → dup → invokespecial <init>
@@ -117,7 +111,7 @@ user.name = "Tom";          // aload_1 → ldc "Tom" → putfield name
 String name = user.getName(); // aload_1 → invokevirtual getName
 ```
 
-### 方法调用（最重要）
+### 3.4 方法调用（最重要）
 
 | 指令 | 用途 | 场景 |
 |------|------|------|
@@ -129,7 +123,7 @@ String name = user.getName(); // aload_1 → invokevirtual getName
 
 `invokevirtual` 是多态的基础——JVM 在运行时根据对象的实际类型查找方法表，决定调用哪个方法。`invokedynamic` 是 Lambda 的基础——第一卷已经讲过，LambdaMetafactory 在运行时生成实现类。
 
-### 为什么需要五种 invoke？
+### 3.5 为什么需要五种 invoke？
 
 核心原因：**不同调用方式的查找成本不同。**
 
@@ -141,11 +135,9 @@ String name = user.getName(); // aload_1 → invokevirtual getName
 | `invokestatic` | 编译期直接定位 | 静态方法不存在多态，最简单 |
 | `invokedynamic` | 首次执行时绑定，之后可变 | Lambda 和方法引用——调用点在运行时才确定 |
 
-这个差异有实际后果：`invokeinterface` 比 `invokevirtual` 慢，因为接口方法在 itable 中没有固定偏移，每次调用都需要搜索。这也是为什么 JIT 编译器对**接口调用的内联比虚调用更难**——第五章讲方法内联时会回扣这个点。
+这个差异有实际后果：`invokeinterface` 比 `invokevirtual` 慢，因为接口方法在 itable 中没有固定偏移，每次调用都需要搜索。这也是为什么 JIT 编译器对**接口调用的内联比虚调用更难**——[第五章](./chapter-05-jit)讲方法内联时会回扣这个点。
 
----
-
-## 1.4 字节码与语言特性的映射
+## 4. 字节码与语言特性的映射
 
 第一卷讲的每个语言特性，在字节码层面都有对应：
 
@@ -160,7 +152,7 @@ String name = user.getName(); // aload_1 → invokevirtual getName
 
 理解这些映射关系，能帮你理解"Java 代码到底变成了什么"，也为后续的字节码增强（ASM、CGLIB、Spring AOP）打下基础。
 
-### 从字节码视角回看语言特性
+### 4.1 从字节码视角回看语言特性
 
 表格列出了"是什么"，但更重要的是"这意味着什么"。挑三个展开：
 
@@ -211,9 +203,7 @@ try (InputStream in = new FileInputStream(f)) {
 
 编译后的字节码会捕获 `close()` 抛出的异常，并通过 `Throwable.addSuppressed()` 附加到主异常上，而不是吞掉或覆盖。这就是为什么 `try-with-resources` 的异常信息中能看到 `Suppressed:` 标记。
 
----
-
-## 1.5 类加载的完整生命周期
+## 5. 类加载的完整生命周期
 
 `.class` 文件不会自动进入 JVM，需要由 ClassLoader 加载。类的生命周期分为七个阶段：
 
@@ -229,7 +219,7 @@ try (InputStream in = new FileInputStream(f)) {
 
 其中验证、准备、解析合称**连接（Linking）**。
 
-### 各阶段做了什么
+### 5.1 各阶段做了什么
 
 | 阶段 | 做了什么 | 为什么要在这步做 |
 |------|---------|----------------|
@@ -239,7 +229,7 @@ try (InputStream in = new FileInputStream(f)) {
 | 解析 | 符号引用 → 直接引用 | 将常量池中的符号转为内存中的实际地址 |
 | 初始化 | 执行 `<clinit>`（类构造器），真正赋值静态变量 | 保证静态代码块在类首次主动使用时执行 |
 
-### 符号引用 vs 直接引用
+### 5.2 符号引用 vs 直接引用
 
 表格中"符号引用 → 直接引用"是最抽象的一行，用一个例子说清楚：
 
@@ -261,7 +251,7 @@ CONSTANT_Methodref #15 = #16.#17
 - **静态解析**：类加载时就解析。适用于编译期能确定目标的方法——`invokestatic`、`invokespecial`、`final` 方法。
 - **动态解析**：第一次调用时才解析。适用于多态方法——`invokevirtual`、`invokeinterface`，因为实际目标取决于运行时对象类型。`invokedynamic` 更极端：每次调用都可能重新解析。
 
-### 什么时候触发初始化
+### 5.3 什么时候触发初始化
 
 不是加载就初始化。只有"主动使用"才会触发：
 
@@ -277,11 +267,9 @@ User.class.getName();          // 只引用类名，不触发
 User[] arr = new User[10];    // 创建数组，不触发数组元素类的初始化
 ```
 
----
+## 6. 双亲委派模型
 
-## 1.6 双亲委派模型
-
-### ClassLoader 的层次结构
+### 6.1 ClassLoader 的层次结构
 
 ```text
 Bootstrap ClassLoader（引导类加载器）
@@ -299,7 +287,7 @@ Application ClassLoader（应用类加载器）
   └─ 用户自己实现的加载器
 ```
 
-### 为什么要向上委托
+### 6.2 为什么要向上委托
 
 当一个 ClassLoader 收到加载请求时，它不会自己先加载，而是**先委托给父加载器**。只有父加载器无法加载时，才自己尝试。
 
@@ -343,13 +331,11 @@ protected Class<?> loadClass(String name, boolean resolve) {
 
 **3. 层次化信任。** 核心库（Bootstrap）→ 扩展库（Platform）→ 应用代码（Application），逐级信任。
 
----
-
-## 1.7 打破双亲委派
+## 7. 打破双亲委派
 
 并非所有场景都适合向上委托。三个典型案例：
 
-### SPI（Service Provider Interface）
+### 7.1 SPI（Service Provider Interface）
 
 JDBC 的 `DriverManager` 在核心库中（Bootstrap ClassLoader 加载），但它需要加载用户提供的数据库驱动（如 `mysql-connector-java`）。核心库无法向下委托给应用类加载器。
 
@@ -363,7 +349,7 @@ ServiceLoader<Driver> loadedDrivers = ServiceLoader.load(Driver.class, cl);
 
 `Thread.currentThread().getContextClassLoader()` 默认是 Application ClassLoader，核心库通过它"借"应用类加载器来加载驱动。
 
-### Tomcat
+### 7.2 Tomcat
 
 Tomcat 需要在同一个 JVM 中运行多个 Web 应用，每个应用可能依赖同一个库的不同版本。
 
@@ -379,7 +365,7 @@ WebAppClassLoader 加载顺序：
 
 但隔离有代价：两个 Web 应用中由不同 ClassLoader 加载的同一个类，**类型不兼容**。App A 中 `new Guava()` 创建的对象传给 App B，`instanceof` 会返回 `false`——因为 JVM 认为它们是两个不同的类（全限定名相同但 ClassLoader 不同）。这也是为什么跨应用共享对象需要序列化/反序列化，而不是直接传递引用。
 
-### OSGi
+### 7.3 OSGi
 
 OSGi 实现了模块化系统，每个 Bundle（模块）有独立的 ClassLoader。与 Tomcat 的树状结构不同，OSGi 的 ClassLoader 之间是**网状委托关系**：
 
@@ -392,11 +378,9 @@ Bundle A 的 ClassLoader
 
 每个 Bundle 通过 `Import-Package` 和 `Export-Package` 声明依赖关系。JVM 同时加载同一个库的多个版本，Bundle 按声明的版本范围解析依赖。这是 Java 模块化的最激进实现，也是后来 Java 9 引入 JPMS（Java Platform Module System）的灵感来源之一。
 
----
+## 8. 自定义 ClassLoader
 
-## 1.8 自定义 ClassLoader
-
-### 核心方法
+### 8.1 核心方法
 
 ```java
 public class MyClassLoader extends ClassLoader {
@@ -413,15 +397,13 @@ public class MyClassLoader extends ClassLoader {
 }
 ```
 
-### 应用场景
+### 8.2 应用场景
 
 - **热部署**：修改代码后，用新的 ClassLoader 重新加载，不需要重启 JVM
 - **加密 Class**：Class 文件加密存储，ClassLoader 读取后解密再加载
 - **从网络加载**：动态从服务器下载 Class 文件
 
----
-
-## 动手：用 javap 看到你代码的字节码
+## 9. 动手：用 javap 看到你代码的字节码
 
 前文讲了这么多字节码概念，不如亲眼看一下。JDK 自带的 `javap` 工具可以反编译 `.class` 文件：
 
@@ -456,8 +438,6 @@ public int add(int, int);
 
 四条指令，和 1.3 节的分类完全对应：`iload`（加载）→ `iadd`（算术）→ `ireturn`（返回）。加上 `-v` 还能看到常量池、`max_stack`、`max_locals` 等元数据。
 
-这个技能在后续章节会反复用到：第五章 JIT 编译时看编译器的内联决策，第六章排查时反编译确认线上运行的代码版本。建议现在就试一下。
-
----
+这个技能在后续章节会反复用到：[第五章](./chapter-05-jit) JIT 编译时看编译器的内联决策，[第六章](./chapter-06-diagnostics)排查时反编译确认线上运行的代码版本。建议现在就试一下。
 
 > 本章建立了"源码 → 字节码 → 类加载"的完整认知。下一章将进入 JVM 运行时数据区——理解堆、栈、方法区的分工与协作，这是一切内存调优和 GC 理解的大前提。

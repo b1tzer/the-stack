@@ -1,14 +1,14 @@
-# 第六章案例集（三）：低内存低 CPU 下的 GC 疑难杂症
+# 案例集（三）：低内存低 CPU 下的 GC 疑难杂症
 
 > 监控大屏一切正常：堆内存 40%、CPU 35%、无 Full GC。但接口 P99 从 50ms 飙到了 450ms，上游超时率 7%。`jstat -gcutil` 每秒跑一次才揭穿谎言：Young GC 每秒 3 次，单次 150ms，累积停顿超过 400ms/秒——45% 的 CPU 时间花在 GC 线程上。这种"温水煮青蛙"式的性能退化最容易被忽视：没有 OOM、没有 CPU 100%、没有 Full GC，所有常规告警全部沉默。排查这类问题的第一原则：**GC 看的是分配速率和对象寿命，不是堆使用率。**
 
-## 案例 7：支付回调的 Young GC 风暴 —— 日志拼接每秒造 300MB 垃圾
+## 1. 案例 7：支付回调的 Young GC 风暴 —— 日志拼接每秒造 300MB 垃圾
 
-### 事故背景
+### 1.1 事故背景
 
 2025 年某支付系统，回调接口 QPS 稳定在 300+。上线后 P99 从 50ms 逐步爬升到 450ms，隔几秒就有一个请求超时。监控显示堆内存只有 35%，CPU 约 40%，无 Full GC。运维排查了一圈：数据库慢查询、网络延迟、下游服务——都没问题。最后看了一眼 GC 日志，问题藏在这里。
 
-### 第一步：看 GC 频率
+### 1.2 第一步：看 GC 频率
 
 ```bash
 jstat -gcutil <pid> 1000
@@ -24,7 +24,7 @@ jstat -gcutil <pid> 1000
 
 Eden 区每秒从 12% 冲到 98% 再清零——每秒一次 Young GC。单次 YGCT 差 = 134ms。**每秒 134ms 的 STW**，意味着每个请求有约 13% 的概率刚好落在 GC 停顿里，延迟从 50ms 暴涨到 200ms+。
 
-### 第二步：找谁在造垃圾
+### 1.3 第二步：找谁在造垃圾
 
 用 JFR 的分配采样：
 
@@ -43,7 +43,7 @@ java.lang.StringBuilder.append()            | 2.8 GB          | 11.7%
 
 每秒分配约 136MB 对象。堆只有 4G，Eden 约 1.3G——10 秒就能打满一次。
 
-### 第三步：定位代码
+### 1.4 第三步：定位代码
 
 ```java
 @Service
@@ -73,7 +73,7 @@ public class PaymentCallbackService {
 
 300 QPS × 2KB = 600KB/s 的日志字符串。加上迭代器、`Map.Entry`、临时 `StringBuilder`——实际分配速率远超这个数字。JFR 显示 60 秒分配了 8.2GB，平均 137MB/s。堆 4G + Eden 1.3G → 约 10 秒触发一次 Young GC → 单次 134ms → P99 被拉高。
 
-### 修复：三管齐下
+### 1.5 修复：三管齐下
 
 ```java
 @Service
@@ -93,7 +93,7 @@ public class PaymentCallbackService {
 
 参数化日志的核心优势：SLF4J 在日志级别不匹配时，**不会执行参数拼接**，也不创建临时 `StringBuilder`。即使用 `logger.info("...{}...{}...", a, b)`，`a` 和 `b` 只传引用，不在调用处创建新字符串。
 
-### 效果对比
+### 1.6 效果对比
 
 | 指标 | 修复前 | 修复后 |
 |------|--------|--------|
@@ -103,7 +103,7 @@ public class PaymentCallbackService {
 | P99 | 450 ms | 62 ms |
 | CPU（GC 线程占比） | ~45% | ~5% |
 
-### 教训
+### 1.7 教训
 
 日志拼接是 Java 服务中最容易被忽视的 GC 压力源。两个常见高危模式：
 1. `logger.info("xxx " + a + " yyy " + b)` —— 即使日志级别是 WARN，拼接也照样执行
@@ -111,15 +111,15 @@ public class PaymentCallbackService {
 
 **规则：生产环境日志一律用 `{}` 占位符，永远不要在日志参数中拼接字符串。**
 
-## 案例 8：索引热更新的 Survivor 复制风暴 —— 500MB 对象在新生代来回搬家
+## 2. 案例 8：索引热更新的 Survivor 复制风暴 —— 500MB 对象在新生代来回搬家
 
-### 事故背景
+### 2.1 事故背景
 
 2025 年京东某高并发系统（QPS 40 万），纯内存计算型服务，无数据库、无缓存、无 RPC。每 15 分钟全量替换一次内存中的业务索引（约 500MB 的复杂 Map 结构）。索引替换后，P99 出现周期性毛刺，上游超时率上升 37%。
 
 关键现象：CPU 和系统负载均正常，排除流量激增、外部依赖、锁竞争。GC 日志暴露了真相。
 
-### 第一步：看 GC 日志中的 Object Copy 阶段
+### 2.2 第一步：看 GC 日志中的 Object Copy 阶段
 
 ```bash
 -XX:+PrintGCDetails -XX:+PrintGCDateStamps -Xloggc:gc.log
@@ -136,7 +136,7 @@ public class PaymentCallbackService {
 
 G1 日志中关注的对象复制（Object Copy）耗时异常——**420ms**。
 
-### 第二步：看 Survivor 区发生了什么
+### 2.3 第二步：看 Survivor 区发生了什么
 
 索引热更新的过程：
 
@@ -150,7 +150,7 @@ G1 日志中关注的对象复制（Object Copy）耗时异常——**420ms**。
 
 **根因**：500MB 长生命索引对象在 Survivor 区反复复制，Object Copy 阶段耗时被放大到正常值的 10 倍以上。每次索引替换，有 33%~67% 的概率引发一次长暂停 Young GC。
 
-### 第三步：修复
+### 2.4 第三步：修复
 
 **方案 A（JVM 参数）：反向调 `MaxTenuringThreshold`**
 
@@ -193,16 +193,16 @@ public void switchIndex(String indexPath) {
 
 效果：索引切换时的 P99 恢复正常，系统可用率从 95% 提升到 99.995%。
 
-### 总结
+### 2.5 总结
 
 | 场景特征 | 表象 | 根因 | 修复方向 |
 |---------|------|------|---------|
 | 大规模长生命对象 | 间歇性 Young GC 耗时暴增 | Object Copy 阶段过大 | `MaxTenuringThreshold=1` / 断流预热 |
 | 15 分钟周期 + P99 毛刺同步 | 毛刺与索引更新时间吻合 | 索引替换触发的复制风暴 | 灰度分批 + 断流预热 |
 
-## 案例 9：SafePoint 同步延迟 —— GC 只花了 0.14 秒，线程却停了 2.26 秒
+## 3. 案例 9：SafePoint 同步延迟 —— GC 只花了 0.14 秒，线程却停了 2.26 秒
 
-### 事故背景
+### 3.1 事故背景
 
 某离线 HBase 集群，JDK 8 + G1，`-XX:MaxGCPauseMillis=500`。运行一段时间后，垃圾收集停顿经常达到 3 秒以上。GC 日志暴露了一个令人困惑的事实：
 
@@ -212,7 +212,7 @@ public void switchIndex(String indexPath) {
 
 user=0.12 秒——GC 线程实际干活只花了 120ms。但 real=2.26 秒——业务线程停了 2260ms。中间的 2.14 秒花在哪了？
 
-### 第一步：开 SafePoint 日志
+### 3.2 第一步：开 SafePoint 日志
 
 ```bash
 -XX:+PrintSafepointStatistics -XX:PrintSafepointStatisticsCount=1
@@ -229,7 +229,7 @@ GC(12) [ 482   3    0 ] [ 2255  0   2   0  140  ] 0
 
 **GC 本身不慢，慢的是等线程"靠边停车"。**
 
-### 第二步：揪出不肯停车的线程
+### 3.3 第二步：揪出不肯停车的线程
 
 ```bash
 -XX:+SafepointTimeout -XX:SafepointTimeoutDelay=2000
@@ -246,7 +246,7 @@ GC(12) [ 482   3    0 ] [ 2255  0   2   0  140  ] 0
 
 罪魁祸首是 `RpcServer.listener` 线程，处于 `RUNNABLE`——它在跑，但跑在一个没有 SafePoint 检查点的代码路径上。
 
-### 第三步：为什么会没有 SafePoint？
+### 3.4 第三步：为什么会没有 SafePoint？
 
 HotSpot 在方法调用、循环回边、异常跳转等位置插入 SafePoint 检查。但为了性能，JIT 编译器做了一项优化：对于 **"可数循环"**（`for (int i = 0; i < N; i++)`，索引是 `int` 类型），不插入 SafePoint 检查——因为 JIT 认为可数循环执行时间可控。
 
@@ -267,7 +267,7 @@ while (true) {
 }
 ```
 
-### 修复
+### 3.5 修复
 
 **JDK 8 的案发现场修复：**
 
@@ -279,11 +279,11 @@ while (true) {
 
 **代码层兜底：** 长循环内插入 `Thread.yield()` 或轻量级方法调用（如 `new Object()`），让线程有机会碰到 SafePoint。
 
-### 效果
+### 3.6 效果
 
 `spin` 时间从 2255ms 降到 3ms，GC 停顿从 2.26 秒恢复到正常的 140ms。
 
-### 延伸：SafePoint 延迟的常见元凶
+### 3.7 延伸：SafePoint 延迟的常见元凶
 
 | 元凶 | 原因 | 修复 |
 |------|------|------|
@@ -292,13 +292,13 @@ while (true) {
 | jstack 触发 ThreadDump vmop | jstack 本身需要 SafePoint | 低峰期操作，用 `jcmd Thread.dump_to_file` |
 | Native 方法长时间不返回 | Native 代码中无法响应 SafePoint | 拆分长 JNI 调用，加超时 |
 
-## 案例 10：Log4j2 + PretenureSizeThreshold 组合技 —— 2MB 的"日志炸弹"直冲老年代
+## 4. 案例 10：Log4j2 + PretenureSizeThreshold 组合技 —— 2MB 的"日志炸弹"直冲老年代
 
-### 事故背景
+### 4.1 事故背景
 
 2024 年某线上服务，Full GC 每天 40 次。监控显示堆内存使用率 60%，CPU 40%，不属于典型的"堆打满"场景。但 `jstat -gcutil` 显示老年代在 Full GC 前后几乎不变——说明老年代有大量短命大对象。
 
-### 第一步：MAT 分析找大对象元凶
+### 4.2 第一步：MAT 分析找大对象元凶
 
 ```bash
 jmap -dump:format=b,file=heap.hprof <pid>
@@ -320,7 +320,7 @@ java.lang.StringBuilder          512,234,567 bytes
 → 来自 StringBuilder 的预分配机制
 ```
 
-### 第二步：查 JVM 参数
+### 4.3 第二步：查 JVM 参数
 
 ```bash
 jcmd <pid> VM.flags
@@ -336,7 +336,7 @@ jcmd <pid> VM.flags
 
 但日志框架的 `StringBuilder` 在拼接长日志时，内部 `char[]` 会扩容到 2MB 以上——然后被这个参数判定为"大对象"，直接写入老年代。
 
-### 第三步：链条复盘
+### 4.4 第三步：链条复盘
 
 ```text
 1. 业务代码用 StringBuilder 拼接日志（扩展参数多、内容长）
@@ -347,7 +347,7 @@ jcmd <pid> VM.flags
 6. 但 Full GC 后这些对象被回收 → 堆使用率看起来不高
 ```
 
-### 修复
+### 4.5 修复
 
 ```bash
 # 去掉 PretenureSizeThreshold，让 JVM 自己判断
@@ -368,15 +368,15 @@ logger.info("回调处理完成: orderId={}, channel={}, params={}",
     truncate(req.getExtendParams(), 200));  // 最多 200 字符
 ```
 
-### 效果
+### 4.6 效果
 
 Full GC 从每天 40 次降到不到 1 次，老年代使用率稳定在 35%。
 
-### 总结
+### 4.7 总结
 
 `PretenureSizeThreshold` 是一把双刃剑。它在"确实有大对象需要跳过新生代"时有用（如缓存的大 ByteBuffer），但如果设置过低，会误伤大量"恰好超过阈值"的短命对象——把它门直接送进老年代，制造碎片和 Full GC。**除非你精确知道自己的大对象是什么、有多大，否则不要设置这个参数。**
 
-## 四个案例的共同诊断信号
+## 5. 四个案例的共同诊断信号
 
 | 信号 | 工具 | 本案例编号 |
 |------|------|----------|
@@ -386,9 +386,9 @@ Full GC 从每天 40 次降到不到 1 次，老年代使用率稳定在 35%。
 | spin 时间 > 100ms | `-XX:+PrintSafepointStatistics` | 案例 9 |
 | 大量等大 `char[]` 直接出现在老年代 | MAT Histogram 按 Shallow Heap 排序 | 案例 10 |
 
-## 案例 11：Tomcat LimitLatch —— 一条陈年配置让服务间歇性假死
+## 6. 案例 11：Tomcat LimitLatch —— 一条陈年配置让服务间歇性假死
 
-### 事故背景
+### 6.1 事故背景
 
 2025 年某团队将一个 Spring Boot 服务部署到生产环境后，出现间歇性请求超时——每次卡 10 秒以上，但日志里没有任何业务异常。更诡异的是，容器的 `livenessProbe` 也间歇性超时，触发 K8s 自动重启。重启后恢复，过一段时间又复发。
 
@@ -401,7 +401,7 @@ Full GC 从每天 40 次降到不到 1 次，老年代使用率稳定在 35%。
 
 这个问题最讽刺的是：真相在第一次 `jstack` 里就已经出现了，但排查者看了三遍都没注意到。详见萧易客的完整复盘：<https://aops.io/article/tomcat-blocking-on-acceptor.html>。
 
-### 第一步：第一次 jstack —— 错过了真凶
+### 6.2 第一步：第一次 jstack —— 错过了真凶
 
 ```bash
 jstack -l <pid> > thread.dump
@@ -421,7 +421,7 @@ jstack -l <pid> > thread.dump
 
 "http-nio-8080-exec-2" 到 "http-nio-8080-exec-200"——全部 `WAITING`。排查者得出结论：工作线程都在等活干，不是线程池的问题。方向转向了 GC、网络、数据库——全都没有问题。排查陷入僵局。
 
-### 第二步：开启 Tomcat DEBUG 日志 —— 发现盲点
+### 6.3 第二步：开启 Tomcat DEBUG 日志 —— 发现盲点
 
 排查者决定扩大范围，开启 Tomcat 的内部 DEBUG 日志，追踪每个请求从到达 Tomcat 到完成的全过程时序：
 
@@ -458,7 +458,7 @@ o.apache.tomcat.util.threads.LimitLatch : Counting up[http-nio-8080-Acceptor-0] 
 
 Acceptor 线程处于 `WAITING`，卡在 `LimitLatch.countUpOrAwait()`。这意味着：当前 TCP 连接数已达到 `maxConnections` 上限，Acceptor 被 AQS 共享锁阻塞，不再从内核的 `backlog` 队列中取新连接。
 
-### 第三步：验证连接数上限
+### 6.4 第三步：验证连接数上限
 
 用 `ss` 命令查看 TCP 连接队列状态：
 
@@ -468,7 +468,7 @@ ss -tnp | grep :8080
 
 输出显示与 8080 端口的 `ESTABLISHED` 连接恰好 10 个。`Recv-Q` 列的值持续 > 0——说明内核的 `backlog` 队列中有连接在排队，等待 `accept()` 取走。
 
-### 第四步：翻出罪魁祸首
+### 6.5 第四步：翻出罪魁祸首
 
 在 `application.yml` 的一个不起眼的角落里：
 
@@ -484,7 +484,7 @@ Tomcat NIO 模式下 `max-connections` 默认值是 10000。这里被改成了 1
 
 这就是"间歇性假死"的完整成因。
 
-### Tomcat 线程模型补充说明
+### 6.6 Tomcat 线程模型补充说明
 
 理解这个问题需要知道 Tomcat 的一条连接是怎么被交给 worker 线程处理的：
 
@@ -499,7 +499,7 @@ Acceptor 线程**只负责 `accept()` 新连接**。它不处理请求，不解�
 
 这解释了为什么 `http-nio-8080-exec-*` 线程在 `jstack` 里全是 `WAITING`——它们确实在等活干，因为根本没有新连接进来。
 
-### 第五步：修复
+### 6.7 第五步：修复
 
 最简单的修复就是删掉那条配置：
 
@@ -528,7 +528,7 @@ server:
 
 **黄金比例：`maxConnections` ≥ `maxThreads` + `acceptCount`**。如果 maxConnections 设得太小，连接在内核 backlog 还没满时就被 LimitLatch 拦截，新连接直接卡在 Acceptor 上无人处理。
 
-### 总结
+### 6.8 总结
 
 | 信号 | 含义 | 工具 |
 |------|------|------|
@@ -541,15 +541,15 @@ server:
 
 此外：任何环境里的任何配置，你都必须知道它是怎么来的、为什么是这个值。`max-connections=10` 可能是一次压测时的临时调整、某个"最佳实践"博客里的推荐值、或者某个前辈留下的"为了防止连接数打满"的保护措施——但无论哪种，在大批量 Nginx worker 的长连接面前都是灾难。
 
-## 案例 12：Netty 直接内存泄漏 —— 堆正常但容器被 OOMKilled
+## 7. 案例 12：Netty 直接内存泄漏 —— 堆正常但容器被 OOMKilled
 
-### 事故背景
+### 7.1 事故背景
 
 2025 年某 API 网关服务（基于 Spring Cloud Gateway + Netty），部署在 Kubernetes 上，4C8G，`-Xmx4g`。上线一段时间后，Pod 开始出现规律性 OOMKilled——每 2~3 小时重启一次，但监控显示 JVM 堆使用率从未超过 45%，GC 次数和耗时均在正常范围。没有 `OutOfMemoryError` 日志，没有 heap dump 文件，Pod 直接消失。
 
 类似事件在开发者社区并不罕见。亚马逊 Corretto 的 GitHub Issue #225 记录了一个几乎完全一致的故障：Spring Boot 3.1.3 + Corretto 17.0.6，RSS 持续增长直到触发容器 OOM，但堆使用率正常——最终定位到内存分配器的碎片化问题。Michal Drozd 的博客 "Java OOMKilled With Stable Heap" 也详细分析了这类故障的排查方法论：堆外内存（Direct Memory）、线程栈、glibc arena 三者构成了堆之外的"隐形内存消耗"，在容器环境下尤其致命。
 
-### 第一步：确认是 K8s OOMKilled，不是 JVM OOM
+### 7.2 第一步：确认是 K8s OOMKilled，不是 JVM OOM
 
 ```bash
 kubectl describe pod <pod-name>
@@ -570,7 +570,7 @@ NAME                          CPU(cores)   MEMORY(bytes)
 gateway-pod-xxx               450m         7850Mi   ← 接近 8G limit
 ```
 
-### 第二步：确认堆内存正常
+### 7.3 第二步：确认堆内存正常
 
 ```bash
 jstat -gcutil <pid> 1000 5
@@ -586,7 +586,7 @@ jstat -gcutil <pid> 1000 5
 
 老年代仅 40%，Full GC 两小时才 2 次。堆确实没有问题。但 `jmap -histo` 也看不出异常——前几名依然是正常的 `char[]`、`String`、`HashMap$Node`。这让人迷惑：RSS 接近 8G，堆只用了不到 2G，剩下的 6G 去哪了？
 
-### 第三步：开启 NMT 追踪堆外内存
+### 7.4 第三步：开启 NMT 追踪堆外内存
 
 问题的关键是启用 Native Memory Tracking：
 
@@ -625,7 +625,7 @@ Total: reserved=7245MB, committed=6812MB
 
 `NIO/Direct` 占用了 1.8GB——几乎等于堆的大小。这是 Netty 的 `DirectByteBuffer`。加上堆的 1.8G（committed）、线程栈 400M、Metaspace 120M、Code Cache 128M、GC 辅助结构 384M——总计约 6.6G，再加上 glibc `malloc` 的 arena 碎片（每个 arena 预分配 64MB，在 8G 容器中默认 8 个 arena = 512MB），总 RSS 轻松超过 8G limit。
 
-### 第四步：定位泄漏的 ByteBuf
+### 7.5 第四步：定位泄漏的 ByteBuf
 
 开启 Netty 资源泄漏检测：
 
@@ -657,7 +657,7 @@ Created at:
 
 泄漏定位在 `ResponseModifyFilter.filter()`——一个自定义的响应修改过滤器。
 
-### 第五步：看代码
+### 7.6 第五步：看代码
 
 ```java
 @Component
@@ -696,7 +696,7 @@ public class ResponseModifyFilter implements GlobalFilter {
 
 每次请求的响应体大约 1~5KB，请求 QPS 约 3000，每小时约 1000 万次请求——每个都泄漏 1~5KB 的 Direct Buffer → 每小时泄漏约 10~50GB 的堆外内存——虽然 `DirectByteBuffer` 的 Cleaner 在 GC 时会回收一部分，但在高吞吐下包装清理跟不上分配速度，净泄漏速率仍然可观。
 
-### 第六步：修复
+### 7.7 第六步：修复
 
 ```java
 @Override
@@ -719,7 +719,7 @@ public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
 
 `DataBufferUtils.release()` 是 Spring 提供的便捷方法，内部调用 Netty 的 `ReferenceCountUtil.release()`。`try-finally` 保证即使 `modifyBody()` 抛异常，buffer 也能被释放。
 
-### 防止再次发生的防御措施
+### 7.8 防止再次发生的防御措施
 
 ```bash
 # 1. 显式限制直接内存上限（容器 8G，堆 4G，给直接内存 1G）
@@ -746,7 +746,7 @@ public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
 | Metaspace / Code Cache / GC | 15~20% | 1G |
 | 系统预留 | ~10% | 1G |
 
-### 排查堆外内存问题的工具链
+### 7.9 排查堆外内存问题的工具链
 
 | 层级 | 工具 | 适用场景 |
 |------|------|---------|
@@ -756,7 +756,7 @@ public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
 | 直接内存 | `-Dio.netty.leakDetectionLevel=paranoid` | 定位 Netty ByteBuf 泄漏的代码位置 |
 | 容器级 | `kubectl top pod` / Prometheus `container_memory_rss` | 实时监控 RSS 趋势 |
 
-### 总结
+### 7.10 总结
 
 | 信号 | 含义 | 工具 |
 |------|------|------|
@@ -769,4 +769,4 @@ public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
 
 > **上一篇：** [第六章案例集（一）：CPU 飙升、内存泄漏与 GC 调优实战](./chapter-06-diagnostics-cases-part1)
 >
-> **回到第六章正文：** [线上排查与诊断](./chapter-06-diagnostics)
+> **回到[第六章](./chapter-06-diagnostics)正文：** [线上排查与诊断](./chapter-06-diagnostics)

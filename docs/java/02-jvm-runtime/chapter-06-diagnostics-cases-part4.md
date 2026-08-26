@@ -1,12 +1,10 @@
-# 第六章案例集（四）：堆正常但服务崩了 —— TCP 层与堆外内存的隐形杀手
+# 案例集（四）：堆正常但服务崩了 —— TCP 层与堆外内存的隐形杀手
 
 > 监控全绿：堆 40%、CPU 30%、GC 正常。但接口每隔几秒就有一次 10 秒+ 超时，容器 `livenessProbe` 超时触发重启。`jstack` 跑了三遍——每次 Tomcat 线程都在 `WAITING`，没什么异常。直到开了 Tomcat 的 DEBUG 日志，才发现 `Acceptor` 线程卡在 `LimitLatch.countUpOrAwaitConnection()`——`server.tomcat.max-connections=10`，一条陈年配置把服务逼成了间歇性假死。另一台机器，堆也正常，但容器被 OOMKilled——`jmap -histo` 查不出问题，`-XX:NativeMemoryTracking=summary` 才揭穿：Netty 的 `PooledByteBufAllocator` 吃掉了 1.2GB 直接内存，每个 ByteBuf 的引用计数都停在 `retain() + 1`，永远不归零。这两类问题的共同特点：所有你看得见的指标都正常——真正的问题藏在你看不到的地方。
 
----
+## 1. 案例 11：Tomcat LimitLatch —— 一条陈年配置让服务间歇性假死
 
-## 案例 11：Tomcat LimitLatch —— 一条陈年配置让服务间歇性假死
-
-### 事故背景
+### 1.1 事故背景
 
 2025 年某团队将一个 Spring Boot 服务部署到生产环境后，出现间歇性请求超时——每次卡 10 秒以上，但日志里没有任何业务异常。更诡异的是，容器的 `livenessProbe` 也间歇性超时，触发 K8s 自动重启。重启后恢复，过一段时间又复发。
 
@@ -19,7 +17,7 @@
 
 这个问题最讽刺的是：真相在第一次 `jstack` 里就已经出现了，但排查者看了三遍都没注意到。详见萧易客的完整复盘：<https://aops.io/article/tomcat-blocking-on-acceptor.html>。
 
-### 第一步：第一次 jstack —— 错过了真凶
+### 1.2 第一步：第一次 jstack —— 错过了真凶
 
 ```bash
 jstack -l <pid> > thread.dump
@@ -39,7 +37,7 @@ jstack -l <pid> > thread.dump
 
 "http-nio-8080-exec-2" 到 "http-nio-8080-exec-200"——全部 `WAITING`。排查者得出结论：工作线程都在等活干，不是线程池的问题。方向转向了 GC、网络、数据库——全都没有问题。排查陷入僵局。
 
-### 第二步：开启 Tomcat DEBUG 日志 —— 发现盲点
+### 1.3 第二步：开启 Tomcat DEBUG 日志 —— 发现盲点
 
 排查者决定扩大范围，开启 Tomcat 的内部 DEBUG 日志，追踪每个请求从到达 Tomcat 到完成的全过程时序：
 
@@ -76,7 +74,7 @@ o.apache.tomcat.util.threads.LimitLatch : Counting up[http-nio-8080-Acceptor-0] 
 
 Acceptor 线程处于 `WAITING`，卡在 `LimitLatch.countUpOrAwait()`。这意味着：当前 TCP 连接数已达到 `maxConnections` 上限，Acceptor 被 AQS 共享锁阻塞，不再从内核的 `backlog` 队列中取新连接。
 
-### 第三步：验证连接数上限
+### 1.4 第三步：验证连接数上限
 
 用 `ss` 命令查看 TCP 连接队列状态：
 
@@ -86,7 +84,7 @@ ss -tnp | grep :8080
 
 输出显示与 8080 端口的 `ESTABLISHED` 连接恰好 10 个。`Recv-Q` 列的值持续 > 0——说明内核的 `backlog` 队列中有连接在排队，等待 `accept()` 取走。
 
-### 第四步：翻出罪魁祸首
+### 1.5 第四步：翻出罪魁祸首
 
 在 `application.yml` 的一个不起眼的角落里：
 
@@ -102,7 +100,7 @@ Tomcat NIO 模式下 `max-connections` 默认值是 10000。这里被改成了 1
 
 这就是"间歇性假死"的完整成因。
 
-### Tomcat 线程模型补充说明
+### 1.6 Tomcat 线程模型补充说明
 
 理解这个问题需要知道 Tomcat 的一条连接是怎么被交给 worker 线程处理的：
 
@@ -117,7 +115,7 @@ Acceptor 线程**只负责 `accept()` 新连接**。它不处理请求，不解�
 
 这解释了为什么 `http-nio-8080-exec-*` 线程在 `jstack` 里全是 `WAITING`——它们确实在等活干，因为根本没有新连接进来。
 
-### 第五步：修复
+### 1.7 第五步：修复
 
 最简单的修复就是删掉那条配置：
 
@@ -146,7 +144,7 @@ server:
 
 **黄金比例：`maxConnections` ≥ `maxThreads` + `acceptCount`**。如果 maxConnections 设得太小，连接在内核 backlog 还没满时就被 LimitLatch 拦截，新连接直接卡在 Acceptor 上无人处理。
 
-### 总结
+### 1.8 总结
 
 | 信号 | 含义 | 工具 |
 |------|------|------|
@@ -159,17 +157,15 @@ server:
 
 此外：任何环境里的任何配置，你都必须知道它是怎么来的、为什么是这个值。`max-connections=10` 可能是一次压测时的临时调整、某个"最佳实践"博客里的推荐值、或者某个前辈留下的"为了防止连接数打满"的保护措施——但无论哪种，在大批量 Nginx worker 的长连接面前都是灾难。
 
----
+## 2. 案例 12：Netty 直接内存泄漏 —— 堆正常但容器被 OOMKilled
 
-## 案例 12：Netty 直接内存泄漏 —— 堆正常但容器被 OOMKilled
-
-### 事故背景
+### 2.1 事故背景
 
 2025 年某 API 网关服务（基于 Spring Cloud Gateway + Netty），部署在 Kubernetes 上，4C8G，`-Xmx4g`。上线一段时间后，Pod 开始出现规律性 OOMKilled——每 2~3 小时重启一次，但监控显示 JVM 堆使用率从未超过 45%，GC 次数和耗时均在正常范围。没有 `OutOfMemoryError` 日志，没有 heap dump 文件，Pod 直接消失。
 
 类似事件在开发者社区并不罕见。亚马逊 Corretto 的 GitHub Issue #225 记录了一个几乎完全一致的故障：Spring Boot 3.1.3 + Corretto 17.0.6，RSS 持续增长直到触发容器 OOM，但堆使用率正常——最终定位到内存分配器的碎片化问题。Michal Drozd 的博客 "Java OOMKilled With Stable Heap" 也详细分析了这类故障的排查方法论：堆外内存（Direct Memory）、线程栈、glibc arena 三者构成了堆之外的"隐形内存消耗"，在容器环境下尤其致命。
 
-### 第一步：确认是 K8s OOMKilled，不是 JVM OOM
+### 2.2 第一步：确认是 K8s OOMKilled，不是 JVM OOM
 
 ```bash
 kubectl describe pod <pod-name>
@@ -190,7 +186,7 @@ NAME                          CPU(cores)   MEMORY(bytes)
 gateway-pod-xxx               450m         7850Mi   ← 接近 8G limit
 ```
 
-### 第二步：确认堆内存正常
+### 2.3 第二步：确认堆内存正常
 
 ```bash
 jstat -gcutil <pid> 1000 5
@@ -206,7 +202,7 @@ jstat -gcutil <pid> 1000 5
 
 老年代仅 40%，Full GC 两小时才 2 次。堆确实没有问题。但 `jmap -histo` 也看不出异常——前几名依然是正常的 `char[]`、`String`、`HashMap$Node`。这让人迷惑：RSS 接近 8G，堆只用了不到 2G，剩下的 6G 去哪了？
 
-### 第三步：开启 NMT 追踪堆外内存
+### 2.4 第三步：开启 NMT 追踪堆外内存
 
 问题的关键是启用 Native Memory Tracking：
 
@@ -245,7 +241,7 @@ Total: reserved=7245MB, committed=6812MB
 
 `NIO/Direct` 占用了 1.8GB——几乎等于堆的大小。这是 Netty 的 `DirectByteBuffer`。加上堆的 1.8G（committed）、线程栈 400M、Metaspace 120M、Code Cache 128M、GC 辅助结构 384M——总计约 6.6G，再加上 glibc `malloc` 的 arena 碎片（每个 arena 预分配 64MB，在 8G 容器中默认 8 个 arena = 512MB），总 RSS 轻松超过 8G limit。
 
-### 第四步：定位泄漏的 ByteBuf
+### 2.5 第四步：定位泄漏的 ByteBuf
 
 开启 Netty 资源泄漏检测：
 
@@ -277,7 +273,7 @@ Created at:
 
 泄漏定位在 `ResponseModifyFilter.filter()`——一个自定义的响应修改过滤器。
 
-### 第五步：看代码
+### 2.6 第五步：看代码
 
 ```java
 @Component
@@ -316,7 +312,7 @@ public class ResponseModifyFilter implements GlobalFilter {
 
 每次请求的响应体大约 1~5KB，请求 QPS 约 3000，每小时约 1000 万次请求——每个都泄漏 1~5KB 的 Direct Buffer → 每小时泄漏约 10~50GB 的堆外内存——虽然 `DirectByteBuffer` 的 Cleaner 在 GC 时会回收一部分，但在高吞吐下包装清理跟不上分配速度，净泄漏速率仍然可观。
 
-### 第六步：修复
+### 2.7 第六步：修复
 
 ```java
 @Override
@@ -339,7 +335,7 @@ public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
 
 `DataBufferUtils.release()` 是 Spring 提供的便捷方法，内部调用 Netty 的 `ReferenceCountUtil.release()`。`try-finally` 保证即使 `modifyBody()` 抛异常，buffer 也能被释放。
 
-### 防止再次发生的防御措施
+### 2.8 防止再次发生的防御措施
 
 ```bash
 # 1. 显式限制直接内存上限（容器 8G，堆 4G，给直接内存 1G）
@@ -366,7 +362,7 @@ public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
 | Metaspace / Code Cache / GC | 15~20% | 1G |
 | 系统预留 | ~10% | 1G |
 
-### 排查堆外内存问题的工具链
+### 2.9 排查堆外内存问题的工具链
 
 | 层级 | 工具 | 适用场景 |
 |------|------|---------|
@@ -376,7 +372,7 @@ public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
 | 直接内存 | `-Dio.netty.leakDetectionLevel=paranoid` | 定位 Netty ByteBuf 泄漏的代码位置 |
 | 容器级 | `kubectl top pod` / Prometheus `container_memory_rss` | 实时监控 RSS 趋势 |
 
-### 总结
+### 2.10 总结
 
 | 信号 | 含义 | 工具 |
 |------|------|------|
@@ -387,8 +383,6 @@ public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
 
 **教训：** 堆内存只是 Java 进程总内存的一部分。在容器环境下，K8s 的 `limits.memory` 限制的是整个进程的 RSS——包括堆、直接内存、线程栈、元空间、Code Cache、glibc arena 碎片、JNI 本地内存等。只看 JVM 堆是远远不够的。Michal Drozd 在博客中总结了一个经验法则：**永远给容器预留 40%~50% 的内存给堆外区域**。只设 `-Xmx` 不设 `-XX:MaxDirectMemorySize`，等于把直接内存的上限交给了物理内存——而在容器里，"物理内存"就是 limit 值，超了就杀。
 
----
-
 > **上一篇：** [第六章案例集（三）：低内存低 CPU 下的 GC 疑难杂症](./chapter-06-diagnostics-cases-part3)
 >
-> **回到第六章正文：** [线上排查与诊断](./chapter-06-diagnostics)
+> **回到[第六章](./chapter-06-diagnostics)正文：** [线上排查与诊断](./chapter-06-diagnostics)

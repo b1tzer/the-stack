@@ -1,16 +1,14 @@
-# 第6章 HTTP 协议：应用层通信标准
+# HTTP 协议：应用层通信标准
 
 > 你的 Grafana 监控面板亮了一排红灯：502、504、Connection Timeout。team 群里的运营已经在催「接口挂了」。你打开 Nginx error.log，看到 `upstream timed out` 和 `connection refused` 交替出现——但这两个错误的根因完全不同，一个需要修上游代码，一个需要看上游进程是不是挂了。你怎么在 5 分钟内判断应该把时间花在哪？
 
 > **📖 阅读建议**：如果你正盯着 502/504 告警排障，直接从 §6.4 状态码开始。§6.1-§6.3 是 HTTP 协议基础——每天写 REST API 的人建议全部读完，很多坑都源于「你以为你懂了 GET」。
 
----
-
-## 6.1 一次 HTTP 请求到底花了多少时间
+## 1. 一次 HTTP 请求到底花了多少时间
 
 先从你线上真正关心的问题开始：**一个 HTTP 请求的耗时，到底是花在网络上了，还是花在服务端处理上了？**
 
-### 6.1.1 curl 分阶段计时
+### 1.1 curl 分阶段计时
 
 你的 API 偶尔从 200ms 飙到 8 秒，没有规律，日志里一切正常。这时候不要猜——用 `curl -w` 把一次请求拆成 6 个阶段的耗时：
 
@@ -45,7 +43,7 @@ DNS:0.520 | TCP:0.320 | TLS:0.850 | TTFB:0.180 | Total:1.870
 
 **如果 TTFB 高**：问题在你的服务端（慢 SQL、锁等待、线程池满、外部依赖超时）。**如果 `time_connect` 高**：问题在链路（跨机房、防火墙、负载均衡）。工具把你的直觉变成了数字，接下来去哪查、怎么查就知道了。
 
-### 6.1.2 HTTP 在 TCP 连接上的完整生命周期
+### 1.2 HTTP 在 TCP 连接上的完整生命周期
 
 一个 HTTP 请求从发出到收到响应，经历的不是一个原子操作，而是一组可拆解的阶段：
 
@@ -83,13 +81,11 @@ DNS:0.520 | TCP:0.320 | TLS:0.850 | TTFB:0.180 | Total:1.870
 
 **每个阶段都是一个可能的故障点**，而且每个阶段的排查工具不同。§6.4 讲的状态码，就是用来告诉你是哪一段出了问题。
 
----
-
-## 6.2 HTTP 报文：你每天在写的 REST API，底层长什么样
+## 2. HTTP 报文：你每天在写的 REST API，底层长什么样
 
 从 curl 分阶段计时你已经知道怎么定位瓶颈了。现在看瓶颈的「承载物」——HTTP 报文本身。
 
-### 6.2.1 请求报文结构
+### 2.1 请求报文结构
 
 ```http
 POST /api/users HTTP/1.1
@@ -115,7 +111,7 @@ Connection: keep-alive
 └────────────────────────────────────────────┘
 ```
 
-### 6.2.2 响应报文结构
+### 2.2 响应报文结构
 
 ```http
 HTTP/1.1 201 Created
@@ -126,7 +122,7 @@ Location: /api/users/42
 {"id":42,"name":"张三","email":"zhangsan@example.com"}
 ```
 
-### 6.2.3 Header 分类速查
+### 2.3 Header 分类速查
 
 | 类别 | 示例 | 说明 |
 |------|------|------|
@@ -137,11 +133,9 @@ Location: /api/users/42
 
 对 Java 开发者而言，你不需要手拼 HTTP 报文——Spring MVC 和 OkHttp 替你做了。但当你线上排查 `415 Unsupported Media Type` 的时候，如果你不知道错误出在 `Content-Type` 头而不是请求体本身，排查方向就错了。
 
----
+## 3. HTTP 方法：你的 GET 不是真的只读
 
-## 6.3 HTTP 方法：你的 GET 不是真的只读
-
-### 6.3.1 安全与幂等——这两个属性是你线上数据的防线
+### 3.1 安全与幂等——这两个属性是你线上数据的防线
 
 HTTP 定义了 9 个方法。对 Java 后端而言，只需要记住两个核心属性就够用了：
 
@@ -176,7 +170,7 @@ public void recordLogin(@PathVariable Long id) {
 public void recordLogin(@PathVariable Long id) { ... }
 ```
 
-### 6.3.2 GET 与 POST 的常见误解
+### 3.2 GET 与 POST 的常见误解
 
 | 误解 | 事实 |
 |------|------|
@@ -184,13 +178,11 @@ public void recordLogin(@PathVariable Long id) { ... }
 | "POST 比 GET 安全" | 都是明文传输（HTTP），安全性依赖 HTTPS |
 | "GET 不能有 Body" | 协议允许，但大多数框架会忽略 |
 
----
-
-## 6.4 HTTP 状态码：你线上的每一个 5xx 都在说不同的事
+## 4. HTTP 状态码：你线上的每一个 5xx 都在说不同的事
 
 这是本章最重要的部分。线上告警亮了最多的就是 4xx 和 5xx，但它们背后对应的排查方向完全不同。
 
-### 6.4.1 502 vs 504 vs Connection Timeout——别再搞混了
+### 4.1 502 vs 504 vs Connection Timeout——别再搞混了
 
 你用 Nginx 做反向代理，后面挂着 Java 应用。线上告警亮了：
 
@@ -211,7 +203,7 @@ public void recordLogin(@PathVariable Long id) { ... }
 
 **502 和 504 的根本区别**：502 是「叫不到人」（上游已死或不存在），504 是「人来了但不理你」（上游忙着处理别的事）。
 
-### 6.4.2 4xx：问题在你这边
+### 4.2 4xx：问题在你这边
 
 | 状态码 | 什么时候会出现 | 你该查什么 |
 |--------|-------------|----------|
@@ -221,7 +213,7 @@ public void recordLogin(@PathVariable Long id) { ... }
 | **404** | URL 写错了或资源真的被删了 | `@RequestMapping` 路径是否匹配 |
 | **429** | 触发了网关的限流规则 | 限流配置和客户端退避策略 |
 
-### 6.4.3 5xx：问题在服务端或中间层
+### 4.3 5xx：问题在服务端或中间层
 
 | 状态码 | 什么时候会出现 | 排查命令 |
 |--------|-------------|---------|
@@ -232,7 +224,7 @@ public void recordLogin(@PathVariable Long id) { ... }
 
 > **生产环境警告**：出现 504 时不要第一反应拉大 `proxy_read_timeout`。如果根因是上游卡在慢 SQL 或锁等待，拉大超时只会让连接占用更久，入口层更容易被拖死。先直连上游看实际响应时间，再决定调配置还是修代码。
 
-### 6.4.4 快速判断：从 Nginx error.log 定位问题层
+### 4.4 快速判断：从 Nginx error.log 定位问题层
 
 ```bash
 # 一行的快速诊断
@@ -246,20 +238,18 @@ grep -E "connect\(\) failed|upstream timed out|no live upstreams|reset by peer" 
 | `no live upstreams` | 全部上游不健康 | 查健康检查或全挂了 |
 | `reset by peer` | 上游主动断开 | 查上游 OOM、线程池满 |
 
----
-
-## 6.5 HTTP 版本演进：为什么你的 HTTPS 接口比别人慢一拍
+## 5. HTTP 版本演进：为什么你的 HTTPS 接口比别人慢一拍
 
 你写好的 REST API，本地测试正常，上线后前端反馈「首次加载慢」。这不是你的代码问题，是 HTTP 协议版本在起作用。
 
-### 6.5.1 HTTP/1.0 → HTTP/1.1：省掉每次重连的握手
+### 5.1 HTTP/1.0 → HTTP/1.1：省掉每次重连的握手
 
 ```text
 HTTP/1.0：每请求一次 = 一次 TCP 握手 + 一次数据 + 一次挥手
 HTTP/1.1：一次 TCP 握手 → 多次请求/响应（Keep-Alive）→ 最后才挥手
 ```
 
-### 6.5.2 HTTP/1.1 → HTTP/2：一个页面 20 个请求不再排队
+### 5.2 HTTP/1.1 → HTTP/2：一个页面 20 个请求不再排队
 
 HTTP/1.1 在同一连接上请求必须按序返回（队头阻塞）。HTTP/2 引入的多路复用在一个 TCP 连接上并行传输多个请求/响应：
 
@@ -272,7 +262,7 @@ HTTP/2：
 单连接: 并行传输 CSS + JS + IMG1 + IMG2（互不阻塞）
 ```
 
-### 6.5.3 HTTP/2 → HTTP/3：TCP 本身也别拖后腿
+### 5.3 HTTP/2 → HTTP/3：TCP 本身也别拖后腿
 
 HTTP/2 解决了应用层队头阻塞，但 TCP 层丢一个包，所有请求都得等重传。HTTP/3 用 QUIC（UDP 之上）彻底消除了这个瓶颈：
 
@@ -288,13 +278,11 @@ QUIC (HTTP/3):             丢 Packet 3 → 只影响 Stream 1，其他照常
 | 队头阻塞 | 应用层+TCP | 仅 TCP | 无 |
 | 首连延迟 | TCP 3次 + TLS 2次 | TCP 3次 + TLS 2次 | 1-RTT（重连 0-RTT） |
 
----
-
 > **本章小结：** HTTP 是你每天在用的协议——不是教科书上的 RFC 条目。502 和 504 的区别决定了你下一步是重启进程还是查慢 SQL。`curl -w` 把「这个接口慢」拆成了 6 个可量化的数字。`Content-Type` 配错导致的 415，日志里写的是 `Unsupported Media Type`，根因是 `@RequestBody` 找不到匹配的 `HttpMessageConverter`。
 
 > **纵横联系**
 >
-> - **第4章 NIO**：HTTP 报文最终通过 TCP Socket 的字节流传输。Tomcat 的 NioEndpoint 收到字节 → ProtocolHandler 解析 HTTP → 封装成 HttpServletRequest。
-> - **第5章 Netty**：Netty 内置 `HttpServerCodec`、`HttpObjectAggregator`，是 Java 实现 HTTP 服务的主流方案。HTTP/2 的二进制帧在 Netty 中以 `Http2FrameCodec` 实现。
-> - **第7章 Servlet**：本章讲 HTTP 协议本身（报文、状态码、版本），第7章讲 Java 端如何解析和生成 HTTP 报文（Connector → Container → DispatcherServlet）。
-> - **第8章 RPC**：RPC 的协议帧（魔数+长度+消息体）和 HTTP 报文（请求行+Header+Body）是同一种设计思路的不同实现——对字节流附加上下文信息。
+> - **[第4章](./chapter-04-nio) NIO**：HTTP 报文最终通过 TCP Socket 的字节流传输。Tomcat 的 NioEndpoint 收到字节 → ProtocolHandler 解析 HTTP → 封装成 HttpServletRequest。
+> - **[第5章](./chapter-05-netty) Netty**：Netty 内置 `HttpServerCodec`、`HttpObjectAggregator`，是 Java 实现 HTTP 服务的主流方案。HTTP/2 的二进制帧在 Netty 中以 `Http2FrameCodec` 实现。
+> - **[第7章](./chapter-07-servlet-springmvc) Servlet**：本章讲 HTTP 协议本身（报文、状态码、版本），[第7章](./chapter-07-servlet-springmvc)讲 Java 端如何解析和生成 HTTP 报文（Connector → Container → DispatcherServlet）。
+> - **[第8章](./chapter-08-rpc) RPC**：RPC 的协议帧（魔数+长度+消息体）和 HTTP 报文（请求行+Header+Body）是同一种设计思路的不同实现——对字节流附加上下文信息。

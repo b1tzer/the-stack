@@ -1,16 +1,14 @@
-# 第5章 Netty：Java 高性能网络框架
+# Netty：Java 高性能网络框架
 
 > 面试官问 Netty 的线程模型——你说得出 Boss/Worker，但说不清为什么一个 EventLoop 绑一个 Channel 就不用加锁、dispatcher 决定「在哪跑」和 threadpool 决定「用多大池子接」之间的区别、以及 `§5.3` 那个 `Direct buffer memory` OOM 为什么堆还有空间照样炸。本章拆穿"Netty 就是 NIO 封装"这种半对半错的理解——EventLoop 不是线程池、ByteBuf 不是 Buffer、Pipeline 不是责任链那么简单。
 
-> **📖 阅读建议**：§5.1 是为什么要有 Netty（对比第4章 NIO），§5.2 是核心线程模型（你线上排障最需要的部分），§5.3 ByteBuf（`Direct buffer memory` OOM 根因），§5.4 编解码（粘包/拆包解决方案），§5.5 Reactor 模式全景。删除API罗列式讲解，保留原理和排查路径。
+> **📖 阅读建议**：§5.1 是为什么要有 Netty（对比[第4章](./chapter-04-nio) NIO），§5.2 是核心线程模型（你线上排障最需要的部分），§5.3 ByteBuf（`Direct buffer memory` OOM 根因），§5.4 编解码（粘包/拆包解决方案），§5.5 Reactor 模式全景。删除API罗列式讲解，保留原理和排查路径。
 
----
+## 1. 从 NIO 到 Netty：为什么原生 NIO 没人直接用了
 
-## 5.1 从 NIO 到 Netty：为什么原生 NIO 没人直接用了
+[第4章](./chapter-04-nio)讲了 NIO 的 Channel、Buffer、Selector。你能用 500 行写一个 NIO Echo Server，但[第4章](./chapter-04-nio)也在末尾告诉你：生产代码没人这么写。具体原因一个一个看。
 
-第4章讲了 NIO 的 Channel、Buffer、Selector。你能用 500 行写一个 NIO Echo Server，但第4章也在末尾告诉你：生产代码没人这么写。具体原因一个一个看。
-
-### 5.1.1 NIO 的三个致命缺陷
+### 1.1 NIO 的三个致命缺陷
 
 | 缺陷 | 后果 |
 |------|------|
@@ -20,7 +18,7 @@
 
 Netty 把这三个坑全部填平了。
 
-### 5.1.2 Netty 填了什么
+### 1.2 Netty 填了什么
 
 ```text
 ┌─────────────────────────────────────┐
@@ -48,13 +46,11 @@ Netty 把这三个坑全部填平了。
 
 Netty 在 Java 生态中是事实标准：Dubbo 的传输层、gRPC 的 Netty Transport、Elasticsearch 节点间通信、RocketMQ 的网络层，全都跑在 Netty 上。
 
----
-
-## 5.2 EventLoop 线程模型：Dubbo「线程池打满」的根
+## 2. EventLoop 线程模型：Dubbo「线程池打满」的根
 
 回到开头那个故障。Dubbo Provider 200 个线程全部耗尽，但你的服务一共才 4 个 CPU 核。为什么会有 200 个线程同时在跑？因为 Dubbo 默认用 Netty 的 **EventLoop + 业务线程池** 两层模型——失败不在 Netty 的 IO 层，而在业务线程池层。
 
-### 5.2.1 Boss 和 Worker：连接和数据分开管
+### 2.1 Boss 和 Worker：连接和数据分开管
 
 Netty 服务端有两个线程组：
 
@@ -75,7 +71,7 @@ bossGroup (1 个线程)                workerGroup (CPU×2 个线程)
 
 **关键规则**：一个 Channel 的所有 I/O 事件永远由同一个 EventLoop 线程处理。这意味着你在 I/O Handler 里不需要加锁——天然的线程安全。但也意味着你不能阻塞 EventLoop 线程——一个 Handler 里加了 `sleep`，这个 EventLoop 上所有 Channel 全部罢工。
 
-### 5.2.2 Dubbo 的 dispatcher 和 threadpool：IO 线程和业务线程的分工
+### 2.2 Dubbo 的 dispatcher 和 threadpool：IO 线程和业务线程的分工
 
 Dubbo 在 Netty workerGroup 之上又加了一层业务线程池。控制「谁出谁进」的是 `dispatcher`：
 
@@ -94,7 +90,7 @@ Dubbo 在 Netty workerGroup 之上又加了一层业务线程池。控制「谁�
 
 回到开头那个故障：dispatcher 用的是 `all`，threadpool 用的是 `fixed:200`。一个测试残留的 `sleep(6000)` 把 200 个业务线程全部占满。后续新请求进入业务线程池时被 `AbortPolicyWithReport` 拒绝，Dubbo 会返回 `SERVER_THREADPOOL_EXHAUSTED_ERROR` 给 Consumer。Consumer 如果设了 `retries>0`，重试又会涌进来更多请求→雪崩。
 
-### 5.2.3 EventLoop 任务队列：别阻塞 I/O 线程
+### 2.3 EventLoop 任务队列：别阻塞 I/O 线程
 
 Netty 的 EventLoop 不仅处理 I/O 事件，还执行用户提交的任务：
 
@@ -109,9 +105,7 @@ ch.pipeline()
 ch.pipeline().addLast(new BusinessHandler());  // 跑在 workerGroup 上
 ```
 
----
-
-## 5.3 ByteBuf：你线上见过但没看懂的 `Direct buffer memory` OOM
+## 3. ByteBuf：你线上见过但没看懂的 `Direct buffer memory` OOM
 
 Netty 的 ByteBuf 用一个独立指针 `readerIndex` 和一个独立指针 `writerIndex` 替代了 NIO Buffer 的单一 position。不需要 flip，不需要 compact——读就自动移动 `readerIndex`，写就自动移动 `writerIndex`：
 
@@ -142,9 +136,7 @@ jcmd <pid> VM.native_memory summary | grep -A 5 "Direct"
 
 引用计数是 ByteBuf 的另一道防线。每个 ByteBuf 创建后 `refCnt=1`，每 `retain()` 一次 +1，每 `release()` 一次 -1，归零后释放内存。Netty 的 `SimpleChannelInboundHandler` 会自动 `release()`，但自定义 Handler 里如果手动 `retain()` 了却忘记 `release()` → 永久泄漏。
 
----
-
-## 5.4 编解码：TCP 粘包/拆包的工业化解决方案
+## 4. 编解码：TCP 粘包/拆包的工业化解决方案
 
 TCP 没有消息边界。你发了两条消息，对方可能收到一条「粘在一起」的数据。Netty 内置了三种帧解码器：
 
@@ -163,9 +155,7 @@ pipeline.addLast(new LengthFieldBasedFrameDecoder(65535, 0, 4, 0, 4));
 
 帧解码之后的数据才能交给业务 Handler。如果在帧解码之前解码了 —— 你拿到了半条消息或者两条消息粘在一起的数据，然后你的业务代码按「完整消息」来解析，不是报错就是静默丢数据。
 
----
-
-## 5.5 Reactor 模式全景：从单线程到主从
+## 5. Reactor 模式全景：从单线程到主从
 
 把 EventLoop、Pipeline、编解码器串起来，一次请求的完整旅程：
 
@@ -178,10 +168,8 @@ bossGroup (accept) → workerGroup (read/decode) → [可选: businessGroup (业
 
 Netty 的主从 Reactor 模型和 Tomcat 的 Acceptor/Poller/Worker 三线程模型是同一种思想的不同实现。区别在于 Tomcat 是为 HTTP 优化的 Servlet 容器，Netty 是通用网络框架——你可以用它写 HTTP 服务器，也可以写 RPC 框架、消息队列、IM 服务。
 
----
-
 > **纵横联系**
 >
-> - **第4章 NIO** 的 Selector + Channel + Buffer 是 Netty 的地基。你在 Netty 里看到的 `NioEventLoop`、`NioSocketChannel`、`ByteBuf` 都是对 NIO 的装箱。
-> - **第7章 Servlet** 的 Tomcat NioEndpoint 和本章 Netty 的主从 Reactor 是同一种模式——Tomcat 用 Java NIO 自建，Netty 做了更通用的封装。
-> - **第8章 RPC** 的 Dubbo 传输层基于 Netty。Dubbo 的 dispatcher/threadpool 配置直接影响 Netty EventLoop 的业务线程分配策略。
+> - **[第4章](./chapter-04-nio) NIO** 的 Selector + Channel + Buffer 是 Netty 的地基。你在 Netty 里看到的 `NioEventLoop`、`NioSocketChannel`、`ByteBuf` 都是对 NIO 的装箱。
+> - **[第7章](./chapter-07-servlet-springmvc) Servlet** 的 Tomcat NioEndpoint 和本章 Netty 的主从 Reactor 是同一种模式——Tomcat 用 Java NIO 自建，Netty 做了更通用的封装。
+> - **[第8章](./chapter-08-rpc) RPC** 的 Dubbo 传输层基于 Netty。Dubbo 的 dispatcher/threadpool 配置直接影响 Netty EventLoop 的业务线程分配策略。

@@ -1,12 +1,10 @@
-# 第4章 Java NIO：高性能网络模型
+# Java NIO：高性能网络模型
 
 > 你的Tomcat服务线上跑了三个月，一直很稳。这周做活动，QPS翻了十倍，问题来了——`ss -tln` 看端口队列暴涨，jstack 看 Tomcat 的 Poller 线程池只有一个人在工作，另一个线程池却全满了，CPU 反而只有 15%。你不理解问题出在哪，因为你从没关心过 Tomcat 的 NIO 是什么、怎么工作的。这一章回答：你每天依赖的 NIO，到底在底层干了什么。
 
----
+## 1. 从一次线上故障开始
 
-## 4.1 从一次线上故障开始
-
-### 4.1.1 你的Tomcat线程池爆了，但CPU没满
+### 1.1 你的Tomcat线程池爆了，但CPU没满
 
 故障现象：压测 500 并发，`server.tomcat.threads.max=200`。200 个请求进来，剩下 300 个全排在 accept 队列里，用户侧超时。CPU 只有 15%。
 
@@ -28,7 +26,7 @@
 
 但 Tomcat 8.5+ 默认不是 NIO 吗？为什么还会有这个问题？因为 NIO 只解决了一大半——Tomcat 的 Acceptor 和 Poller 用了 NIO Selector 来等连接和等数据，但实际处理请求的工作线程仍然在 `read()` 上阻塞。**NIO 做的不是消除阻塞，而是把阻塞从「每个连接都要占一个工作线程」变成「一个 Poller 线程替所有人等」。**
 
-### 4.1.2 BIO 把线程当「等待工」用
+### 1.2 BIO 把线程当「等待工」用
 
 上一章 §3.5 的 Echo Server 用的就是最原始的 BIO：每 `accept` 一个连接，分配一个线程处理。线程 90% 的时间都阻塞在 `read()` 上。
 
@@ -66,7 +64,7 @@
 
 BIO 仍有适用场景——连接数 < 100、短生命周期请求、原型开发——但这些场景下增加复杂度的代价大于收益。Tomcat 7 以前默认 BIO，Tomcat 8.5 起全面转向 NIO，因为现代 Web 应用面对的并发量和这个模型已经水火不容了。
 
-### 4.1.3 NIO 的核心思想：换一种「等」的方式
+### 1.3 NIO 的核心思想：换一种「等」的方式
 
 BIO 的根因是：线程被用来「等数据来」。NIO 换了一个思路：**让操作系统在「有数据可读」时通知我，线程只负责处理。**
 
@@ -89,13 +87,11 @@ NIO 依赖三个核心组件——Channel、Buffer、Selector。
 
 这三个组件的设计是一环扣一环的：Channel 是双向数据通道，Buffer 是 Channel 读写的容器，Selector 在一个线程里同时监听多个 Channel 的事件。下面从你线上遇到的问题挨个往回拆。
 
----
-
-## 4.2 Selector 是核心：一个线程凭什么管几千连接
+## 2. Selector 是核心：一个线程凭什么管几千连接
 
 先讲 Selector，因为它回答了本章最核心的问题——开头故障里 Tomcat 的 Poller 线程在干什么。
 
-### 4.2.1 Poller 线程到底在干什么
+### 2.1 Poller 线程到底在干什么
 
 回到那个故障。你 jstack 里除了 200 个卡在 `socketRead0` 的工作线程，还看到了这个：
 
@@ -111,7 +107,7 @@ NIO 依赖三个核心组件——Channel、Buffer、Selector。
 
 这一行 `epollWait`，就是 Tomcat 的 Poller 线程。它不处理任何请求，它只做一件事：**跟操作系统说「帮我盯着这 500 个连接，哪个有数据来了叫我」。** 这就是 Selector。
 
-### 4.2.2 Selector 的工作方式
+### 2.2 Selector 的工作方式
 
 ```java
 // 第一步：创建 Selector
@@ -190,11 +186,9 @@ selector.selectNow();           // 非阻塞，立即返回当前就绪数
 
 **Selector 做的事情，说白了就是：替你用 epoll（Linux）/ kqueue（macOS）/ IOCP（Windows）跟内核打交道。** 你不用关心每个平台上怎么实现多路复用的，Selector 统一了接口。但代价是你得理解它的事件模型——它只告诉你「有数据了」，不负责帮你读、帮你写、帮你拼数据。
 
----
+## 3. Channel：BIO 的 Stream 为什么不够用
 
-## 4.3 Channel：BIO 的 Stream 为什么不够用
-
-### 4.3.1 一个连接 = 一个 Channel
+### 3.1 一个连接 = 一个 Channel
 
 写完 Selector，回到 Tomcat。Tomcat 不用 `InputStream.read()` 来等数据——它用的是 `SocketChannel`。你线上看到的每个 Socket 连接，在 NIO 里对应一个 Channel。
 
@@ -218,7 +212,7 @@ sc.write(buffer);  // 从 Buffer 写入 Channel
 | 数据操作 | 直接读写字节 | 必须通过 Buffer |
 | 注册到 Selector | 不支持 | 非阻塞模式下支持 |
 
-### 4.3.2 四种 Channel 类型
+### 3.2 四种 Channel 类型
 
 ```java
 // 文件通道
@@ -240,7 +234,7 @@ DatagramChannel udpChannel = DatagramChannel.open();
 | `DatagramChannel` | UDP 读写 | `DatagramSocket` |
 | `FileChannel` | 文件读写（仅阻塞模式） | `FileInputStream/OutputStream` |
 
-### 4.3.3 非阻塞：让 Selector 能用上 Channel
+### 3.3 非阻塞：让 Selector 能用上 Channel
 
 Channel 默认是阻塞的，必须手动切：
 
@@ -253,11 +247,9 @@ SocketChannel sc = ssc.accept(); // 无连接时返回 null，不阻塞
 
 只有非阻塞的 Channel 才能注册到 Selector。这就是 Selector 和 Channel 的耦合点——它们两个谁离了谁都成不了「一个线程管 N 个连接」。
 
----
+## 4. Buffer：你线上见过的 DirectByteBuffer OOM
 
-## 4.4 Buffer：你线上见过的 DirectByteBuffer OOM
-
-### 4.4.1 为什么 Channel 不能直接读写字节
+### 4.1 为什么 Channel 不能直接读写字节
 
 在 BIO 中，`read(byte[] buf)` 直接把数据读到字节数组里。NIO 的 Channel 不能直接读写字节——**所有数据必须经过 Buffer**。
 
@@ -268,7 +260,7 @@ NIO:   Channel ──read──►  Buffer ──get()──►  byte[]
 
 为什么？因为 Channel 是非阻塞的——一次 `read()` 可能只读到半个消息。Channel 需要一个「暂存区」来缓存读到的东西，还要支持「我还有数据没读完，下次接着读」的语义。byte[] 做不到，Buffer 可以。
 
-### 4.4.2 你线上的 DirectByteBuffer OOM
+### 4.2 你线上的 DirectByteBuffer OOM
 
 你见过这个报错吗？
 
@@ -280,7 +272,7 @@ java.lang.OutOfMemoryError: Direct buffer memory
 
 理解这个 Bug，必须理解 Buffer 的内部机制。
 
-### 4.4.3 Buffer 的三个内部指针
+### 4.3 Buffer 的三个内部指针
 
 每个 Buffer 维护三个属性：
 
@@ -292,7 +284,7 @@ java.lang.OutOfMemoryError: Direct buffer memory
 | **limit** | 第一个不可读/写的索引 | 0 ≤ limit ≤ capacity |
 | **position** | 下一个要读/写的位置 | 0 ≤ position ≤ limit |
 
-### 4.4.4 Buffer 的核心操作——flip 是最高频的坑
+### 4.4 Buffer 的核心操作——flip 是最高频的坑
 
 ```java
 // 1. 写入数据
@@ -316,7 +308,7 @@ buffer.compact();          // 把 [position, limit) 的数据复制到开头
 
 这正是 Netty 用 `ByteBuf` 替代 `ByteBuffer` 的核心原因：ByteBuf 把读指针和写指针分开，不需要你手动 flip。
 
-### 4.4.5 堆内存 vs 堆外内存
+### 4.5 堆内存 vs 堆外内存
 
 ```java
 ByteBuffer buf = ByteBuffer.allocate(1024);           // 堆内存，受 GC 管理
@@ -330,9 +322,7 @@ ByteBuffer directBuf = ByteBuffer.allocateDirect(1024); // 堆外内存
 
 长期存活的 Buffer（连接池中的读写缓冲区）用 `allocateDirect()`；短期临时 Buffer 用 `allocate()`。用错了不会报错——只是 GC 曲线更陡，或者堆外内存悄悄涨到你怀疑人生。
 
----
-
-## 4.5 零拷贝：NIO 的性能杀手锏
+## 5. 零拷贝：NIO 的性能杀手锏
 
 传统 I/O 把一份数据从文件发到网络，要拷贝 4 次：
 
@@ -369,11 +359,9 @@ allocate()：       堆内存 → 临时直接内存 → 内核缓冲区 → 网
 allocateDirect()： 直接内存 → 内核缓冲区 → 网卡
 ```
 
----
+## 6. NIO Reactor 模式：Tomcat 的 Boss-Worker 就长这样
 
-## 4.6 NIO Reactor 模式：Tomcat 的 Boss-Worker 就长这样
-
-### 4.6.1 单线程 NIO Echo
+### 6.1 单线程 NIO Echo
 
 把 Channel + Buffer + Selector 组合在一起的最简示例——你可以对照着看它和后面 Tomcat 的 Acceptor/Poller/Worker 是怎么对应的：
 
@@ -422,11 +410,11 @@ public class NioEchoServer {
 }
 ```
 
-### 4.6.2 单线程 Reactor 的瓶颈
+### 6.2 单线程 Reactor 的瓶颈
 
 上面这个 Echo 能跑，但有一个隐蔽问题：如果 `handleRead()` 里的业务逻辑跑了 500ms（比如查了个慢 SQL），Selector 线程会被卡住 500ms。这 500ms 内所有其他连接的 I/O 事件——新连接到达、已有连接发数据——全部得不到处理。**I/O 处理不能阻塞 Selector 线程。**
 
-### 4.6.3 主从多 Reactor：Tomcat 的三线程模型
+### 6.3 主从多 Reactor：Tomcat 的三线程模型
 
 这正是 Tomcat NioEndpoint 的三线程设计要解决的问题：
 
@@ -440,9 +428,7 @@ public class NioEchoServer {
 
 这就是开头故障里你看到的三类线程：一个 Acceptor 接新连接，几个 Poller 用 epoll 等数据，200 个 Exec 线程做实际工作。
 
----
-
-## 4.7 不直接用 NIO 的原因
+## 7. 不直接用 NIO 的原因
 
 原生 NIO 能工作，但写生产代码需要一个人搞定下面这张清单：
 
@@ -458,7 +444,7 @@ public class NioEchoServer {
 
 一个简单的 NIO 服务器轻松超过 500 行，等价 BIO 版本只要 50 行。
 
-### epoll 空轮询 Bug（JDK-6670302）
+### 7.1 epoll 空轮询 Bug（JDK-6670302）
 
 `Selector.select()` 在 Linux 上偶发**立即返回 0**（应该阻塞），导致 CPU 空转到 100%：
 
@@ -474,7 +460,7 @@ while (true) {
 
 Netty 的解决办法：检测到连续 512 次空返回后重建 Selector。
 
-### 所以有了 Netty
+### 7.2 所以有了 Netty
 
 ```text
 原生 NIO 的痛点              Netty 的解决方案
@@ -488,9 +474,7 @@ epoll 空轮询 Bug       ──►  自动检测 + 重建 Selector
 
 > 学原生 NIO 不是为了手写 NIO 服务器。是为了当你线上看到 `Direct buffer memory` OOM、Tomcat Poller 线程池打满、Netty 的 `IllegalReferenceCountException` 时，你知道问题在哪一层、该翻哪行源码——而不是只能重启试试。
 
----
-
-## 本章小结
+## 8. 本章小结
 
 | 概念 | 你什么时候会用到它 |
 | :--- | :--- |
@@ -500,11 +484,9 @@ epoll 空轮询 Bug       ──►  自动检测 + 重建 Selector
 | **Reactor** | 你想看懂 Tomcat NioEndpoint 的 Acceptor/Poller/Worker 怎么协作 |
 | **零拷贝** | 你想知道 Kafka 为什么吞吐那么高，自己的文件下载服务为什么跑不满网卡 |
 
----
-
 > **纵横联系**
 >
-> - **本卷第3章** 的 BIO 模型是本章的对比基准——正是因为「一连接一线程」内存扛不住，才需要 NIO。
-> - **本卷第5章** 的 Netty 框架是本章三大组件（Channel + Buffer + Selector）加上 Reactor 模式的工业级封装。本章每处「原生 NIO 难用」都在为第 5 章埋钩子。
-> - **本卷第7章** 的 Tomcat NioEndpoint 直接实现了本章的 Reactor 模式。
+> - **本卷[第3章](./chapter-03-socket)** 的 BIO 模型是本章的对比基准——正是因为「一连接一线程」内存扛不住，才需要 NIO。
+> - **本卷[第5章](./chapter-05-netty)** 的 Netty 框架是本章三大组件（Channel + Buffer + Selector）加上 Reactor 模式的工业级封装。本章每处「原生 NIO 难用」都在为第 5 章埋钩子。
+> - **本卷[第7章](./chapter-07-servlet-springmvc)** 的 Tomcat NioEndpoint 直接实现了本章的 Reactor 模式。
 > - **第二卷《JVM Runtime》** 中的直接内存（DirectMemory）是本章 `allocateDirect()` 和 OOM 排查的前置知识。
