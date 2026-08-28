@@ -1,0 +1,61 @@
+name: 🚀 Deploy VitePress to GitHub Pages
+
+on:
+  schedule:
+    - cron: '7 1 * * *'
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - ".github/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: '--max-old-space-size=4096'
+
+    steps:
+      # 1. 检出代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. 设置 Node.js 环境
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 3. 安装依赖
+      - name: Install dependencies
+        run: npm ci
+
+      # 4. 构建 VitePress 站点
+      - name: Build VitePress site
+        run: npm run build
+
+      # 5. 添加自定义域名
+      - name: Add CNAME for custom domain
+        run: echo "thestack.xpro.wang" > site/CNAME
+
+      # 6. 部署到 GitHub Pages (gh-pages 分支)
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./site
+          commit_message: "deploy: ${{ github.event.head_commit.message }}"
+          force_orphan: true
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
