@@ -4,80 +4,52 @@
 
 ## 📖 项目简介
 
-The Stack 是一个综合性的技术知识库，旨在为开发者提供全面、深入的技术解析和实战经验。我们致力于通过系统化的知识体系，帮助开发者快速掌握核心技术栈，提升技术能力。[部署站点](https://thestack.xpro.wang)
+The Stack 是一个综合性的技术知识库，旨在为开发者提供全面、深入的技术解析和实战经验。通过系统化的知识体系，帮助开发者快速掌握核心技术栈，提升技术能力。
 
-### 项目目的
+🔗 **在线访问**：[thestack.xpro.wang](https://thestack.xpro.wang)
 
-- **知识系统化**：将分散的技术知识点整合成完整的知识体系
-- **深度解析**：深入剖析技术原理和实现细节
-- **实战指导**：提供实际项目中的最佳实践和解决方案
-- **持续更新**：跟进技术发展，不断补充新内容
+## 技术栈
 
-## 🛠️ 技术栈
+| 领域 | 内容 |
+| :--- | :--- |
+| **[Java](docs/java/)** | Java 8+ 新特性、并发编程、JVM 原理、集合框架 |
+| **[Spring](docs/spring/)** | Spring Boot、Spring MVC、Spring Security、Spring Cloud |
+| **[MySQL](docs/mysql/)** | 索引与优化、事务与并发控制 |
+| **[PostgreSQL](docs/postgresql/)** | PostgreSQL 高级特性 |
+| **[Redis](docs/redis/)** | 缓存设计、高可用架构、分布式锁 |
+| **[Kafka](docs/kafka/)** | 原理与实践、消息可靠性保障 |
+| **[Elasticsearch](docs/elasticsearch/)** | 核心原理、性能优化、数据同步 |
+| **[设计模式](docs/design-pattern/)** | 常用设计模式的实现与应用场景 |
+| **[软件工程](docs/engineering/)** | SOLID 原则、DDD、系统架构设计 |
+| **[AI](docs/ai/)** | AI 相关技术探索 |
 
-本项目涉及的核心技术领域包括：
+## 🚀 本地开发
 
-| 技术领域 | 内容 |
-| :------ | :--- |
-| **[Java](docs/01-java-basic/)** <!-- dir:01-java-basic --> | Java 8+ 新特性、并发编程、JVM 原理、集合框架 |
-| **[Spring](docs/02-spring/)** <!-- dir:02-spring --> | Spring Boot、Spring MVC、Spring Security、Spring Cloud |
-| **[MySQL](docs/03-mysql/)** <!-- dir:03-mysql --> | MySQL 索引与优化、事务与并发控制 |
-| **[PostgreSQL](docs/04-postgresql/)** <!-- dir:04-postgresql --> | PostgreSQL 高级特性 |
-| **[Redis](docs/05-redis/)** <!-- dir:05-redis --> | Redis 缓存设计、高可用架构、分布式锁 |
-| **[Kafka](docs/06-kafka/)** <!-- dir:06-kafka --> | Kafka 原理与实践、消息可靠性保障 |
-| **[Elasticsearch](docs/07-elasticsearch/)** <!-- dir:07-elasticsearch --> | Elasticsearch 核心原理、性能优化、数据同步 |
-| **[设计模式](docs/08-design-pattern/)** <!-- dir:08-design-pattern --> | 常用设计模式的实现与应用场景 |
-| **[软件工程](docs/09-software-engineering/)** <!-- dir:09-software-engineering --> | SOLID 原则、DDD 领域驱动设计、系统架构设计 |
+```bash
+git clone https://github.com/b1tzer/the-stack.git
+cd the-stack
+npm install
+npm run dev
+```
 
-## 🚀 部署流程
+浏览器访问 `http://localhost:5173` 即可预览。
 
-本项目是一个静态文档库，部署非常简单：
+## 🏗️ 构建与部署
 
-### 1. 本地部署
+```bash
+npm run build
+```
 
-1. **克隆项目**
+构建产物输出到 `./site` 目录。
 
-   ```bash
-   git clone https://github.com/b1tzer/b1tzer.github.io.git
-   cd b1tzer.github.io
-   ```
-
-2. **安装依赖**（可选，用于本地预览）
-
-   ```bash
-   # 安装 MkDocs 或其他文档工具
-   pip install mkdocs
-   # 或使用 VSCode 的 Markdown 预览功能
-
-   # 本地 push 前：hook 自动 amend，保证推上去的代码就是最终状态
-   chmod +x tools/pre-push && ln -sf "$(pwd)/tools/pre-push" "$(pwd)/.git/hooks/pre-push"
-   ```
-
-3. **本地预览**
-
-   ```bash
-   # 使用 MkDocs
-   mkdocs serve
-   # 或直接在 VSCode 中打开 Markdown 文件预览
-   ```
-
-### 2. 线上部署
-
-本项目可以部署到任何支持静态网站的平台：
-
-#### GitHub Pages
-
-1. 在 GitHub 仓库中启用 GitHub Pages
-2. 选择 `gh-pages` 分支作为源
-3. 访问 `https://b1tzer.github.io/`
+本项目通过 GitHub Actions 自动部署到 GitHub Pages（`gh-pages` 分支），自定义域名为 `thestack.xpro.wang`。
 
 ## 🌟 特色
 
-- **深度解析**：不仅介绍技术用法，更深入剖析底层原理
-- **实战导向**：结合实际项目经验，提供可落地的解决方案
+- **深度解析**：不仅介绍用法，更深入剖析底层原理
+- **实战导向**：结合实际项目经验，提供可落地的方案
 - **体系完整**：覆盖从开发环境到架构设计的全链路知识
 - **持续更新**：跟进技术发展，不断补充新内容
-- **易于导航**：清晰的目录结构，方便快速定位所需内容
 
 ## 📄 许可证
 
@@ -85,9 +57,5 @@ The Stack 是一个综合性的技术知识库，旨在为开发者提供全面�
 
 ## 📞 联系方式
 
-- **GitHub**：[https://github.com/b1tzer/b1tzer.github.io](https://github.com/b1tzer/b1tzer.github.io)
+- **GitHub**：[github.com/b1tzer/the-stack](https://github.com/b1tzer/the-stack)
 - **Email**：bltzer@outlook.com
-
----
-
-> 🎉 感谢您的关注与支持！让我们一起构建更美好的技术生态。
