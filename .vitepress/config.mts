@@ -35,7 +35,7 @@ export default withOpenInEditor(defineConfig({
       { text: 'Spring', link: '/spring/01-core/chapter-01-spring-overview' },
       { text: 'Redis', link: '/redis/01-data-model/chapter-01-overview' },
       { text: '更多', items: [
-        { text: 'PostgreSQL', link: '/postgresql/01-pg-unique/chapter-01-why-pg' },
+        { text: 'PostgreSQL', link: '/postgresql/01-pg-unique/chapter-01-pg-overview' },
         { text: 'MySQL', link: '/mysql/01-basics/chapter-01-overview' },
         { text: 'Kafka', link: '/kafka/01-basics/chapter-01-overview' },
         { text: 'Elasticsearch', link: '/elasticsearch/01-basics/chapter-01-overview' },
@@ -589,14 +589,23 @@ export default withOpenInEditor(defineConfig({
         {
           text: 'PG 到底特殊在哪',
           items: [
-            { text: '为什么选 PG', link: '/postgresql/01-pg-unique/chapter-01-why-pg' },
-            { text: 'MVCC 机制', link: '/postgresql/01-pg-unique/chapter-02-mvcc' },
-            { text: 'VACUUM 机制', link: '/postgresql/01-pg-unique/chapter-03-vacuum' },
-            { text: '类型系统', link: '/postgresql/01-pg-unique/chapter-04-type-system' },
+            { text: '认识 PostgreSQL', link: '/postgresql/01-pg-unique/chapter-01-pg-overview' },
+            { text: '类型系统', link: '/postgresql/01-pg-unique/chapter-02-type-system' },
+            { text: 'MVCC 机制', link: '/postgresql/01-pg-unique/chapter-03-mvcc' },
+            { text: 'VACUUM 机制', link: '/postgresql/01-pg-unique/chapter-04-vacuum' },
           ],
         },
         {
-          text: 'PG 的 SQL 能力强在哪',
+          text: '内部架构',
+          items: [
+            { text: '进程与内存架构', link: '/postgresql/02-architecture/chapter-01-process-memory' },
+            { text: '数据页与存储结构', link: '/postgresql/02-architecture/chapter-02-data-page' },
+            { text: 'WAL 日志与崩溃恢复', link: '/postgresql/02-architecture/chapter-03-wal' },
+            { text: 'Checkpoint 与脏页刷新', link: '/postgresql/02-architecture/chapter-04-checkpoint' },
+          ],
+        },
+        {
+          text: 'SQL 能力',
           items: [
             { text: '窗口函数', link: '/postgresql/02-sql-power/chapter-01-window-function' },
             { text: 'CTE 与递归', link: '/postgresql/02-sql-power/chapter-02-cte-recursive' },
@@ -606,7 +615,7 @@ export default withOpenInEditor(defineConfig({
           ],
         },
         {
-          text: '索引是 PG 的第二把利器',
+          text: '索引深入',
           items: [
             { text: '索引类型', link: '/postgresql/03-indexing/chapter-01-index-types' },
             { text: '索引设计', link: '/postgresql/03-indexing/chapter-02-index-design' },
@@ -615,7 +624,7 @@ export default withOpenInEditor(defineConfig({
           ],
         },
         {
-          text: '并发控制',
+          text: '事务与并发',
           items: [
             { text: '隔离级别', link: '/postgresql/04-transactions/chapter-01-isolation-levels' },
             { text: '锁机制', link: '/postgresql/04-transactions/chapter-02-locking' },
@@ -636,8 +645,16 @@ export default withOpenInEditor(defineConfig({
           items: [
             { text: '配置调优', link: '/postgresql/06-performance/chapter-01-config-tuning' },
             { text: '查询优化', link: '/postgresql/06-performance/chapter-02-query-optimization' },
-            { text: '性能监控', link: '/postgresql/06-performance/chapter-03-monitoring' },
             { text: '扩展策略', link: '/postgresql/06-performance/chapter-04-scaling' },
+          ],
+        },
+        {
+          text: '监控体系',
+          items: [
+            { text: '系统视图监控', link: '/postgresql/11-monitoring/chapter-01-pg-stat-views' },
+            { text: 'pg_stat_statements', link: '/postgresql/11-monitoring/chapter-02-pg-stat-statements' },
+            { text: 'Prometheus + Grafana', link: '/postgresql/11-monitoring/chapter-03-prometheus-grafana' },
+            { text: '日志分析与审计', link: '/postgresql/11-monitoring/chapter-04-log-analysis' },
           ],
         },
         {
@@ -654,15 +671,32 @@ export default withOpenInEditor(defineConfig({
           items: [
             { text: '扩展机制', link: '/postgresql/08-ecosystem/chapter-01-extension-system' },
             { text: 'FDW 外部数据', link: '/postgresql/08-ecosystem/chapter-02-fdw' },
-            { text: '垂直领域扩展', link: '/postgresql/08-ecosystem/chapter-03-specialized' },
+            { text: '专业扩展（PostGIS/TimescaleDB/pgvector）', link: '/postgresql/08-ecosystem/chapter-03-specialized' },
           ],
         },
         {
-          text: '日常运维',
+          text: '安全与运维',
           items: [
             { text: '用户与安全', link: '/postgresql/09-ops/chapter-01-user-security' },
             { text: '日常维护', link: '/postgresql/09-ops/chapter-02-maintenance' },
             { text: '数据迁移', link: '/postgresql/09-ops/chapter-03-migration' },
+          ],
+        },
+        {
+          text: '生产避坑指南',
+          items: [
+            { text: '事务 ID 回卷', link: '/postgresql/12-production-pitfalls/chapter-01-xid-wraparound' },
+            { text: '表膨胀检测与治理', link: '/postgresql/12-production-pitfalls/chapter-02-table-bloat' },
+            { text: '执行计划翻转', link: '/postgresql/12-production-pitfalls/chapter-03-plan-flip' },
+            { text: '锁等待排查', link: '/postgresql/12-production-pitfalls/chapter-04-lock-troubleshooting' },
+          ],
+        },
+        {
+          text: '实战项目',
+          items: [
+            { text: '电商订单系统设计', link: '/postgresql/13-projects/chapter-01-ecommerce' },
+            { text: '读写分离架构搭建', link: '/postgresql/13-projects/chapter-02-read-write-split' },
+            { text: '多租户架构设计', link: '/postgresql/13-projects/chapter-03-multi-tenant' },
           ],
         },
         {
@@ -677,6 +711,8 @@ export default withOpenInEditor(defineConfig({
         {
           text: '教程',
           items: [
+            { text: '安装部署与环境配置', link: '/postgresql/tutorials/installation' },
+            { text: '第一个数据库', link: '/postgresql/tutorials/first-db' },
             { text: 'MySQL 转 PG', link: '/postgresql/tutorials/mysql-to-pg' },
             { text: '首次生产部署', link: '/postgresql/tutorials/first-production' },
           ],

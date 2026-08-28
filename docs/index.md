@@ -31,7 +31,7 @@ features:
   - icon: 🐘
     title: PostgreSQL
     details: MVCC 与 VACUUM、索引、窗口函数、事务锁与 JSONB。
-    link: /postgresql/01-pg-unique/chapter-01-why-pg
+    link: /postgresql/01-pg-unique/chapter-01-pg-overview
   - icon: 🐬
     title: MySQL
     details: InnoDB 内核、索引、事务与锁、查询优化与高可用。

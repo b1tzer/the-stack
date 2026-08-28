@@ -102,7 +102,79 @@ docker run -d --name pg_test -e POSTGRES_PASSWORD=secret postgres:16
 pg_restore -h localhost -p 5433 -U postgres -d testdb mydb.dump
 ```
 
-## 6. 备份脚本示例
+## 6. pgBackRest — 生产级备份工具
+
+> pgBackRest 是 PG 社区推荐的生产级备份工具，支持并行备份、增量备份、差异备份、加密、远程备份等。
+
+### 6.1 安装与配置
+
+```ini
+# /etc/pgbackrest/pgbackrest.conf
+[global]
+repo1-path=/backup/pgbackrest
+repo1-retention-full=2
+repo1-retention-diff=7
+repo1-cipher-type=aes-256-cbc
+repo1-cipher-pass=your-encryption-key
+process-max=4
+log-level-console=info
+
+[mydb]
+pg1-path=/var/lib/postgresql/16/main
+pg1-port=5432
+```
+
+```ini
+# postgresql.conf 配置归档
+archive_mode = on
+archive_command = 'pgbackrest --stanza=mydb archive-push %p'
+```
+
+### 6.2 常用操作
+
+```bash
+# 初始化 stanza
+pgbackrest --stanza=mydb stanza-create
+
+# 全量备份
+pgbackrest --stanza=mydb --type=full backup
+
+# 差异备份（只备份自上次全量后的变化）
+pgbackrest --stanza=mydb --type=diff backup
+
+# 增量备份（只备份自上次任意备份后的变化）
+pgbackrest --stanza=mydb --type=incr backup
+
+# 查看备份信息
+pgbackrest --stanza=mydb info
+
+# 恢复到最新状态
+pgbackrest --stanza=mydb restore
+
+# PITR 恢复到指定时间
+pgbackrest --stanza=mydb restore \
+    --type=time \
+    --target="2024-06-15 12:00:00" \
+    --target-action=promote
+
+# 验证备份
+pgbackrest --stanza=mydb check
+```
+
+### 6.3 pgBackRest vs pg_dump vs pg_basebackup
+
+| 对比项 | pg_dump | pg_basebackup | pgBackRest |
+|--------|---------|---------------|------------|
+| 备份类型 | 逻辑备份 | 物理备份 | 物理备份 |
+| 增量备份 | ❌ | PG 17+ | ✅ |
+| 并行备份 | ✅ (-j) | ❌ | ✅ |
+| 压缩 | ✅ (-Z) | ✅ (-z) | ✅ |
+| 加密 | ❌ | ❌ | ✅ |
+| 远程备份 | ❌ | ✅ | ✅ |
+| PITR | ❌ | 需手动配置 | ✅ 内置 |
+| 适用规模 | < 100GB | 中型 | 任意规模 |
+
+## 7. 备份脚本示例
 
 ```bash
 #!/bin/bash
