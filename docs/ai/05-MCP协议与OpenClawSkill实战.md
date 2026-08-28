@@ -787,4 +787,4 @@ resilience4j:
 
 把 MCP 吃透，你就从"调 LLM API 的工程师"升级成了"**给 LLM 造能力的工程师**"——这是 Agent 时代最值钱的一类人。
 
-> 🎉 至此，整个 **10-ai-engineering/** 专题的 5 篇文档全部完成：从 LLM 接口、RAG 架构、Function Calling/Agent、Spring AI 集成，到 MCP 协议与 Skill 实战，构成一条完整的"**Java 工程师 AI 应用工程**"学习路径。欢迎回到 [AI 工程概览](index.md) 选择你的下一步。
+> 🎉 至此，整个 **10-ai-engineering/** 专题的 5 篇文档全部完成：从 LLM 接口、RAG 架构、Function Calling/Agent、Spring AI 集成，到 MCP 协议与 Skill 实战，构成一条完整的"**Java 工程师 AI 应用工程**"学习路径。欢迎回到 [LLM 接口与提示词工程](01-LLM接口与提示词工程) 选择你的下一步。
