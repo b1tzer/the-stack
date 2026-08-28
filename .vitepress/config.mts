@@ -590,9 +590,9 @@ export default withOpenInEditor(defineConfig({
           text: 'PG 到底特殊在哪',
           items: [
             { text: '认识 PostgreSQL', link: '/postgresql/01-pg-unique/chapter-01-pg-overview' },
-            { text: 'MVCC 机制', link: '/postgresql/01-pg-unique/chapter-02-mvcc' },
-            { text: 'VACUUM 机制', link: '/postgresql/01-pg-unique/chapter-03-vacuum' },
-            { text: '类型系统', link: '/postgresql/01-pg-unique/chapter-04-type-system' },
+            { text: '类型系统', link: '/postgresql/01-pg-unique/chapter-02-type-system' },
+            { text: 'MVCC 机制', link: '/postgresql/01-pg-unique/chapter-03-mvcc' },
+            { text: 'VACUUM 机制', link: '/postgresql/01-pg-unique/chapter-04-vacuum' },
           ],
         },
         {
