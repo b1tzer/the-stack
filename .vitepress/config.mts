@@ -587,16 +587,9 @@ export default withOpenInEditor(defineConfig({
       ],
       '/postgresql/': [
         {
-          text: '快速上手',
-          items: [
-            { text: '安装部署与环境配置', link: '/postgresql/00-quick-start/chapter-01-install' },
-            { text: '第一个数据库', link: '/postgresql/00-quick-start/chapter-02-first-db' },
-          ],
-        },
-        {
           text: 'PG 到底特殊在哪',
           items: [
-            { text: '为什么选 PG', link: '/postgresql/01-pg-unique/chapter-01-why-pg' },
+            { text: '认识 PostgreSQL', link: '/postgresql/01-pg-unique/chapter-01-why-pg' },
             { text: 'MVCC 机制', link: '/postgresql/01-pg-unique/chapter-02-mvcc' },
             { text: 'VACUUM 机制', link: '/postgresql/01-pg-unique/chapter-03-vacuum' },
             { text: '类型系统', link: '/postgresql/01-pg-unique/chapter-04-type-system' },
@@ -718,6 +711,8 @@ export default withOpenInEditor(defineConfig({
         {
           text: '教程',
           items: [
+            { text: '安装部署与环境配置', link: '/postgresql/tutorials/installation' },
+            { text: '第一个数据库', link: '/postgresql/tutorials/first-db' },
             { text: 'MySQL 转 PG', link: '/postgresql/tutorials/mysql-to-pg' },
             { text: '首次生产部署', link: '/postgresql/tutorials/first-production' },
           ],
