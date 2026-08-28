@@ -42,15 +42,7 @@ SHOW transaction_isolation;
 
 PG 的 Serializable 隔离级别使用 SSI 算法，而非简单的加锁：
 
-```mermaid
-flowchart TD
-    T1["事务A: 读取数据集X"] --> C1["事务A: 基于X写入Y"]
-    T2["事务B: 读取数据集Y"] --> C2["事务B: 基于Y写入X"]
-    C1 --> D{"检测到读写依赖环？"}
-    C2 --> D
-    D -->|是| R["回滚其中一个事务<br>抛出 serialization_failure"]
-    D -->|否| S["两个事务都提交成功"]
-```
+![SSI 冲突检测](/pg/ssi-conflict.svg)
 
 - **乐观并发控制**：不提前加锁，而是在提交时检测冲突
 - **性能优势**：大多数事务不冲突时，性能接近 Read Committed

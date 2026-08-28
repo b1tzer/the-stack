@@ -84,13 +84,7 @@ ORDER BY level, id;
 
 **执行过程**：
 
-```mermaid
-flowchart TD
-    A["第1次：锚点查询<br>找到 id=1 的员工"] --> B["第2次：递归<br>找 manager_id=1 的员工"]
-    B --> C["第3次：递归<br>找上一步结果的下属"]
-    C --> D["...直到没有更多下属"]
-    D --> E["合并所有结果返回"]
-```
+![递归 CTE 执行过程](/pg/cte-recursive.svg)
 
 ## 5. 实战：查询分类层级
 

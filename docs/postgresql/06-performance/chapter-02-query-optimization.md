@@ -125,20 +125,7 @@ SELECT * FROM active_users WHERE age > 25;
 
 ## 4. 性能问题排查流程
 
-```mermaid
-flowchart TD
-    Slow["发现慢查询"] --> PSS["pg_stat_statements<br>找到最耗时的 SQL"]
-    PSS --> Explain["EXPLAIN ANALYZE<br>分析执行计划"]
-    Explain --> SeqScan{"Seq Scan<br>全表扫描？"}
-    SeqScan -->|是| AddIdx["添加合适的索引"]
-    SeqScan -->|否| EstErr{"estimated vs actual<br>行数差异大？"}
-    EstErr -->|是| Analyze["ANALYZE 更新统计信息"]
-    EstErr -->|否| BufRead{"shared read 多？<br>缓存命中率低？"}
-    BufRead -->|是| IncBuf["增大 shared_buffers"]
-    BufRead -->|否| WorkMem{"Sort/Hash 溢出磁盘？"}
-    WorkMem -->|是| IncWM["增大 work_mem"]
-    WorkMem -->|否| AppOpt["应用层优化<br>（N+1 查询、批量操作等）"]
-```
+![慢查询优化流程](/pg/query-optimize-flow.svg)
 
 ## 5. 索引优化建议
 

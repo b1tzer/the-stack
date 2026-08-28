@@ -90,15 +90,4 @@ PG 的扩展机制让它不只是一个数据库：
 
 本站聚焦 **v14 / v15 / v16** 版本，覆盖 JSONB、窗口函数、CTE、MVCC/VACUUM 等核心特性。
 
-```mermaid
-timeline
-    title PostgreSQL 关键版本
-    1996 : v6.0 : 正式命名 PostgreSQL
-    2010 : v9.0 : 流复制、Hot Standby
-    2014 : v9.4 : JSONB 类型
-    2017 : v10 : 逻辑复制、声明式分区
-    2021 : v14 : 存储过程 INOUT、JSON 便捷访问
-    2022 : v15 : MERGE 语句、WAL 压缩
-    2023 : v16 : 逻辑复制增强
-    2024 : v17 : 增量备份、MERGE 增强
-```
+![PostgreSQL 关键版本](/pg/timeline.svg)

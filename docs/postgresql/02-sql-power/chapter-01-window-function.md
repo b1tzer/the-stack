@@ -47,14 +47,7 @@ FROM employees;
 | `RANK()` | 跳跃排名（有并列） | 1, 2, 2, 4 | 相同值同排名，下一名跳过 |
 | `DENSE_RANK()` | 密集排名（有并列） | 1, 2, 2, 3 | 相同值同排名，下一名不跳过 |
 
-```mermaid
-flowchart LR
-    subgraph sg["薪资数据: 5000, 4000, 4000, 3000"]
-        D1["ROW_NUMBER: 1, 2, 3, 4<br>每行唯一编号"]
-        D2["RANK: 1, 2, 2, 4<br>并列后跳过排名"]
-        D3["DENSE_RANK: 1, 2, 2, 3<br>并列后不跳过"]
-    end
-```
+![排名函数对比](/pg/rank-compare.svg)
 
 **选择原则**：
 - 需要**唯一行号**（如分页）→ `ROW_NUMBER()`

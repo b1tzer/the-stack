@@ -9,31 +9,7 @@ title: 索引类型详解
 
 ## 1. 索引类型全景图
 
-```mermaid
-mindmap
-    root((PostgreSQL 索引类型))
-        B-tree
-            默认索引类型
-            支持等值/范围/排序查询
-            适用于大多数场景
-        Hash
-            仅支持等值查询
-            比 B-tree 更快的等值查找
-            不支持范围查询
-        GIN 广义倒排索引
-            全文检索 tsvector
-            JSONB 字段查询
-            数组包含查询
-            多值字段
-        GiST 广义搜索树
-            地理信息 PostGIS
-            范围类型查询
-            几何图形查询
-        BRIN 块范围索引
-            超大表的范围查询
-            数据物理有序时效果好
-            索引体积极小
-```
+![PostgreSQL 索引类型](/pg/index-types.svg)
 
 ## 2. 各索引类型适用场景
 

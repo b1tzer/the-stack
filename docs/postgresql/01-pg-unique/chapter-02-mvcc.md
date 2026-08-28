@@ -17,22 +17,7 @@ MVCC（多版本并发控制）让**读操作不加锁**，通过保存数据的
 
 ## 2. MySQL vs PostgreSQL 的 MVCC 对比
 
-```mermaid
-flowchart LR
-    subgraph MySQL MVCC
-        direction TB
-        M1[当前行数据<br>最新版本] -->|UPDATE| M2[Undo Log<br>旧版本链]
-        M2 --> M3[Read View<br>判断可见性]
-        M3 -->|回滚指针| M2
-    end
-
-    subgraph PostgreSQL MVCC
-        direction TB
-        P1[堆表 Heap<br>同时存储多个版本] --> P2[行头信息<br>xmin / xmax]
-        P2 --> P3[快照 Snapshot<br>判断可见性]
-        P3 -->|VACUUM 清理| P1
-    end
-```
+![MySQL vs PostgreSQL MVCC](/pg/mvcc-compare.svg)
 
 ## 3. 隐藏字段：xmin / xmax
 
@@ -60,16 +45,7 @@ flowchart LR
 
 ## 5. 表膨胀
 
-```mermaid
-flowchart TD
-    A[执行 UPDATE 操作] --> B[旧版本行标记为 Dead Tuple<br>xmax = 当前事务ID]
-    B --> C[新版本行插入堆表]
-    C --> D{是否执行 VACUUM?}
-    D -->|未执行| E[Dead Tuple 持续堆积<br>表文件持续增大<br>查询需扫描更多数据块]
-    D -->|执行 VACUUM| F[清理 Dead Tuple<br>回收空间供新数据使用<br>更新统计信息]
-    E --> G[表膨胀<br>查询性能下降]
-    F --> H[表空间稳定<br>查询性能正常]
-```
+![VACUUM 流程](/pg/vacuum-flow.svg)
 
 ### 5.1 监控表膨胀
 
@@ -91,11 +67,7 @@ ORDER BY n_dead_tup DESC;
 
 > **重要**：长事务是表膨胀的主要原因之一。VACUUM 不能清理比最老活跃事务更新的 Dead Tuple，因为这些旧版本可能还需要被长事务读取。
 
-```mermaid
-flowchart LR
-    LT["长事务（运行1小时）<br>事务ID = 100"] -->|阻止清理| DT["Dead Tuple<br>(xmax >= 100 的都不能清理)"]
-    DT --> BL["表膨胀<br>大量 Dead Tuple 无法清理"]
-```
+![长事务阻塞 VACUUM](/pg/long-transaction.svg)
 
 ### 6.1 排查长事务
 
