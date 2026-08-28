@@ -86,7 +86,76 @@ ORDER BY duration DESC;
 2. 业务层设置合理的事务超时：`SET statement_timeout = '30s'`
 3. 避免在事务中做耗时操作（如调用外部接口）
 
-## 7. 常见问题
+## 7. 事务 ID 回卷（XID Wraparound）
+
+> **致命问题**：这是 PG 最严重的生产事故之一，处理不当会导致数据库自动关机保护，极端情况下可能丢数据。
+
+### 7.1 原理
+
+PG 的事务 ID 是 32 位无符号整数，范围约 42 亿。当事务 ID 达到最大值后会**回卷**到 0，导致新事务的 ID 比旧事务还小，MVCC 的可见性判断彻底失效。
+
+PG 的防护机制：当事务 ID 年龄接近 2^31 时，**强制关闭数据库**，阻止一切写操作。
+
+```
+事务 ID 图示：
+... → 2147483646 → 2147483647 → ⚠️ 触发强制 VACUUM FREEZE
+```
+
+### 7.2 监控事务 ID 年龄
+
+```sql
+-- 查看数据库的事务 ID 年龄（正常 < 2 亿，告警阈值 5 亿）
+SELECT
+    datname,
+    age(datfrozenxid) AS xid_age,
+    2^31 - age(datfrozenxid) AS remaining_before_wraparound
+FROM pg_database
+ORDER BY xid_age DESC;
+
+-- 查看表的事务 ID 年龄（找出年龄最大的表）
+SELECT
+    relname,
+    age(relfrozenxid) AS xid_age,
+    pg_size_pretty(pg_total_relation_size(oid)) AS size
+FROM pg_class
+WHERE relkind = 'r'
+ORDER BY xid_age DESC
+LIMIT 20;
+```
+
+### 7.3 关键参数
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `autovacuum_freeze_max_age` | 2 亿 | 事务 ID 年龄达到此值时强制 VACUUM FREEZE |
+| `vacuum_freeze_min_age` | 5000 万 | VACUUM 时，小于此年龄的事务 ID 才会被冻结 |
+| `vacuum_freeze_table_age` | 1.5 亿 | 超过此值时 VACUUM 会扫描全表而非仅扫描有 Dead Tuple 的页面 |
+| `vacuum_failsafe_age` | 16 亿 | PG 14+，超过此值时 VACUUM 跳过 IO 节流，全力冻结 |
+
+### 7.4 紧急处理
+
+```sql
+-- 当事务 ID 年龄 > 5 亿时，立即执行
+VACUUM FREEZE your_table;
+
+-- 如果是整个数据库的问题
+vacuumdb --freeze --all
+
+-- 如果数据库已强制关闭，只能用单用户模式修复
+postgres --single -D /var/lib/postgresql/16/main your_db
+> VACUUM;
+```
+
+### 7.5 预防措施
+
+1. **确保 autovacuum 正常运行**（不要关闭！）
+2. **监控事务 ID 年龄**（Prometheus 告警阈值：5 亿）
+3. **避免长事务**（设置 `idle_in_transaction_session_timeout`）
+4. **定期手动 VACUUM FREEZE**（对大表，不要等 autovacuum）
+
+> **真实案例**：某电商关闭了 autovacuum 以“提升性能”，半年后事务 ID 回卷，数据库强制关闭，业务停摆 4 小时。
+
+## 8. 常见问题
 
 **Q：PG 的 MVCC 和 MySQL 的 MVCC 有什么区别？**
 
