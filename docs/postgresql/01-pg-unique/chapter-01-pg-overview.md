@@ -1,5 +1,5 @@
 ---
-doc_id: pg-why-pg
+doc_id: pg-overview
 title: 认识 PostgreSQL
 ---
 
@@ -20,7 +20,7 @@ POSTGRES 这个名字道出了它的血缘——**"Post Ingres"**，意为"Ingre
 | Postgres95 | 1994–1996 | 两个伯克利研究生给它加上 SQL 解释器 |
 | PostgreSQL | 1996-07-08 | 开源社区接管，发布首个版本 6.0 |
 
-所以"设计人"分两层：**架构奠基者是 Stonebraker 和他的伯克利团队**，今天维护它的是社区（见 [§7](#who-maintains)）。Stonebraker 本人早已不参与日常开发。
+所以"设计人"分两层：**架构奠基者是 Stonebraker 和他的伯克利团队**，今天维护它的是社区（见 [§9](#who-maintains)）。Stonebraker 本人早已不参与日常开发。
 
 ### 起源动机
 
@@ -45,7 +45,108 @@ PostgreSQL（常简称 Postgres）是一个开源的**对象-关系型数据库�
 | **数据完整性** | 约束与触发器完善 |
 | **MVCC** | 多版本并发控制，读写互不阻塞 |
 
-## 3. 核心能力
+## 3. 市场份额与流行度
+
+### 3.1 DB-Engines 全球排名
+
+DB-Engines 是业界最权威的数据库流行度排名，综合搜索热度、讨论频率、招聘需求等指标。截至 2026 年 6 月：
+
+| 排名 | 数据库 | 得分 | 月变化 | 年变化 |
+|------|--------|------|--------|--------|
+| 1 | Oracle | 1140.04 | -3.24 | -90.35 |
+| 2 | MySQL | 856.29 | -0.21 | -97.29 |
+| 3 | SQL Server | 698.04 | -2.95 | -78.71 |
+| **4** | **PostgreSQL** | **688.23** | **+5.55** | **+7.58** |
+
+> 前四名中，**只有 PostgreSQL 实现了月度和年度双增长**。其他三家全部下跌。PostgreSQL 距离 SQL Server 仅差 9.81 分，按当前增速，预计 2026 年内超越 SQL Server，打破维持二十年的 Oracle-MySQL-SQL Server 铁三角格局。
+>
+> — [DB-Engines 排名（2026-06）](https://db-engines.com/en/ranking) / [墨天轮分析](https://www.modb.pro/db/2064162363633393664)
+
+PostgreSQL 曾 **4 次** 获得 DB-Engines "年度数据库" 奖（2017、2018、2019、2023），是获奖次数最多的数据库。
+
+### 3.2 Stack Overflow 开发者调查
+
+Stack Overflow 年度开发者调查是全球最大的开发者调研，样本量超 6 万人：
+
+| 年份 | PostgreSQL 使用率 | 排名 | 趋势 |
+|------|------------------|------|------|
+| 2022 | 43.6% | #2 | — |
+| 2023 | 45.6% | #1 | ↑ 首次登顶 |
+| 2024 | 48.7% | #1 | ↑ 连续两年 |
+| 2025 | 55.6% | #1 | ↑ 历史最大年增幅（+7pp） |
+
+PostgreSQL 已连续三年蝉联 "最受欢迎数据库" "最想使用数据库" "最受认可数据库" 三项冠军。
+
+> — [Stack Overflow 2025 开发者调查](https://survey.stackoverflow.co/2025/) / [Stack Overflow 2024 开发者调查](https://survey.stackoverflow.co/2024/)
+
+### 3.3 资本市场投票
+
+2025 年，PostgreSQL 生态发生了超过 **12.5 亿美元** 的资本运作：
+
+| 事件 | 金额 | 说明 |
+|------|------|------|
+| Databricks 收购 Neon | ~10 亿美元 | PostgreSQL 云原生 Serverless 厂商 |
+| Supabase D 轮融资 | 20 亿美元估值 | PostgreSQL 后端即服务 |
+| Snowflake 收购 Crunchy Data | ~2.5 亿美元 | PostgreSQL 企业发行版 |
+| 微软发布 Azure HorizonDB | — | 基于 PostgreSQL 协议的 AI 原生数据库 |
+
+> 全球最大的数据公司和云厂商，不约而同地将筹码押在了 PostgreSQL 上。
+
+## 4. 性能跑分（Benchmark）
+
+### 4.1 pgbench 内置基准
+
+pgbench 是 PG 自带的 TPC-B 式压测工具，适合快速评估硬件和配置：
+
+```bash
+# 初始化（scale=100 约 1000 万行）
+pgbench -i -s 100 mydb
+
+# 运行 60 秒，32 并发
+pgbench -c 32 -j 8 -T 60 mydb
+```
+
+典型结果（8 核 32GB 内存，NVMe SSD，PG 16 默认配置）：
+
+| 并发数 | TPS | 平均延迟 | 99% 延迟 |
+|--------|-----|---------|----------|
+| 1 | ~2,500 | 0.4ms | 0.8ms |
+| 8 | ~18,000 | 0.44ms | 1.2ms |
+| 32 | ~45,000 | 0.71ms | 2.5ms |
+| 64 | ~52,000 | 1.23ms | 5.8ms |
+| 128 | ~48,000 | 2.67ms | 12.3ms |
+
+> 以上为参考值，实际性能取决于硬件、配置（shared_buffers、work_mem）、数据规模等因素。
+
+### 4.2 TPC-C 事务处理（OLTP）
+
+TPC-C 是业界标准的 OLTP 基准测试，模拟电商订单场景（新订单、付款、查询、配送、库存）。
+
+使用 BenchmarkSQL 测试工具，典型结果对比：
+
+| 数据库 | tpmC（8 核） | tpmC（32 核） | 说明 |
+|--------|-------------|-------------|------|
+| PostgreSQL 16 | ~12,000 | ~45,000 | 默认配置，单节点 |
+| MySQL 8.0 (InnoDB) | ~12,500 | ~42,000 | 默认配置，单节点 |
+
+> 在标准 OLTP 场景下，PG 与 MySQL 性能基本持平。PG 的优势在复杂查询（并行查询、JIT 编译）和高级特性（JSONB、窗口函数）。
+>
+> — [BenchmarkSQL 工具](https://github.com/benchmarksql/benchmarksql) / [EDB TPC-C 测试教程](https://www.enterprisedb.com/blog/how-to-run-a-complex-postgres-benchmark-tpc-c-pgbench)
+
+### 4.3 复杂查询（OLAP）
+
+PG 在复杂分析查询上有明显优势，得益于**并行查询**和 **JIT 编译**：
+
+| 场景 | PostgreSQL 16 | MySQL 8.0 | 说明 |
+|------|--------------|-----------|------|
+| 多表 JOIN + 聚合 | 1x（基准） | 2-5x 慢 | PG 并行查询优势 |
+| 窗口函数 | 1x | 3-8x 慢 | PG 原生优化更成熟 |
+| JSONB 路径查询 | 1x | 5-10x 慢 | PG 的 GIN 索引 + 二进制 JSONB |
+| CTE 递归查询 | 1x | 不支持/有限 | PG 递归 CTE 完整支持 |
+
+> **选型结论**：纯 OLTP 场景两者性能相当；涉及复杂查询、JSONB、空间数据、向量检索等场景，PG 有显著优势。性能不是选型的决定性因素，**功能需求和生态匹配才是**。
+
+## 5. 核心能力
 
 ### 3.1 类型系统
 
@@ -102,7 +203,7 @@ PG 的扩展机制让它不只是一个数据库：
 
 ---
 
-## 4. 与 MySQL 的主要差异
+## 6. 与 MySQL 的主要差异
 
 如果你从 MySQL 过来，这些是最值得注意的区别：
 
@@ -117,7 +218,7 @@ PG 的扩展机制让它不只是一个数据库：
 | **数据完整性** | 强，约束和触发器完善 | 部分约束不支持 |
 | **MVCC 实现** | 旧版本存堆表，需 VACUUM | Undo Log，自动回收 |
 
-## 5. 选型参考
+## 7. 选型参考
 
 **选 PG 的典型场景：**
 
@@ -133,7 +234,7 @@ PG 的扩展机制让它不只是一个数据库：
 - 国内云厂商支持更完善，部署更简单
 - 不需要 PG 那些高级特性，够用就行
 
-## 6. 版本与生态
+## 8. 版本与生态
 
 ### 本站覆盖范围
 
@@ -155,7 +256,7 @@ PG 的扩展机制让它不只是一个数据库：
 
 近年特性演进方向：JSONB（9.4）、逻辑复制与物理复制增强、并行查询、分区表性能、JIT 编译（11）、增量物化视图，以及 18 引入的异步 I/O 子系统。生态层靠扩展驱动——PostGIS（空间）、pgvector（向量检索）、TimescaleDB（时序）、Citus（分布式）。
 
-## 7. 社区与维护 {#who-maintains}
+## 9. 社区与维护 {#who-maintains}
 
 **维护主体是 PostgreSQL Global Development Group（PGDG）**，一个全球开发者社区，不属于任何一家公司。
 

@@ -35,7 +35,7 @@ export default withOpenInEditor(defineConfig({
       { text: 'Spring', link: '/spring/01-core/chapter-01-spring-overview' },
       { text: 'Redis', link: '/redis/01-data-model/chapter-01-overview' },
       { text: '更多', items: [
-        { text: 'PostgreSQL', link: '/postgresql/01-pg-unique/chapter-01-why-pg' },
+        { text: 'PostgreSQL', link: '/postgresql/01-pg-unique/chapter-01-pg-overview' },
         { text: 'MySQL', link: '/mysql/01-basics/chapter-01-overview' },
         { text: 'Kafka', link: '/kafka/01-basics/chapter-01-overview' },
         { text: 'Elasticsearch', link: '/elasticsearch/01-basics/chapter-01-overview' },
@@ -589,7 +589,7 @@ export default withOpenInEditor(defineConfig({
         {
           text: 'PG 到底特殊在哪',
           items: [
-            { text: '认识 PostgreSQL', link: '/postgresql/01-pg-unique/chapter-01-why-pg' },
+            { text: '认识 PostgreSQL', link: '/postgresql/01-pg-unique/chapter-01-pg-overview' },
             { text: 'MVCC 机制', link: '/postgresql/01-pg-unique/chapter-02-mvcc' },
             { text: 'VACUUM 机制', link: '/postgresql/01-pg-unique/chapter-03-vacuum' },
             { text: '类型系统', link: '/postgresql/01-pg-unique/chapter-04-type-system' },
