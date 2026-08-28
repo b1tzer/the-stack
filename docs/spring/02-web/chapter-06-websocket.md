@@ -93,6 +93,7 @@ stompClient.connect({}, () => {
 ### 3.1 为什么不直接用原生 WebSocket
 
 原生 WebSocket 只提供字节流传输，没有消息语义。你需要自己解决：
+
 - 消息格式（JSON？Protobuf？怎么区分一条消息的边界？）
 - 消息路由（推给谁？订阅/取消订阅怎么表达？）
 - 请求-响应关联（发出去的消息，怎么知道对方收到了？）
@@ -125,21 +126,7 @@ Spring 推荐 STOMP 的原因：与 Spring 消息生态（`@MessageMapping`、`S
 
 ### 3.3 Spring WebSocket 架构
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                    应用层 (你的代码)                          │
-│  @MessageMapping → Service → @SendTo / SimpMessagingTemplate │
-├─────────────────────────────────────────────────────────────┤
-│                    STOMP 消息协议                             │
-│  帧格式: CONNECT / SEND / SUBSCRIBE / MESSAGE / DISCONNECT   │
-├─────────────────────────────────────────────────────────────┤
-│                    消息代理 (Broker)                          │
-│  SimpleBroker / RabbitMQ / Kafka                             │
-├─────────────────────────────────────────────────────────────┤
-│                    WebSocket 传输层                           │
-│  原生 WebSocket / SockJS (降级: xhr-streaming / xhr-polling)  │
-└─────────────────────────────────────────────────────────────┘
-```
+![Spring WebSocket 分层架构](/spring/spring-websocket-arch.svg)
 
 ## 4. 消息处理
 
@@ -326,15 +313,15 @@ public class WebSocketClusterConfig implements WebSocketMessageBrokerConfigurer 
 
 ```text
 ┌──────────┐     ┌──────────┐     ┌──────────┐
-│  实例 A   │     │  实例 B   │     │  实例 C   │
-│  用户1    │     │  用户2    │     │  用户3    │
+│  实例 A   │     │ 实例 B   │     │  实例 C   │
+│  用户1    │     │ 用户2    │     │  用户3    │
 └────┬─────┘     └────┬─────┘     └────┬─────┘
      │                │                │
      └────────────────┼────────────────┘
                       │
               ┌───────┴───────┐
-              │  RabbitMQ      │
-              │  STOMP Broker  │
+              │  RabbitMQ     │
+              │  STOMP Broker │
               └───────────────┘
 ```
 

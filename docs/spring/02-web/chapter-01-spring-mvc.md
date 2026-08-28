@@ -178,7 +178,7 @@ HandlerAdapter 解决的是**调用方式适配**问题。不同的处理器有�
 
 这种设计体现了**适配器模式**——DispatcherServlet 不需要知道每种 Handler 的具体调用方式，统一通过 HandlerAdapter 适配。
 
-## 3. 参数解析与返回值处理
+## 3. 参数解析与返回值处理 {#param-resolution}
 
 ### 3.1 参数解析器体系
 

@@ -89,7 +89,7 @@ Spring Boot 3.x 起，Bean Validation 注解从 `javax.validation.*` 迁移到 `
 
 一句话：需要分组校验或方法级校验时用 `@Validated`，其余用 `@Valid`。
 
-`@Valid` 加在 `@RequestBody` 参数上时，`RequestResponseBodyMethodProcessor` 在反序列化完成后调用校验器；校验失败抛出 `MethodArgumentNotValidException`，进入第 8 节的异常处理链路。
+`@Valid` 加在 `@RequestBody` 参数上时，`RequestResponseBodyMethodProcessor` 先反序列化请求体，再调用校验器；校验失败抛出 `MethodArgumentNotValidException`，进入第 8 节的异常处理链路。
 
 ## 4. 三种入口，三种异常
 
@@ -101,7 +101,7 @@ Spring Boot 3.x 起，Bean Validation 注解从 `javax.validation.*` 迁移到 `
 | `@Validated` 方法参数（Service 层） | `ConstraintViolationException` | 方法级校验失败 |
 | `@Valid @ModelAttribute` 表单绑定 | `BindException` | 表单对象绑定 + 校验失败 |
 
-新手最容易漏掉后两个：全局处理器只写了 `MethodArgumentNotValidException`，Service 层方法校验或表单绑定失败时异常无人接管，最终变成 500 或静默丢失校验错误。第 8 节会给出三个异常一起处理的完整写法。
+新手最容易漏掉后两个：全局处理器只写了 `MethodArgumentNotValidException`，Service 层方法校验或表单绑定失败时异常无人接管，最终变成 500 或静默丢失校验错误。第 8 节会给出反序列化异常与这三类校验异常一起处理的完整写法。
 
 ## 5. 自定义校验注解
 
@@ -184,25 +184,57 @@ public class UserDTO {
 
 ## 6. 数据绑定与 @InitBinder
 
-`@RequestBody` 走的是 JSON 反序列化（Jackson），不经过数据绑定；真正发生数据绑定的是 `@ModelAttribute` 表单参数和查询参数：
+数据绑定回答一个具体问题：HTTP 请求参数全是字符串，Spring 怎么把它们变成 Controller 方法参数里的对象？但先要分清一件事——**不是所有参数都经过数据绑定**。
+
+### 6.1 数据绑定发生在哪
+
+`@RequestBody` 和 `@ModelAttribute` 走的是两条完全不同的路：
+
+| 参数类型 | 数据来源 | 转换方式 | 是否经过数据绑定 |
+| :-- | :-- | :-- | :-- |
+| `@RequestBody` | 请求体 JSON | Jackson 反序列化 | ❌ 不经过 |
+| `@ModelAttribute` / 查询参数 | 表单、URL 参数 | Spring 数据绑定 | ✅ 经过 |
+
+`@RequestBody` 由 `MappingJackson2HttpMessageConverter` 用 Jackson 直接把 JSON 字符串变成对象，一步到位，没有"绑定"这个环节。真正发生数据绑定的是表单参数和查询参数——它们按字段名从 `HttpServletRequest` 取 String，再逐个转成字段类型、写进对象。本节讲的就是后者。
+
+### 6.2 两个转换体系：PropertyEditor 与 ConversionService
+
+String 要转成 `int`、`LocalDate`、`BigDecimal`，Spring 里同时存在两套类型转换机制，容易让人困惑为什么会有两个：
+
+| 对比项 | PropertyEditor | ConversionService |
+| :-- | :-- | :-- |
+| 来源 | JavaBeans 规范，JDK 自带 | Spring 3.0 引入 |
+| 状态 | 有状态，`setValue` 累积 | 无状态，纯函数 |
+| 泛型 | 不支持，只能 String → Object | 支持 `Converter<S, T>` 泛型 |
+| 优先级 | 低（备用） | 高（优先） |
+
+关键结论：**`ConversionService` 优先于 `PropertyEditor`**。Spring 先问 `ConversionService` 能不能转，转不了再退回 `PropertyEditor`。`PropertyEditor` 是 JavaBeans 遗留机制，之所以还在，是因为表单参数（`@RequestParam` / `@ModelAttribute` 简单类型）走的是 `WebDataBinder`，它内部要兼容这两套。
+
+面向新代码，只需要知道一个事实：自定义类型转换应该写 `Converter<S, T>` 或 `Formatter<T>`，注册进 `ConversionService`，而不是去写 `PropertyEditor`。
+
+### 6.3 WebDataBinder 绑的是什么
+
+`WebDataBinder` 这个名字里的 "Binder"，绑的是**请求参数名 → 目标对象的属性**。它拿到一个 target 对象，把同名参数的值转换后 `set` 进去：
 
 ```txt
 HTTP 请求参数（String）
     │
     ▼
-PropertyEditor（JavaBeans 标准，单个类型 String → 目标类型）
+PropertyEditor（备用，String → 目标类型）
     │
     ▼
-ConversionService（Spring 3.0+ 类型转换体系，支持泛型，优先于 PropertyEditor）
+ConversionService（优先，支持泛型）
     │
     ▼
-WebDataBinder（绑定 + 校验 + 结果收集）
+WebDataBinder（按字段名匹配 + 转换 + set 到 target）
     │
     ▼
 BindingResult（绑定错误 + 校验错误）
 ```
 
-`WebDataBinder` 是绑定的核心，通过 `@InitBinder` 可以在绑定前定制规则：
+### 6.4 @InitBinder 定制绑定规则
+
+`@InitBinder` 在绑定发生前执行，用来定制 `WebDataBinder`：
 
 ```java
 @RestController
@@ -218,7 +250,37 @@ public class UserController {
 }
 ```
 
-`setDisallowedFields("id")` 防的是"批量赋值"：攻击者往表单里塞 `id=1`，若不加限制，会直接绑定到对象的 `id` 字段并覆盖原值。参数解析器本身的机制详见 [Spring MVC](./chapter-01-spring-mvc.md) §3，本章只讲绑定这一层。
+`setDisallowedFields("id")` 防的是"批量赋值"：攻击者往表单里塞 `id=1`，若不加限制，会直接绑定到对象的 `id` 字段并覆盖原值。参数解析器本身的机制详见 [Spring MVC §3 参数解析与返回值处理](./chapter-01-spring-mvc.md#param-resolution)，本章只讲绑定这一层。
+
+### 6.5 绑定失败与校验失败是两回事
+
+`BindingResult` 里同时装着两类错误，它们来源不同、处理方式也不同：
+
+| 错误类型 | 触发条件 | 例子 |
+| :-- | :-- | :-- |
+| 绑定错误 | String 转目标类型失败 | 把 `"abc"` 赋给 `int age` |
+| 校验错误 | 类型转换成功，但值不满足约束 | `age = -1` 触发 `@Min(1)` |
+
+绑定错误发生在转换阶段，校验错误发生在转换之后的校验阶段。很多人把两者混为一谈，实际在 `BindingResult` 里是分开记录的（`FieldError` 有 `bindingFailure` 标志区分）。
+
+默认情况下，绑定或校验失败会直接抛异常。如果希望在 Controller 方法内自行处理，把 `BindingResult` 声明为紧跟在被绑定对象之后的参数：
+
+```java
+@PostMapping
+public User createUser(@Valid @ModelAttribute UserDTO dto, BindingResult bindingResult) {
+    if (bindingResult.hasErrors()) {
+        List<String> errors = bindingResult.getFieldErrors().stream()
+            .map(e -> e.getField() + ": " + e.getDefaultMessage())
+            .collect(Collectors.toList());
+        throw new BusinessException("参数错误: " + String.join("; ", errors));
+    }
+    return userService.create(dto);
+}
+```
+
+`BindingResult` 必须紧跟在 `@ModelAttribute` 参数之后，中间不能隔其他参数，否则 Spring 会把它当成普通参数。加了 `BindingResult` 后，校验失败不再抛 `BindException`，而是把错误写进 `bindingResult`，由方法自己决定。走这条路时，第 8 节的 `BindException` 处理器就不会被触发。
+
+两种方式二选一：需要全局统一错误结构，用异常 + `@RestControllerAdvice`；需要在一个方法里做精细处理，用 `BindingResult`。
 
 ## 7. 实战：分组、嵌套、方法级、failFast
 
@@ -330,13 +392,18 @@ public Validator validator() {
 
 这个配置适合校验字段很多、只关心"第一个错在哪"的场景；反之需要一次给前端展示所有错误时，保留默认即可。
 
-## 8. 统一处理校验异常
+## 8. 统一处理入参异常
 
-三类校验异常需要分别捕获，字段级错误统一提取成结构化的响应：
+三类校验异常，加上发生在校验之前的反序列化异常 `HttpMessageNotReadableException`，都需要捕获：
 
 ```java
 @RestControllerAdvice
-public class ValidationExceptionHandler {
+public class WebRequestExceptionHandler {
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnreadable(HttpMessageNotReadableException ex) {
+        return ResponseEntity.badRequest().body(ApiResponse.error("INVALID_JSON", "请求体不是合法的 JSON"));
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleBody(MethodArgumentNotValidException ex) {
@@ -380,5 +447,5 @@ public class ErrorDetail {
 1. 校验字符串用 `@NotBlank`，集合用 `@NotEmpty`，只排 `null` 用 `@NotNull`
 2. 嵌套对象必须加 `@Valid`，否则内部校验不生效
 3. 方法级校验下沉到 Service 层，防止非 Web 入口绕过
-4. 三个入口的异常分开捕获，避免遗漏 `ConstraintViolationException` 和 `BindException`
+4. 反序列化异常与三类校验异常分开捕获，避免遗漏 `HttpMessageNotReadableException`、`ConstraintViolationException` 和 `BindException`
 5. 自定义校验器默认放行 `null`，空值判断交给 `@NotNull` 等注解
