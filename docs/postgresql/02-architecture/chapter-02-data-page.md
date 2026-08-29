@@ -7,13 +7,11 @@ title: 数据页与存储结构
 
 > **核心问题：** PostgreSQL 中一张表的数据在磁盘上是如何组织的？8KB 的数据页内部是什么结构？大字段（如 JSONB、大文本）是怎么存的？理解存储结构，是理解 VACUUM、索引扫描和 IO 性能的前提。
 
----
-
 ## 1. 逻辑结构层次
 
 PostgreSQL 的逻辑结构从大到小依次为：
 
-```
+```text
 Database Cluster (集群)
   └── Database (数据库)
         └── Schema (模式)
@@ -33,37 +31,35 @@ Database Cluster (集群)
 
 > **Java 开发者注意：** PG 的 Schema 是 Database 下级的概念，与 MySQL 不同。MySQL 中 `CREATE DATABASE` 和 `CREATE SCHEMA` 几乎等价，但 PG 中两者是不同的层级。
 
----
-
 ## 2. 数据页结构（8KB）
 
 每个数据页固定为 **8192 字节（8KB）**，内部结构如下：
 
-```
+```text
 ┌──────────────────────────────────────────┐  偏移 0
 │           PageHeaderData (24 字节)        │
-│  - pd_lsn: 最后修改该页的 WAL LSN        │
-│  - pd_checksum: 页校验和(PG 12+)         │
-│  - pd_lower: ItemId 数组末尾指针         │
-│  - pd_upper: Tuple 数据起始指针          │
-│  - pd_special: 特殊空间起始指针          │
-│  - pd_pagesize_version: 页大小+版本      │
+│  - pd_lsn: 最后修改该页的 WAL LSN          │
+│  - pd_checksum: 页校验和(PG 12+)          │
+│  - pd_lower: ItemId 数组末尾指针           │
+│  - pd_upper: Tuple 数据起始指针            │
+│  - pd_special: 特殊空间起始指针             │
+│  - pd_pagesize_version: 页大小+版本        │
 ├──────────────────────────────────────────┤  偏移 24
-│           ItemId 数组 (行指针)            │
+│           ItemId 数组 (行指针)             │
 │  [ItemId 1][ItemId 2][ItemId 3]...       │
 │  每个 ItemId 4 字节: (offset, length,     │
 │                       flag)              │
-│  从前往后增长 ←──── pd_lower             │
+│  从前往后增长 ←──── pd_lower               │
 ├──────────────────────────────────────────┤
 │              Free Space                  │
-│          (未使用的中间空间)                │
+│          (未使用的中间空间)                 │
 ├──────────────────────────────────────────┤
 │           Tuple 数据区                    │
 │  ...[Tuple 3][Tuple 2][Tuple 1]          │
-│  从后往前增长 ────→ pd_upper              │
+│  从后往前增长 ────→ pd_upper               │
 ├──────────────────────────────────────────┤  偏移 Special
-│         Special Space (索引页专用)        │
-│   堆表页中为空，索引页存储索引特定数据     │
+│         Special Space (索引页专用)         │
+│   堆表页中为空，索引页存储索引特定数据         │
 └──────────────────────────────────────────┘  偏移 8192
 ```
 
@@ -82,14 +78,12 @@ Database Cluster (集群)
 
 每个 ItemId 占 **4 字节**，记录对应 Tuple 在页内的偏移和长度。ItemId 数组从页头开始向后增长，Tuple 数据从页尾开始向前增长，中间是 Free Space。
 
-```
+```text
 ItemId 结构 (4 bytes):
 ┌──────────────────────────────────┐
 │  offset (15 bits) | flags (2 bits) | length (15 bits) │
 └──────────────────────────────────┘
 ```
-
----
 
 ## 3. 堆表（Heap Table）存储方式
 
@@ -97,25 +91,25 @@ PostgreSQL 默认使用 **堆表（Heap Table）** 存储数据，即行记录�
 
 ### 3.1 Tuple（元组）结构
 
-```
+```text
 ┌────────────────────────────────────┐
 │        HeapTupleHeaderData         │
-│  (23~27 字节，含对齐)              │
+│  (23~27 字节，含对齐)                │
 │                                    │
-│  t_xmin:   插入该元组的事务 ID     │
-│  t_xmax:   删除/锁定该元组的事务ID │
-│  t_cid:    命令 ID (同一事务内序号) │
-│  t_ctid:   当前元组的物理位置       │
+│  t_xmin:   插入该元组的事务 ID        │
+│  t_xmax:   删除/锁定该元组的事务ID    │
+│  t_cid:    命令 ID (同一事务内序号)   │
+│  t_ctid:   当前元组的物理位置         │
 │            (page_number, offset)   │
-│  t_infomask: 元组状态标志位        │
-│  t_hoff:   用户数据起始偏移        │
+│  t_infomask: 元组状态标志位          │
+│  t_hoff:   用户数据起始偏移           │
 ├────────────────────────────────────┤
-│         Null Bitmap (可选)         │
-│   标记哪些列为 NULL                │
+│         Null Bitmap (可选)          │
+│   标记哪些列为 NULL                  │
 ├────────────────────────────────────┤
-│         用户数据 (列值)            │
-│   按列定义顺序存储                 │
-│   变长列: 1~4 字节长度前缀 + 数据  │
+│         用户数据 (列值)              │
+│   按列定义顺序存储                    │
+│   变长列: 1~4 字节长度前缀 + 数据      │
 └────────────────────────────────────┘
 ```
 
@@ -131,8 +125,6 @@ PG 的 MVCC 直接体现在 Tuple 头部：
 | **SELECT** | 根据 `t_xmin`、`t_xmax` 和事务快照判断可见性 |
 
 > **与 MySQL 的关键区别：** InnoDB 将旧版本存放在 Undo Log 中，表中只保留最新版本；PG 直接在表中保留多个版本。这意味着 PG 的 UPDATE 实际上是 DELETE + INSERT，会产生更多死元组（dead tuples），需要 VACUUM 清理。
-
----
 
 ## 4. TOAST 机制（大字段存储）
 
@@ -152,7 +144,7 @@ PG 的 MVCC 直接体现在 Tuple 头部：
 | **EXTERNAL** | 不压缩，直接外部存储 | 不需要压缩的大字段 |
 | **MAIN** | 压缩，尽量不外部存储 | 需要尽量保留在行内的字段 |
 
-```
+```text
 ┌─────────────────────────────────────────────────┐
 │                  主表 (Heap Table)                │
 │                                                  │
@@ -175,13 +167,11 @@ PG 的 MVCC 直接体现在 Tuple 头部：
 
 > **实践建议：** 对于 JSONB 列中可能存储大 JSON 文档的场景，注意 TOAST 的存在。频繁访问 TOAST 存储的列会产生额外的 I/O。如果大部分查询不需要该大字段，可以考虑拆表或使用延迟加载。
 
----
-
 ## 5. 表空间（Tablespace）
 
 表空间定义了数据库对象在文件系统中的存储位置。
 
-```
+```text
 ┌─────────────────────────────────────────────┐
 │              表空间 (Tablespace)              │
 │                                              │
@@ -214,13 +204,11 @@ CREATE TABLE orders (
 ) TABLESPACE fast_ssd;
 ```
 
----
-
 ## 6. 数据目录结构
 
 `$PGDATA` 目录是 PG 集群的根目录，主要结构如下：
 
-```
+```text
 $PGDATA/
 ├── base/                  # 各数据库的数据文件
 │   ├── 1/                 # template1 的数据
@@ -259,7 +247,7 @@ $PGDATA/
 
 ### FSM 和 VM 的作用
 
-```
+```text
 表数据文件: 16384
   ├── 16384        (主数据文件，存储实际 Tuple)
   ├── 16384_fsm    (Free Space Map: 记录每页空闲空间大小)
@@ -270,8 +258,6 @@ $PGDATA/
 ```
 
 > **性能关联：** 当表膨胀严重时，FSM 无法有效指导空间分配，导致 INSERT 变慢。此时需要 `VACUUM FULL` 或 `pg_repack` 来回收空间。VM 对 Index-Only Scan 至关重要 — 如果 VM 标记不准确，优化器会选择普通 Index Scan 而非 Index-Only Scan。
-
----
 
 ## 本章小结
 

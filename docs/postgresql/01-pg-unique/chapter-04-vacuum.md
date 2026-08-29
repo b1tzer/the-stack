@@ -110,11 +110,11 @@ SELECT reloptions FROM pg_class WHERE relname = 'hot_table';
 
 VACUUM 是 IO 密集型操作。如果清理速度太快，会抢占业务查询的 IO 带宽；太慢又跟不上 Dead Tuple 的产生速度。
 
-PG 用**代价延迟（Cost-based Throttling）**机制来平衡：
+PG 用 **代价延迟（Cost-based Throttling）** 机制来平衡：
 
 ### 4.1 工作原理
 
-```
+```text
 VACUUM 扫描数据页 → 每读/写一个页面，累积"代价"
                     → 代价达到 vacuum_cost_limit 时
                     → 暂停 vacuum_cost_delay 毫秒
@@ -173,9 +173,9 @@ WHERE backend_type = 'autovacuum worker';
 
 ## 6. VACUUM FREEZE：事务 ID 回卷防护
 
-VACUUM FREEZE 是一种特殊的 VACUUM，它的目的不是清理 Dead Tuple，而是**冻结旧事务 ID**，防止事务 ID 回卷（详见上一章 §6）。
+VACUUM FREEZE 是一种特殊的 VACUUM，它的目的不是清理 Dead Tuple，而是**冻结旧事务 ID**，防止事务 ID 回卷（详见[上一章 §6](./chapter-03-mvcc.md#xid-wraparound)）。
 
-```
+```text
 正常 VACUUM：清理 Dead Tuple，释放空间
 VACUUM FREEZE：把旧行的 xmin 改为特殊的 FrozenTransactionId（2），表示"已冻结，不再参与可见性判断"
 ```
@@ -263,21 +263,3 @@ END $$;
 | **严重膨胀用 pg_repack** | 替代 VACUUM FULL，在线重建不锁表 |
 | **监控 Dead Tuple** | 定期查询 `pg_stat_user_tables` 的 `n_dead_tup` |
 | **监控事务 ID 年龄** | 告警阈值：5 亿 |
-
-## 9. 常见问题
-
-**Q：VACUUM 和 VACUUM FULL 有什么区别？**
-
-> VACUUM 清理 Dead Tuple，把空间标记为"可复用"但不归还给操作系统，不锁表，是日常维护命令。VACUUM FULL 重写整张表，彻底回收空间并归还给操作系统，但锁表，期间业务不可用。生产环境推荐用 `pg_repack` 替代 VACUUM FULL。
-
-**Q：为什么长事务会导致表膨胀？**
-
-> VACUUM 不能清理比最老活跃事务更新的 Dead Tuple（MVCC 快照隔离保证）。长事务运行期间，所有新产生的 Dead Tuple 都无法被清理，越积越多，表就膨胀了。
-
-**Q：autovacuum 能不能关掉？**
-
-> **不能。** 关闭 autovacuum 的后果：① 表无限膨胀，查询越来越慢；② 事务 ID 可能回卷，数据库强制关闭。如果觉得 autovacuum 影响性能，应该调优参数（降低 scale_factor、调整 IO 限制），而不是关闭。
-
-**Q：VACUUM 会不会影响业务？**
-
-> 普通 VACUUM 不锁表，对业务影响很小。但它会消耗 IO 和 CPU 资源。通过代价延迟机制（`vacuum_cost_delay`）可以控制 VACUUM 的 IO 占用，避免影响业务。如果 VACUUM 导致 IO 打满，提高 `cost_delay` 或降低 `cost_limit`。

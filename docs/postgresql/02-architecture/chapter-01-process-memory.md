@@ -5,29 +5,27 @@ title: 进程与内存架构
 
 # 进程与内存架构
 
-> **核心问题：** PostgreSQL 采用多进程架构而非多线程，这意味着什么？每个连接背后有哪些进程在协作？共享内存和本地内存各自承担什么职责？理解这些，是排查性能问题和连接瓶颈的基础。
-
----
+> 一条查询卡住，`top` 一看满屏几十个 `postgres` 进程在抢 CPU。这不是 bug，是 PG 的进程模型——每个连接一个进程。要理解为什么会这样、怎么避免，得先看清进程和内存这两层结构。
 
 ## 1. 多进程架构总览
 
 PostgreSQL 采用经典的 **一连接一进程（process-per-connection）** 模型。每当客户端发起连接，Postmaster 会 fork 出一个独立的 Backend Process 来服务该连接。
 
-```
-┌─────────────────────────────────────────────────────┐
-│                   PostgreSQL 集群                     │
-│                                                      │
-│  ┌──────────────────────────────────────────────┐    │
+```text
+┌───────────────────────────────────────────────────────┐
+│                   PostgreSQL 集群                      │
+│                                                       │
+│  ┌───────────────────────────────────────────────┐    │
 │  │              Postmaster (主进程)               │    │
-│  │   监听端口 → 接收连接 → fork Backend Process    │    │
+│  │   监听端口 → 接收连接 → fork Backend Process     │    │
 │  └──────┬────────┬────────┬────────┬─────────────┘    │
 │         │        │        │        │                  │
-│    ┌────▼──┐┌────▼──┐┌────▼──┐┌────▼──┐              │
-│    │Backend││Backend││Backend││Backend│  ← 客户端连接  │
-│    │  P1   ││  P2   ││  P3   ││  P4   │              │
-│    └───────┘└───────┘└───────┘└───────┘              │
-│                                                      │
-│  ┌──────────────────────────────────────────────┐    │
+│    ┌────▼──┐┌────▼──┐┌────▼──┐┌────▼──┐               │
+│    │Backend││Backend││Backend││Backend│  ← 客户端连接   │
+│    │  P1   ││  P2   ││  P3   ││  P4   │               │
+│    └───────┘└───────┘└───────┘└───────┘               │
+│                                                       │
+│  ┌───────────────────────────────────────────────┐    │
 │  │            Background Workers（后台进程）       │    │
 │  │  ┌──────────┐ ┌──────────┐ ┌───────────────┐  │    │
 │  │  │WAL Writer│ │Bg Writer │ │Checkpointer   │  │    │
@@ -36,88 +34,69 @@ PostgreSQL 采用经典的 **一连接一进程（process-per-connection）** �
 │  │  │Autovacuum│ │Stats     │ │WAL Archiver   │  │    │
 │  │  │Launcher  │ │Collector │ │(可选)          │  │    │
 │  │  └──────────┘ └──────────┘ └───────────────┘  │    │
-│  └──────────────────────────────────────────────┘    │
-│                                                      │
-│  ┌──────────────────────────────────────────────┐    │
+│  └───────────────────────────────────────────────┘    │
+│                                                       │
+│  ┌───────────────────────────────────────────────┐    │
 │  │               共享内存 (Shared Memory)         │    │
 │  │  Shared Buffers | WAL Buffers | CLOG | ...    │    │
-│  └──────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────┘
+│  └───────────────────────────────────────────────┘    │
+└───────────────────────────────────────────────────────┘
 ```
 
-### 关键进程一览
+## 2. 后台进程：为 Backend 分担落盘与维护工作
 
-| 进程 | 类型 | 职责 | 启动方式 |
-|------|------|------|---------|
-| **Postmaster** | 主进程 | 监听连接请求，fork Backend，管理集群生命周期 | 集群启动时 |
-| **Backend Process** | 服务进程 | 处理单个客户端连接的 SQL 请求 | 每次连接时 fork |
-| **WAL Writer** | 后台进程 | 将 WAL 缓冲区写入磁盘 | 集群启动时 |
-| **Background Writer** | 后台进程 | 将脏数据页从共享缓冲区刷到磁盘 | 集群启动时 |
-| **Checkpointer** | 后台进程 | 执行 Checkpoint，协调脏页刷新 | 集群启动时 |
-| **Autovacuum Launcher** | 后台进程 | 启动 Autovacuum Worker 清理死元组 | 集群启动时 |
-| **Stats Collector** | 后台进程 | 收集表/索引的统计信息供优化器使用 | 集群启动时 |
-| **WAL Archiver** | 后台进程 | 归档 WAL 段文件（用于 PITR） | archive_mode=on 时 |
+Backend Process 只负责执行 SQL，落盘这些脏活交给后台进程。它们不是平级的——真正影响性能和故障恢复的只有下面三个，其余知道存在即可。
 
----
+### 2.1 Checkpointer 与 Background Writer：一个是保障，一个是缓冲
 
-## 2. 各后台进程详解
+这俩最容易混。一句话区分：
 
-### 2.1 WAL Writer
+- **Checkpointer 对数据安全负责**：执行 Checkpoint，把某个时间点之前所有脏页刷盘，再更新控制文件，标记"到这里为止的 WAL 可以回收"。
+- **Background Writer 只负责摊平 IO**：平时把部分脏页提前刷出去，让 Checkpoint 那一刻不至于瞬间写爆磁盘。它刷不刷、刷多少，不影响数据安全。
 
-- **职责：** 定期将 WAL Buffer 中的数据写入 WAL 段文件
-- **触发条件：** 事务提交时（同步提交）、WAL Buffer 达到阈值（`wal_writer_delay` 周期）
-- **关键参数：** `wal_writer_delay`（默认 200ms）、`wal_buffers`（默认 -1，自动计算）
+为什么需要两个？Checkpoint 必须"一次性把所有脏页落盘"，如果没人提前刷，Checkpoint 那一刻磁盘 IO 瞬间打满，所有查询变慢。Background Writer 就是那个平时悄悄刷一点的进程，把峰值摊平。
 
-### 2.2 Background Writer
+Checkpoint 触发条件：`checkpoint_timeout`（默认 5min）或 WAL 累积到 `max_wal_size`。
 
-- **职责：** 将共享缓冲区中的脏页（dirty page）写出到数据文件
-- **目的：** 减轻 Checkpoint 时的 I/O 压力，平滑磁盘写入
-- **关键参数：** `bgwriter_delay`（默认 200ms）、`bgwriter_lru_maxpages`（每次最多写多少页）
+### 2.2 WAL Writer：提交成功 ≠ 数据已落盘
 
-### 2.3 Checkpointer
+`COMMIT` 返回成功前，这条事务的 WAL 必须刷到磁盘，否则崩溃后就丢了——这是 WAL 的立身之本。
 
-- **职责：** 执行 Checkpoint 操作，确保所有脏页被刷盘，更新控制文件
-- **触发条件：** `checkpoint_timeout`（默认 5min）、WAL 量达到 `max_wal_size`、手动 `CHECKPOINT`
-- **与 Background Writer 的区别：** Checkpointer 保证所有脏页落盘；Bg Writer 只是"预刷"部分脏页
+但 WAL 不是每条直接写盘：先写进共享内存的 WAL Buffer，再由 WAL Writer 刷到 WAL 段文件。**同步提交**（默认）时，`COMMIT` 主动触发刷盘；`synchronous_commit = off` 时交给 WAL Writer 按 `wal_writer_delay`（默认 200ms）周期刷，最多丢最近 200ms 的已提交事务。
 
-### 2.4 Autovacuum Launcher
+### 2.3 Autovacuum Launcher
 
-- **职责：** 定期检查各表的死元组数量，超过阈值时启动 Autovacuum Worker 进行清理
-- **关键参数：** `autovacuum_naptime`（检查间隔，默认 1min）、`autovacuum_vacuum_threshold`、`autovacuum_vacuum_scale_factor`
+定期检查死元组数量，超阈值拉起 Autovacuum Worker 清理。机制见 [VACUUM 章节](../01-pg-unique/chapter-04-vacuum.md)，这里不重复。
 
-### 2.5 Stats Collector
+### 2.4 Stats Collector
 
-- **职责：** 收集表的行数、页数、索引使用率、Tuple 操作统计等
-- **供谁使用：** 查询优化器通过统计信息估算执行计划成本
-- **查看方式：** `pg_stat_user_tables`、`pg_stat_activity` 等系统视图
-
----
+一句话：收集表的行数、页数、索引使用率，供优化器估算执行计划成本。不用调参。
 
 ## 3. 共享内存（Shared Memory）
 
 PostgreSQL 启动时分配一块大的共享内存区域，所有 Backend Process 和后台进程都可以访问。
 
-```
+```text
 ┌────────────────────────────────────────────┐
-│              共享内存 (Shared Memory)        │
+│              共享内存 (Shared Memory)       │
 │                                            │
 │  ┌──────────────────────────────────────┐  │
 │  │         Shared Buffers               │  │
-│  │   (数据页缓存，核心组件)               │  │
-│  │   默认 128MB，生产建议 RAM 的 25%     │  │
+│  │   (数据页缓存，核心组件)                │  │
+│  │   默认 128MB，生产建议 RAM 的 25%       │  │
 │  └──────────────────────────────────────┘  │
 │  ┌──────────────────────────────────────┐  │
 │  │         WAL Buffers                  │  │
-│  │   (WAL 日志缓冲区)                   │  │
-│  │   默认 -1 (自动 ≈ 64MB 的 1/32)      │  │
+│  │   (WAL 日志缓冲区)                     │  │
+│  │   默认 -1 (自动 ≈ 64MB 的 1/32)        │  │
 │  └──────────────────────────────────────┘  │
 │  ┌──────────────────────────────────────┐  │
 │  │         CLOG (Commit Log)            │  │
-│  │   (事务提交状态，2bit/事务)           │  │
+│  │   (事务提交状态，2bit/事务)             │  │
 │  └──────────────────────────────────────┘  │
 │  ┌──────────────────────────────────────┐  │
 │  │     Lock Tables / Proc Array         │  │
-│  │   (锁信息、进程状态数组)              │  │
+│  │   (锁信息、进程状态数组)                │  │
 │  └──────────────────────────────────────┘  │
 └────────────────────────────────────────────┘
 ```
@@ -129,11 +108,10 @@ PostgreSQL 启动时分配一块大的共享内存区域，所有 Backend Proces
 | **Buffer Tag** | 每个缓冲区页的唯一标识（RelFileNode + ForkNumber + BlockNumber） |
 | **Buffer Descriptor** | 描述缓冲区状态：pin count、usage count、dirty flag |
 | **Clock-Sweep 算法** | 缓存替换策略，类似 LRU 的简化版本 |
-| **双缓冲机制** | 读数据先到 Shared Buffers，Backend 通过它间接访问磁盘 |
 
-> **调优建议：** `shared_buffers` 设置为系统内存的 **25%**。过大会导致 OS 文件系统缓存不足，反而降低性能。PG 的设计依赖 OS Page Cache 作为二级缓存。
-
----
+> **为什么设 25%，而且不能贪多？** 数据读取的真实路径是：磁盘 → OS Page Cache → Shared Buffers → Backend。`shared_buffers` 存一份，OS Page Cache 往往还存一份，这就是 double buffering。
+>
+> 如果 `shared_buffers` 设到 80% 内存，OS Page Cache 被挤得只剩一点，从磁盘读进来的数据没地方放，频繁换页，反而更慢。PG 的设计就是把 OS Page Cache 当二级缓存，所以 `shared_buffers` 只拿 25%，大头留给 OS。
 
 ## 4. 本地内存（Local Memory）
 
@@ -146,9 +124,11 @@ PostgreSQL 启动时分配一块大的共享内存区域，所有 Backend Proces
 | **temp_buffers** | 8MB | 临时表（TEMP TABLE）的缓冲区 |
 | **hash_mem_multiplier** | 1.0 | Hash Join 可额外使用 work_mem 的倍数（PG 13+） |
 
-> **⚠️ 注意：** `work_mem` 不是每连接总量，而是**每个排序/哈希操作**的上限。一条 SQL 可能触发多个排序操作，实际内存消耗 = `work_mem × 并发操作数 × 连接数`。生产环境建议设置为 **4MB~64MB**，不要过大。
-
----
+> **`work_mem` 是本地内存里最容易爆的坑。** 它的单位不是"每个连接"，而是"每个排序/哈希操作"。一条 SQL 同时有 3 个排序、2 个 Hash Join，就要开 5 份；再乘并发连接数。
+>
+> 举例：`work_mem = 64MB`，一个连接一条 SQL 用 4 个操作就是 256MB；200 个并发连接同时跑，峰值 **50GB**，直接 OOM。
+>
+> 所以 `work_mem` 不能照内存大小随便给。判断公式：`work_mem × 单查询最大操作数 × 并发连接数 ≤ 可用内存`。生产从 4MB~64MB 起步，用 `EXPLAIN ANALYZE` 看排序是否落盘（`Sort Method: external`）再调大。
 
 ## 5. 进程模型对比：PostgreSQL vs MySQL
 
@@ -164,16 +144,14 @@ PostgreSQL 启动时分配一块大的共享内存区域，所有 Backend Proces
 
 > **Java 开发者注意：** PG 的进程模型意味着直接开几千个连接会消耗大量内存和 CPU（fork 开销）。生产环境**必须**使用连接池（PgBouncer 或应用层 HikariCP），将连接数控制在 `CPU核心数 × 2 + 磁盘数` 的范围内。
 
----
-
 ## 6. 连接建立流程
 
-```
+```text
 客户端                   Postmaster              Backend Process
   │                         │                         │
-  │── TCP 三次握手 ────────→│                         │
+  │── TCP 三次握手 ────────→ │                         │
   │                         │                         │
-  │── SSL 协商(可选) ──────→│                         │
+  │── SSL 协商(可选) ──────→ │                         │
   │                         │                         │
   │── StartupMessage ──────→│                         │
   │   (user, database, ...) │                         │
@@ -188,9 +166,9 @@ PostgreSQL 启动时分配一块大的共享内存区域，所有 Backend Proces
   │                         │                         │
   │←── ReadyForQuery ───────│                         │
   │                         │                         │
-  │── Query/Parse/Bind ─────────────────────────────→│
-  │                         │                    执行SQL
-  │←── DataRow / CommandComplete ────────────────────│
+  │── Query/Parse/Bind ─────────────────────────────→ │
+  │                         │                     执行SQL
+  │←── DataRow / CommandComplete ──────────────────── │
 ```
 
 ### 关键步骤说明
@@ -202,8 +180,6 @@ PostgreSQL 启动时分配一块大的共享内存区域，所有 Backend Proces
 5. **进入查询循环**：Backend 等待客户端消息（Query/Parse/Bind/Execute），处理后返回结果
 
 > **调优要点：** 如果连接建立耗时过长，检查 `pg_hba.conf` 中是否使用了 DNS 解析（`host` vs `hostnossl`），以及 `max_connections` 是否已满。高并发场景建议前置 PgBouncer，使用 **Transaction Pooling** 模式复用连接。
-
----
 
 ## 本章小结
 
