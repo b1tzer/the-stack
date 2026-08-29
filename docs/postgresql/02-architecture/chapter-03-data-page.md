@@ -135,6 +135,8 @@ PG 的 MVCC 直接体现在 Tuple 头部：
 - 单个 Tuple 超过约 **2KB**（约 1/4 页）时，PG 会尝试 TOAST
 - TOAST 表的命名格式：`pg_toast.pg_toast_<oid>`
 
+> **OID（对象标识符）**：PG 给每个数据库对象（表、索引、序列等）分配的唯一整数编号。`pg_toast_<oid>` 里的 `<oid>` 是原表的 OID，据此把 TOAST 表关联回原表。§6 里 `base/<oid>` 目录名同理，是数据库的 OID。
+
 ### TOAST 存储策略
 
 | 策略 | 说明 | 适用场景 |

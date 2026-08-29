@@ -23,6 +23,8 @@ title: 日常维护
 
 ## 2. VACUUM
 
+> VACUUM 的机制与 autovacuum 调优见 [VACUUM 机制](../01-pg-unique/chapter-04-vacuum.md)，这里只列日常命令。
+
 ```sql
 -- 常规清理
 VACUUM users;

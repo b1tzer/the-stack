@@ -43,9 +43,24 @@ PostgreSQL 采用经典的 **一连接一进程（process-per-connection）** �
 └───────────────────────────────────────────────────────┘
 ```
 
+> **为什么选多进程，而不是像 MySQL 那样用多线程？** 这是 PostgreSQL 最根深蒂固的设计决策，先讲清动机，后面每个进程/内存结构才有意义。
+
+**好处：隔离性与可移植性**
+
+- **一个 Backend 崩溃不连累其他连接**。每个 Backend 有独立地址空间，一个进程踩了野指针、段错误，操作系统直接杀掉它，其余连接照常服务。多线程模型下，一个线程的缓冲区溢出会写坏共享堆，殃及整个实例。
+- **可移植性**。PostgreSQL 的前身 POSTGRES 诞生于 1986 年，那个年代 Unix 线程库远未成熟，各系统线程行为不一致；而 `fork()` 是 Unix 基石，所有平台都稳定。选进程，PG 就不依赖任何特定线程实现，能跑在所有类 Unix 系统上。
+
+**弊端：单连接贵，高并发必须靠连接池**
+
+- **fork 开销大**。每次新连接要 fork 进程、复制地址空间，单连接内存可达几 MB 到十几 MB，而一个线程只需几百 KB。
+- **上下文切换慢**。进程切换要刷新 TLB、切换页表，比线程切换贵得多。
+- **连接数受限**。几千个连接就是几千个进程，内存和 CPU 都扛不住。
+
+一句话：PG 用进程换来**隔离性和可移植性**，代价是**单连接贵**，于是把高并发压力转移给连接池去扛（见 §5）。
+
 ## 2. 后台进程：为 Backend 分担落盘与维护工作
 
-Backend Process 只负责执行 SQL，落盘这些脏活交给后台进程。它们不是平级的——真正影响性能和故障恢复的只有下面三个，其余知道存在即可。
+Backend Process 只负责执行 SQL，落盘、维护这类工作交给后台进程。它们按重要性分三层：Checkpointer 和 WAL Writer 决定数据安全，Background Writer 摊平 IO 峰值，Autovacuum 防表膨胀（机制另文讲）、Stats Collector 供优化器估算成本（知道存在即可）。
 
 ### 2.1 Checkpointer 与 Background Writer：一个是保障，一个是缓冲
 
@@ -64,6 +79,8 @@ Checkpoint 触发条件：`checkpoint_timeout`（默认 5min）或 WAL 累积到
 
 但 WAL 不是每条直接写盘：先写进共享内存的 WAL Buffer，再由 WAL Writer 刷到 WAL 段文件。**同步提交**（默认）时，`COMMIT` 主动触发刷盘；`synchronous_commit = off` 时交给 WAL Writer 按 `wal_writer_delay`（默认 200ms）周期刷，最多丢最近 200ms 的已提交事务。
 
+> **为什么不逐条写盘？** 磁盘写入的最小单位是页（一般 8KB），而一条 WAL 记录往往只有几十字节，逐条写会把磁盘 IO 放大几十倍。先攒进 WAL Buffer，再由 WAL Writer 批量刷盘，能把零碎小写合并成连续大写。代价正是上面说的：异步提交时，`wal_writer_delay` 窗口内的已提交事务可能随宕机一起丢失——这是「IO 效率」换「持久性」的取舍。
+
 ### 2.3 Autovacuum Launcher
 
 定期检查死元组数量，超阈值拉起 Autovacuum Worker 清理。机制见 [VACUUM 章节](../01-pg-unique/chapter-04-vacuum.md)，这里不重复。
@@ -74,7 +91,7 @@ Checkpoint 触发条件：`checkpoint_timeout`（默认 5min）或 WAL 累积到
 
 ## 3. 共享内存（Shared Memory）
 
-PostgreSQL 启动时分配一块大的共享内存区域，所有 Backend Process 和后台进程都可以访问。
+前面这些进程——Backend 和后台进程——都要读写同一批数据页和 WAL，于是需要一块大家都能访问的内存。PostgreSQL 启动时分配这块共享内存，所有进程共享。
 
 ```text
 ┌────────────────────────────────────────────┐
@@ -130,6 +147,8 @@ PostgreSQL 启动时分配一块大的共享内存区域，所有 Backend Proces
 >
 > 所以 `work_mem` 不能照内存大小随便给。判断公式：`work_mem × 单查询最大操作数 × 并发连接数 ≤ 可用内存`。生产从 4MB~64MB 起步，用 `EXPLAIN ANALYZE` 看排序是否落盘（`Sort Method: external`）再调大。
 
+到这里，开头那条查询为什么卡住，答案齐了：连接数过多吃掉 CPU（§1），`work_mem` 乘数效应吃掉内存（本节）。
+
 ## 5. 进程模型对比：PostgreSQL vs MySQL
 
 | 维度 | PostgreSQL | MySQL (InnoDB) |
@@ -141,6 +160,8 @@ PostgreSQL 启动时分配一块大的共享内存区域，所有 Backend Proces
 | **高并发扩展** | 依赖连接池（PgBouncer）缓解 | 原生支持更高并发连接数 |
 | **故障隔离** | 强（进程独立崩溃恢复） | 弱（需整体恢复） |
 | **共享内存** | 显式管理（Shared Buffers） | InnoDB Buffer Pool（类似但实现不同） |
+
+> 选进程还是选线程的动机，§1 已经讲透。这里只剩一个增量：为什么 MySQL 选了线程？因为它的定位是 Web 高并发读，线程单连接开销小、切换快，正好契合；代价是隔离性弱。而 PG 的进程模型早定型十年，改造成本高，索性沿用。
 
 > **Java 开发者注意：** PG 的进程模型意味着直接开几千个连接会消耗大量内存和 CPU（fork 开销）。生产环境**必须**使用连接池（PgBouncer 或应用层 HikariCP），将连接数控制在 `CPU核心数 × 2 + 磁盘数` 的范围内。
 
