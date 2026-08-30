@@ -1,98 +1,109 @@
 # 整体架构
 
-## 1. 架构图
+> Kafka 的架构由 Broker 集群、元数据管理层、生产者、消费者四部分组成。本章从数据流向入手，拆解每条链路的工作原理。
 
-```
-┌─────────┐  ┌─────────┐  ┌─────────┐
-│Producer1│  │Producer2│  │Producer3│
-└────┬────┘  └────┬────┘  └────┬────┘
-     │            │            │
-     └────────────┼────────────┘
-                  │
-     ┌────────────┼────────────┐
-     │      Kafka Cluster      │
-     │  ┌──────────────────┐  │
-     │  │  Broker 1        │  │
-     │  │  ┌─────────────┐ │  │
-     │  │  │ Topic A     │ │  │
-     │  │  │ Partition 0 │ │  │
-     │  │  │ Partition 1 │ │  │
-     │  │  └─────────────┘ │  │
-     │  └──────────────────┘  │
-     │  ┌──────────────────┐  │
-     │  │  Broker 2        │  │
-     │  │  ┌─────────────┐ │  │
-     │  │  │ Topic A     │ │  │
-     │  │  │ Partition 2 │ │  │
-     │  │  └─────────────┘ │  │
-     │  └──────────────────┘  │
-     └────────────┬────────────┘
-                  │
-     ┌────────────┼────────────┐
-     │ Consumer Group          │
-     │ ┌────────┐ ┌────────┐  │
-     │ │Consumer│ │Consumer│  │
-     │ │   1    │ │   2    │  │
-     │ └────────┘ └────────┘  │
-     └─────────────────────────┘
+## 1. 架构全景
+
+```text
+┌─────────────────────────────────────────────────────────┐
+│                    Kafka Cluster                        │
+│                                                         │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐             │
+│  │ Broker 1 │  │ Broker 2 │  │ Broker 3 │             │
+│  │          │  │          │  │          │             │
+│  │ Topic A  │  │ Topic A  │  │ Topic A  │             │
+│  │ P0(Leader│  │ P1(Leader│  │ P2(Leader│             │
+│  │ P1(F)    │  │ P2(F)    │  │ P0(F)    │             │
+│  └──────────┘  └──────────┘  └──────────┘             │
+│                                                         │
+│  ┌──────────────────────────────────────┐              │
+│  │  元数据管理：KRaft / ZooKeeper        │              │
+│  └──────────────────────────────────────┘              │
+└─────────────────────────────────────────────────────────┘
+        ▲                              │
+        │                              ▼
+  ┌──────────┐                  ┌──────────────┐
+  │ Producer │                  │ Consumer     │
+  │ (写入)    │                  │ Group (消费)  │
+  └──────────┘                  └──────────────┘
 ```
 
 ## 2. 核心组件
 
-| 组件 | 说明 |
-|------|------|
-| Broker | 存储消息，处理请求 |
-| ZooKeeper/KRaft | 集群协调，元数据管理 |
-| Producer | 发送消息到 Topic |
-| Consumer | 从 Topic 消费消息 |
-| Connect | 连接外部系统 |
+| 组件 | 职责 |
+| :-- | :-- |
+| Broker | 存储消息，处理读写请求，副本同步 |
+| KRaft/ZooKeeper | 集群协调，元数据管理，Controller 选举 |
+| Producer | 发送消息到 Topic 的 Leader 副本 |
+| Consumer Group | 从 Topic 消费消息，组内竞争 |
+| Connect | 连接外部系统（MySQL、ES 等） |
 | Streams | 流处理 API |
 
-## 3. 数据流向详解
+## 3. 生产者写入链路
 
-### 3.1 生产者写入流程
-
-```
-Producer
+```text
+Producer.send(record)
     │
     ▼
-Interceptor（拦截器，可链式处理）
+拦截器链（onSend / onAcknowledgement）
     │
     ▼
-Serializer（序列化 Key/Value）
+序列化器（Key / Value 序列化为字节）
     │
     ▼
-Partitioner（分区器，决定发往哪个分区）
+分区器（根据 Key 或轮询选择分区）
     │
     ▼
-RecordAccumulator（按分区聚合到队列）
+RecordAccumulator（按分区聚合到 Deque<ProducerBatch>）
+    │  ┌─────────────────────────────────┐
+    │  │ batch.size = 16KB（默认）         │
+    │  │ linger.ms = 0（默认不等待）       │
+    │  │ 达到 batch.size 或 linger.ms     │
+    │  │ 触发 Sender 线程发送             │
+    │  └─────────────────────────────────┘
+    ▼
+Sender 线程（从累加器取 batch，构造 Request）
     │
     ▼
-Sender 线程（批量发送）
+NetworkClient（选择 ready 的 Broker 连接）
     │
     ▼
 Broker（写入 Leader 副本）
     │
     ▼
-Follower 同步（ISR 机制）
+副本同步（Leader → Follower，ISR 机制）
     │
     ▼
 ACK 返回给 Producer
 ```
 
-### 3.2 消费者读取流程
+### 3.1 关键配置
 
-```
-Consumer.poll()
+| 配置 | 默认值 | 说明 |
+| :-- | :-- | :-- |
+| `acks` | 1 | 0=不等确认、1=Leader确认、all=ISR全部确认 |
+| `retries` | Integer.MAX_VALUE | 重试次数 |
+| `batch.size` | 16384 | 单个 batch 最大字节数 |
+| `linger.ms` | 0 | 发送前等待时间（增大可提高吞吐） |
+| `buffer.memory` | 33554432 | 生产者缓冲区总大小（32MB） |
+
+## 4. 消费者读取链路
+
+```text
+Consumer.poll(Duration)
     │
     ▼
 Fetch 请求发往分区 Leader
-    │
+    │  ┌─────────────────────────────────┐
+    │  │ fetch.min.bytes = 1（默认）       │
+    │  │ fetch.max.wait.ms = 500          │
+    │  │ max.partition.fetch.bytes = 1MB  │
+    │  └─────────────────────────────────┘
     ▼
 Broker 从日志文件读取数据
     │
     ▼
-通过 sendfile() 零拷贝返回
+sendfile() 零拷贝返回
     │
     ▼
 Consumer 反序列化消息
@@ -101,37 +112,88 @@ Consumer 反序列化消息
 业务处理
     │
     ▼
-提交 Offset
+提交 Offset（自动或手动）
 ```
 
-## 4. 元数据管理
+### 4.1 关键配置
 
-| 组件 | 元数据 | 存储位置 |
-|------|--------|----------|
-| ZooKeeper 模式 | Topic/分区/副本分配、Controller 选举、Broker 注册 | ZooKeeper |
-| KRaft 模式 | 同上，但使用内部 Raft 日志 | __cluster_metadata Topic |
+| 配置 | 默认值 | 说明 |
+| :-- | :-- | :-- |
+| `group.id` | — | 消费者组 ID（必填） |
+| `auto.offset.reset` | latest | 无 offset 时从哪里开始消费 |
+| `enable.auto.commit` | true | 是否自动提交 offset |
+| `max.poll.records` | 500 | 单次 poll 最大返回记录数 |
+| `session.timeout.ms` | 45000 | 会话超时时间 |
 
-## 5. 多集群架构
+## 5. 副本同步机制
 
-在大型企业中，通常会部署多个 Kafka 集群：
+### 5.1 ISR 写入流程
 
+```text
+Producer 发送消息到 Leader
+    │
+    ▼
+Leader 写入本地日志，更新 LEO（Log End Offset）
+    │
+    ▼
+Follower 发送 Fetch 请求拉取新消息
+    │
+    ▼
+Follower 写入本地日志，更新自己的 LEO
+    │
+    ▼
+Leader 更新 HW（High Watermark）= min(所有 ISR 的 LEO)
+    │
+    ▼
+HW 之前的消息对消费者可见
 ```
-┌─────────────────┐         ┌─────────────────┐
-│  集群 A (北京)    │◄───────►│  集群 B (上海)    │
-│  MirrorMaker2   │         │  MirrorMaker2   │
-└─────────────────┘         └─────────────────┘
-         ▲                           ▲
-         │                           │
-         ▼                           ▼
-    ┌─────────┐               ┌─────────┐
-    │ 集群 C  │               │ 集群 D  │
-    │ (灾备)  │               │ (分析)  │
-    └─────────┘               └─────────┘
+
+| 概念 | 说明 |
+| :-- | :-- |
+| LEO | Log End Offset，日志末尾偏移量（下一条写入的位置） |
+| HW | High Watermark，高水位线（消费者可见的最大 Offset） |
+| ISR | 与 Leader 保持同步的副本集合 |
+
+> 消费者只能读到 HW 之前的消息。HW 以下的消息才是「已提交」的——这保证了消费者不会读到可能丢失的数据。
+
+### 5.2 ISR 动态调整
+
+```text
+replica.lag.time.max.ms = 30000（默认30秒）
+
+Follower 超过 30 秒没有 Fetch 请求 → 移出 ISR
+Follower 恢复同步、追上 Leader → 加回 ISR
 ```
 
-## 6. 最佳实践
+ISR 收缩的危险：如果 ISR 只剩 Leader 一个副本，acks=all 等同于 acks=1，可靠性下降。
 
-1. **避免单点 Controller**：在 ZooKeeper 模式下，Controller 是单点。确保监控 Controller 状态，KRaft 模式天然支持多 Controller 冗余。
-2. **合理规划 Broker 数量**：Broker 数量应至少等于副本因子，推荐 3 个以上。
-3. **使用 Rack Awareness**：配置 `broker.rack` 让副本分布在不同机架，提高容灾能力。
-4. **监控网络分区**：网络分区可能导致脑裂，配置合适的 `replica.lag.time.max.ms` 及时将慢副本移出 ISR。
+## 6. 元数据管理
+
+### 6.1 ZooKeeper 模式（旧）
+
+```text
+ZooKeeper 存储：
+  /brokers/ids/{broker_id}         → Broker 注册
+  /brokers/topics/{topic}/partitions → 分区分配
+  /controller                      → Controller 选举
+```
+
+问题：ZooKeeper 是外部依赖，增加运维复杂度；Controller 是单点；ZooKeeper 不适合存储大量分区元数据。
+
+### 6.2 KRaft 模式（新）
+
+```text
+KRaft Controller（3~5 个节点的 Raft 集群）
+  └── __cluster_metadata Topic（存储所有元数据）
+  └── 通过 Raft 日志复制保证一致性
+```
+
+KRaft 的优势：去掉外部依赖、Controller 多节点冗余、支持百万级分区、启动更快。
+
+## 7. 最佳实践
+
+1. **避免单点 Controller**：ZooKeeper 模式下监控 Controller 状态，KRaft 模式天然多 Controller。
+2. **合理规划 Broker 数量**：Broker ≥ 副本因子，推荐 3 个以上。
+3. **使用 Rack Awareness**：配置 `broker.rack` 让副本分布在不同机架。
+4. **监控 ISR 收缩**：ISR 收缩意味着可靠性下降，及时排查慢副本。
+5. **新项目用 KRaft**：避免 ZooKeeper 的运维复杂度。
