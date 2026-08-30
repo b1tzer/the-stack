@@ -1,301 +1,220 @@
-# 可观测性
+# Actuator 监控端点
 
-> 系统上线后，你如何知道它运行得好不好？用户反馈"接口很慢"，你如何定位是数据库慢、缓存穿透还是某个下游服务超时？凌晨三点收到告警，你如何快速判断影响范围并找到根因？可观测性（Observability）就是解决这些问题的系统化方法论。本章将从日志、指标、链路追踪三大支柱出发，构建完整的可观测体系，并给出线上问题的排查路径。
+> 应用跑起来了，但你不知道它内部状态如何——Actuator 给你一个「透视镜」。它通过 HTTP 端点暴露应用的健康状态、指标、环境配置等信息，是生产监控的基础设施。日志、链路追踪等更深层的可观测能力，见独立章节。
 
-## 1. 日志体系
-
-### 1.1 日志的定位
-
-日志是可观测性中最古老也最基础的手段。它记录的是**离散事件**——某时某刻发生了什么。日志适合回答：
-
-- 用户 10086 下单失败的具体原因是什么？
-- 今天有多少次 NullPointerException？
-- 某条 SQL 执行的参数和结果是什么？
-
-### 1.2 Logback 日志配置
-
-Spring Boot 默认使用 Logback 作为日志框架。一个生产级的 `logback-spring.xml` 配置如下：
+## 1. Actuator 端点概览
 
 ```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<configuration>
-    <property name="LOG_HOME" value="./logs" />
-    <property name="APP_NAME" value="order-service" />
-
-    <!-- 控制台输出 -->
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{tid}] %-5level %logger{36} - %msg%n</pattern>
-        </encoder>
-    </appender>
-
-    <!-- 文件输出：按天滚动 -->
-    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_HOME}/${APP_NAME}.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_HOME}/${APP_NAME}.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
-            <maxFileSize>100MB</maxFileSize>
-            <maxHistory>30</maxHistory>
-            <totalSizeCap>5GB</totalSizeCap>
-        </rollingPolicy>
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{tid}] %-5level %logger{36} - %msg%n</pattern>
-        </encoder>
-    </appender>
-
-    <!-- 错误日志单独输出 -->
-    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_HOME}/${APP_NAME}-error.log</file>
-        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-            <level>ERROR</level>
-        </filter>
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_HOME}/${APP_NAME}-error.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
-            <maxFileSize>100MB</maxFileSize>
-            <maxHistory>30</maxHistory>
-        </rollingPolicy>
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{tid}] %-5level %logger{36} - %msg%n</pattern>
-        </encoder>
-    </appender>
-
-    <!-- JSON 格式输出（供 Filebeat 采集） -->
-    <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_HOME}/${APP_NAME}-json.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>${LOG_HOME}/${APP_NAME}-json.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
-            <maxFileSize>100MB</maxFileSize>
-            <maxHistory>15</maxHistory>
-        </rollingPolicy>
-        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-            <customFields>{"service":"${APP_NAME}"}</customFields>
-        </encoder>
-    </appender>
-
-    <root level="INFO">
-        <appender-ref ref="CONSOLE" />
-        <appender-ref ref="FILE" />
-        <appender-ref ref="ERROR_FILE" />
-        <appender-ref ref="JSON_FILE" />
-    </root>
-</configuration>
+<!-- 引入 Actuator -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
 ```
 
-### 1.3 ELK 日志采集架构
+**核心端点一览：**
 
-ELK（Elasticsearch + Logstash + Kibana）是最主流的日志采集方案。在高并发场景下，通常在 Logstash 前加一层 Kafka 做缓冲：
-
-```text
-┌─────────────────────────────────────────────────────────────────────┐
-│                        应用服务器集群                                 │
-│                                                                     │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │
-│  │ Order Service │  │ User Service │  │ Payment Svc  │              │
-│  │ (JSON 日志)   │  │ (JSON 日志)   │  │ (JSON 日志)   │              │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘              │
-│         │ Filebeat         │ Filebeat         │ Filebeat             │
-└─────────┼─────────────────┼─────────────────┼───────────────────────┘
-          ▼                 ▼                 ▼
-   ┌─────────────────────────────────────────────┐
-   │                  Kafka                        │
-   │         (缓冲，削峰填谷)                       │
-   └──────────────────────┬──────────────────────┘
-                          ▼
-                   ┌────────────┐
-                   │  Logstash   │
-                   │ (过滤/转换)  │
-                   └─────┬──────┘
-                         ▼
-                ┌─────────────────┐
-                │ Elasticsearch    │
-                │ (存储/索引/搜索)  │
-                └────────┬────────┘
-                         ▼
-                   ┌────────────┐
-                   │   Kibana    │
-                   │ (可视化/查询) │
-                   └────────────┘
-```
-
-### 1.4 Filebeat 配置
+| 端点 | 路径 | 功能 | 默认暴露 |
+|------|------|------|:-------:|
+| 健康检查 | `/actuator/health` | 应用健康状态 | ✅ |
+| 应用信息 | `/actuator/info` | 应用名称、版本 | ✅ |
+| 指标 | `/actuator/metrics` | JVM、HTTP、自定义指标 | ❌ |
+| 环境变量 | `/actuator/env` | 所有配置属性 | ❌ |
+| Bean 列表 | `/actuator/beans` | 所有 Bean 信息 | ❌ |
+| 条件评估 | `/actuator/conditions` | 自动配置生效/未生效原因 | ❌ |
+| 配置属性 | `/actuator/configprops` | @ConfigurationProperties 绑定 | ❌ |
+| 线程转储 | `/actuator/threaddump` | JVM 线程状态 | ❌ |
+| 堆转储 | `/actuator/heapdump` | JVM 堆内存快照 | ❌ |
+| Prometheus | `/actuator/prometheus` | Prometheus 格式指标 | ❌ |
 
 ```yaml
-# filebeat.yml
-filebeat.inputs:
-  - type: log
-    enabled: true
-    paths:
-      - /var/log/app/*-json.log
-    json.keys_under_root: true
-    json.overwrite_keys: true
-    fields:
-      env: production
-    fields_under_root: true
-
-output.kafka:
-  hosts: ["kafka1:9092", "kafka2:9092", "kafka3:9092"]
-  topic: "app-logs"
-  partition.round_robin:
-    reachable_only: true
-
-# 或直接输出到 Elasticsearch（小规模场景）
-# output.elasticsearch:
-#   hosts: ["es1:9200", "es2:9200"]
-#   index: "app-logs-%{+yyyy.MM.dd}"
+# 暴露端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always  # 显示健康检查详情
 ```
 
-### 1.5 TraceID 关联日志
+::: warning 生产安全
+生产环境不要暴露 `env` 和 `configprops` 端点——它们会泄露数据库密码、API Key 等敏感信息。只暴露 `health`、`info`、`metrics`。
+:::
 
-日志最大的问题是**上下文割裂**——一个请求跨越多个服务，每个服务的日志独立存储，无法关联。解决方案是将链路追踪的 TraceID 注入日志。
+## 2. 健康检查与自定义 Indicator
 
-在第 7 章中我们介绍了 SkyWalking 自动注入 `tid`（TraceID）到 MDC。如果使用 OpenTelemetry，可以手动注入：
+`/actuator/health` 返回 `UP` 不代表你的业务真的健康——数据库连接池满了但 health 依然是 UP，因为你没有自定义检查。
+
+### 2.1 内置健康指示器
+
+Spring Boot 自动配置了多个健康指示器：
+
+| 指示器 | 检查内容 | 条件 |
+|--------|---------|------|
+| `DataSourceHealthIndicator` | 数据库连接 | 有 DataSource Bean |
+| `RedisHealthIndicator` | Redis 连接 | 有 RedisConnectionFactory |
+| `DiskSpaceHealthIndicator` | 磁盘空间 | 默认启用 |
+| `PingHealthIndicator` | 应用存活 | 默认启用 |
+
+### 2.2 自定义健康检查
 
 ```java
 @Component
-public class TraceIdLogFilter extends Filter {
+public class DatabaseHealthIndicator implements HealthIndicator {
+
+    @Autowired
+    private DataSource dataSource;
 
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response,
-            FilterChain chain) throws IOException, ServletException {
-        Span currentSpan = Span.current();
-        if (currentSpan.getSpanContext().isValid()) {
-            MDC.put("traceId", currentSpan.getSpanContext().getTraceId());
-            MDC.put("spanId", currentSpan.getSpanContext().getSpanId());
+    public Health health() {
+        try (Connection conn = dataSource.getConnection()) {
+            if (conn.isValid(3)) {
+                return Health.up()
+                    .withDetail("database", "MySQL")
+                    .withDetail("connection_pool", getPoolStats())
+                    .build();
+            }
+        } catch (SQLException e) {
+            return Health.down()
+                .withDetail("error", e.getMessage())
+                .build();
         }
-        try {
-            chain.doFilter(request, response);
-        } finally {
-            MDC.remove("traceId");
-            MDC.remove("spanId");
-        }
+        return Health.down().build();
+    }
+
+    private Map<String, Object> getPoolStats() {
+        return Map.of(
+            "active", 5,
+            "idle", 15,
+            "total", 20
+        );
     }
 }
 ```
 
-有了 TraceID，日志就从"离散事件"变成了"有上下文的事件链"。在 Kibana 中搜索 `traceId:abc-123-def`，就能看到这个请求在所有服务中的完整日志。
+### 2.3 健康状态聚合
 
-## 2. 指标监控
+```json
+// /actuator/health 响应示例
+{
+  "status": "UP",
+  "components": {
+    "db": {
+      "status": "UP",
+      "details": {
+        "database": "MySQL",
+        "connection_pool": {
+          "active": 5,
+          "idle": 15
+        }
+      }
+    },
+    "diskSpace": {
+      "status": "UP",
+      "details": {
+        "free": "10GB",
+        "threshold": "10MB"
+      }
+    },
+    "customCheck": {
+      "status": "DOWN"
+    }
+  }
+}
+```
 
-### 2.1 指标的本质
+::: warning 性能注意
+`HealthIndicator` 的 `health()` 方法会在每次请求 `/actuator/health` 时调用。如果检查逻辑很重（如远程调用），考虑用 `@Scheduled` 缓存结果，避免每次请求都等待。
+:::
 
-如果说日志是"发生了什么"，那么指标就是"整体状况如何"。指标是**数值型的时间序列数据**，适合回答：
+## 3. Micrometer 指标集成
 
-- 当前系统的 QPS 是多少？
-- P99 响应时间是否超过 500ms？
-- 错误率是多少？
-- JVM 堆内存使用趋势如何？
+不知道接口 QPS、不知道慢请求、不知道 JVM 内存——没有指标就是盲飞。
 
-### 2.2 Micrometer 指标采集
+### 3.1 引入 Prometheus 端点
 
-Micrometer 是 Spring Boot 的指标采集标准（类似日志领域的 SLF4J），它提供统一的 API，底层可以对接多种监控系统。
+```xml
+<dependency>
+    <groupId>io.micrometer</groupId>
+    <artifactId>micrometer-registry-prometheus</artifactId>
+</dependency>
+```
+
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus,health,metrics
+  metrics:
+    tags:
+      application: ${spring.application.name}
+```
+
+### 3.2 自定义指标
 
 ```java
 @Component
 public class OrderMetrics {
 
-    private final MeterRegistry registry;
     private final Counter orderCounter;
     private final Timer orderTimer;
-    private final Gauge activeOrders;
+    private final AtomicInteger pendingOrders;
 
     public OrderMetrics(MeterRegistry registry) {
-        this.registry = registry;
-
-        // 计数器：订单总数
-        this.orderCounter = Counter.builder("order.created.total")
-            .description("Total number of orders created")
-            .tag("service", "order-service")
+        // 计数器：统计订单总数
+        this.orderCounter = Counter.builder("orders.created")
+            .description("创建的订单总数")
+            .tag("type", "online")
             .register(registry);
 
-        // 计时器：下单耗时
-        this.orderTimer = Timer.builder("order.create.duration")
-            .description("Order creation duration")
-            .publishPercentiles(0.5, 0.95, 0.99)  // 输出 P50/P95/P99
+        // 计时器：统计处理耗时
+        this.orderTimer = Timer.builder("orders.processing.time")
+            .description("订单处理耗时")
+            .publishPercentiles(0.5, 0.95, 0.99) // P50、P95、P99
             .register(registry);
 
-        // 仪表：当前活跃订单数
-        this.activeOrders = Gauge.builder("order.active.count",
-                this, m -> getActiveOrderCount())
-            .description("Current active order count")
-            .register(registry);
+        // 仪表盘：当前待处理订单数
+        this.pendingOrders = registry.gauge("orders.pending",
+            new AtomicInteger(0));
     }
 
-    public void recordOrderCreated() {
+    public void recordOrder() {
         orderCounter.increment();
     }
 
-    public <T> T recordOrderDuration(Supplier<T> supplier) {
-        return orderTimer.record(supplier);
+    public void recordProcessingTime(long durationMs) {
+        orderTimer.record(durationMs, TimeUnit.MILLISECONDS);
     }
 }
 ```
 
-### 2.3 Prometheus + Grafana 监控体系
+### 3.3 三大指标类型
 
-```text
-┌──────────────────────────────────────────────────────┐
-│                    应用集群                            │
-│                                                      │
-│  ┌──────────────┐  ┌──────────────┐                 │
-│  │ Order Service │  │ User Service │  ...            │
-│  │ /actuator/    │  │ /actuator/    │                │
-│  │  prometheus   │  │  prometheus   │                │
-│  └──────┬───────┘  └──────┬───────┘                 │
-└─────────┼─────────────────┼──────────────────────────┘
-          │ Pull (拉模式)    │
-          ▼                 ▼
-   ┌─────────────────────────────────┐
-   │          Prometheus              │
-   │  - 定时拉取各实例的 /metrics     │
-   │  - 存储时间序列数据              │
-   │  - 支持 PromQL 查询             │
-   │  - 告警规则评估                  │
-   └──────────┬──────────────────────┘
-              │
-     ┌────────┴────────┐
-     ▼                 ▼
-┌──────────┐    ┌──────────────┐
-│ Grafana  │    │ Alertmanager │
-│ (仪表盘)  │    │ (告警通知)    │
-└──────────┘    └──────────────┘
-```
+| 类型 | 用途 | 示例 |
+|------|------|------|
+| Counter | 只增不减的计数器 | 请求总数、错误总数 |
+| Timer | 耗时统计 | 接口响应时间 |
+| Gauge | 可增可减的瞬时值 | 内存使用、队列长度 |
 
-Spring Boot 集成 Prometheus：
-
-```yaml
-# application.yml
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,prometheus
-  metrics:
-    tags:
-      application: ${spring.application.name}
-    distribution:
-      percentiles-histogram:
-        http.server.requests: true
-```
-
-Prometheus 配置抓取目标：
+### 3.4 Prometheus + Grafana
 
 ```yaml
 # prometheus.yml
-global:
-  scrape_interval: 15s
-
 scrape_configs:
-  - job_name: 'spring-boot-apps'
+  - job_name: 'my-app'
     metrics_path: '/actuator/prometheus'
-    kubernetes_sd_configs:
-      - role: pod
-    relabel_configs:
-      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
-        action: keep
-        regex: true
+    static_configs:
+      - targets: ['localhost:8080']
 ```
 
-### 2.4 核心监控指标
+::: warning Timer 单位
+`Timer.record()` 的参数单位默认是纳秒（nanoseconds），如果你传的是毫秒，需要用 `record(durationMs, TimeUnit.MILLISECONDS)`。否则你的 P99 会显示为纳秒级别的「极快」响应。
+:::
+
+## 4. 核心监控指标
 
 | 类别 | 指标 | 含义 | 告警阈值建议 |
 |------|------|------|-------------|
@@ -307,273 +226,3 @@ scrape_configs:
 | **JVM** | `jvm_threads_live_threads` | 活跃线程数 | > 80% of max |
 | **DB** | `hikaricp_connections_active` | 活跃连接数 | > 80% of max |
 | **DB** | `hikaricp_connections_timeout_total` | 连接超时次数 | > 0 |
-| **自定义** | `order_create_duration_seconds` | 业务操作耗时 | P99 > 500ms |
-
-## 3. 链路追踪
-
-### 3.1 三大支柱的关系
-
-可观测性三大支柱不是孤立的，它们通过**关联标识**（TraceID、时间戳）串联起来：
-
-```text
-                        可观测性
-                           │
-            ┌──────────────┼──────────────┐
-            ▼              ▼              ▼
-         日志            指标           链路追踪
-     (Logs)          (Metrics)       (Traces)
-            │              │              │
-            │   ┌──────────┘              │
-            │   │                         │
-            ▼   ▼                         ▼
-     "5xx错误了"  "错误率1.2%"    "AccountService超时5s"
-     "参数异常"   "P99=800ms"    "PaymentService重试3次"
-            │              │              │
-            └──────────────┼──────────────┘
-                           │
-                    通过 TraceID 关联
-                           │
-                           ▼
-                  完整的问题定位图景
-```
-
-典型排查流程：
-
-1. **Grafana 告警**：`order-service 的 5xx 错误率超过 1%`
-2. **Grafana 面板**：发现 P99 从 200ms 飙升到 2s
-3. **Jaeger/SkyWalking**：用 TraceID 找到慢请求的调用链，发现 `AccountService` 的数据库查询耗时 1.5s
-4. **Kibana 日志**：用同一个 TraceID 搜索，发现 `AccountService` 报了 `Connection pool exhausted`
-5. **根因定位**：数据库连接池耗尽，需要扩容连接池或优化慢 SQL
-
-### 3.2 OpenTelemetry 架构
-
-OpenTelemetry（OTel）是 CNCF 的可观测性标准，统一了指标、日志、追踪的数据格式和采集方式：
-
-```text
-┌──────────────────────────────────────────────────────────┐
-│                     应用层                                 │
-│                                                          │
-│  ┌─────────────────────────────────────────────────────┐ │
-│  │            OpenTelemetry Java Agent                  │ │
-│  │   (自动埋点：HTTP、gRPC、JDBC、Redis、MQ...)         │ │
-│  └──────────────────────┬──────────────────────────────┘ │
-│                         │ OTLP (gRPC/HTTP)               │
-└─────────────────────────┼────────────────────────────────┘
-                          ▼
-              ┌───────────────────────┐
-              │  OTel Collector        │
-              │  (接收、处理、导出)      │
-              └───────────┬───────────┘
-                          │
-            ┌─────────────┼─────────────┐
-            ▼             ▼             ▼
-     ┌────────────┐ ┌──────────┐ ┌──────────────┐
-     │   Jaeger    │ │Prometheus│ │ Elasticsearch│
-     │  (追踪)     │ │ (指标)   │ │   (日志)     │
-     └────────────┘ └──────────┘ └──────────────┘
-```
-
-### 3.3 OTel Java Agent 使用
-
-OpenTelemetry Java Agent 与 SkyWalking 类似，也是无侵入的字节码注入方式：
-
-```bash
-java -javaagent:/path/opentelemetry-javaagent.jar \
-     -Dotel.service.name=order-service \
-     -Dotel.exporter.otlp.endpoint=http://otel-collector:4317 \
-     -Dotel.traces.sampler=parentbased_traceidratio \
-     -Dotel.traces.sampler.arg=0.1 \
-     -jar order-service.jar
-```
-
-**采样策略说明**：
-
-| 策略 | 含义 | 适用场景 |
-|------|------|---------|
-| `always_on` | 100% 采样 | 开发/测试环境 |
-| `always_off` | 不采样 | 关闭追踪 |
-| `traceidratio` | 按比例采样（如 10%） | 生产环境，平衡开销和可观测性 |
-| `parentbased_traceidratio` | 父 Span 已采样则子 Span 也采样 | 生产推荐，保证链路完整 |
-
-### 3.4 OTel Collector 配置
-
-```yaml
-# otel-collector-config.yml
-receivers:
-  otlp:
-    protocols:
-      grpc:
-        endpoint: 0.0.0.0:4317
-      http:
-        endpoint: 0.0.0.0:4318
-
-processors:
-  batch:
-    timeout: 5s
-    send_batch_size: 1000
-
-  # 尾部采样：对错误请求 100% 采样，正常请求 10%
-  tail_sampling:
-    decision_wait: 10s
-    policies:
-      - name: error-policy
-        type: status_code
-        status_code:
-          status_codes: [ERROR]
-      - name: probabilistic-policy
-        type: probabilistic
-        probabilistic:
-          sampling_percentage: 10
-
-exporters:
-  jaeger:
-    endpoint: jaeger-collector:14250
-    tls:
-      insecure: true
-
-  prometheus:
-    endpoint: "0.0.0.0:8889"
-
-  elasticsearch:
-    endpoints: ["http://es-node1:9200", "http://es-node2:9200"]
-    logs_index: otel-logs
-
-service:
-  pipelines:
-    traces:
-      receivers: [otlp]
-      processors: [batch, tail_sampling]
-      exporters: [jaeger]
-    metrics:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [prometheus]
-    logs:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [elasticsearch]
-```
-
-### 3.5 SkyWalking vs Jaeger 对比
-
-| 维度 | SkyWalking | Jaeger |
-|------|-----------|--------|
-| **出身** | Apache 顶级项目，国内社区活跃 | Uber 开源，CNCF 毕业项目 |
-| **埋点方式** | Java Agent 无侵入 | OTel Agent 或手动埋点 |
-| **存储** | ES、MySQL、BanyanDB、TiDB | ES、Cassandra、Kafka |
-| **UI 功能** | 拓扑图、Trace、告警、指标、日志 | Trace 查看、对比、依赖图 |
-| **指标能力** | 内置服务/端点/实例级指标 | 需配合 Prometheus |
-| **扩展性** | 中等（自定义存储需开发插件） | 高（OTel 标准，生态丰富） |
-| **国内生态** | 国内公司广泛使用，中文文档完善 | 国际化社区，文档以英文为主 |
-| **推荐场景** | 国内团队、快速上手、一体化方案 | 国际团队、已有 OTel 基础设施 |
-
-## 4. 线上问题定位方法论
-
-### 4.1 三板斧：日志、指标、链路
-
-线上问题排查的通用流程：
-
-```text
-发现问题（告警/用户反馈）
-    │
-    ▼
-第一步：看指标（Grafana）
-    │  QPS？错误率？P99？JVM？CPU？内存？
-    │  → 确定问题的大致范围和影响
-    │
-    ▼
-第二步：看链路（Jaeger/SkyWalking）
-    │  找一个有问题的 Trace，看完整调用链
-    │  → 定位到具体哪个环节出了问题
-    │
-    ▼
-第三步：看日志（Kibana）
-    │  用 TraceID 搜索相关日志
-    │  → 找到具体的异常堆栈和错误原因
-    │
-    ▼
-定位根因，制定修复方案
-```
-
-### 4.2 常见问题排查路径
-
-| 问题现象 | 排查步骤 | 工具 | 常见根因 |
-|---------|---------|------|---------|
-| **接口响应变慢** | ① Grafana 看 P99 趋势 → ② Jaeger 找慢 Trace → ③ 定位慢在哪个 Span → ④ Kibana 看该 Span 的日志 | Grafana + Jaeger + Kibana | 慢 SQL、缓存穿透、下游超时、GC 暂停 |
-| **偶发 500 错误** | ① Grafana 看错误率和时间分布 → ② Kibana 搜 ERROR 日志 → ③ 看异常堆栈 → ④ 关联 TraceID 看请求上下文 | Grafana + Kibana + Jaeger | 空指针、参数校验失败、并发竞争、连接池耗尽 |
-| **内存泄漏** | ① Grafana 看堆内存趋势（只升不降） → ② 确认是 Old Gen 还是 Young Gen → ③ `jmap -dump` 生成堆转储 → ④ MAT 分析大对象 | Grafana + jmap + MAT | 大集合未清理、ThreadLocal 泄露、缓存无上限 |
-| **CPU 飙高** | ① `top` 找到高 CPU 的 Java 进程 → ② `top -Hp <pid>` 找高 CPU 线程 → ③ 线程 ID 转 16 进制 → ④ `jstack` 找对应线程堆栈 | top + jstack | 死循环、频繁 Full GC、正则回溯、加密计算 |
-| **频繁 Full GC** | ① Grafana 看 GC 频率和暂停时间 → ② 添加 GC 日志 `-Xlog:gc*` → ③ GCViewer 分析 → ④ jmap dump 分析对象分布 | Grafana + GC 日志 + MAT | 堆内存太小、内存泄漏、大对象直接进入老年代 |
-| **数据库连接池耗尽** | ① Grafana 看 `hikaricp_connections_active` → ② 确认是否达到上限 → ③ 检查慢 SQL → ④ 检查事务是否正确关闭 | Grafana + Kibana | 慢 SQL 长时间占用连接、事务未提交/回滚、连接泄漏 |
-
-### 4.3 接口变慢的详细排查
-
-以"接口响应变慢"为例，详细展示排查过程：
-
-![observability-troubleshoot](/spring/observability-troubleshoot.svg)
-
-### 4.4 排查工具速查表
-
-| 场景 | 命令/工具 | 说明 |
-|------|----------|------|
-| 查看 JVM 参数 | `jinfo -flags <pid>` | 确认 JVM 配置是否正确 |
-| 查看堆内存 | `jmap -heap <pid>` | 查看各代内存使用情况 |
-| 生成堆转储 | `jmap -dump:format=b,file=heap.hprof <pid>` | 用于 MAT 分析 |
-| 查看线程状态 | `jstack <pid>` | 分析死锁、线程阻塞 |
-| 查看 GC 日志 | `jstat -gcutil <pid> 1000` | 每秒输出 GC 统计 |
-| 在线诊断 | Arthas（`java -jar arthas-boot.jar`） | 阿里开源，支持 trace/watch/monitor |
-| CPU 分析 | `async-profiler` | 低开销的 CPU/内存火焰图生成 |
-
-### 4.5 Arthas 常用命令
-
-Arthas 是阿里巴巴开源的 Java 诊断工具，可以在不重启应用的情况下进行在线诊断：
-
-```bash
-# 启动 Arthas，连接到目标 JVM
-java -jar arthas-boot.jar
-
-# 查看方法调用耗时（追踪某个方法的调用链路和耗时）
-trace com.example.service.OrderService getOrder
-
-# 监控方法调用（统计 QPS、成功率、平均耗时）
-monitor com.example.service.OrderService getOrder -c 10
-
-# 观察方法入参和返回值
-watch com.example.service.OrderService getOrder '{params, returnObj, throwExp}'
-
-# 反编译线上类（确认代码版本）
-jad com.example.service.OrderService
-
-# 查看堆中的对象
-dashboard                    # 实时面板（线程、内存、GC）
-heapdump /tmp/heap.hprof     # 导出堆转储
-thread -n 3                  # 查看最忙的 3 个线程
-```
-
-Arthas 的 `trace` 命令输出示例：
-
-```text
-$ trace com.example.service.OrderService getOrder
-Press Q or Ctrl+C to abort.
-Affect(class count: 1 , method count: 1) cost in 42 ms.
-ts=2024-01-15 14:23:45; [cost=15.23ms] result=@ArrayList[
-    @OrderService[getOrder],
-    @ArrayList[
-        @OrderMapper[selectById]=[cost=8.12ms],
-        @PaymentClient[queryByOrderId]=[cost=5.67ms],
-    ],
-]
-```
-
-## 5. 本章小结
-
-可观测性三大支柱各司其职，又通过 TraceID 紧密关联：
-
-| 支柱 | 回答的问题 | 数据形态 | 代表技术栈 |
-|------|-----------|---------|-----------|
-| **日志** | 发生了什么？ | 离散事件 | Logback → Filebeat → Elasticsearch → Kibana |
-| **指标** | 整体状况如何？ | 时间序列数值 | Micrometer → Prometheus → Grafana |
-| **链路追踪** | 请求经过了哪里？哪里慢？ | 调用树 | OpenTelemetry → Collector → Jaeger/SkyWalking |
-
-三者不是互斥选择，而是互补关系。日志提供细节，指标提供全局视图，链路追踪提供调用路径。通过 TraceID 将三者串联，才能构建完整的可观测体系。
-

@@ -389,4 +389,82 @@ Filter 和 Interceptor 在异步场景下行为不同：
 
 如果需要在异步请求中也注入 MDC，需要用 `RequestContextHolder.getRequestAttributes()` 配合异步线程传递上下文。
 
+## 8. CORS 与 CSRF 防护
+
+### 8.1 CORS 配置
+
+CORS（Cross-Origin Resource Sharing）是浏览器的跨域安全机制。前端 `http://localhost:3000` 请求 `http://localhost:8080` 的 API，浏览器会拦截响应——除非服务端声明允许跨域。
+
+```java
+@Configuration
+public class CorsConfig implements WebMvcConfigurer {
+
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/api/**")
+            .allowedOrigins("https://example.com", "https://admin.example.com")
+            .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+            .allowedHeaders("*")
+            .exposedHeaders("X-Trace-Id", "X-Total-Count")
+            .allowCredentials(true)     // 允许携带 Cookie
+            .maxAge(3600);              // preflight 缓存 1 小时
+    }
+}
+```
+
+CORS 预检请求流程：
+
+```text
+前端发起 PUT /api/users/1 (非简单请求)
+  │
+  ▼
+浏览器自动先发 OPTIONS 请求 (preflight)
+  → 检查服务端是否允许该 Origin + Method + Header
+  │
+  ▼
+服务端返回 Access-Control-Allow-Origin: https://example.com
+  │
+  ▼
+浏览器确认允许，才发送真正的 PUT 请求
+```
+
+### 8.2 CSRF 攻击原理与防护
+
+CSRF（Cross-Site Request Forgery）攻击原理：
+
+```text
+用户登录 bank.com → 浏览器保存 Cookie
+用户访问恶意网站 → 恶意页面发起 <img src="bank.com/transfer?to=attacker&amount=10000">
+浏览器自动携带 bank.com 的 Cookie → 转账成功！
+```
+
+Spring Security 的 CSRF 防护：
+
+```java
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf
+                // REST API 使用 Token 认证，可以禁用 CSRF
+                .ignoringRequestMatchers("/api/**")
+                // 传统表单使用 CSRF Token
+                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+            );
+        return http.build();
+    }
+}
+```
+
+| 场景 | CSRF 策略 |
+| :-- | :-- |
+| 传统服务端渲染（表单） | 启用 CSRF Token（Spring Security 默认开启） |
+| REST API + JWT Token | 禁用 CSRF（JWT 本身防 CSRF） |
+| REST API + Cookie Session | 启用 CSRF 或使用 SameSite Cookie |
+
+> **踩坑提醒**：CORS 配置中 `allowCredentials(true)` 时，`allowedOrigins` 不能用 `"*"`——必须指定具体域名。这是 CORS 规范的安全限制。
+
 > 通用工程中的认证鉴权方案参见 [安全架构](/spring/05-security/chapter-01-security-architecture)。文件上传的 `MultipartFile` 处理参见 [文件上传与下载](/spring/02-web/chapter-08-file-upload-download)。

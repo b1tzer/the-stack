@@ -161,6 +161,114 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev
 mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Xmx1g -Xms512m"
 ```
 
-## 8. 小结
+## 8. Docker 分层构建
 
-fat jar 能自包含运行，靠的是 `repackage` 目标把依赖塞进 `BOOT-INF/lib`、把 `Main-Class` 指向 `JarLauncher`。打包时只需守住三条：应用模块配 `spring-boot-maven-plugin`，库模块不配；父 pom 统一用 `spring-boot-starter-parent` 管理版本；Docker 部署用多阶段构建减小镜像体积。
+每次改一行代码就要重新构建整个 Docker 镜像（900MB）——分层 Dockerfile 让依赖层缓存命中，构建从 5 分钟降到 30 秒。
+
+### 8.1 Spring Boot 分层工具
+
+```bash
+# 先解压 Fat Jar
+mkdir -p target/dependency
+cd target/dependency
+jar -xf ../my-app-1.0.0.jar
+
+# 查看分层
+java -Djarmode=layertools -jar my-app-1.0.0.jar list
+# → dependencies
+# → spring-boot-loader
+# → snapshot-dependencies
+# → application
+```
+
+### 8.2 分层 Dockerfile
+
+```dockerfile
+# 使用 Spring Boot 分层
+eclipse-temurin:17-jre-jammy AS builder
+WORKDIR /app
+COPY target/my-app-1.0.0.jar app.jar
+RUN java -Djarmode=layertools -jar app.jar extract
+
+eclipse-temurin:17-jre-jammy
+WORKDIR /app
+COPY --from=builder /app/dependencies/ ./
+COPY --from=builder /app/spring-boot-loader/ ./
+COPY --from=builder /app/snapshot-dependencies/ ./
+COPY --from=builder /app/application/ ./
+ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
+```
+
+`COPY` 的顺序很重要——把变化频率低的层放前面（依赖），变化频率高的层放后面（代码），这样 Docker Build Cache 才能命中。
+
+## 9. GraalVM 原生镜像
+
+Spring Boot 应用启动要 5 秒、内存占用 300MB——GraalVM 原生镜像让启动降到 0.1 秒、内存 50MB，但代价是构建时间长。
+
+### 9.1 AOT 处理原理
+
+```text
+传统 JVM 模式：
+  .java → .class → JVM 加载 → 反射/动态代理 → 运行
+  （反射在运行时决定，无法提前优化）
+
+GraalVM 原生镜像模式：
+  .java → AOT 处理 → .class → Native Image 编译 → 原生可执行文件
+  （AOT 提前分析所有反射、代理，生成初始化代码）
+```
+
+### 9.2 构建配置
+
+```xml
+<!-- 引入 Native Build Tools -->
+<plugin>
+    <groupId>org.graalvm.buildtools</groupId>
+    <artifactId>native-maven-plugin</artifactId>
+    <version>0.9.28</version>
+    <executions>
+        <execution>
+            <id>build-native</id>
+            <goals>
+                <goal>compile-no-fork</goal>
+            </goals>
+        </execution>
+    </executions>
+</plugin>
+```
+
+```bash
+# 构建原生镜像
+mvn -Pnative native:compile
+
+# 运行
+./target/my-app  # 启动时间 ~0.1s
+```
+
+### 9.3 JVM vs Native 对比
+
+| 特性 | JVM 模式 | GraalVM Native |
+|------|:-------:|:--------------:|
+| 启动时间 | 3-10 秒 | 0.05-0.5 秒 |
+| 内存占用 | 200-500 MB | 30-80 MB |
+| 峰值性能 | ✅ JIT 优化 | ⚠️ 无 JIT |
+| 构建时间 | 30 秒 | 5-15 分钟 |
+| 反射支持 | ✅ 原生 | ⚠️ 需配置 |
+| 动态代理 | ✅ 原生 | ⚠️ 需配置 |
+
+### 9.4 Spring Boot 3.x 的 AOT 支持
+
+```java
+// Spring Boot 3.x 自动处理大部分 AOT 问题
+// 但自定义反射需要手动声明
+@RegisterReflectionForBinding({MyDto.class, AnotherDto.class})
+@SpringBootApplication
+public class MyApp {}
+```
+
+::: warning 兼容性注意
+GraalVM Native Image 不支持所有 Java 特性——动态类加载、`synchronized` 块、某些序列化框架都不完全兼容。在引入 Native 之前，先检查你的依赖是否支持。
+:::
+
+## 10. 小结
+
+fat jar 能自包含运行，靠的是 `repackage` 目标把依赖塞进 `BOOT-INF/lib`、把 `Main-Class` 指向 `JarLauncher`。打包时只需守住三条：应用模块配 `spring-boot-maven-plugin`，库模块不配；父 pom 统一用 `spring-boot-starter-parent` 管理版本；Docker 部署用分层构建减小镜像体积、利用缓存加速；对启动速度和内存有极致要求的场景，考虑 GraalVM 原生镜像。

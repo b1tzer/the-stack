@@ -1,10 +1,21 @@
 # 异步处理
 
-## 1. @Async
+> `@Async` 是 Spring 最简单的异步方案，但默认的线程池是个坑——每次调用都创建新线程，生产环境会 OOM。本章从基础用法到线程池调优、异常处理、上下文传递，覆盖异步编程的全部核心知识。
+
+## 1. @Async 基础
+
+### 1.1 基本用法
 
 ```java
+@SpringBootApplication
+@EnableAsync  // 必须开启！
+public class Application {
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+    }
+}
+
 @Configuration
-@EnableAsync
 public class AsyncConfig {
     @Bean("taskExecutor")
     public Executor taskExecutor() {
@@ -27,7 +38,75 @@ public class NotificationService {
 }
 ```
 
-## 2. CompletableFuture
+### 1.2 为什么不能用默认 SimpleAsyncTaskExecutor
+
+| 特性 | SimpleAsyncTaskExecutor（默认） | ThreadPoolTaskExecutor（推荐） |
+|------|-------------------------------|-------------------------------|
+| 线程复用 | ❌ 每次新建 | ✅ 线程池复用 |
+| 资源控制 | ❌ 无上限 | ✅ 可控 |
+| 生产可用 | ❌ 会 OOM | ✅ 安全 |
+| 性能 | 差（频繁创建销毁） | 好（复用） |
+
+> **踩坑提醒**：不指定 Bean 名称时，`@Async` 使用默认的 `SimpleAsyncTaskExecutor`。生产环境一定要自定义线程池。
+
+## 2. @Async 失效场景
+
+**最常见的 4 个失效场景**：
+
+```java
+@Service
+public class UserService {
+
+    @Async
+    public void asyncMethod() { /* ... */ }
+
+    // ❌ 场景一：自调用（最常见！）
+    public void doSomething() {
+        // this.asyncMethod() —— 不走代理，@Async 失效！
+        asyncMethod(); // 同一个对象内部调用，AOP 代理不生效
+    }
+
+    // ✅ 修复：注入自身（或拆分到另一个 Bean）
+    @Autowired
+    private ApplicationContext context;
+
+    public void doSomethingFixed() {
+        context.getBean(UserService.class).asyncMethod();
+    }
+}
+
+// ❌ 场景二：方法不是 public
+@Service
+public class BadService {
+
+    @Async
+    void packagePrivateMethod() { /* 失效 */ }  // 非 public
+
+    @Async
+    private void privateMethod() { /* 失效 */ }  // private
+}
+
+// ❌ 场景三：没加 @EnableAsync
+// @EnableAsync 忘了加，所有 @Async 都不生效
+
+// ❌ 场景四：异常被吞掉
+@Async
+public void riskyMethod() {
+    throw new RuntimeException("出错了");
+    // 默认只打 warn 日志，不抛出！
+}
+```
+
+| 场景 | 原因 | 修复方式 |
+|------|------|---------|
+| 自调用 | Spring AOP 代理不生效 | 注入自身代理 / 拆分 Bean |
+| 非 public | CGLIB/JDK 代理限制 | 改为 public |
+| 未开启 | 缺 `@EnableAsync` | 加注解 |
+| 异常被吞 | 默认只打日志 | 配置 ExceptionHandler |
+
+> **经验法则**：自调用是 @Async（以及 @Transactional、@Cacheable）失效的头号杀手。记住——凡是走 AOP 代理的注解，自调用都会失效。
+
+## 3. CompletableFuture 组合异步操作
 
 ```java
 public CompletableFuture<User> getUserAsync(Long id) {
@@ -35,53 +114,9 @@ public CompletableFuture<User> getUserAsync(Long id) {
         .thenApply(user -> enrichUser(user))
         .exceptionally(ex -> getDefaultUser());
 }
-```
 
-## 3. 异步处理高级用法
-
-### 3.1 异步异常处理
-
-```java
-@Configuration
-@EnableAsync
-public class AsyncConfig implements AsyncConfigurer {
-
-    @Override
-    public Executor getAsyncExecutor() {
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(10);
-        executor.setMaxPoolSize(50);
-        executor.setQueueCapacity(200);
-        executor.setThreadNamePrefix("async-");
-        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
-        executor.initialize();
-        return executor;
-    }
-
-    // 全局异步异常处理器
-    @Override
-    public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
-        return (ex, method, params) -> {
-            log.error("异步方法 {} 执行异常, 参数: {}", method.getName(), params, ex);
-            // 发送告警
-            alertService.sendAlert("异步任务失败: " + method.getName(), ex.getMessage());
-        };
-    }
-}
-```
-
-### 3.2 CompletableFuture 组合异步操作
-
-```java
 @Service
 public class AsyncOrderService {
-
-    @Autowired
-    private UserClient userClient;
-    @Autowired
-    private ProductClient productClient;
-    @Autowired
-    private InventoryClient inventoryClient;
 
     // 并发调用多个服务，合并结果
     public CompletableFuture<OrderDetail> getOrderDetail(Long orderId) {
@@ -112,173 +147,9 @@ public class AsyncOrderService {
 }
 ```
 
-### 3.3 异步方法的事务问题
+## 4. 异步异常处理
 
-```java
-@Service
-public class OrderService {
-
-    // ❌ 错误：@Async 和 @Transactional 不能在同一方法上使用
-    // @Async 方法在独立线程执行，无法加入调用方的事务
-    @Async
-    @Transactional  // 事务不生效！
-    public void processAsync(Long orderId) { /* ... */ }
-
-    // ✅ 正确：拆分为两个方法
-    @Transactional
-    public void createOrder(OrderRequest request) {
-        Order order = orderRepository.save(new Order(request));
-        // 事务提交后再异步处理
-    }
-
-    @Async
-    public void postProcess(Long orderId) {
-        // 这里是独立的事务
-        Order order = orderRepository.findById(orderId).orElseThrow();
-        // 处理后续逻辑
-    }
-}
-```
-
-### 3.4 响应式异步（WebClient）
-
-```java
-@Service
-public class ReactiveUserService {
-
-    private final WebClient webClient;
-
-    public ReactiveUserService(WebClient.Builder builder) {
-        this.webClient = builder.baseUrl("http://user-service").build();
-    }
-
-    public Mono<User> getUser(Long id) {
-        return webClient.get()
-            .uri("/api/users/{id}", id)
-            .retrieve()
-            .bodyToMono(User.class)
-            .timeout(Duration.ofSeconds(3))
-            .retryWhen(Retry.backoff(2, Duration.ofMillis(500)))
-            .onErrorResume(ex -> Mono.just(User.anonymous()));
-    }
-}
-```
-
-### 3.5 异步上下文传递
-
-`@Async` 方法在独立线程中执行，`ThreadLocal` 中的上下文（如 `SecurityContext`、`TraceId`、用户信息）会丢失。Spring 提供 `TaskDecorator` 接口解决此问题。
-
-```java
-/**
- * 将主线程的上下文传递到异步线程
- */
-public class ContextPropagationDecorator implements TaskDecorator {
-
-    @Override
-    public Runnable decorate(Runnable runnable) {
-        // 在主线程中捕获上下文
-        RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String traceId = MDC.get("traceId");
-
-        return () -> {
-            try {
-                // 在异步线程中恢复上下文
-                RequestContextHolder.setRequestAttributes(requestAttributes);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-                MDC.put("traceId", traceId);
-                runnable.run();
-            } finally {
-                // 清理，防止线程复用导致上下文泄漏
-                RequestContextHolder.resetRequestAttributes();
-                SecurityContextHolder.clearContext();
-                MDC.clear();
-            }
-        };
-    }
-}
-```
-
-配置线程池时注入 `TaskDecorator`：
-
-```java
-@Configuration
-@EnableAsync
-public class AsyncConfig {
-
-    @Bean("taskExecutor")
-    public Executor taskExecutor() {
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(10);
-        executor.setMaxPoolSize(50);
-        executor.setQueueCapacity(100);
-        executor.setThreadNamePrefix("async-");
-        // 注入上下文传递装饰器
-        executor.setTaskDecorator(new ContextPropagationDecorator());
-        executor.initialize();
-        return executor;
-    }
-}
-```
-
-> **注意**：如果使用 Sleuth / Micrometer Tracing，框架会自动注入 `TaskDecorator` 实现 TraceId 传递，无需手动编写。
-
-### 3.6 异步超时控制
-
-异步任务可能因下游服务卡死而无限等待，必须设置超时。
-
-```java
-@Service
-public class AsyncTimeoutService {
-
-    // 方式一：CompletableFuture.orTimeout（Java 9+）
-    public CompletableFuture<String> callWithOrTimeout(Long id) {
-        return CompletableFuture.supplyAsync(() -> externalService.call(id), taskExecutor)
-            .orTimeout(3, TimeUnit.SECONDS)  // 超时抛 TimeoutException
-            .exceptionally(ex -> {
-                if (ex instanceof TimeoutException) {
-                    log.warn("调用超时: id={}", id);
-                    return "降级结果";
-                }
-                throw new CompletionException(ex);
-            });
-    }
-
-    // 方式二：completeOnTimeout（超时返回默认值，不抛异常）
-    public CompletableFuture<String> callWithDefault(Long id) {
-        return CompletableFuture.supplyAsync(() -> externalService.call(id), taskExecutor)
-            .completeOnTimeout("默认值", 3, TimeUnit.SECONDS);
-    }
-
-    // 方式三：自定义超时控制（Java 8 兼容）
-    public <T> CompletableFuture<T> withTimeout(CompletableFuture<T> future, long timeout, TimeUnit unit) {
-        CompletableFuture<T> timeoutFuture = new CompletableFuture<>();
-        ScheduledFuture<?> scheduled = scheduler.schedule(
-            () -> timeoutFuture.completeExceptionally(new TimeoutException()),
-            timeout, unit);
-        // 任一完成则取消另一个
-        future.whenComplete((v, ex) -> {
-            scheduled.cancel(false);
-            if (ex != null) timeoutFuture.completeExceptionally(ex);
-            else timeoutFuture.complete(v);
-        });
-        return timeoutFuture;
-    }
-}
-```
-
-| 方式 | 超时行为 | Java 版本 | 适用场景 |
-|------|---------|-----------|----------|
-| `orTimeout` | 抛 `TimeoutException` | 9+ | 需要感知超时并做特殊处理 |
-| `completeOnTimeout` | 返回默认值 | 9+ | 超时后有合理的降级值 |
-| 自定义封装 | 可自定义 | 8+ | 需要兼容 Java 8 或更细粒度控制 |
-| WebClient `.timeout()` | 抛 `TimeoutException` | 响应式 | 基于 WebClient 的 HTTP 调用 |
-
-### 3.7 异步方法的异常处理详解
-
-异步方法的异常处理取决于返回类型，两者机制完全不同。
-
-#### 3.7.1 返回 `void` 的异常处理
+### 4.1 返回 void 的异常处理
 
 `void` 返回值的异步方法，异常不会抛回调用方，必须通过 `AsyncUncaughtExceptionHandler` 捕获：
 
@@ -299,33 +170,19 @@ public class AsyncConfig implements AsyncConfigurer {
         return executor;
     }
 
+    // 全局异步异常处理器
     @Override
     public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
-        return new SimpleAsyncUncaughtExceptionHandler() {
-            @Override
-            public void handleUncaughtException(Throwable ex, Method method, Object... params) {
-                log.error("异步方法异常: {}.{}(), params={}",
-                    method.getDeclaringClass().getSimpleName(),
-                    method.getName(), Arrays.toString(params), ex);
-
-                // 按异常类型分级处理
-                if (ex instanceof BusinessRuleException) {
-                    // 业务异常：记录日志即可
-                    log.warn("业务规则异常: {}", ex.getMessage());
-                } else if (ex instanceof TransientDataAccessException) {
-                    // 瞬时故障：触发重试
-                    retryService.retry(method, params);
-                } else {
-                    // 未知异常：发送告警
-                    alertService.sendAlert("异步任务异常", ex);
-                }
-            }
+        return (ex, method, params) -> {
+            log.error("异步方法 {} 执行异常, 参数: {}", method.getName(), params, ex);
+            // 发送告警
+            alertService.sendAlert("异步任务失败: " + method.getName(), ex.getMessage());
         };
     }
 }
 ```
 
-#### 3.7.2 返回 `CompletableFuture` 的异常处理
+### 4.2 返回 CompletableFuture 的异常处理
 
 `CompletableFuture` 返回值的异常会封装在 Future 中，由调用方处理：
 
@@ -376,9 +233,120 @@ public class AsyncFutureService {
 | `handle` | 同时处理正常和异常 | ✅ 可返回新值 |
 | `whenComplete` | 执行副作用（日志、监控） | ❌ 保持原结果 |
 
-### 3.8 线程池调优
+> **踩坑提醒**：`AsyncUncaughtExceptionHandler` 只对返回 `void` 的异步方法生效。返回 `CompletableFuture` 的方法异常会封装在 Future 中，需要调用方自行处理。
 
-#### 3.8.1 核心参数
+## 5. 异步方法的事务问题
+
+```java
+@Service
+public class OrderService {
+
+    // ❌ 错误：@Async 和 @Transactional 不能在同一方法上使用
+    // @Async 方法在独立线程执行，无法加入调用方的事务
+    @Async
+    @Transactional  // 事务不生效！
+    public void processAsync(Long orderId) { /* ... */ }
+
+    // ✅ 正确：拆分为两个方法
+    @Transactional
+    public void createOrder(OrderRequest request) {
+        Order order = orderRepository.save(new Order(request));
+        // 事务提交后再异步处理
+    }
+
+    @Async
+    public void postProcess(Long orderId) {
+        // 这里是独立的事务
+        Order order = orderRepository.findById(orderId).orElseThrow();
+        // 处理后续逻辑
+    }
+}
+```
+
+## 6. 异步上下文传递
+
+`@Async` 方法在独立线程中执行，`ThreadLocal` 中的上下文（如 `SecurityContext`、`TraceId`、用户信息）会丢失。Spring 提供 `TaskDecorator` 接口解决此问题：
+
+```java
+public class ContextPropagationDecorator implements TaskDecorator {
+
+    @Override
+    public Runnable decorate(Runnable runnable) {
+        RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String traceId = MDC.get("traceId");
+
+        return () -> {
+            try {
+                RequestContextHolder.setRequestAttributes(requestAttributes);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+                MDC.put("traceId", traceId);
+                runnable.run();
+            } finally {
+                RequestContextHolder.resetRequestAttributes();
+                SecurityContextHolder.clearContext();
+                MDC.clear();
+            }
+        };
+    }
+}
+
+@Configuration
+@EnableAsync
+public class AsyncConfig {
+
+    @Bean("taskExecutor")
+    public Executor taskExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(10);
+        executor.setMaxPoolSize(50);
+        executor.setQueueCapacity(100);
+        executor.setThreadNamePrefix("async-");
+        executor.setTaskDecorator(new ContextPropagationDecorator());
+        executor.initialize();
+        return executor;
+    }
+}
+```
+
+> **注意**：如果使用 Sleuth / Micrometer Tracing，框架会自动注入 `TaskDecorator` 实现 TraceId 传递，无需手动编写。
+
+## 7. 异步超时控制
+
+```java
+@Service
+public class AsyncTimeoutService {
+
+    // 方式一：CompletableFuture.orTimeout（Java 9+）
+    public CompletableFuture<String> callWithOrTimeout(Long id) {
+        return CompletableFuture.supplyAsync(() -> externalService.call(id), taskExecutor)
+            .orTimeout(3, TimeUnit.SECONDS)
+            .exceptionally(ex -> {
+                if (ex instanceof TimeoutException) {
+                    log.warn("调用超时: id={}", id);
+                    return "降级结果";
+                }
+                throw new CompletionException(ex);
+            });
+    }
+
+    // 方式二：completeOnTimeout（超时返回默认值，不抛异常）
+    public CompletableFuture<String> callWithDefault(Long id) {
+        return CompletableFuture.supplyAsync(() -> externalService.call(id), taskExecutor)
+            .completeOnTimeout("默认值", 3, TimeUnit.SECONDS);
+    }
+}
+```
+
+| 方式 | 超时行为 | Java 版本 | 适用场景 |
+|------|---------|-----------|----------|
+| `orTimeout` | 抛 `TimeoutException` | 9+ | 需要感知超时并做特殊处理 |
+| `completeOnTimeout` | 返回默认值 | 9+ | 超时后有合理的降级值 |
+| 自定义封装 | 可自定义 | 8+ | 需要兼容 Java 8 或更细粒度控制 |
+
+## 8. 线程池调优
+
+### 8.1 核心参数
 
 ```java
 ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
@@ -386,9 +354,9 @@ executor.setCorePoolSize(10);      // 核心线程数：即使空闲也不回收
 executor.setMaxPoolSize(50);       // 最大线程数：队列满时扩容至此
 executor.setQueueCapacity(100);    // 队列容量：核心线程满后，任务排队
 executor.setKeepAliveSeconds(60);  // 非核心线程空闲存活时间
-executor.setThreadNamePrefix("async-");  // 线程名前缀，便于排查
-executor.setWaitForTasksToCompleteOnShutdown(true);  // 关闭时等待任务完成
-executor.setAwaitTerminationSeconds(30);             // 关闭等待超时
+executor.setThreadNamePrefix("async-");
+executor.setWaitForTasksToCompleteOnShutdown(true);
+executor.setAwaitTerminationSeconds(30);
 ```
 
 **线程数计算公式**：
@@ -399,9 +367,7 @@ executor.setAwaitTerminationSeconds(30);             // 关闭等待超时
 | IO 密集型 | 线程数 = CPU 核心数 × 2 × (1 + IO 等待时间/CPU 时间) | 8 核、IO 占比 80% → 80 线程 |
 | 混合型 | 按实际压测调整，从 IO 密集型公式开始 | 先设 40，压测后微调 |
 
-#### 3.8.2 拒绝策略
-
-当线程池和队列都满时，触发拒绝策略：
+### 8.2 拒绝策略
 
 | 策略 | 行为 | 适用场景 |
 |------|------|----------|
@@ -431,7 +397,7 @@ public class LoggingRejectedHandler implements RejectedExecutionHandler {
 }
 ```
 
-#### 3.8.3 线程池监控
+### 8.3 线程池监控
 
 ```java
 @Component
@@ -452,10 +418,9 @@ public class ThreadPoolMonitor {
             executor.getCompletedTaskCount(),
             executor.getPoolSize());
 
-        // 队列使用率超过 80% 告警
         double usage = (double) executor.getQueue().size() / taskExecutor.getQueueCapacity();
         if (usage > 0.8) {
-            log.warn("线程池队列使用率过高: {:.1f}%", usage * 100);
+            log.warn("线程池队列使用率过高: {}%", String.format("%.1f", usage * 100));
             alertService.sendAlert("线程池队列告警",
                 String.format("使用率: %.1f%%", usage * 100));
         }
@@ -465,15 +430,15 @@ public class ThreadPoolMonitor {
 
 > **Tip**：Spring Boot Actuator 的 `/actuator/metrics/executor.pool.size` 等端点可直接暴露线程池指标，配合 Prometheus + Grafana 实现可视化监控。
 
-**最佳实践：**
+## 9. 最佳实践
 
-1. **自定义线程池**——不要用默认的 `SimpleAsyncTaskExecutor`（每次创建新线程）
+1. **自定义线程池**——不要用默认的 `SimpleAsyncTaskExecutor`
 2. **异步方法返回 `CompletableFuture` 或 `void`**——Spring 会自动适配
 3. **`@Async` 不要自调用**——和 `@Transactional` 一样，需要通过代理对象调用
 4. **异常处理**——`void` 返回值用 `AsyncUncaughtExceptionHandler`，`CompletableFuture` 用 `exceptionally`
-5. **传递上下文**——使用 `TaskDecorator` 传递 `SecurityContext`、`TraceId` 等 `ThreadLocal` 上下文
+5. **传递上下文**——使用 `TaskDecorator` 传递 `SecurityContext`、`TraceId` 等
 6. **必须设置超时**——异步任务必须有超时兜底，防止线程被永久占用
-7. **线程池按业务隔离**——不同业务（邮件、推送、数据同步）使用独立线程池，避免相互影响
+7. **线程池按业务隔离**——不同业务（邮件、推送、数据同步）使用独立线程池
 8. **监控线程池指标**——队列积压、活跃线程数、拒绝任务数是核心告警指标
 9. **拒绝策略按业务选择**——核心业务用 `CallerRunsPolicy` 保底，非关键任务可丢弃
-10. **线程池参数压测确定**——不要拍脑袋设置，通过压测找到最优 `corePoolSize` 和 `maxPoolSize`
+10. **线程池参数压测确定**——不要拍脑袋设置，通过压测找到最优参数

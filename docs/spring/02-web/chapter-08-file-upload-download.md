@@ -349,6 +349,89 @@ public class FileValidator {
 }
 ```
 
+## 6. 对象存储集成
+
+### 6.1 为什么需要对象存储
+
+本地文件系统的局限：
+- 服务器扩容时文件丢失（新实例没有旧实例的文件）
+- 多实例部署时文件不共享
+- 服务器磁盘空间有限
+- 无法直接提供 CDN 加速
+
+对象存储（S3/MinIO/OSS）解决了这些问题：分布式存储、无限容量、CDN 友好。
+
+### 6.2 MinIO / S3 集成
+
+```java
+// MinIO / S3 集成示例（使用 AWS S3 SDK）
+@Configuration
+public class S3Config {
+
+    @Bean
+    public AmazonS3 amazonS3() {
+        AWSCredentials credentials = new BasicAWSCredentials("accessKey", "secretKey");
+        return AmazonS3ClientBuilder.standard()
+            .withCredentials(new AWSStaticCredentialsProvider(credentials))
+            .withEndpointConfiguration(
+                new EndpointConfiguration("http://minio:9000", "us-east-1"))
+            .withPathStyleAccessEnabled(true)  // MinIO 必须开启
+            .build();
+    }
+}
+```
+
+```java
+@Service
+public class FileStorageService {
+
+    @Autowired
+    private AmazonS3 s3Client;
+
+    private final String bucketName = "my-app";
+
+    // 上传文件
+    public String upload(MultipartFile file) {
+        String key = "uploads/" + UUID.randomUUID() + getExtension(file.getOriginalFilename());
+
+        ObjectMetadata metadata = new ObjectMetadata();
+        metadata.setContentType(file.getContentType());
+        metadata.setContentLength(file.getSize());
+
+        try {
+            s3Client.putObject(bucketName, key, file.getInputStream(), metadata);
+        } catch (IOException e) {
+            throw new RuntimeException("文件上传失败", e);
+        }
+        return key;
+    }
+
+    // 生成预签名 URL（临时访问链接，有效期 1 小时）
+    public String generatePresignedUrl(String key) {
+        Date expiration = Date.from(Instant.now().plus(Duration.ofHours(1)));
+        URL url = s3Client.generatePresignedUrl(bucketName, key, expiration, HttpMethod.GET);
+        return url.toString();
+    }
+
+    private String getExtension(String filename) {
+        int idx = filename.lastIndexOf('.');
+        return idx >= 0 ? filename.substring(idx) : "";
+    }
+}
+```
+
+### 6.3 预签名 URL 的价值
+
+私有文件不能直接公开访问，但有时需要让前端临时访问（如下载头像、预览文档）。预签名 URL 的流程：
+
+```text
+前端请求下载 → 后端生成预签名 URL（有效期 1 小时） → 返回 URL 给前端
+前端用该 URL 直接访问 S3/MinIO → 不经过后端服务器
+URL 过期后自动失效 → 文件不会被长期公开
+```
+
+> **踩坑提醒**：预签名 URL 是解决「文件私有但需要临时公开访问」的最佳方案。不要为了省事把 bucket 设为 public——那意味着任何人都能访问所有文件。另外 MinIO 的 `withPathStyleAccessEnabled(true)` 必须开启，否则会用虚拟主机方式访问导致失败。
+
 **最佳实践：**
 
 1. **文件名永远不可信**——用 UUID 重命名，保留原名仅用于显示
@@ -357,3 +440,4 @@ public class FileValidator {
 4. **大文件用分片**——>100MB 建议分片上传，支持断点续传
 5. **存储抽象**——本地文件系统只适合开发，生产用 OSS/S3/MinIO
 6. **CDN 加速**——静态文件通过 CDN 分发，减轻应用服务器压力
+7. **预签名 URL**——私有文件临时访问用预签名，不要设 public bucket
