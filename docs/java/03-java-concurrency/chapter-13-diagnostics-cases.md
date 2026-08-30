@@ -2,7 +2,7 @@
 
 > 凌晨两点，定时对账任务准时启动。下单服务突然卡死——接口 RT 从 200ms 暴涨到 20 秒，所有下单请求无响应。`jstack` 一跑——死锁。下单线程和对账线程互相拿着对方要的锁，四条锁交叉成一个环。重启恢复，第二天同一时间再次触发。另一家大促现场，优惠券服务也挂了——2000 任务的队列满了，CallerRunsPolicy 把 Tomcat 的 IO 线程全占死，网关层 504。还有个调度系统，`ConcurrentHashMap` 里同一个 Task 对象存了 3 份——因为 `setStatus()` 改了 hashCode。并发 bug 最残酷的地方在于：它不靠逻辑犯错，靠时间犯错。升级到 JDK 21 虚拟线程后，压测吞吐从 5000 跌到 800——`synchronized` 把虚拟线程钉在了 carrier 上。另一台机器，`CompletableFuture` + DiscardPolicy 静默丢弃了 `FutureTask`，`allOf().join()` 永远等不到结果。还有线程池 core=max+无界队列——maxPoolSize 永远不触发。迁移到虚拟线程后，某个凌晨 3 点整个服务突然无响应——所有 carrier 线程都被 pin 住，虚拟线程调度器静默死锁，任何常规监控都无法发现。以及 RestTemplate 没有 `readTimeout`——下游挂了 10 秒，整个系统瘫痪 3 小时。
 
-## 1. 案例 1：对账与下单的死锁 —— 两个团队，两个锁序
+## 1. 案例 1：对账与下单的死锁 —— 两个团队，两个锁序 {#case-1}
 
 ### 1.1 事故背景
 
@@ -198,7 +198,7 @@ public void reconcileOrder() {
 
 **教训：** 任何涉及多把锁的方法，必须定义全局统一的加锁顺序（如按锁对象的 `identityHashCode` 排序），并给所有锁获取加超时。这个案例的致命组合（两个团队独立开发，锁顺序相反）在真实生产环境中反复出现——根源是跨团队协作时缺少锁资源申请的全局视图。
 
-## 2. 案例 2：618 的雪崩 —— CallerRunsPolicy 把 Tomcat 线程全拖下水
+## 2. 案例 2：618 的雪崩 —— CallerRunsPolicy 把 Tomcat 线程全拖下水 {#case-2}
 
 ### 2.1 事故背景
 
@@ -311,7 +311,7 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 | 重启无效 | 配置未变 | 修复配置后再部署；紧急降级用 DiscardOldest |
 | 正反馈放大 | 超时重试 + 用户刷新 | 上游限流 + 快速失败 |
 
-## 3. 案例 3：ConcurrentHashMap 去重失效 —— 可变 key 的 hashCode 陷阱
+## 3. 案例 3：ConcurrentHashMap 去重失效 —— 可变 key 的 hashCode 陷阱 {#case-3}
 
 ### 3.1 事故背景
 
@@ -415,7 +415,7 @@ public class Task {
 
 **教训：** 可变对象作为 Map 的 key = 定时炸弹。代码审查里如果看到 `Map<某可变对象, ...>`，直接问一句："这个对象的 hashCode 会不会变？" 如果答案是"会"——别让它做 key。
 
-## 4. 案例 4：虚拟线程 pinning —— 同步锁让 5000 QPS 跌到 800
+## 4. 案例 4：虚拟线程 pinning —— 同步锁让 5000 QPS 跌到 800 {#case-4}
 
 ### 4.1 事故背景
 
@@ -531,7 +531,7 @@ JDK 24 的 JEP 491 消除了 `synchronized` 的 pinning 问题。JDK 25 LTS 将�
 
 排查节奏：先看 JFR `VirtualThreadPinned` 事件 → 定位代码位置 → 判断框架是否可升级 → 不可升级则用 Semaphore 限流或把阻塞操作移到平台线程池。
 
-## 5. 案例 5：CompletableFuture + DiscardPolicy —— 静默丢弃任务导致永久阻塞
+## 5. 案例 5：CompletableFuture + DiscardPolicy —— 静默丢弃任务导致永久阻塞 {#case-5}
 
 ### 5.1 事故背景
 
@@ -675,7 +675,7 @@ public FlowResult processFlow(FlowRequest request) throws InterruptedException {
 
 **黄金法则：如果任务的结果需要被等待，永远不要用 DiscardPolicy。**
 
-## 6. 案例 6：线程池 core = max + 无界队列 —— maxPoolSize 永远不触发
+## 6. 案例 6：线程池 core = max + 无界队列 —— maxPoolSize 永远不触发 {#case-6}
 
 ### 6.1 事故背景
 

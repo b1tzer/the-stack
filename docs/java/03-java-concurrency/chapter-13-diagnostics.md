@@ -625,15 +625,15 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 
 以上内容是并发诊断方法、工具和优化策略的速查手册。以下案例集从生产环境真实事故中精挑细选，每个案例都包含完整的事故背景、排查链路、根因定位和修复验证：
 
-- **[案例集（一）：死锁、线程池与并发集合实战](./chapter-13-diagnostics-cases-part1)**
-  - 双十一的死锁 —— 订单与库存的锁序之战
-  - 618 的雪崩 —— CallerRunsPolicy 把 Tomcat 线程全拖下水
-  - ConcurrentHashMap 去重失效 —— 可变 key 的 hashCode 陷阱
+- **[案例集（一）：死锁、线程池与并发集合实战](./chapter-13-diagnostics-cases.md#case-1)**
+  - [双十一的死锁 —— 订单与库存的锁序之战](./chapter-13-diagnostics-cases.md#case-1)
+  - [618 的雪崩 —— CallerRunsPolicy 把 Tomcat 线程全拖下水](./chapter-13-diagnostics-cases.md#case-2)
+  - [ConcurrentHashMap 去重失效 —— 可变 key 的 hashCode 陷阱](./chapter-13-diagnostics-cases.md#case-3)
 
-- **[案例集（二）：虚拟线程与综合并发诊断实战](./chapter-13-diagnostics-cases-part2)**
-  - 虚拟线程 pinning —— 同步锁让 5000 QPS 跌到 800
-  - CompletableFuture + DiscardPolicy —— 静默丢弃任务导致永久阻塞
-  - 线程池 core = max + 无界队列 —— maxPoolSize 永远不触发
+- **[案例集（二）：虚拟线程与综合并发诊断实战](./chapter-13-diagnostics-cases.md#case-4)**
+  - [虚拟线程 pinning —— 同步锁让 5000 QPS 跌到 800](./chapter-13-diagnostics-cases.md#case-4)
+  - [CompletableFuture + DiscardPolicy —— 静默丢弃任务导致永久阻塞](./chapter-13-diagnostics-cases.md#case-5)
+  - [线程池 core = max + 无界队列 —— maxPoolSize 永远不触发](./chapter-13-diagnostics-cases.md#case-6)
 
 > **纵横联系**
 >
