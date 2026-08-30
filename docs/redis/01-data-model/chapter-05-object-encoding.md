@@ -25,20 +25,19 @@ typedef struct redisObject {
 | `refcount` | 引用计数，用于内存回收与对象共享 |
 | `ptr` | 指向实际的底层结构 |
 
-`type` 与 `encoding` 的分离，是 Redis 能「小数据用紧凑结构、大数据换高性能结构」而对外接口不变的根本原因。
+### 1.1 对象共享
 
-## 2. 编码切换的总原则
+Redis 对 0~9999 的整数对象做了共享：多个 key 存储相同的整数值时，指向同一个 `redisObject`，通过 `refcount` 引用计数管理生命周期。
 
-Redis 选择编码遵循一条核心原则：**小数据省内存，大数据重性能**。
+```text
+key1 → robj{type=String, encoding=int, ptr=1000, refcount=3}
+key2 → 同一个 robj
+key3 → 同一个 robj
+```
 
-| 数据量 | 编码方向 | 设计目标 |
-| :-- | :-- | :-- |
-| 小数据量 | 紧凑编码（listpack / intset） | 连续内存、缓存友好、内存极致压缩 |
-| 大数据量 | 高性能编码（hashtable / skiplist） | O(1)/O(log n) 查找，用空间换时间 |
+共享对象节省内存，但只适用于整数。字符串不共享（比较成本 O(n)）。
 
-阈值（128 / 512 等）是工程经验值，可通过 `hash-max-listpack-entries` 等配置项调整。切换的触发条件随类型不同而不同，但逻辑一致：**元素数量或单元素长度超过阈值，就从紧凑编码升级到高性能编码**。
-
-## 3. 编码全景
+## 2. 编码全景
 
 | 编码 | 所属类型 | 时间复杂度 | 空间特性 |
 | :-- | :-- | :-- | :-- |
@@ -46,109 +45,151 @@ Redis 选择编码遵循一条核心原则：**小数据省内存，大数据重
 | `embstr` | String | O(1) | 对象头 + SDS 连续分配，缓存友好 |
 | `raw` | String | O(1) | 对象头 + SDS 分离分配 |
 | `intset` | Set | O(log n) | 最紧凑的有序整数数组 |
-| `listpack` | Hash/ZSet（7.0 起） | O(n) | 连续内存，无级联更新 |
-| `quicklist` | List | O(1) 两端 / O(n) 中间 | 链表 + listpack 节点 |
-| `hashtable` | Hash/Set | O(1) | 查找最快、内存最费 |
-| `skiplist` | ZSet | O(log n) | 范围查询友好 |
+| `listpack` | Hash/ZSet/Set | O(n) | 连续内存，无连锁更新 |
+| `quicklist` | List | O(1) 两端 | 链表 + listpack 节点 |
+| `hashtable` | Hash/Set | O(1) | 标准哈希表 |
+| `skiplist` | ZSet | O(log n) | 跳表 + 字典双结构 |
 
-> 命名规律：`*list` / `*pack` 表示线性结构（省内存），`*table` / `*skip*` 表示索引结构（查得快）；小数据用前者、大数据用后者。
+## 3. String 的三种编码
 
-## 4. String 的三种编码
+### 3.1 int 编码
 
-Redis 根据值的特性自动选择编码，遵循「能用整数不用字符串，能连续分配不分开分配」的原则：
-
-| 编码 | 触发条件 | 设计原理 | 内存特点 |
-| :-- | :-- | :-- | :-- |
-| `int` | 值为整数且在 long 范围内 | 直接存二进制整数 | 最省（8 字节） |
-| `embstr` | 字符串长度 ≤ 44 字节 | 对象头 + SDS 连续分配，一次内存操作 | 缓存友好（同一缓存行） |
-| `raw` | 字符串长度 > 44 字节 | 对象头 + SDS 分开分配 | 内存占用稍多 |
-
-44 字节的由来：RedisObject（16 字节）+ sdshdr8（3 字节）+ `\0`（1 字节）= 20 字节，64 字节缓存行减去 20 = 44 字节可用数据空间。长度 ≤ 44 字节时，对象头与数据可落在同一缓存行，访问更快。
-
-## 5. 内存回收与对象共享
-
-### 5.1 引用计数回收
-
-`redisObject` 的 `refcount` 字段实现引用计数式内存回收：
+当 value 是整数且可以用 `long` 表示时，直接存在 `redisObject.ptr` 里（不分配 SDS）：
 
 ```text
-创建对象：refcount = 1
-被引用：  refcount + 1
-解除引用：refcount - 1
-refcount 归 0：释放对象内存
+SET counter 1000
+redisObject{type=String, encoding=int, ptr=1000}
 ```
 
-这种方式让内存回收「即时」发生，对象不再被引用就立即释放，无需等待 GC。
+### 3.2 embstr 编码
 
-### 5.2 对象共享
-
-Redis 会预先创建 0~9999 的整数值对象，并在多个 key 引用相同整数时共享同一个对象，从而节省内存：
+当 value 是字符串且长度 ≤ 44 字节时，`redisObject` 和 SDS 在一次 `malloc` 中连续分配：
 
 ```text
-SET a 100
-SET b 100
-
-a 和 b 的 value 指针 → 指向同一个整数对象（refcount = 2）
+redisObject | sdshdr8 | buf（≤ 44 字节）
+← 一次 malloc →
 ```
 
-共享的前提是对象内容完全相等且不可变。Redis 只共享整数值对象，因为判断两个字符串是否相等需要遍历字符，成本高；而整数比较成本极低。
+embstr 的优势：一次内存分配（而非两次），对象头和数据连续（缓存友好），一次 `free` 就能释放。
 
-> 对象共享能显著降低「大量 key 存相同小整数」场景的内存占用，这也是计数器类场景 Redis 内存表现优秀的原因之一。
+### 3.3 raw 编码
 
-## 6. 编码切换的规则
+当 value 是字符串且长度 > 44 字节时，`redisObject` 和 SDS 分别分配：
 
-1. **单向升级，从不降级**：一旦从紧凑编码升级到高性能编码，即使后续数据量减少也不会自动降级——避免频繁切换带来的性能抖动。要降级只能删除 Key 后重新写入。
-2. **阈值可动态调整**：所有 `*-max-*` 配置项支持 `CONFIG SET` 动态调整、立即生效，但只影响新写入的数据。
-3. **查看当前编码**：`OBJECT ENCODING key`，结合 `DEBUG OBJECT key` 可看更详细的内存信息（生产环境慎用 DEBUG）。
-4. **内存节省幅度**：小数据量下，紧凑编码比 hashtable 节省 30%~70% 内存。
+```text
+redisObject          sdshdr + buf
+  ↓ ptr ──────────→
+← malloc 1 →        ← malloc 2 →
+```
 
-> 编码切换与过期删除、内存淘汰一起，构成了 Redis 内存管理的完整拼图，相关内容见第二卷。
-
-## 7. 实操验证：编码切换的三条铁律
-
-第 5.6 节讲了三条规则，这里逐条用命令验证，把「据说」变成「确实」。
-
-### 7.1 验证一：44 字节的 embstr / raw 分界
+### 3.4 编码切换
 
 ```bash
-SET s1 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"     # 44 个 a
-OBJECT ENCODING s1                # "embstr"
+SET a 1000          # encoding: int
+SET a "hello"       # encoding: embstr（≤ 44 字节）
+SET a "很长的字符串..." # encoding: raw（> 44 字节）
 
-SET s2 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"    # 45 个 a
-OBJECT ENCODING s2                # "raw"
+# int 编码的 key 做 APPEND 变成字符串
+SET a 1000          # int
+APPEND a "abc"      # 变成 raw 或 embstr
 ```
 
-多一个字符，编码就从 `embstr` 跳到 `raw`，正好落在 44 字节的分界线上。
+> `embstr` 是只读的：对 `embstr` 编码的值做任何修改（如 `APPEND`），都会先转为 `raw` 编码再修改。
 
-### 7.2 验证二：单向升级，从不降级
+## 4. Hash 的编码切换
+
+### 4.1 listpack 编码（小数据）
 
 ```bash
-# 先造一个超过 128 字段的大 Hash，触发 hashtable
-for i in $(seq 1 200); do redis-cli HSET big f$i $i > /dev/null; done
-redis-cli OBJECT ENCODING big     # "hashtable"
-
-# 删到只剩 2 个字段
-for i in $(seq 1 198); do redis-cli HDEL big f$i > /dev/null; done
-redis-cli OBJECT ENCODING big     # 仍是 "hashtable"，没有降回 listpack
+# 默认：元素 ≤ 128 个 且 每个值 ≤ 64 字节时用 listpack
+hash-max-listpack-entries 128
+hash-max-listpack-value 64
 ```
 
-> 这就是「不降级」：字段删到个位数，编码仍是 hashtable。想回到 listpack 只能 `DEL big` 后重新写入。
+listpack 编码下，field 和 value 连续存储在一块内存里：
 
-### 7.3 验证三：对象共享与引用计数
+```text
+listpack: [len|field1][len|value1][len|field2][len|value2]...[end]
+```
+
+### 4.2 hashtable 编码（大数据）
+
+超过阈值后切换为标准哈希表：
 
 ```bash
-SET a 100
-SET b 100
-DEBUG OBJECT a                    # 看 refcount 字段
-# Value at:0x... refcount:2 encoding:int ...
+HSET user:1001 name "张三" age 25 email "zhangsan@qq.com"
+# 3 个 field，用 listpack
+
+HSET user:1001 field1 "v1" field2 "v2" ... field200 "v200"
+# 超过 128 个 field，自动切换为 hashtable
 ```
 
-`a` 和 `b` 的值都是 100，指向同一个共享整数对象，所以 `refcount:2`。但字符串不共享：
+### 4.3 编码切换不可逆
+
+一旦从 listpack 升级为 hashtable，即使后来删除元素使数量低于阈值，也不会降回 listpack。这是 Redis 的设计选择——避免频繁的编码切换开销。
+
+## 5. List 的编码
+
+Redis 7.0 的 List 统一使用 quicklist 编码：
 
 ```bash
-SET x "hello"
-SET y "hello"
-DEBUG OBJECT x                    # refcount:1，字符串不共享
+list-max-listpack-size -2   # 每个 listpack 节点最大 8KB
+list-compress-depth 0        # 不压缩（>0 时压缩两端以外的节点）
 ```
 
-> `DEBUG OBJECT` 会阻塞且信息偏底层，只在本地调试环境使用，生产环境慎用。它能把 5.5 节的「对象共享」从文字变成可观测的证据。
+## 6. Set 的编码
+
+### 6.1 intset 编码
+
+当所有元素都是整数且数量 ≤ `set-max-intset-entries`（默认512）时用 intset：
+
+```bash
+SADD tags 1 2 3 4 5   # 全是整数，用 intset
+```
+
+### 6.2 listpack 编码
+
+Redis 7.0 新增：元素非整数但数量少时用 listpack。
+
+### 6.3 hashtable 编码
+
+超过阈值或元素非整数时用 hashtable。
+
+## 7. ZSet 的编码
+
+### 7.1 listpack 编码
+
+元素 ≤ `zset-max-listpack-entries`（默认128）且值 ≤ `zset-max-listpack-value`（默认64字节）时用 listpack。
+
+### 7.2 skiplist + dict 编码
+
+超过阈值后切换为跳表 + 字典的双结构：
+
+```c
+typedef struct zset {
+    dict *dict;       // 成员 → 分值的映射（O(1) 查分值）
+    zskiplist *zsl;   // 跳表（按分值排序，O(log n) 范围查询）
+} zset;
+```
+
+为什么需要两个结构？
+
+| 结构 | 用途 |
+| :-- | :-- |
+| dict | `ZSCORE` 命令：O(1) 查某个成员的分值 |
+| skiplist | `ZRANGE`/`ZRANGEBYSCORE`：O(log n) 范围查询 |
+
+两者通过指针共享同一个 `zskiplistNode`，不额外占用内存。
+
+## 8. 编码配置速查
+
+| 配置 | 默认值 | 说明 |
+| :-- | :-- | :-- |
+| `hash-max-listpack-entries` | 128 | Hash 超过此值切换为 hashtable |
+| `hash-max-listpack-value` | 64 | Hash 值超过此字节数切换 |
+| `set-max-intset-entries` | 512 | Set 超过此值切换 |
+| `zset-max-listpack-entries` | 128 | ZSet 超过此值切换 |
+| `zset-max-listpack-value` | 64 | ZSet 值超过此字节数切换 |
+| `list-max-listpack-size` | -2 | List 每个节点最大 8KB |
+
+> 这些阈值可以根据业务场景调整。如果确定某个 Hash 永远不超过 50 个 field，可以保持默认值。如果数据量可能很大，可以适当调低阈值，提前切换到高性能编码。
