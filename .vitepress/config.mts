@@ -38,6 +38,7 @@ export default withOpenInEditor(defineConfig({
         { text: 'PostgreSQL', link: '/postgresql/01-pg-unique/chapter-01-pg-overview' },
         { text: 'MySQL', link: '/mysql/01-basics/chapter-01-overview' },
         { text: 'Kafka', link: '/kafka/01-basics/chapter-01-overview' },
+        { text: 'RabbitMQ', link: '/rabbitmq/01-basics/chapter-01-overview' },
         { text: 'Elasticsearch', link: '/elasticsearch/01-basics/chapter-01-overview' },
         { text: '设计模式', link: '/design-pattern/00-intro/chapter-01-why-patterns' },
         { text: '软件工程', link: '/engineering/01-principles/chapter-01-overview' },
@@ -479,6 +480,106 @@ export default withOpenInEditor(defineConfig({
             { text: 'Spring 集成', link: '/kafka/09-practice/chapter-01-spring-integration' },
             { text: '常见场景', link: '/kafka/09-practice/chapter-02-common-patterns' },
             { text: '性能调优', link: '/kafka/09-practice/chapter-03-performance-tuning' },
+          ],
+        },
+      ],
+      '/rabbitmq/': [
+        {
+          text: '基础入门',
+          items: [
+            { text: 'RabbitMQ 概览', link: '/rabbitmq/01-basics/chapter-01-overview' },
+            { text: '整体架构', link: '/rabbitmq/01-basics/chapter-02-architecture' },
+            { text: 'AMQP 协议', link: '/rabbitmq/01-basics/chapter-03-amqp-protocol' },
+            { text: '安装部署', link: '/rabbitmq/01-basics/chapter-04-install-config' },
+            { text: '消息队列选型', link: '/rabbitmq/01-basics/chapter-05-mq-comparison' },
+          ],
+        },
+        {
+          text: 'Exchange',
+          items: [
+            { text: 'Exchange 基础', link: '/rabbitmq/02-exchange/chapter-01-exchange-basics' },
+            { text: 'Direct Exchange', link: '/rabbitmq/02-exchange/chapter-02-direct-exchange' },
+            { text: 'Topic Exchange', link: '/rabbitmq/02-exchange/chapter-03-topic-exchange' },
+            { text: 'Fanout Exchange', link: '/rabbitmq/02-exchange/chapter-04-fanout-exchange' },
+            { text: 'Headers Exchange', link: '/rabbitmq/02-exchange/chapter-05-headers-exchange' },
+            { text: 'Alternate Exchange', link: '/rabbitmq/02-exchange/chapter-06-alternate-exchange' },
+          ],
+        },
+        {
+          text: 'Queue',
+          items: [
+            { text: 'Queue 基础', link: '/rabbitmq/03-queue/chapter-01-queue-basics' },
+            { text: 'Classic Queue', link: '/rabbitmq/03-queue/chapter-02-classic-queue' },
+            { text: 'Quorum Queue', link: '/rabbitmq/03-queue/chapter-03-quorum-queue' },
+            { text: 'Stream Queue', link: '/rabbitmq/03-queue/chapter-04-stream-queue' },
+            { text: '队列参数', link: '/rabbitmq/03-queue/chapter-05-queue-arguments' },
+            { text: '死信队列', link: '/rabbitmq/03-queue/chapter-06-dead-letter' },
+          ],
+        },
+        {
+          text: '生产者',
+          items: [
+            { text: '生产者基础', link: '/rabbitmq/04-producer/chapter-01-producer-basics' },
+            { text: 'Publisher Confirm', link: '/rabbitmq/04-producer/chapter-02-publisher-confirm' },
+            { text: 'Mandatory 与 Return', link: '/rabbitmq/04-producer/chapter-03-mandatory-return' },
+            { text: '批量发送', link: '/rabbitmq/04-producer/chapter-04-batch-send' },
+          ],
+        },
+        {
+          text: '消费者',
+          items: [
+            { text: '消费者基础', link: '/rabbitmq/05-consumer/chapter-01-consumer-basics' },
+            { text: 'ACK 机制', link: '/rabbitmq/05-consumer/chapter-02-ack-mechanism' },
+            { text: 'Prefetch 与背压', link: '/rabbitmq/05-consumer/chapter-03-prefetch' },
+            { text: '消息 TTL', link: '/rabbitmq/05-consumer/chapter-04-message-ttl' },
+            { text: '优先级队列', link: '/rabbitmq/05-consumer/chapter-05-priority-queue' },
+          ],
+        },
+        {
+          text: '消息模式',
+          items: [
+            { text: 'RPC 模式', link: '/rabbitmq/06-message-patterns/chapter-01-rpc-pattern' },
+            { text: '竞争消费者', link: '/rabbitmq/06-message-patterns/chapter-02-competing-consumers' },
+            { text: '发布/订阅', link: '/rabbitmq/06-message-patterns/chapter-03-pub-sub' },
+            { text: '消息去重', link: '/rabbitmq/06-message-patterns/chapter-04-deduplication' },
+            { text: '幂等性设计', link: '/rabbitmq/06-message-patterns/chapter-05-idempotency' },
+          ],
+        },
+        {
+          text: '集群',
+          items: [
+            { text: '集群基础', link: '/rabbitmq/07-clustering/chapter-01-cluster-basics' },
+            { text: '镜像队列', link: '/rabbitmq/07-clustering/chapter-02-mirrored-queue' },
+            { text: 'Quorum 与 Raft', link: '/rabbitmq/07-clustering/chapter-03-quorum-raft' },
+            { text: '网络分区', link: '/rabbitmq/07-clustering/chapter-04-network-partition' },
+            { text: 'Federation 与 Shovel', link: '/rabbitmq/07-clustering/chapter-05-federation' },
+          ],
+        },
+        {
+          text: '运维管理',
+          items: [
+            { text: '管理与监控', link: '/rabbitmq/08-operations/chapter-01-management' },
+            { text: '安全配置', link: '/rabbitmq/08-operations/chapter-02-security' },
+            { text: '常见问题', link: '/rabbitmq/08-operations/chapter-03-troubleshooting' },
+            { text: '性能调优', link: '/rabbitmq/08-operations/chapter-04-performance-tuning' },
+          ],
+        },
+        {
+          text: 'Spring 集成',
+          items: [
+            { text: 'Spring AMQP', link: '/rabbitmq/09-spring-integration/chapter-01-spring-amqp' },
+            { text: 'Spring Boot 配置', link: '/rabbitmq/09-spring-integration/chapter-02-spring-boot-config' },
+            { text: '错误处理与重试', link: '/rabbitmq/09-spring-integration/chapter-03-error-handling' },
+            { text: '测试策略', link: '/rabbitmq/09-spring-integration/chapter-04-testing' },
+          ],
+        },
+        {
+          text: '实战场景',
+          items: [
+            { text: '电商订单系统', link: '/rabbitmq/10-practice/chapter-01-order-system' },
+            { text: '事件驱动架构', link: '/rabbitmq/10-practice/chapter-02-event-driven' },
+            { text: '可靠性模式', link: '/rabbitmq/10-practice/chapter-03-reliability-patterns' },
+            { text: '性能基准', link: '/rabbitmq/10-practice/chapter-04-performance-benchmark' },
           ],
         },
       ],
