@@ -43,7 +43,7 @@ PostgreSQL 采用经典的 **一连接一进程（process-per-connection）** �
 └───────────────────────────────────────────────────────┘
 ```
 
-> **为什么选多进程，而不是像 MySQL 那样用多线程？** 这是 PostgreSQL 最根深蒂固的设计决策，先讲清动机，后面每个进程/内存结构才有意义。
+**为什么选多进程，而不是像 MySQL 那样用多线程？**
 
 **好处：隔离性与可移植性**
 
@@ -201,14 +201,3 @@ Checkpoint 触发条件：`checkpoint_timeout`（默认 5min）或 WAL 累积到
 5. **进入查询循环**：Backend 等待客户端消息（Query/Parse/Bind/Execute），处理后返回结果
 
 > **调优要点：** 如果连接建立耗时过长，检查 `pg_hba.conf` 中是否使用了 DNS 解析（`host` vs `hostnossl`），以及 `max_connections` 是否已满。高并发场景建议前置 PgBouncer，使用 **Transaction Pooling** 模式复用连接。
-
-## 本章小结
-
-| 要点 | 记忆关键词 |
-|------|-----------|
-| PG 使用多进程架构 | process-per-connection，必须用连接池 |
-| Postmaster 是所有进程的父进程 | fork 模式，故障隔离强 |
-| Shared Buffers 是数据缓存核心 | 设置为 RAM 的 25%，配合 OS Page Cache |
-| work_mem 是**每次操作**的上限 | 非每连接总量，注意乘数效应 |
-| 后台进程各有分工 | WAL Writer / Bg Writer / Checkpointer / Autovacuum |
-| 连接建立经过认证 → fork → 初始化 | 耗时问题查 pg_hba.conf 和 max_connections |

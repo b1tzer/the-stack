@@ -50,6 +50,7 @@ FROM employees;
 ![排名函数对比](/pg/rank-compare.svg)
 
 **选择原则**：
+
 - 需要**唯一行号**（如分页）→ `ROW_NUMBER()`
 - 需要**体现并列**且下一名跳过（如竞赛排名）→ `RANK()`
 - 需要**体现并列**且连续编号（如等级划分）→ `DENSE_RANK()`
@@ -87,23 +88,3 @@ SELECT
                       ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS moving_avg_7d
 FROM orders;
 ```
-
-## 7. 工作中的坑
-
-```sql
--- ❌ 混淆 RANK 和 DENSE_RANK 导致业务逻辑错误
--- 业务需求：取每个部门薪资前3名
--- 如果用 RANK，并列第2名后直接跳到第4名，可能取不到3个人
-
--- ✅ 明确业务需求再选择
-SELECT * FROM (
-    SELECT *, DENSE_RANK() OVER (PARTITION BY dept ORDER BY salary DESC) AS rk
-    FROM employees
-) t WHERE rk <= 3;
-```
-
-## 8. 常见问题
-
-**Q：窗口函数和 GROUP BY 有什么区别？**
-
-> GROUP BY 会合并行，结果行数减少；窗口函数不改变行数，在每行上附加计算结果。窗口函数可以在保留明细数据的同时，计算分组聚合值。

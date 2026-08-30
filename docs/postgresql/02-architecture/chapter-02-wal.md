@@ -144,23 +144,21 @@ SELECT lsn FROM pg_buffercache WHERE relfilenode = 16384 LIMIT 1;
 SELECT '0/15D6878'::pg_lsn - '0/15D6800'::pg_lsn;  -- = 120 字节
 ```
 
----
-
 ## 4. WAL 写入流程
 
-```
+```text
 Backend Process                WAL Buffers              pg_wal/
     │                             │                       │
-    │── 生成 WAL 记录 ──────────→│                       │
-    │   (写入 WAL Buffer)         │                       │
+    │── 生成 WAL 记录 ──────────→   │                       │
+    │   (写入 WAL Buffer)          │                       │
     │                             │                       │
-    │── XLogInsert() ───────────→│                       │
+    │── XLogInsert() ───────────→ │                       │
     │                             │                       │
-    │── XLogFlush() (提交时) ────→│                       │
-    │                             │── 刷入 WAL 文件 ────→│
+    │── XLogFlush() (提交时) ────→ │                       │
+    │                             │── 刷入 WAL 文件 ────→  │
     │                             │   (write + fsync)     │
     │                             │                       │
-    │←── 返回 (事务已提交) ──────│                       │
+    │←── 返回 (事务已提交) ──────   │                       │
 ```
 
 ### WAL 写入的三种路径
@@ -185,15 +183,13 @@ Backend Process                WAL Buffers              pg_wal/
 
 > **性能建议：** `synchronous_commit = off` 可以显著提升写入性能，但断电时最多丢失 `wal_writer_delay`（默认 200ms）时间内的事务。对数据安全性要求不高的场景（如日志表）可以考虑。
 
----
-
 ## 5. 崩溃恢复流程
 
 当 PG 检测到非正常关闭（缺少 `postmaster.pid` 或控制文件标记不一致），会自动进入恢复模式。
 
 ### 恢复步骤
 
-```
+```text
 PG 启动
   │
   ▼
@@ -235,7 +231,7 @@ PG 启动
 
 恢复时间取决于需要重放的 WAL 量：
 
-```
+```text
 恢复时间 ≈ (当前 LSN - 最近 Checkpoint LSN) / WAL 重放速率
 
 影响因素:
@@ -245,8 +241,6 @@ PG 启动
 ```
 
 > **调优关联：** 增大 `max_wal_size` 可以减少 Checkpoint 频率，提升写入性能，但会延长崩溃恢复时间。需要在写入性能和恢复时间之间权衡。
-
----
 
 ## 6. wal_level 配置
 
@@ -269,15 +263,13 @@ ALTER SYSTEM SET wal_level = 'logical';
 
 > **Java 生态关联：** 如果使用 Debezium 等 CDC 工具进行变更数据捕获（如同步到 Elasticsearch、Kafka），必须设置 `wal_level = logical`。这对写入性能有约 5~10% 的影响。
 
----
-
 ## 7. WAL 与复制的关系
 
 WAL 是 PG 所有复制方案的基础。
 
 ### 复制架构
 
-```
+```text
 ┌─────────────────────┐         ┌─────────────────────┐
 │     Primary          │         │     Standby          │
 │                      │         │                      │
@@ -325,17 +317,3 @@ SELECT * FROM pg_replication_slots;
 ```
 
 > **⚠️ 警告：** 如果复制槽的消费者长时间断开，主库会保留大量 WAL 文件不清理，导致 `pg_wal/` 目录暴涨，最终磁盘空间耗尽。务必监控 `pg_replication_slots` 的 `restart_lsn` 滞后情况。
-
----
-
-## 本章小结
-
-| 要点 | 记忆关键词 |
-|------|-----------|
-| WAL = 先写日志再写数据 | 崩溃恢复、数据一致性的基石 |
-| WAL 段文件 16MB，顺序写入 | pg_wal/ 目录，性能远优于随机写 |
-| LSN 是 WAL 中的字节偏移量 | 64 位，格式为 高32位/低32位 |
-| 崩溃恢复从最近 Checkpoint LSN 开始 | 重放 WAL 到末尾 → 回滚未提交事务 |
-| wal_level 决定功能和性能 | minimal < replica(默认) < logical |
-| 复制的基础是 WAL 流 | 流复制、逻辑复制、PITR 都依赖 WAL |
-| 复制槽防止 WAL 被清理 | 监控 lag，防止磁盘撑爆 |
