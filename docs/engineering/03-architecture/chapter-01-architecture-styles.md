@@ -95,7 +95,7 @@
 
 **适用场景**：大型系统、多团队协作（50+ 人）、需要独立扩展和快速迭代。
 
-> **与 Spring 微服务文档的分工**：本文聚焦架构理论和选型决策，具体的 Spring Cloud 组件原理和落地实践请参考 [Spring Cloud 核心组件](../../spring/07-microservices/chapter-01-microservice-pattern.md) 和 [微服务架构深度实践](../../spring/07-microservices/chapter-01-microservice-pattern.md)。
+> **与 Spring 微服务文档的分工**：本文聚焦架构理论和选型决策，具体的 Spring Cloud 组件原理和落地实践请参考 [服务调用](../../spring/09-distributed/chapter-03-service-call.md) 和 [服务容错](../../spring/09-distributed/chapter-04-circuit-breaker.md)。
 
 ### 3.5 云原生与 Serverless
 

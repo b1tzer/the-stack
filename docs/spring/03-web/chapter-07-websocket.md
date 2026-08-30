@@ -22,7 +22,7 @@ WebSocket 在单个 TCP 连接上提供全双工通信，一次握手后双方�
 客户端 ↔ 服务端: 双向帧通信 (Text/Binary/Ping/Pong)
 ```
 
-**什么时候用 WebSocket，什么时候用 SSE？** 需要双向通信（聊天、协作编辑、游戏）→ WebSocket。只需要服务端单向推送（通知、进度条、日志流）→ SSE 更轻量。参见 [SSE](/spring/02-web/chapter-07-sse)。
+**什么时候用 WebSocket，什么时候用 SSE？** 需要双向通信（聊天、协作编辑、游戏）→ WebSocket。只需要服务端单向推送（通知、进度条、日志流）→ SSE 更轻量。参见 [SSE](/spring/03-web/chapter-08-sse)。
 
 下面用一个聊天室示例跑通 WebSocket 的完整链路。
 
@@ -460,4 +460,4 @@ stompClient.connect({ 'Authorization': 'Bearer ' + token }, onConnect);
 
 **决策依据**：只需要服务端推送 → 用 SSE（更简单、自动重连、标准 HTTP）。需要双向通信 → 用 WebSocket。两者不互斥，可以在同一个项目中共存。
 
-> SSE 的完整用法参见 [Server-Sent Events](/spring/02-web/chapter-07-sse)。认证与安全的通用方案参见 [安全架构](/spring/05-security/chapter-01-security-architecture)。
+> SSE 的完整用法参见 [Server-Sent Events](/spring/03-web/chapter-08-sse)。认证与安全的通用方案参见 [安全架构](/spring/05-security/chapter-01-security-architecture)。

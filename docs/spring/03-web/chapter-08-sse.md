@@ -18,7 +18,7 @@ SSE 和 WebSocket 都能实现服务端推送，但适用场景不同：
 
 **决策依据**：只需要服务端推送 → SSE（更简单、自动重连）。需要双向通信 → WebSocket。两者不互弃，可以在同一个项目中共存。
 
-WebSocket 的完整用法参见 [WebSocket 实时通信](/spring/02-web/chapter-06-websocket)。下面用一个最简示例跑通 SSE。
+WebSocket 的完整用法参见 [WebSocket 实时通信](/spring/03-web/chapter-07-websocket)。下面用一个最简示例跑通 SSE。
 
 ## 2. Spring MVC 实现
 
@@ -456,4 +456,4 @@ emitter.send(Base64.getEncoder().encodeToString(imageBytes));
 
 **一句话决策**：单向推送用 SSE，双向通信用 WebSocket。通知、进度条、日志流 → SSE。聊天、协作编辑、游戏 → WebSocket。
 
-> WebSocket 的完整用法参见 [WebSocket 实时通信](/spring/02-web/chapter-06-websocket)。认证方案参见 [安全架构](/spring/05-security/chapter-01-security-architecture)。
+> WebSocket 的完整用法参见 [WebSocket 实时通信](/spring/03-web/chapter-07-websocket)。认证方案参见 [安全架构](/spring/05-security/chapter-01-security-architecture)。

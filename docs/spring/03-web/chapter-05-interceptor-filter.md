@@ -467,4 +467,4 @@ public class SecurityConfig {
 
 > **踩坑提醒**：CORS 配置中 `allowCredentials(true)` 时，`allowedOrigins` 不能用 `"*"`——必须指定具体域名。这是 CORS 规范的安全限制。
 
-> 通用工程中的认证鉴权方案参见 [安全架构](/spring/05-security/chapter-01-security-architecture)。文件上传的 `MultipartFile` 处理参见 [文件上传与下载](/spring/02-web/chapter-08-file-upload-download)。
+> 通用工程中的认证鉴权方案参见 [安全架构](/spring/05-security/chapter-01-security-architecture)。文件上传的 `MultipartFile` 处理参见 [文件上传与下载](/spring/03-web/chapter-09-file-upload-download)。
