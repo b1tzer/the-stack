@@ -634,9 +634,3 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
   - [虚拟线程 pinning —— 同步锁让 5000 QPS 跌到 800](./chapter-13-diagnostics-cases.md#case-4)
   - [CompletableFuture + DiscardPolicy —— 静默丢弃任务导致永久阻塞](./chapter-13-diagnostics-cases.md#case-5)
   - [线程池 core = max + 无界队列 —— maxPoolSize 永远不触发](./chapter-13-diagnostics-cases.md#case-6)
-
-> **纵横联系**
->
-> - **向前依赖**：Thread Dump 的通用语法、`jstack` / `jcmd` / VisualVM / JFR / JMC 的操作细节，全部在第二卷第 6 章"线上排查与诊断"中展开——本章只讲并发场景下的读法与并发特化事件。§13.2 的死锁检测建立在第 2 章的线程状态机之上；§13.5 的六种优化策略分别对应到第 6-11 章的具体工具。
-> - **向后使用**：§13.6 的虚拟线程诊断是对第 12 章 pinning 讨论的诊断视角补齐。
-> - **跨卷关系**：本章的六种优化策略在第五卷 HikariCP、第六卷 Spring `@Async` 与 `@Transactional`、第七卷高并发架构中都会以框架化形式再次出现；第七卷讨论分布式一致性时的死锁与超时策略，是本章 §13.2 在跨节点场景下的对应版本。

@@ -509,9 +509,3 @@ public Profile loadProfile(String id) throws Exception {
 | CPU 密集任务用虚拟线程无收益 | Carrier 数量仍受 CPU 核数限制 | CPU 密集仍用平台线程池 |
 | 无天然背压导致下游被打挂 | `newVirtualThreadPerTaskExecutor` 无并发上限 | 外挂 `Semaphore` 或专用限流器 |
 | 子任务派生后失控、异常传播复杂 | 平面式的 `Future` 组合 | `StructuredTaskScope` 结构化并发 |
-
-> **纵横联系**
->
-> - **向前依赖**：第 2 章的 1:1 线程模型是本章 M:N 调度的对照起点；第 8 章 `LockSupport.park` 是 VT 卸载的技术底座；第 3 章 `ThreadLocal` 的存储结构解释了 VT 场景下"每 VT 独立 TLM"的内存代价。
-> - **向后使用**：第 13 章诊断章会介绍 VT 特有的排查工具（`-Djdk.tracePinnedThreads`、`jcmd Thread.dump_to_file` 的 JSON 输出、JFR 的 `VirtualThreadPinned` 事件）。
-> - **跨卷关系**：第四卷网络与通信中 Netty / Reactor 的设计前提在虚拟线程时代被重新讨论；第六卷 Spring MVC 从 6.1、Tomcat 从 10.1 起支持将 VT 作为请求处理线程；第七卷高并发架构中"接入层线程模型选型"直接引用本章结论。

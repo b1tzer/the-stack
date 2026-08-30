@@ -535,9 +535,3 @@ new Thread(() -> {
 | 需要"精确交接"的队列 | `SynchronousQueue` 太受限 | `LinkedTransferQueue` |
 | `size()` O(N) 陷阱 | 无锁队列不维护实时计数 | 不要频繁调 `size()`，用其他指标监控 |
 | 生产者-消费者语义 | 手写 `wait/notify` 易错 | `BlockingQueue` 家族 |
-
-> **纵横联系**
->
-> - **向前依赖**：`ConcurrentHashMap` 的 CAS 空 bin 插入建立在第 7 章 CAS 之上；`synchronized` 锁 bin 头节点走的是第 6 章讲的 JVM 锁升级路径；`CopyOnWriteArrayList` 的 `array` 引用是 `volatile`——依托第 5 章 `volatile` 的发布语义；`ConcurrentLinkedQueue` 的 M&S 算法本质是 CAS + 协作性重试。
-> - **向后使用**：`BlockingQueue` 是第 10 章线程池 `workQueue` 的所有候选；`LinkedBlockingQueue` 的两把锁 + `Condition` 直接建立在第 8 章 AQS 之上；第 13 章诊断章讨论热点锁时，`ConcurrentHashMap` 的 bin 级锁形态经常出现在 Thread Dump 里。
-> - **跨卷关系**：第五卷 HikariCP 的连接池空闲连接队列使用类似 `ConcurrentLinkedQueue` 的无锁结构；第六卷 Spring 的事件监听器管理常用 `CopyOnWriteArrayList`；第七卷高并发架构中"热点账户"问题的分散计数思路，直接对应本章 §9.2.4 的 `CounterCell`。

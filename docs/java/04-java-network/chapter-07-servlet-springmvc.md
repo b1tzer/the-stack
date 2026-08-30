@@ -539,10 +539,3 @@ NIO (Tomcat 8.5+):  连接 ←→ Worker =  N:1  → 10000 连接，只有活跃
 ```
 
 **每个节点都是一个可能的故障点**：线程池满、Socket 断开、Filter 抛异常、参数解析失败、序列化报错。排查时不要一层层猜——从最外层日志抓关键信息（`Connection reset` → Socket 层；500 + 空 body → Controller 或序列化层；503 + 线程名 `catalina-exec-*` → 线程池满），然后跳到那一层深入。
-
-> **纵横联系**
->
-> - **第 4 章 NIO** 的 Selector、Channel、Buffer 在本章 Tomcat NioEndpoint 中变成了可运行的工程架构——Acceptor/Poller/Worker 三线程模型正是 Reactor 模式在 Servlet 容器中的实现。
-> - **第 5 章 Netty** 是 NIO 的另一种封装风格（事件驱动 + Pipeline），Tomcat 没有用 Netty，但它自己实现了一套类似的 NIO 抽象。对比两者能理解"同样的 I/O 模型，不同的架构取舍"。
-> - **第 6 章 HTTP 协议** 中讲的请求行、请求头、状态码、Keep-Alive，在本章 Connector 的 ProtocolHandler 里被逐字节解析、逐字节构造。
-> - **第 8 章 RPC** 处理的是服务间调用（东西向流量），本章处理的是外部 HTTP 请求（南北向流量）。两者在序列化、连接池、超时控制上有大量共用概念。

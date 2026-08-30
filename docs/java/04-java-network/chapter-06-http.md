@@ -279,10 +279,3 @@ QUIC (HTTP/3):             丢 Packet 3 → 只影响 Stream 1，其他照常
 | 首连延迟 | TCP 3次 + TLS 2次 | TCP 3次 + TLS 2次 | 1-RTT（重连 0-RTT） |
 
 > **本章小结：** HTTP 是你每天在用的协议——不是教科书上的 RFC 条目。502 和 504 的区别决定了你下一步是重启进程还是查慢 SQL。`curl -w` 把「这个接口慢」拆成了 6 个可量化的数字。`Content-Type` 配错导致的 415，日志里写的是 `Unsupported Media Type`，根因是 `@RequestBody` 找不到匹配的 `HttpMessageConverter`。
-
-> **纵横联系**
->
-> - **[第4章](./chapter-04-nio) NIO**：HTTP 报文最终通过 TCP Socket 的字节流传输。Tomcat 的 NioEndpoint 收到字节 → ProtocolHandler 解析 HTTP → 封装成 HttpServletRequest。
-> - **[第5章](./chapter-05-netty) Netty**：Netty 内置 `HttpServerCodec`、`HttpObjectAggregator`，是 Java 实现 HTTP 服务的主流方案。HTTP/2 的二进制帧在 Netty 中以 `Http2FrameCodec` 实现。
-> - **[第7章](./chapter-07-servlet-springmvc) Servlet**：本章讲 HTTP 协议本身（报文、状态码、版本），[第7章](./chapter-07-servlet-springmvc)讲 Java 端如何解析和生成 HTTP 报文（Connector → Container → DispatcherServlet）。
-> - **[第8章](./chapter-08-rpc) RPC**：RPC 的协议帧（魔数+长度+消息体）和 HTTP 报文（请求行+Header+Body）是同一种设计思路的不同实现——对字节流附加上下文信息。

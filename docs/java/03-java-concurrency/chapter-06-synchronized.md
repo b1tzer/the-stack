@@ -500,9 +500,3 @@ public class Service {
 | 局部对象加锁的浪费 | 锁对象不逃逸 | JIT 逃逸分析 → 锁消除 |
 | 循环里频繁加解锁 | 相邻 monitor 操作同锁 | JIT 锁粗化 |
 | 不确定锁对象是不是被共享 | 锁字符串、装箱值、`this` | 用 `private final Object` |
-
-> **纵横联系**
->
-> - **向前依赖**：§6.2.4 的内存语义建立在第 4 章 JMM 的 happens-before 与 acquire/release 之上；§6.4 的 Mark Word 状态编码依赖第二卷第 3 章对对象头的介绍；§6.5 的锁消除、锁粗化、逃逸分析在第二卷第 5 章 JIT 章节有完整展开。
-> - **向后使用**：`synchronized` 的能力边界（不可中断、无超时、无公平性、单一等待队列）催生了 `Lock` / AQS，详见第 8 章；`Condition` 对 `wait/notify` 的扩展也在第 8 章。
-> - **跨卷关系**：JVM 层锁优化的完整机制在第二卷；`ThreadPoolExecutor` 内部对短临界区的加锁思路（第 10 章）也建立在轻量级锁足够便宜的前提上。

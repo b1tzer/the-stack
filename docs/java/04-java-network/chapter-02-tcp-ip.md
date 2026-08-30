@@ -539,18 +539,9 @@ wireshark /tmp/tcp_capture.pcap
 ```
 
 在 Wireshark 中，你可以看到：
+
 - SYN、SYN+ACK、ACK 的三次握手
 - 每个 TCP 段的序列号和确认号
 - Nagle 算法是否在起作用（观察小包是否被延迟）
 - 窗口大小的变化
 - 是否有重传
-
-**这是理解 TCP 最有效的方式——比读十遍书都管用。**
-
-> **纵横联系**
->
-> - **与第 1 卷《Java 语言基础》的联系**：本章的 Socket 示例使用了 InputStream/OutputStream，这些 I/O 流的概念在第 1 卷中有详细讲解。`BufferedReader`、`DataInputStream` 等装饰器模式也是第 1 卷的重点。
-> - **与第 3 卷《并发编程》的联系**：本章展示了阻塞式 I/O 的局限性——一个连接一个线程。第 3 卷讨论的线程池、Reactor 模式、CompletableFuture 将成为解决这个瓶颈的关键。
-> - **与第 3 章（UDP）的联系**：本章讨论了 TCP 的可靠性保证，第 3 章将展示 UDP 如何在"不可靠"的基础上实现高效通信，以及 Java NIO 的非阻塞模型。
-> - **与第 5 章（Netty）的联系**：本章末尾的 Java 代码展示了原生 Socket API 的笨拙——Netty 将在第 5 章提供优雅的替代方案，包括内置的编解码器、连接管理和性能调优。
-> - **与第 9 章（网络安全）的联系**：本章讨论的 TCP 连接是明文传输的。第 9 章将在 TCP 之上叠加 TLS，实现加密通信。

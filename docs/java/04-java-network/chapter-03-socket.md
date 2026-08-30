@@ -527,10 +527,3 @@ public class EchoClient {
 | fd 限制 | 单进程默认 1024，高并发需调 `ulimit -n` |
 | Socket 选项 | `SO_REUSEADDR`、`TCP_NODELAY`、`SO_KEEPALIVE` 等是生产必调项 |
 | BIO 的局限 | 一连接一线程，内存扛不住 → 需要 NIO |
-
-> **纵横联系**
->
-> - **本卷[第2章](./chapter-02-tcp-ip)** 已经介绍了 TCP/IP 协议基础和三次握手/四次挥手，本章的系统调用链（`connect`/`accept`/`close`）正是这些协议在编程层面的体现。
-> - **本卷[第4章](./chapter-04-nio)** 将深入讲解 Java NIO，它是对本章 BIO 模型的根本性革新——用 Selector 事件驱动替代线程阻塞等待。
-> - **第三卷《并发》** 中的线程与线程池知识（`ExecutorService`、线程栈内存、上下文切换）是理解本章 §3.3（内核视角）和 §3.5（BIO 局限）的前置基础。
-> - **第五卷《数据访问》** 中数据库连接池的底层实现本质上也是 Socket 连接管理——连接池的大小受限于本章讨论的 fd 和内核资源。

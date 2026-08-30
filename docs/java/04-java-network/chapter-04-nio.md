@@ -483,10 +483,3 @@ epoll 空轮询 Bug       ──►  自动检测 + 重建 Selector
 | **Buffer / flip** | 你看 `Direct buffer memory` OOM，想搞明白堆外内存是怎么被吃掉的 |
 | **Reactor** | 你想看懂 Tomcat NioEndpoint 的 Acceptor/Poller/Worker 怎么协作 |
 | **零拷贝** | 你想知道 Kafka 为什么吞吐那么高，自己的文件下载服务为什么跑不满网卡 |
-
-> **纵横联系**
->
-> - **本卷[第3章](./chapter-03-socket)** 的 BIO 模型是本章的对比基准——正是因为「一连接一线程」内存扛不住，才需要 NIO。
-> - **本卷[第5章](./chapter-05-netty)** 的 Netty 框架是本章三大组件（Channel + Buffer + Selector）加上 Reactor 模式的工业级封装。本章每处「原生 NIO 难用」都在为第 5 章埋钩子。
-> - **本卷[第7章](./chapter-07-servlet-springmvc)** 的 Tomcat NioEndpoint 直接实现了本章的 Reactor 模式。
-> - **第二卷《JVM Runtime》** 中的直接内存（DirectMemory）是本章 `allocateDirect()` 和 OOM 排查的前置知识。
