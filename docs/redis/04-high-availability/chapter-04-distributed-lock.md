@@ -1,10 +1,10 @@
 # 分布式锁
 
-> 在分布式环境下，多个进程要互斥访问共享资源，单机锁失效，需要分布式锁。本章从 SETNX 的坑讲起，逐步演进到 Redisson 看门狗与 RedLock。
+> 在分布式环境下，多个进程要互斥访问共享资源，单机锁失效，需要分布式锁。本章从 SETNX 的坑讲起，逐步演进到 Redisson 看门狗、RedLock 争议，以及生产环境的选型建议。
 
 ## 1. SETNX 的问题
 
-最早的实现用 `SETNX`（SET if Not eXists）加锁，但存在三个致命问题：
+最早的实现用 `SETNX`（SET if Not eXists）加锁：
 
 ```java
 // 有问题的实现
@@ -13,13 +13,13 @@ redis.setnx("lock", "1");   // 加锁
 redis.del("lock");          // 释放锁
 ```
 
-| 问题 | 说明 |
-| :-- | :-- |
-| 死锁 | 加锁后进程崩溃，锁永远无法释放 |
-| 误删 | A 的锁过期了，B 拿到锁，A 却删了 B 的锁 |
-| 非原子 | 加锁与设置过期时间分两步，非原子 |
+三个致命问题：
 
-这些问题在并发场景下会导致锁失效或死锁。
+| 问题 | 说明 | 后果 |
+| :-- | :-- | :-- |
+| 死锁 | 加锁后进程崩溃，锁永远无法释放 | 其他进程永远拿不到锁 |
+| 误删 | A 的锁过期了，B 拿到锁，A 却删了 B 的锁 | 并发控制失效 |
+| 非原子 | 加锁与设置过期时间分两步 | 中间崩溃导致死锁 |
 
 ## 2. 原子加锁与释放
 
@@ -31,16 +31,17 @@ SET lock:order uuid NX PX 30000
 
 | 参数 | 含义 |
 | :-- | :-- |
-| `NX` | 不存在才设置（加锁） |
+| `NX` | 不存在才设置（互斥） |
 | `PX 30000` | 30 秒后自动过期（防死锁） |
 | `uuid` | 唯一标识，标识锁的持有者 |
 
-### 2.1 释放锁：用 Lua 保证原子
+### 2.1 释放锁：Lua 原子校验 + 删除
 
-释放锁前要校验「锁是我持有的」，防止误删。校验 + 删除必须原子，用 Lua 脚本实现：
+释放锁前要校验「锁是我持有的」，校验 + 删除必须原子执行：
 
 ```lua
--- 只有 value 匹配（是我自己的锁）才删除
+-- KEYS[1] = 锁的 key
+-- ARGV[1] = 当前持有的 uuid
 if redis.call("get", KEYS[1]) == ARGV[1] then
     return redis.call("del", KEYS[1])
 else
@@ -48,95 +49,198 @@ else
 end
 ```
 
-```java
-// Java 伪代码
-String script = "if redis.call('get',KEYS[1])==ARGV[1] then return redis.call('del',KEYS[1]) else return 0 end";
-jedis.eval(script, List.of("lock:order"), List.of(uuid));
-```
+为什么不能用 `GET + DEL` 两步？因为两步之间锁可能已过期被其他进程获取，`DEL` 会误删别人的锁。
 
-这样解决了「死锁」「误删」「非原子」三个问题。
+```java
+// Java 实现
+String uuid = UUID.randomUUID().toString();
+boolean locked = jedis.set("lock:order", uuid, "NX", "PX", 30000) != null;
+if (locked) {
+    try {
+        // 业务逻辑
+    } finally {
+        String script = "if redis.call('get',KEYS[1])==ARGV[1] then return redis.call('del',KEYS[1]) else return 0 end";
+        jedis.eval(script, List.of("lock:order"), List.of(uuid));
+    }
+}
+```
 
 ## 3. Redisson
 
 Redisson 是 Java 的 Redis 客户端，封装了分布式锁，提供可重入锁、自动续期等能力。
 
+```xml
+<dependency>
+    <groupId>org.redisson</groupId>
+    <artifactId>redisson-spring-boot-starter</artifactId>
+    <version>3.27.0</version>
+</dependency>
+```
+
 ```java
 RLock lock = redisson.getLock("lock:order");
 try {
-    lock.lock();          // 加锁，默认 30 秒，自动续期
-    // ... 业务逻辑 ...
-} finally {
-    lock.unlock();        // 释放锁
+    // 阻塞等待，最多等 10 秒，锁自动续期
+    if (lock.tryLock(10, TimeUnit.SECONDS)) {
+        try {
+            // 业务逻辑
+        } finally {
+            lock.unlock();
+        }
+    }
+} catch (InterruptedException e) {
+    Thread.currentThread().interrupt();
 }
 ```
 
-Redisson 的锁相对手写 `SET NX PX` 的改进：
+### 3.1 相比手写 SET NX PX 的改进
 
-| 能力 | 说明 |
-| :-- | :-- |
-| 可重入 | 同一个线程可重复加锁 |
-| 自动续期 | 看门狗自动延长锁的过期时间 |
-| 阻塞获取 | 未拿到锁时阻塞等待，而非直接失败 |
-| 公平锁 | 按请求顺序获取 |
+| 能力 | 手写 | Redisson |
+| :-- | :-- | :-- |
+| 可重入 | 需手动实现计数器 | 内置（同一线程可重复加锁） |
+| 自动续期 | 需自己起后台线程 | 看门狗自动续期 |
+| 阻塞获取 | 需自己实现重试逻辑 | `tryLock` 支持等待时间 |
+| 公平锁 | 需自己实现 | `getFairLock()` 开箱即用 |
+| 读写锁 | 需自己实现 | `getReadWriteLock()` 开箱即用 |
 
 ## 4. 看门狗机制
 
-手写锁的隐患：业务执行超过锁的过期时间，锁会提前释放，其他线程拿到锁导致并发。Redisson 的「看门狗（Watchdog）」自动续期解决这个问题。
+手写锁的隐患：业务执行超过锁的过期时间，锁会提前释放，其他线程拿到锁导致并发。
 
 ### 4.1 原理
 
 ![Redisson 看门狗续期机制](/redis/04-high-availability-chapter-04-distributed-lock.svg)
 
+```text
+线程 A 获取锁（默认 30 秒）
+  → 看门狗启动（Netty 时间轮调度）
+  → 每 10 秒检查：锁还持有吗？
+    → 是：续期为 30 秒
+    → 否：停止看门狗
+  → 线程 A 释放锁
+  → 看门狗停止
+```
+
 | 概念 | 说明 |
 | :-- | :-- |
-| 默认超时 | 锁默认 30 秒 |
-| 续期间隔 | 每 10 秒（超时的 1/3）续期一次 |
-| 续期逻辑 | 只要线程还持有锁，就把过期时间重置为 30 秒 |
-| 释放后停止 | 线程释放锁后，看门狗停止续期 |
+| 默认超时 | 30 秒 |
+| 续期间隔 | 每 10 秒（超时的 1/3） |
+| 续期逻辑 | 把过期时间重置为 30 秒 |
+| 前提条件 | 不手动指定 leaseTime |
 
-这样即使业务执行超过 30 秒，锁也不会过期，直到业务完成主动释放。
+### 4.2 看门狗的触发条件
 
-> 看门狗只在「不手动指定 leaseTime」时生效。若手动指定了过期时间（如 `lock.lock(10, TimeUnit.SECONDS)`），则不会自动续期。
+```java
+// 看门狗生效：不指定 leaseTime
+lock.lock();                // 默认 30 秒，自动续期
+lock.tryLock(10, TimeUnit.SECONDS);  // 只指定 waitTime，自动续期
+
+// 看门狗不生效：手动指定 leaseTime
+lock.lock(10, TimeUnit.SECONDS);       // 10 秒后过期，不续期
+lock.tryLock(10, 30, TimeUnit.SECONDS); // leaseTime=30，不续期
+```
+
+> 手动指定 leaseTime 时，你必须自己保证业务在 leaseTime 内完成。如果不确定业务耗时，不指定 leaseTime，让看门狗自动管理。
 
 ## 5. RedLock
 
-单节点的分布式锁在「节点宕机」时会失效（锁数据丢失）。RedLock 通过多节点容错来提升可靠性。
+单节点分布式锁在「节点宕机」时会失效（锁数据丢失）。RedLock 通过多节点容错提升可靠性。
 
 ### 5.1 原理
 
-RedLock 在 N 个独立的 Redis 节点上分别加锁，客户端需要在超过半数（N/2+1）的节点上成功加锁，才算获取锁成功。
-
 ```text
-N=5 个独立节点
-加锁：依次向 5 个节点请求加锁，至少 3 个成功才算获取锁
-释放：向所有节点释放锁
+N = 5 个独立的 Redis 节点（非集群，互不复制）
+
+加锁：
+  1. 依次向 5 个节点请求加锁（SET key uuid NX PX）
+  2. 统计成功数，≥ 3 个成功才算获取锁
+  3. 锁的有效时间 = 过期时间 - 获取锁的耗时
+
+释放：
+  向所有节点释放锁（无论是否成功加锁）
 ```
 
 ### 5.2 争议
 
-RedLock 由 Redis 作者 antirez 提出，但也引发了较多争议：
+RedLock 由 Redis 作者 antirez 提出，但引发了分布式系统领域的重要争论：
 
-| 观点 | 说明 |
+**Martin Kleppmann（《Designing Data-Intensive Applications》作者）的质疑**：
+
+| 问题 | 说明 |
 | :-- | :-- |
-| 支持方 | 多节点容错，单节点宕机不影响锁可用性 |
-| 质疑方 | 无法解决时钟跳跃、GC 停顿、网络分区等极端问题 |
+| 时钟跳跃 | 节点的系统时钟被 NTP 调整，锁可能提前过期 |
+| GC 停顿 | 持锁进程 GC 停顿期间锁过期，GC 恢复后仍以为持有锁 |
+| 网络延迟 | 加锁请求到达不同节点的时间差，可能导致锁的有效期不一致 |
 
-争议的核心：RedLock 依赖节点间时钟同步，而分布式系统里时钟并不完全可靠，极端情况下（GC 长时间停顿、时钟回拨）仍可能出现锁失效。
+**antirez 的回应**：
 
-### 5.3 选型建议
+| 回应 | 说明 |
+| :-- | :-- |
+| 时钟问题 | 可通过配置单调时钟缓解 |
+| GC 问题 | 所有分布式锁都有这个问题，不是 RedLock 特有 |
+| 实用性 | 在大多数生产环境中足够可靠 |
+
+### 5.3 本质问题
+
+RedLock 试图在「无共识」的系统上构建「强一致」的锁，这在理论上存在局限。真正的强一致锁需要共识算法（Raft、Paxos）保证。
+
+### 5.4 选型建议
 
 | 场景 | 建议 |
 | :-- | :-- |
-| 一般业务 | 单节点 Redis + Redisson 即可 |
-| 极高可靠性要求 | 可考虑 RedLock，但需理解其局限 |
-| 更强一致性 | 考虑 ZooKeeper、etcd 等基于共识算法的方案 |
+| 一般业务（缓存击穿防护、幂等控制） | 单节点 Redis + Redisson，足够 |
+| 短暂超卖可接受 | 单节点 Redis + Redisson + 业务幂等兜底 |
+| 资金类强一致 | ZooKeeper / etcd（基于共识算法） |
+| 极高可用 + 可接受争议 | RedLock |
 
-## 6. 最佳实践
+## 6. 其他锁类型
+
+### 6.1 可重入锁
+
+同一线程可以多次获取同一把锁（计数器递增），释放时计数器递减，归零后真正释放。
+
+```java
+RLock lock = redisson.getLock("lock:order");
+lock.lock();      // 第一次加锁，计数器=1
+lock.lock();      // 重入，计数器=2
+lock.unlock();    // 计数器=1
+lock.unlock();    // 计数器=0，真正释放
+```
+
+### 6.2 读写锁
+
+读锁共享，写锁互斥。多个读可以并发，写与读和写都互斥。
+
+```java
+RReadWriteLock rwLock = redisson.getReadWriteLock("rwlock:data");
+RLock readLock = rwLock.readLock();
+RLock writeLock = rwLock.writeLock();
+
+// 读操作
+readLock.lock();
+try { /* 读 */ } finally { readLock.unlock(); }
+
+// 写操作
+writeLock.lock();
+try { /* 写 */ } finally { writeLock.unlock(); }
+```
+
+### 6.3 公平锁
+
+按请求顺序获取锁，避免饥饿。
+
+```java
+RLock fairLock = redisson.getFairLock("lock:order");
+fairLock.lock();
+```
+
+## 7. 最佳实践
 
 | 实践 | 说明 |
 | :-- | :-- |
 | 用成熟客户端 | 优先用 Redisson，别手写锁 |
 | 锁要有超时 | 任何锁都要有过期时间，防死锁 |
-| 校验再释放 | 释放前校验持有者，防误删 |
+| 校验再释放 | 释放前校验持有者，防误删（Redisson 自动处理） |
 | 锁粒度要小 | 锁的范围尽量小，减少竞争 |
 | 业务要幂等 | 分布式锁不能保证绝对互斥，业务要幂等兜底 |
+| 不要指定 leaseTime | 除非你确定业务耗时，否则让看门狗管理 |
