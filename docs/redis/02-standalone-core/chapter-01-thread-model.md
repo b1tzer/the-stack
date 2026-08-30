@@ -53,6 +53,36 @@ epoll_wait    阻塞等待就绪事件（内核直接返回就绪 fd 列表）
 
 Redis 使用 `epoll`（Linux）/ `kqueue`（macOS）/ `evport`（Solaris）等平台最优的多路复用实现，封装在统一的事件循环里。
 
+### 2.3 ae 事件库
+
+Redis 自己封装了一个轻量级事件库 `ae`，对不同平台的 IO 多路复用做了统一封装：
+
+```c
+// ae.c 核心结构
+typedef struct aeEventLoop {
+    int maxfd;                    // 当前最大 fd
+    aeFileEvent events[AE_SETSIZE]; // 注册的事件表
+    aeFiredEvent fired[AE_SETSIZE]; // 就绪事件表
+    aeTimeEvent *timeEventHead;   // 定时事件链表
+    int stop;
+    void *apidata;               // 平台特定数据（epoll/kqueue）
+} aeEventLoop;
+```
+
+事件循环主函数 `aeMain()`：
+
+```c
+void aeMain(aeEventLoop *eventLoop) {
+    eventLoop->stop = 0;
+    while (!eventLoop->stop) {
+        // 1. 执行定时事件（过期删除、serverCron）
+        aeProcessEvents(eventLoop, AE_ALL_EVENTS);
+        // 2. 调用 aeApiPoll（封装 epoll_wait）等待 IO 事件
+        // 3. 就绪事件分发到对应处理器
+    }
+}
+```
+
 ## 3. Reactor 模式
 
 Redis 的事件处理采用 Reactor 模式——一个事件分发器 + 多个事件处理器。
@@ -74,6 +104,18 @@ Redis 的事件处理采用 Reactor 模式——一个事件分发器 + 多个�
 | 读事件 | 客户端发来命令 | 读取并解析命令 |
 | 写事件 | 响应可写回 | 把结果写回客户端 |
 
+### 3.1 serverCron 定时任务
+
+除了 IO 事件，Redis 还有一个 10ms 执行一次的定时任务 `serverCron`：
+
+| 任务 | 说明 |
+| :-- | :-- |
+| 过期键清理 | 定期删除策略（见第 5 章） |
+| RDB/AOF 检查 | 触发持久化条件判断 |
+| 统计信息更新 | 内存、命中率、连接数等 |
+| 集群心跳 | 集群模式下的 Gossip 消息 |
+| 哨兵心跳 | 哨兵模式下的健康检查 |
+
 ## 4. 6.0 的多线程网络 IO
 
 Redis 6.0 引入了多线程网络 IO，但**命令执行仍然是单线程**。
@@ -82,7 +124,7 @@ Redis 6.0 引入了多线程网络 IO，但**命令执行仍然是单线程**。
 
 单线程模型下，网络 IO 的读写（`read`/`write`）本身也是 CPU 密集操作。当连接数多、吞吐量大时，解析协议、写回响应会占满单核 CPU，成为瓶颈。
 
-### 4.2 的改进
+### 4.2 改进方案
 
 6.0 起，Redis 把「读请求解析」和「写响应」这两步交给多个 IO 线程并行处理，而命令的真正执行仍在主线程串行：
 
@@ -109,3 +151,35 @@ io-threads-do-reads yes       # 是否开启多线程读
 ```
 
 > 只有当 CPU 核数较多（≥ 4 核）且确实存在网络 IO 瓶颈时才建议开启多线程 IO。核数少或瓶颈在命令执行时，开启多线程反而可能因线程切换降低性能。
+
+## 5. 命令执行时间线
+
+一条命令从发出到返回的完整时间线：
+
+```text
+客户端                    Redis 主线程                    IO 线程
+  │                          │                            │
+  │──── SET key value ──────►│                            │
+  │                          │─── 分发给 IO 线程 ─────────►│
+  │                          │                            │── 解析命令
+  │                          │◄── 返回解析结果 ───────────│
+  │                          │                            │
+  │                          │─── 执行 SET（单线程）       │
+  │                          │─── AOF 追加                │
+  │                          │─── 复制传播                │
+  │                          │                            │
+  │                          │─── 分发给 IO 线程 ─────────►│
+  │                          │                            │── 写回响应
+  │◄──── OK ─────────────────│◄── 写回完成 ───────────────│
+```
+
+## 6. 小结
+
+| 要点 | 说明 |
+| :-- | :-- |
+| 命令执行 | 单线程，保证原子性，无锁 |
+| 网络 IO | 6.0 起支持多线程，解析和写回并行 |
+| IO 多路复用 | epoll/kqueue，一个线程监听万级连接 |
+| 慢命令 | 阻塞所有请求，是单线程模型的最大风险 |
+| 辅助线程 | AOF 刷盘、UNLINK、Lazy Free 不阻塞主线程 |
+| Reactor 模式 | 事件驱动，serverCron 处理定时任务 |
