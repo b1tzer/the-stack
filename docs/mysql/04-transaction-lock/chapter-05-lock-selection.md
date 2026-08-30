@@ -187,6 +187,88 @@ def update_with_retry(table, id, max_retries=3):
     return False  # 重试耗尽
 ```
 
+### 6.1 Java 实现：JPA 与手动版
+
+乐观锁的 Java 落地有两种方式：JPA 内置的 `@Version` 注解，以及手写 SQL 的版本号比对。
+
+**JPA 内置 `@Version`：**
+
+```java
+@Entity
+@Table(name = "products")
+public class Product {
+    @Id
+    private Long id;
+    private String name;
+    private Integer stock;
+
+    @Version  // JPA 内置乐观锁支持
+    private Integer version;
+}
+```
+
+```java
+@Service
+public class ProductService {
+    @Autowired
+    private ProductRepository productRepository;
+
+    @Transactional
+    public void deductStock(Long productId, int quantity) {
+        int maxRetries = 3;
+        for (int i = 0; i < maxRetries; i++) {
+            try {
+                Product product = productRepository.findById(productId).orElseThrow();
+                if (product.getStock() < quantity) {
+                    throw new RuntimeException("库存不足");
+                }
+                product.setStock(product.getStock() - quantity);
+                productRepository.save(product);  // JPA 自动检查 version
+                return;
+            } catch (ObjectOptimisticLockingFailureException e) {
+                if (i == maxRetries - 1) throw e;
+                // 等待随机时间后重试
+                try { Thread.sleep(100 + (long)(Math.random() * 200)); } catch (InterruptedException ignored) {}
+            }
+        }
+    }
+}
+```
+
+`@Version` 的语义：每次 `save` 时，JPA 自动在 `UPDATE` 的 `WHERE` 里追加 `version = ?`，并把 `version` 加一。若影响行数为 0，抛 `ObjectOptimisticLockingFailureException`。
+
+**手动 SQL 版本号比对：**
+
+```java
+@Service
+public class ManualOptimisticLockService {
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    public boolean deductStock(Long productId, int quantity) {
+        // 1. 读取当前版本号
+        Map<String, Object> row = jdbcTemplate.queryForMap(
+            "SELECT stock, version FROM products WHERE id = ?", productId);
+        int stock = (int) row.get("stock");
+        int version = (int) row.get("version");
+
+        if (stock < quantity) {
+            throw new RuntimeException("库存不足");
+        }
+
+        // 2. 带版本号更新
+        int affected = jdbcTemplate.update(
+            "UPDATE products SET stock = stock - ?, version = version + 1 WHERE id = ? AND version = ?",
+            quantity, productId, version);
+
+        // 3. 检查更新结果，0 表示版本号已变化，需重试
+        return affected != 0;
+    }
+}
+```
+
+两者本质相同：都靠「更新时比对版本号、影响行数为 0 判定冲突」实现乐观锁。
+
 ## 7. 混合方案
 
 ```sql

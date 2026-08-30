@@ -589,10 +589,9 @@ export default withOpenInEditor(defineConfig({
           items: [
             { text: 'MySQL 概览', link: '/mysql/01-basics/chapter-01-overview' },
             { text: '安装部署', link: '/mysql/01-basics/chapter-02-install-config' },
-            { text: 'SQL 基础', link: '/mysql/01-basics/chapter-03-sql-basics' },
-            { text: '整体架构', link: '/mysql/01-basics/chapter-04-architecture' },
-            { text: '字符集与排序规则', link: '/mysql/01-basics/chapter-05-charset-collation' },
-            { text: 'SQL 规范与最佳实践', link: '/mysql/01-basics/chapter-06-sql-best-practices' },
+            { text: '整体架构', link: '/mysql/01-basics/chapter-03-architecture' },
+            { text: '字符集与排序规则', link: '/mysql/01-basics/chapter-04-charset-collation' },
+            { text: 'SQL 规范与最佳实践', link: '/mysql/01-basics/chapter-05-sql-best-practices' },
           ],
         },
         {
@@ -603,6 +602,7 @@ export default withOpenInEditor(defineConfig({
             { text: '表空间', link: '/mysql/02-innodb-internals/chapter-03-tablespace' },
             { text: 'Redo Log', link: '/mysql/02-innodb-internals/chapter-04-redo-log' },
             { text: 'Undo Log', link: '/mysql/02-innodb-internals/chapter-05-undo-log' },
+            { text: 'Binlog', link: '/mysql/02-innodb-internals/chapter-06-binlog' },
           ],
         },
         {
@@ -649,7 +649,6 @@ export default withOpenInEditor(defineConfig({
         {
           text: '复制与高可用',
           items: [
-            { text: 'Binlog', link: '/mysql/07-replication-ha/chapter-00-binlog' },
             { text: '异步复制', link: '/mysql/07-replication-ha/chapter-01-binlog-replication' },
             { text: 'GTID', link: '/mysql/07-replication-ha/chapter-02-gtid' },
             { text: '组复制', link: '/mysql/07-replication-ha/chapter-03-group-replication' },

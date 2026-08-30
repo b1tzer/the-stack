@@ -48,6 +48,8 @@ SHOW SLAVE STATUS\G
 
 ## 4. 复制原理详解
 
+复制的数据来源是 Binlog，其记录格式与事件类型见 [Binlog](../02-innodb-internals/chapter-06-binlog.md)。
+
 ```
 主库：
 1. 事务提交 → 写入 Binlog

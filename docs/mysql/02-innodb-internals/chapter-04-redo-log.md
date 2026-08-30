@@ -1,125 +1,236 @@
 # Redo Log
 
-## 1. WAL 原理
+> 一条 `UPDATE` 执行完，`COMMIT` 返回「成功」——这时数据真的写进磁盘了吗？如果立刻断电，这条修改还在吗？InnoDB 的回答是「在」。它靠的不是把每一行数据都刷进表空间，而是一份按顺序追加的小日志：Redo Log。理解了它，就理解了「为什么事务提交后数据不丢」和「为什么 MySQL 的写性能可以接受」这两个问题其实共享同一个答案。
 
-Write-Ahead Logging：数据修改前先写 Redo Log，保证崩溃恢复。
+## 1. 一个「断电后数据还在」的现象
 
-## 2. Redo Log 结构
-
-```
-ib_logfile0  ←──┐
-ib_logfile1     │  循环写入
-ib_logfile2  ───┘
-```
-
-## 3. 刷盘策略
-
-```ini
-innodb_flush_log_at_trx_commit = 1
--- 0: 每秒刷盘（可能丢 1s 数据）
--- 1: 每次提交刷盘（最安全，默认）
--- 2: 每次提交写 OS 缓存，每秒刷盘
-```
-
-## 4. Checkpoint
-
-```
-             checkpoint
-                ↓
-ib_logfile0: [已刷盘][未刷盘][空闲]
-ib_logfile1: [未刷盘][空闲]
-```
-
-## 5. 崩溃恢复
-
-1. 从 checkpoint 开始扫描 Redo Log
-2. 重放所有未刷盘的修改
-3. 通过 Undo Log 回滚未提交事务
-
-## 6. Redo Log 物理结构
+先看一个场景。执行一条更新，然后立刻拔掉服务器电源：
 
 ```sql
--- MySQL 8.0.30+ 动态调整 Redo Log 大小
-ALTER INSTANCE ROTATE INNODB MASTER KEY;
-
--- 查看 Redo Log 配置
-SHOW VARIABLES LIKE 'innodb_redo_log_capacity';  -- MySQL 8.0.30+
-SHOW VARIABLES LIKE 'innodb_log_file_size';       -- MySQL 8.0.30 之前
-SHOW VARIABLES LIKE 'innodb_log_files_in_group';  -- MySQL 8.0.30 之前
-
--- MySQL 8.0.30+ Redo Log 存储在 #innodb_redo 目录
--- MySQL 8.0.30 之前存储在 ib_logfile0, ib_logfile1 等文件
+BEGIN;
+UPDATE accounts SET balance = 1000 WHERE id = 1;
+COMMIT;  -- 返回成功
+-- 此刻断电
 ```
 
-**Redo Log 记录格式：**
-```
-┌──────────────┐
-│ Type         │  日志类型（MLOG_XXX）
-├──────────────┤
-│ Space ID     │  表空间 ID
-├──────────────┤
-│ Page Number  │  页号
-├──────────────┤
-│ Offset       │  页内偏移
-├──────────────┤
-│ Data         │  修改的数据
-└──────────────┘
+重启后，`id=1` 的 `balance` 是 1000 还是原来的值？答案是 **1000**——只要事务返回了提交成功，这条修改就不会因为断电而丢失。
+
+但直觉上这是反常识的：磁盘写入有先后，`COMMIT` 返回时，那行数据所在的 16KB 数据页可能还躺在内存的 Buffer Pool 里，根本没写回磁盘。为什么它「承诺」的数据还能在断电后找回来？
+
+答案分两层：**数据页靠 Redo Log 重放找回来**，**Redo Log 本身靠顺序写保证在 COMMIT 前真正落盘**。下面先把「为什么需要一份单独的日志」讲清楚。
+
+## 2. 为什么不能直接把数据页写回磁盘
+
+先退一步问：没有 Redo Log，MySQL 能不能保证持久性？
+
+能，但代价很高。数据页的存放位置是分散的——一条 `UPDATE` 可能同时改到聚簇索引页、二级索引页、回滚段页，这些页在表空间文件里彼此相距很远。每提交一个事务，都要把这些页逐个「随机写」回磁盘，而随机写（磁头寻道 / SSD 随机小写）是磁盘上最慢的操作。
+
+更麻烦的是「部分写」：一个 16KB 的页只写了一半就断电，这一半数据既不是旧值也不是新值，整页就废了。
+
+Redo Log 的思路是绕开这两点：**修改发生时，不急着把数据页落盘，而是先把「改了什么」按顺序追加到一份日志里。** 顺序追加是磁盘最快的写入方式，一次 `COMMIT` 只需要把一小段日志追加写进文件末尾，而不是把一堆散落的数据页随机写回。数据页可以晚点、甚至批量地异步刷盘。
+
+这就是 WAL（Write-Ahead Logging，先写日志）的核心动机：**用一次廉价的顺序写，换取「修改已持久化」的承诺，把昂贵的随机写推迟到后台批量完成。**
+
+## 3. WAL 原理：先写日志，再写数据
+
+WAL 规则只有一条：**在把数据页刷盘之前，必须先把它对应的日志记录刷盘。**
+
+顺序很重要，反了就失效。设想「先刷数据页、后写日志」：数据页已经落盘了，日志还没写，此时断电，日志里没有这次修改的记录——但数据页已经在磁盘上了，表面看没丢。问题出在「日志是唯一可信的重放依据」这一点：崩溃恢复时，InnoDB 只相信日志，用日志去校准数据页。如果数据页写在了日志前面，恢复时就无法判断这个页到底该是旧值还是新值。
+
+反过来「先写日志、后刷数据页」就自洽了：
+
+```text
+事务修改流程：
+1. 在 Buffer Pool 中修改数据页（内存操作，快）
+2. 把这次修改写成 Redo Log 记录，追加到 Log Buffer
+3. 事务提交时，按 innodb_flush_log_at_trx_commit 的策略把 Log Buffer 刷盘
+4. 数据页在后台由 Checkpoint / 刷脏页线程异步落盘
 ```
 
-## 7. Mini-Transaction (MTR)
+关键在于：**第 2 步的日志一旦落盘，第 4 步的数据页哪怕永远不写，崩溃后也能靠日志重放出来。** 数据页落盘晚一点没关系，日志落盘才是「提交成功」的真正边界。
 
-MTR 是 InnoDB 对 Redo Log 的最小原子操作单位。
+## 4. LSN：Redo Log 的坐标轴
+
+要讲清崩溃恢复和 Checkpoint，得先引入一个贯穿全篇的量：LSN（Log Sequence Number，日志序列号）。
+
+LSN 是 Redo Log 的字节偏移量，单调递增。每写一个字节的日志，LSN 就加一。它有三个关键落脚点：
+
+- **全局当前 LSN**：Redo Log 写到了哪个字节位置。
+- **数据页上的 `FIL_PAGE_LSN`**：每个数据页的 File Header 里记录「我最后一次被修改时，对应的日志 LSN 是多少」。
+- **Checkpoint LSN**：已刷盘数据页对应的最大 LSN。
+
+这三个值一比较，就能回答「这个数据页需不需要重放」：**如果某页的 `FIL_PAGE_LSN` 小于某条日志记录的 LSN，说明这条日志对应的修改还没刷进这个页，崩溃恢复时就要重放。**
+
+```text
+LSN 单调递增 →
+0 ──────────── checkpoint LSN ──────────── 当前 LSN
+     （这部分日志已刷盘）      （这部分日志可能还没刷进数据页）
+```
+
+用 LSN 这把尺子，Checkpoint 和崩溃恢复就有了统一的度量，不再需要逐页猜测。
+
+## 5. Redo Log 的物理结构与记录格式
+
+Redo Log 在磁盘上的形态，随 MySQL 版本有变化：
 
 ```sql
--- 一个 MTR 包含多个 Redo Log 记录
--- 例如：插入一条记录的 MTR
--- 1. 修改数据页（插入记录）
--- 2. 修改 Page Header（更新记录数）
--- 3. 修改系统页（更新 MAX_TRX_ID）
--- 这些日志记录组成一个 MTR，要么全部写入，要么全部不写入
+-- MySQL 8.0.30 之前：固定大小的一组文件
+SHOW VARIABLES LIKE 'innodb_log_file_size';        -- 单个文件大小
+SHOW VARIABLES LIKE 'innodb_log_files_in_group';   -- 文件个数
+
+-- MySQL 8.0.30 之后：统一容量，自动管理，存于 #innodb_redo 目录
+SHOW VARIABLES LIKE 'innodb_redo_log_capacity';    -- 总容量
 ```
 
-## 8. Log Buffer
+文件被组织成一个**循环缓冲区**：写满一圈就回到开头覆盖。覆盖的前提是「被覆盖的那部分日志对应的数据页已经刷盘」，这正是 Checkpoint 的职责（见 §8）。
+
+每条 Redo Log 记录本身是「物理日志」——记录的不是 SQL，而是「哪个页的哪个位置改成了什么」：
+
+```text
+┌──────────────┬────────────────────────────────┐
+│ Type         │  日志类型（MLOG_XXX）           │
+│ Space ID     │  表空间 ID                     │
+│ Page Number  │  页号                          │
+│ Offset       │  页内偏移                      │
+│ Data         │  修改的数据                    │
+└──────────────┴────────────────────────────────┘
+```
+
+`MLOG_1BYTE`、`MLOG_2BYTE` 这类类型名表明它精确到「字节级」：崩溃恢复时不需要重算，照着记录把字节写回指定位置即可。这种「物理」特性是 Redo Log 能快速重放的原因，也是它和 Binlog（逻辑日志）最本质的区别。
+
+## 6. MTR：保证「一组修改」的原子性
+
+一条 SQL 往往涉及多处修改，比如插入一条记录，要同时改：
+
+1. 数据页（写入这条记录）；
+2. 页的 Page Header（记录数 +1）；
+3. 可能还有系统页（更新 `MAX_TRX_ID`）。
+
+这三处修改必须「要么都恢复，要么都不恢复」。如果崩溃发生在写了一半的时候，只恢复了数据页的插入、没恢复 Page Header 的计数，页就处于自相矛盾的状态。
+
+InnoDB 用 **MTR（Mini-Transaction，迷你事务）** 解决：MTR 把「一组逻辑上不可分割的修改」打包成一批 Redo Log 记录，这一批作为一个整体写入。崩溃恢复时，MTR 的日志要么整段重放，要么整段跳过，不会出现「重放到一半」的中间态。
+
+可以把 MTR 理解为 Redo Log 层的原子单位——事务（Transaction）是业务层的原子单位，MTR 是物理层的原子单位，一个事务通常由多个 MTR 组成。
+
+## 7. Log Buffer 与刷盘策略
+
+日志不是一条一条直接写磁盘的。修改产生后，Redo Log 记录先写入内存里的 **Log Buffer**，再按策略批量刷盘：
 
 ```sql
--- Log Buffer 相关参数
-SHOW VARIABLES LIKE 'innodb_log_buffer_size';  -- 默认 16MB
-
--- Log Buffer 刷盘时机：
--- 1. 事务提交时（innodb_flush_log_at_trx_commit 控制）
--- 2. Log Buffer 空间不足时（超过一半）
--- 3. 后台线程每秒刷新
--- 4. Checkpoint 时
+SHOW VARIABLES LIKE 'innodb_log_buffer_size';  -- Log Buffer 大小，默认 16MB
 ```
 
-## 9. Redo Log 与 Binlog 的区别
+Log Buffer 刷盘的时机有四种：事务提交时、Log Buffer 写满一半时、后台线程每秒一次、Checkpoint 时。其中「事务提交时怎么刷」由参数 `innodb_flush_log_at_trx_commit` 控制，这是全篇最需要理解的一个参数：
 
-| 特性 | Redo Log | Binlog |
-|------|----------|--------|
+| 取值 | 提交时行为 | 断电后可能丢多少数据 |
+| :-- | :-- | :-- |
+| `0` | 不主动刷，仅靠后台每秒刷 | 最近 **1 秒** 的事务 |
+| `1` | 每次提交都刷盘（`fsync`） | **0**（提交即落盘） |
+| `2` | 每次提交写 OS 缓存，靠 OS 每秒刷 | 最近 **1 秒** 的事务 |
+
+三个值的差异，本质在「刷」这个词落到哪一层：
+
+```text
+Log Buffer（内存） → OS Page Cache（操作系统缓存） → 磁盘
+       └── 值 2 只走到这里        └── 值 1 走到这里（fsync）
+值 0：哪都不主动走，等后台每秒 fsync
+```
+
+理解数据丢失边界的关键：**值 `0` 和 `2` 的区别不在丢不丢，而在「丢失时丢的是什么粒度」。**
+
+- 值 `0`：事务提交了，日志还停在 Log Buffer，MySQL 进程崩了（不只是断电）就直接没了。
+- 值 `2`：日志已经交给 OS 缓存，MySQL 进程崩了不影响（OS 缓存还在），只有**整机断电**才可能丢 OS 缓存里那 1 秒。
+- 值 `1`：`fsync` 返回后，日志已在磁盘物理扇区上，MySQL 崩溃、断电都不丢。
+
+所以「值 0 和值 2 都丢 1 秒」是简化说法，严谨的边界是：**值 0 怕 MySQL 崩溃，值 2 只怕整机断电，值 1 什么都不怕（代价是每次提交都 fsync，性能最差）。**
+
+生产环境的常见选择：默认 `1` 保安全；对性能极度敏感、又能容忍 1 秒丢失的日志类业务，可降为 `2`；`0` 基本不推荐。
+
+## 8. Checkpoint：Redo Log 的空间回收
+
+Redo Log 是循环写的，容量有限。它覆盖旧日志的前提，是「旧日志对应的数据页已经刷盘」。这个「刷盘推进到哪里」的标记，就是 **Checkpoint**。
+
+```text
+             checkpoint LSN
+                  ↓
+redo 文件: [已刷盘部分][未刷盘部分][空闲]
+             ↑ 可被覆盖     ↑ 崩溃恢复要用的
+```
+
+Checkpoint 做的事：把 Buffer Pool 里「LSN 小于某个值」的脏页批量刷盘，然后把 Checkpoint LSN 推进到那个值。推进之后，Checkpoint LSN 之前的日志就可以安全覆盖了。
+
+它直接决定了两个关键指标：
+
+- **崩溃恢复速度**：Checkpoint 推进得越勤，恢复时要重放的日志越少，恢复越快；但刷盘越频繁，正常运行时开销越大。
+- **Redo Log 会不会写满**：如果脏页刷盘速度跟不上日志产生速度，Checkpoint LSN 停住不动，未刷盘部分越积越多，最终填满整个 Redo Log。一旦写满，InnoDB 只能暂停写入、强制刷脏页，表现为写入吞吐骤降。
+
+这正是「为什么不能有长事务、不能有长时间刷不动脏页」的底层原因之一：**Redo Log 空间被未刷盘的日志占满，写路径被 Checkpoint 卡死。**
+
+## 9. 崩溃恢复的完整流程
+
+把前面几节串起来，MySQL 崩溃重启后做这样几件事：
+
+```text
+1. 找到最近一次 Checkpoint LSN
+2. 从 Checkpoint LSN 开始，向后扫描 Redo Log
+3. 对每条日志：若目标数据页的 FIL_PAGE_LSN < 这条日志的 LSN，就重放这条日志
+4. 重放完成后，通过 Undo Log 把「未提交事务」的修改回滚掉
+```
+
+第 3 步里 `FIL_PAGE_LSN` 的比较，正是 §4 那把尺子的落地：数据页上记的 LSN 比日志旧，说明日志对应的修改没刷进页里，需要重放；比日志新或相等，说明页已经是新状态，跳过即可。这个判断让恢复变得幂等——重复重放同一段日志也不会出错。
+
+第 4 步引出了 Redo 与 Undo 的分工：**Redo 负责「把已提交的修改找回来」，Undo 负责「把未提交的修改抹掉」。** 崩溃时，日志里既有已提交事务的修改，也有未提交事务的修改，重放会把两者都恢复出来，再由 Undo 回滚掉未提交的那部分。Undo 的机制见 [Undo Log](./chapter-05-undo-log.md)。
+
+## 10. 两阶段提交：Redo Log 与 Binlog 的一致性
+
+Redo Log 只解决「InnoDB 自己崩溃不丢数据」。但 MySQL 还有第二份日志——**Binlog**（Server 层，用于主从复制和按时间点恢复）。于是每个事务的提交，都要同时保证两份日志一致：Redo Log 里有，Binlog 里也得有。
+
+难点在于：写两份日志是两次独立的磁盘写，崩溃可能发生在「只写完了一份」的瞬间。如果不管先后顺序，都会出问题：
+
+```text
+方案一：先写 Redo，再写 Binlog
+  写完 Redo 后崩溃 → 主库恢复了该事务，但 Binlog 里没有
+  → 从库基于 Binlog 重放，少了一条数据，主从不一致
+
+方案二：先写 Binlog，再写 Redo
+  写完 Binlog 后崩溃 → Binlog 里有，但 Redo 没有
+  → 主库回滚了该事务，但从库重放 Binlog 会多出一条数据，主从不一致
+```
+
+InnoDB 用**两阶段提交**解决这个「两份日志无法原子写」的难题。事务提交分三步：
+
+```text
+1. InnoDB：写 Redo Log，标记为 prepare（准备）状态
+2. Server：写 Binlog
+3. InnoDB：把 Redo Log 标记为 commit（提交）状态
+```
+
+崩溃恢复时，扫描 Redo Log 里处于 `prepare` 状态的事务，用「Binlog 是否完整」来裁决它的命运：
+
+```text
+崩溃恢复对 prepare 事务的判定：
+- 对应 Binlog 完整（能查到该事务的 XID 事件）→ 提交（补写 redo commit）
+- 对应 Binlog 不完整（没有 XID）→ 回滚
+```
+
+为什么这个规则能保证一致？核心观察是：**Binlog 的写是原子标志。** 只要 Binlog 完整落地，就说明这个事务「对外已经算提交」了，从库迟早会重放到它，主库必须跟着提交；只要 Binlog 没落地，就说明事务还没对外生效，主库回滚它，从库也不会知道。于是无论崩溃发生在第 1 步和第 2 步之间，还是第 2 步和第 3 步之间，主从最终都收敛到同一状态。
+
+Binlog 的格式、事件类型与参数见 [Binlog](./chapter-06-binlog.md)。
+
+## 11. Redo Log 与 Binlog 的区别
+
+| 对比项 | Redo Log | Binlog |
+| :-- | :-- | :-- |
 | 所属层 | InnoDB 存储引擎层 | MySQL Server 层 |
-| 内容 | 物理日志（页修改） | 逻辑日志（SQL/行变更） |
-| 写入方式 | 循环写，固定大小 | 追加写，文件轮转 |
-| 用途 | 崩溃恢复 | 主从复制、数据恢复 |
-| 事务标记 | 无事务边界 | 有明确的 BEGIN/COMMIT |
+| 记录内容 | 物理日志（哪个页哪段字节改成什么） | 逻辑日志（SQL 语句或行变更） |
+| 写入方式 | 循环写，固定容量 | 追加写，文件轮转 |
+| 主要用途 | 崩溃恢复 | 主从复制、按时间点恢复 |
+| 事务边界 | 无明确的 BEGIN/COMMIT 标记 | 有明确事务边界与 XID |
 
-## 10. 两阶段提交详解
+## 12. 最佳实践
 
-```
-事务执行过程：
-1. InnoDB: 写 Redo Log (prepare 状态)
-2. Server: 写 Binlog
-3. InnoDB: 写 Redo Log (commit 状态)
-
-崩溃恢复：
-- 检查 Redo Log 中 prepare 状态的事务
-- 如果对应的 Binlog 存在且完整 → 提交事务
-- 如果对应的 Binlog 不存在 → 回滚事务
-```
-
-## 11. 最佳实践
-
-1. **双1配置保证数据安全** — `innodb_flush_log_at_trx_commit=1` + `sync_binlog=1`
-2. **Redo Log 大小设置** — 写入密集型业务建议 2G-4G
-3. **SSD 环境** — Redo Log 和数据文件放在同一 SSD 即可
-4. **监控 Redo Log 写入量** — `SHOW GLOBAL STATUS LIKE 'Innodb_os_log_written';`
-5. **避免长事务** — 长事务会阻止 Checkpoint，导致 Redo Log 空间紧张
+1. **数据安全优先用「双 1」**：`innodb_flush_log_at_trx_commit=1` + `sync_binlog=1`，提交即落盘，崩溃不丢。
+2. **Redo Log 容量设置**：写密集型业务给足空间（如 2G-4G），避免写满触发 Checkpoint 卡顿。
+3. **SSD 环境**：Redo Log 与数据文件同盘即可，顺序写的优势在 SSD 上依然成立。
+4. **监控写入量**：`SHOW GLOBAL STATUS LIKE 'Innodb_os_log_written';` 观察日志产生速率。
+5. **避免长事务与脏页堆积**：长事务让 Undo 无法清理、脏页迟迟刷不干净，间接拖慢 Checkpoint。
