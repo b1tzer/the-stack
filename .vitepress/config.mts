@@ -383,15 +383,15 @@ export default withOpenInEditor(defineConfig({
         {
           text: '企业架构',
           items: [
-            { text: '企业系统部署', link: '/java/06-java-enterprise/chapter-08-security-deploy' },
-            { text: '可观测性', link: '/java/06-java-enterprise/chapter-09-observability' },
+            { text: '企业系统部署', link: '/java/06-java-enterprise/chapter-01-security-deploy' },
+            { text: '可观测性', link: '/java/06-java-enterprise/chapter-02-observability' },
           ],
         },
         {
           text: '性能与架构',
           items: [
-            { text: '性能工程', link: '/java/07-performance-architecture/chapter-08-performance' },
-            { text: '架构案例', link: '/java/07-performance-architecture/chapter-09-case-studies' },
+            { text: '性能工程', link: '/java/07-performance-architecture/chapter-01-performance' },
+            { text: '架构案例', link: '/java/07-performance-architecture/chapter-02-case-studies' },
           ],
         },
       ],
