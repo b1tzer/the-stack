@@ -1,6 +1,6 @@
 # 缓存雪崩
 
-> 缓存雪崩指「大量缓存 key 同时失效」或「缓存服务整体宕机」，导致海量请求瞬间直达数据库，把数据库打垮。本章讲解雪崩的成因与多种缓解手段。
+> 缓存雪崩指「大量缓存 key 同时失效」或「缓存服务整体宕机」，导致海量请求瞬间直达数据库，把数据库打垮。本章讲解雪崩的成因与三种缓解手段，并给出 Spring Boot 落地代码。
 
 ## 1. 问题
 
@@ -20,9 +20,30 @@
 给每个 key 的过期时间加上随机偏移，让它们错峰过期，避免「同时过期」。
 
 ```java
-// 伪代码：设置 5 分钟过期 + 0~60 秒随机偏移
-int ttl = 300 + new Random().nextInt(60);
-redis.set(key, value, ttl);
+// 基础 TTL 300 秒 + 0~60 秒随机偏移
+int baseTtl = 300;
+int randomOffset = ThreadLocalRandom.current().nextInt(61);  // 0~60
+int ttl = baseTtl + randomOffset;
+redis.opsForValue().set(key, value, ttl, TimeUnit.SECONDS);
+```
+
+封装为工具方法，统一管理：
+
+```java
+public class CacheUtils {
+
+    private static final int BASE_TTL = 300;       // 基础 5 分钟
+    private static final int RANDOM_RANGE = 60;    // 随机 0~60 秒
+
+    /**
+     * 设置带随机偏移的缓存
+     */
+    public static void setWithRandomTtl(StringRedisTemplate redis,
+                                         String key, String value) {
+        int ttl = BASE_TTL + ThreadLocalRandom.current().nextInt(RANDOM_RANGE + 1);
+        redis.opsForValue().set(key, value, ttl, TimeUnit.SECONDS);
+    }
+}
 ```
 
 要点：
@@ -35,7 +56,7 @@ redis.set(key, value, ttl);
 
 ## 3. 多级缓存
 
-在 Redis 之上再加一层「本地缓存」（如 Caffeine、Guava Cache），形成多级缓存：
+在 Redis 之上再加一层「本地缓存」（如 Caffeine），形成多级缓存：
 
 ![多级缓存流程](/redis/03-cache-engineering-chapter-03-avalanche-2.svg)
 
@@ -46,6 +67,83 @@ redis.set(key, value, ttl);
 | DB | 最终数据源 | 最慢 |
 
 即使 Redis 宕机，本地缓存仍能兜住一部分热点请求，减少直达数据库的压力。
+
+### 3.1 Caffeine + Redis 实现
+
+```xml
+<!-- pom.xml -->
+<dependency>
+    <groupId>com.github.ben-manes.caffeine</groupId>
+    <artifactId>caffeine</artifactId>
+    <version>3.1.8</version>
+</dependency>
+```
+
+```java
+@Service
+public class MultiLevelCacheService {
+
+    private final Cache<Long, User> localCache;
+    private final StringRedisTemplate redis;
+    private final UserMapper userMapper;
+
+    public MultiLevelCacheService(StringRedisTemplate redis, UserMapper userMapper) {
+        this.redis = redis;
+        this.userMapper = userMapper;
+
+        // L1：本地缓存，最大 1000 条，5 分钟过期
+        this.localCache = Caffeine.newBuilder()
+            .maximumSize(1000)
+            .expireAfterWrite(5, TimeUnit.MINUTES)
+            .build();
+    }
+
+    public User getUser(Long userId) {
+        // L1：查本地缓存
+        User user = localCache.getIfPresent(userId);
+        if (user != null) {
+            return user;
+        }
+
+        // L2：查 Redis
+        String cached = redis.opsForValue().get("user:" + userId);
+        if (cached != null) {
+            user = JSON.parseObject(cached, User.class);
+            localCache.put(userId, user);  // 回填 L1
+            return user;
+        }
+
+        // L3：查数据库
+        user = userMapper.selectById(userId);
+        if (user != null) {
+            // 回填 L2（带随机 TTL 防雪崩）
+            CacheUtils.setWithRandomTtl(redis, "user:" + userId,
+                JSON.toJSONString(user));
+            localCache.put(userId, user);  // 回填 L1
+        }
+        return user;
+    }
+
+    /**
+     * 写入时清除所有层级
+     */
+    public void updateUser(Long userId, User user) {
+        userMapper.updateById(user);
+        redis.delete("user:" + userId);    // 清 L2
+        localCache.invalidate(userId);      // 清 L1
+    }
+}
+```
+
+多级缓存的读取顺序和穿透防护：
+
+```text
+L1 命中 → 直接返回（最快，微秒级）
+L1 未命中 → L2 命中 → 回填 L1，返回
+L1/L2 均未命中 → L3（DB）→ 回填 L2 + L1，返回
+```
+
+> 本地缓存的坑：各实例的本地缓存是独立的，实例 A 更新了数据，实例 B 的本地缓存还是旧值。解决方式：写入时通过消息广播通知各实例清除本地缓存，或接受短暂不一致（本地缓存 TTL 设短一些）。
 
 ## 4. 熔断与降级
 
@@ -58,6 +156,85 @@ redis.set(key, value, ttl);
 | 限流 | 限制打到数据库的请求速率 |
 
 ![熔断降级流程](/redis/03-cache-engineering-chapter-03-avalanche-3.svg)
+
+### 4.1 Sentinel 熔断降级
+
+```xml
+<!-- pom.xml -->
+<dependency>
+    <groupId>com.alibaba.csp</groupId>
+    <artifactId>sentinel-core</artifactId>
+    <version>1.8.7</version>
+</dependency>
+<dependency>
+    <groupId>com.alibaba.csp</groupId>
+    <artifactId>sentinel-annotation-aspectj</artifactId>
+    <version>1.8.7</version>
+</dependency>
+```
+
+```java
+@Service
+public class ResilientUserService {
+
+    private final StringRedisTemplate redis;
+    private final UserMapper userMapper;
+
+    @SentinelResource(
+        value = "getUser",
+        fallback = "getUserFallback",       // 熔断降级走兜底
+        blockHandler = "getUserBlockHandler" // 限流走兜底
+    )
+    public User getUser(Long userId) {
+        String cached = redis.opsForValue().get("user:" + userId);
+        if (cached != null) {
+            return JSON.parseObject(cached, User.class);
+        }
+        User user = userMapper.selectById(userId);
+        if (user != null) {
+            redis.opsForValue().set("user:" + userId,
+                JSON.toJSONString(user), 5, TimeUnit.MINUTES);
+        }
+        return user;
+    }
+
+    /**
+     * 降级兜底：返回默认值，不查库
+     */
+    public User getUserFallback(Long userId, Throwable t) {
+        User fallback = new User();
+        fallback.setId(userId);
+        fallback.setName("用户信息暂时不可用");
+        return fallback;
+    }
+
+    /**
+     * 限流兜底
+     */
+    public User getUserBlockHandler(Long userId, BlockException e) {
+        return getUserFallback(userId, e);
+    }
+}
+```
+
+初始化 Sentinel 规则：
+
+```java
+@Configuration
+public class SentinelConfig {
+
+    @PostConstruct
+    public void initRules() {
+        // 降级规则：异常比例超过 50% 时熔断，持续 10 秒
+        DegradeRule rule = new DegradeRule("getUser")
+            .setGrade(CircuitBreakerStrategy.ERROR_RATIO.getType())
+            .setCount(0.5)
+            .setTimeWindow(10)
+            .setMinRequestAmount(5);
+        DegradeRuleManager.loadRules(Collections.singletonList(rule));
+    }
+}
+```
 
 ## 5. 三大问题对比
 

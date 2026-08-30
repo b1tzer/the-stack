@@ -1,6 +1,6 @@
 # 缓存一致性
 
-> 缓存与数据库是两份数据，如何保证它们一致，是缓存架构的核心难题。本章讲解几种写方案、主流的 Cache Aside 模式、延迟双删，以及基于 Binlog 的最终一致性方案。
+> 缓存与数据库是两份数据，如何保证它们一致，是缓存架构的核心难题。本章讲解几种写方案、主流的 Cache Aside 模式、延迟双删，以及基于 Binlog 的最终一致性方案，并给出 Spring Boot 落地代码。
 
 ## 1. 四种写方案
 
@@ -39,6 +39,66 @@ Cache Aside 的核心规则：
 
 先删缓存再更新数据库，存在「删缓存后、数据库还没更新完，此时有读请求回填旧值」的窗口；先更新数据库再删缓存，把「旧值回填」的窗口缩到最小。两者都无法做到绝对一致，但「先更新库、后删缓存」更接近正确。
 
+### 2.3 Spring Boot 完整实现
+
+```java
+@Service
+public class UserService {
+
+    private final StringRedisTemplate redis;
+    private final UserMapper userMapper;
+
+    /**
+     * 读路径：Cache Aside
+     */
+    public User getUser(Long userId) {
+        String cacheKey = "user:" + userId;
+
+        // 1. 先查缓存
+        String cached = redis.opsForValue().get(cacheKey);
+        if (cached != null) {
+            return JSON.parseObject(cached, User.class);
+        }
+
+        // 2. 查数据库
+        User user = userMapper.selectById(userId);
+        if (user != null) {
+            // 3. 回填缓存（带随机 TTL 防雪崩）
+            int ttl = 300 + ThreadLocalRandom.current().nextInt(61);
+            redis.opsForValue().set(cacheKey,
+                JSON.toJSONString(user), ttl, TimeUnit.SECONDS);
+        }
+        return user;
+    }
+
+    /**
+     * 写路径：先更新数据库，再删缓存
+     * 必须在事务提交后再删缓存，否则事务回滚但缓存已删，导致不一致
+     */
+    @Transactional
+    public void updateUser(Long userId, String name, int age) {
+        // 1. 先更新数据库
+        User user = new User();
+        user.setId(userId);
+        user.setName(name);
+        user.setAge(age);
+        userMapper.updateById(user);
+
+        // 2. 事务提交后再删缓存（见下方 TransactionSynchronization）
+        TransactionSynchronizationManager.registerSynchronization(
+            new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    redis.delete("user:" + userId);
+                }
+            }
+        );
+    }
+}
+```
+
+> 关键细节：删缓存必须在事务提交之后执行。如果在事务提交前删缓存，一旦事务回滚，数据库里是旧值，缓存已经被删了，下次读会把旧值重新写入缓存——造成持久不一致。`TransactionSynchronization.afterCommit()` 保证删缓存在事务提交后执行。
+
 ## 3. 延迟双删
 
 延迟双删用于进一步缩小「先删缓存再更新库」方案的并发窗口，或兜底删除失败的情况。
@@ -51,6 +111,24 @@ Cache Aside 的核心规则：
 ```
 
 ![延迟双删流程](/redis/03-cache-engineering-chapter-04-consistency-2.svg)
+
+### 3.1 实现
+
+```java
+public void updateUserWithDelayDoubleDelete(Long userId, User user) {
+    String cacheKey = "user:" + userId;
+
+    // 1. 先删缓存
+    redis.delete(cacheKey);
+
+    // 2. 更新数据库
+    userMapper.updateById(user);
+
+    // 3. 延迟后再删一次（异步，不阻塞主线程）
+    CompletableFuture.delayedExecutor(500, TimeUnit.MILLISECONDS)
+        .execute(() -> redis.delete(cacheKey));
+}
+```
 
 要点：
 
@@ -70,10 +148,70 @@ Cache Aside 的核心规则：
 
 Canal 模拟 MySQL 从库，订阅主库的 Binlog，解析出数据变更事件，再投递到消息队列，由消费端更新或删除缓存。
 
+### 4.1 架构
+
+```text
+MySQL → Canal Server → Kafka/RabbitMQ → 消费端 → 删除/更新 Redis 缓存
+```
+
+| 组件 | 职责 |
+| :-- | :-- |
+| Canal Server | 模拟 MySQL 从库，订阅 Binlog，解析行变更 |
+| 消息队列 | 解耦 Canal 与消费端，保证投递可靠性 |
+| 消费端 | 监听消息，删除或更新对应的 Redis 缓存 |
+
+### 4.2 消费端实现
+
+```java
+@Component
+public class CanalCacheConsumer {
+
+    private final StringRedisTemplate redis;
+
+    /**
+     * 监听 Canal 投递的 binlog 消息
+     * 消息格式：{"database":"db","table":"user","type":"UPDATE",
+     *           "data":[{"id":1,"name":"新名字"}]}
+     */
+    @KafkaListener(topics = "canal-user", groupId = "cache-sync")
+    public void onMessage(ConsumerRecord<String, String> record) {
+        JSONObject msg = JSON.parseObject(record.value());
+        String table = msg.getString("table");
+        if (!"user".equals(table)) return;
+
+        JSONArray data = msg.getJSONArray("data");
+        for (int i = 0; i < data.size(); i++) {
+            Long userId = data.getJSONObject(i).getLong("id");
+            // 删除缓存，下次读时自动回填
+            redis.delete("user:" + userId);
+        }
+    }
+}
+```
+
+### 4.3 特性
+
 | 特性 | 说明 |
 | :-- | :-- |
-| 解耦 | 缓存更新逻辑与业务代码解耦 |
+| 解耦 | 缓存更新逻辑与业务代码完全分离 |
 | 最终一致 | 异步同步，存在秒级延迟 |
 | 可靠 | 消息队列保证投递，可重试 |
+| 适用场景 | 对一致性要求较高、且能接受秒级延迟的业务 |
 
-适用场景：对一致性要求较高、且能接受秒级延迟的业务；希望把缓存更新从业务代码中剥离的架构。
+> Canal 方案的优势在于：业务代码完全不感知缓存更新逻辑，所有同步工作由独立的消费端完成。缺点是引入了额外组件（Canal + MQ），运维复杂度增加。
+
+## 5. 方案选型
+
+| 维度 | Cache Aside | 延迟双删 | Canal |
+| :-- | :-- | :-- | :-- |
+| 一致性强度 | 中等 | 较强 | 最终一致 |
+| 实现复杂度 | 低 | 低 | 高（需引入 Canal + MQ） |
+| 业务侵入 | 中（Service 层删缓存） | 中 | 低（完全解耦） |
+| 性能影响 | 低 | 低（异步延迟） | 低（异步） |
+| 适用场景 | 大多数业务 | 并发写频繁 | 多服务共享同一数据源 |
+
+选型建议：
+
+- 大多数场景 → Cache Aside（先更新库，后删缓存 + 事务提交后删）
+- 并发写频繁、一致性要求高 → 延迟双删
+- 多服务共享数据、希望业务解耦 → Canal + MQ

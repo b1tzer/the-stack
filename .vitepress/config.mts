@@ -748,6 +748,9 @@ export default withOpenInEditor(defineConfig({
             { text: '雪崩', link: '/redis/03-cache-engineering/chapter-03-avalanche' },
             { text: '一致性', link: '/redis/03-cache-engineering/chapter-04-consistency' },
             { text: '大 Key 与热 Key', link: '/redis/03-cache-engineering/chapter-05-big-hot-key' },
+            { text: '缓存模式全景', link: '/redis/03-cache-engineering/chapter-06-cache-patterns' },
+            { text: '多级缓存实战', link: '/redis/03-cache-engineering/chapter-07-multi-level-cache' },
+            { text: '雪崩纵深防御', link: '/redis/03-cache-engineering/chapter-08-avalanche-defense' },
           ],
         },
         {
