@@ -109,16 +109,11 @@ export default withOpenInEditor(defineConfig({
         {
           text: '实战',
           items: [
-            { text: 'Spring 中的模式', link: '/design-pattern/04-practice/chapter-01-spring-patterns' },
-            { text: 'JDK 中的模式', link: '/design-pattern/04-practice/chapter-02-jdk-patterns' },
-            { text: '重构到模式', link: '/design-pattern/04-practice/chapter-03-refactoring-to-patterns' },
-            { text: '反模式', link: '/design-pattern/04-practice/chapter-04-anti-patterns' },
-          ],
-        },
-        {
-          text: '教程',
-          items: [
-            { text: '设计模式入门', link: '/design-pattern/tutorials/getting-started' },
+            { text: '设计模式入门', link: '/design-pattern/04-practice/chapter-01-getting-started' },
+            { text: 'Spring 中的模式', link: '/design-pattern/04-practice/chapter-02-spring-patterns' },
+            { text: 'JDK 中的模式', link: '/design-pattern/04-practice/chapter-03-jdk-patterns' },
+            { text: '重构到模式', link: '/design-pattern/04-practice/chapter-04-refactoring-to-patterns' },
+            { text: '反模式', link: '/design-pattern/04-practice/chapter-05-anti-patterns' },
           ],
         },
         {
@@ -224,18 +219,13 @@ export default withOpenInEditor(defineConfig({
         {
           text: '实战场景',
           items: [
-            { text: 'Spring 集成', link: '/elasticsearch/10-practice/chapter-01-spring-integration' },
-            { text: '日志分析', link: '/elasticsearch/10-practice/chapter-02-log-analysis' },
-            { text: '搜索引擎', link: '/elasticsearch/10-practice/chapter-03-search-engine' },
-            { text: '数据同步', link: '/elasticsearch/10-practice/chapter-04-data-sync' },
-          ],
-        },
-        {
-          text: '教程',
-          items: [
-            { text: '安装部署与环境配置', link: '/elasticsearch/tutorials/installation' },
-            { text: '第一个 ES 应用', link: '/elasticsearch/tutorials/first-app' },
-            { text: '首次生产部署', link: '/elasticsearch/tutorials/first-production' },
+            { text: '安装部署与环境配置', link: '/elasticsearch/10-practice/chapter-01-installation' },
+            { text: '第一个 ES 应用', link: '/elasticsearch/10-practice/chapter-02-first-app' },
+            { text: '首次生产部署', link: '/elasticsearch/10-practice/chapter-03-first-production' },
+            { text: 'Spring 集成', link: '/elasticsearch/10-practice/chapter-04-spring-integration' },
+            { text: '日志分析', link: '/elasticsearch/10-practice/chapter-05-log-analysis' },
+            { text: '搜索引擎', link: '/elasticsearch/10-practice/chapter-06-search-engine' },
+            { text: '数据同步', link: '/elasticsearch/10-practice/chapter-07-data-sync' },
           ],
         },
         {
@@ -301,7 +291,6 @@ export default withOpenInEditor(defineConfig({
         {
           text: '工程实践',
           items: [
-            { text: 'Git 工作流', link: '/engineering/06-engineering-practices/chapter-01-git-workflow' },
             { text: 'Code Review', link: '/engineering/06-engineering-practices/chapter-02-code-review' },
             { text: '测试', link: '/engineering/06-engineering-practices/chapter-03-testing' },
             { text: 'CI/CD', link: '/engineering/06-engineering-practices/chapter-04-cicd' },
@@ -331,17 +320,12 @@ export default withOpenInEditor(defineConfig({
         {
           text: '实战场景',
           items: [
-            { text: 'API 设计', link: '/engineering/09-practice/chapter-01-api-design' },
-            { text: '数据建模', link: '/engineering/09-practice/chapter-02-data-modeling' },
-            { text: '性能调优', link: '/engineering/09-practice/chapter-03-performance-tuning' },
-            { text: '案例分析', link: '/engineering/09-practice/chapter-04-case-studies' },
-          ],
-        },
-        {
-          text: '教程',
-          items: [
-            { text: '软件工程入门', link: '/engineering/tutorials/getting-started' },
-            { text: 'Git 工作流', link: '/engineering/tutorials/git-workflow' },
+            { text: '软件工程入门', link: '/engineering/09-practice/chapter-01-getting-started' },
+            { text: 'Git 工作流', link: '/engineering/09-practice/chapter-02-git-workflow' },
+            { text: 'API 设计', link: '/engineering/09-practice/chapter-03-api-design' },
+            { text: '数据建模', link: '/engineering/09-practice/chapter-04-data-modeling' },
+            { text: '性能调优', link: '/engineering/09-practice/chapter-05-performance-tuning' },
+            { text: '案例分析', link: '/engineering/09-practice/chapter-06-case-studies' },
           ],
         },
         {
@@ -505,17 +489,12 @@ export default withOpenInEditor(defineConfig({
         {
           text: '实战场景',
           items: [
-            { text: 'Spring 集成', link: '/kafka/09-practice/chapter-01-spring-integration' },
-            { text: '常见场景', link: '/kafka/09-practice/chapter-02-common-patterns' },
-            { text: '性能调优', link: '/kafka/09-practice/chapter-03-performance-tuning' },
-          ],
-        },
-        {
-          text: '教程',
-          items: [
-            { text: '安装部署与环境配置', link: '/kafka/tutorials/installation' },
-            { text: '第一个 Kafka 应用', link: '/kafka/tutorials/first-app' },
-            { text: '首次生产部署', link: '/kafka/tutorials/first-production' },
+            { text: '安装部署与环境配置', link: '/kafka/09-practice/chapter-01-installation' },
+            { text: '第一个 Kafka 应用', link: '/kafka/09-practice/chapter-02-first-app' },
+            { text: '首次生产部署', link: '/kafka/09-practice/chapter-03-first-production' },
+            { text: 'Spring 集成', link: '/kafka/09-practice/chapter-04-spring-integration' },
+            { text: '常见场景', link: '/kafka/09-practice/chapter-05-common-patterns' },
+            { text: '性能调优', link: '/kafka/09-practice/chapter-06-performance-tuning' },
           ],
         },
         {
@@ -619,18 +598,13 @@ export default withOpenInEditor(defineConfig({
         {
           text: '实战场景',
           items: [
-            { text: '电商订单系统', link: '/rabbitmq/10-practice/chapter-01-order-system' },
-            { text: '事件驱动架构', link: '/rabbitmq/10-practice/chapter-02-event-driven' },
-            { text: '可靠性模式', link: '/rabbitmq/10-practice/chapter-03-reliability-patterns' },
-            { text: '性能基准', link: '/rabbitmq/10-practice/chapter-04-performance-benchmark' },
-          ],
-        },
-        {
-          text: '教程',
-          items: [
-            { text: '安装部署与环境配置', link: '/rabbitmq/tutorials/installation' },
-            { text: '第一个 RabbitMQ 应用', link: '/rabbitmq/tutorials/first-app' },
-            { text: '首次生产部署', link: '/rabbitmq/tutorials/first-production' },
+            { text: '安装部署与环境配置', link: '/rabbitmq/10-practice/chapter-01-installation' },
+            { text: '第一个 RabbitMQ 应用', link: '/rabbitmq/10-practice/chapter-02-first-app' },
+            { text: '首次生产部署', link: '/rabbitmq/10-practice/chapter-03-first-production' },
+            { text: '电商订单系统', link: '/rabbitmq/10-practice/chapter-04-order-system' },
+            { text: '事件驱动架构', link: '/rabbitmq/10-practice/chapter-05-event-driven' },
+            { text: '可靠性模式', link: '/rabbitmq/10-practice/chapter-06-reliability-patterns' },
+            { text: '性能基准', link: '/rabbitmq/10-practice/chapter-07-performance-benchmark' },
           ],
         },
         {
@@ -735,18 +709,13 @@ export default withOpenInEditor(defineConfig({
         {
           text: '实战场景',
           items: [
-            { text: 'Spring 集成', link: '/mysql/10-practice/chapter-01-spring-integration' },
-            { text: '常见问题', link: '/mysql/10-practice/chapter-02-common-issues' },
-            { text: '性能调优', link: '/mysql/10-practice/chapter-03-performance-tuning' },
-          ],
-        },
-        {
-          text: '教程',
-          items: [
-            { text: '安装部署与环境配置', link: '/mysql/tutorials/installation' },
-            { text: '第一个数据库', link: '/mysql/tutorials/first-db' },
-            { text: 'MySQL 转 PostgreSQL', link: '/mysql/tutorials/mysql-to-pg' },
-            { text: '首次生产部署', link: '/mysql/tutorials/first-production' },
+            { text: '安装部署与环境配置', link: '/mysql/10-practice/chapter-01-installation' },
+            { text: '第一个数据库', link: '/mysql/10-practice/chapter-02-first-db' },
+            { text: 'MySQL 转 PostgreSQL', link: '/mysql/10-practice/chapter-03-mysql-to-pg' },
+            { text: '首次生产部署', link: '/mysql/10-practice/chapter-04-first-production' },
+            { text: 'Spring 集成', link: '/mysql/10-practice/chapter-05-spring-integration' },
+            { text: '常见问题', link: '/mysql/10-practice/chapter-06-common-issues' },
+            { text: '性能调优', link: '/mysql/10-practice/chapter-07-performance-tuning' },
           ],
         },
         {
@@ -945,15 +914,15 @@ export default withOpenInEditor(defineConfig({
             { text: '排障', link: '/redis/05-operations/chapter-02-troubleshooting' },
             { text: '监控', link: '/redis/05-operations/chapter-03-monitoring' },
             { text: '踩坑', link: '/redis/05-operations/chapter-04-pitfalls' },
-            { text: '实战项目', link: '/redis/05-operations/chapter-05-hands-on-project' },
           ],
         },
         {
-          text: '教程',
+          text: '实战场景',
           items: [
-            { text: '安装部署与环境配置', link: '/redis/tutorials/installation' },
-            { text: '第一个 Redis 应用', link: '/redis/tutorials/first-app' },
-            { text: '首次生产部署', link: '/redis/tutorials/first-production' },
+            { text: '安装部署与环境配置', link: '/redis/10-practice/chapter-01-installation' },
+            { text: '第一个 Redis 应用', link: '/redis/10-practice/chapter-02-first-app' },
+            { text: '首次生产部署', link: '/redis/10-practice/chapter-03-first-production' },
+            { text: '实战项目', link: '/redis/10-practice/chapter-04-hands-on-project' },
           ],
         },
         {
@@ -1076,11 +1045,11 @@ export default withOpenInEditor(defineConfig({
           ],
         },
         {
-          text: '教程',
+          text: '实战场景',
           items: [
-            { text: '构建与部署', link: '/spring/tutorials/build-deploy' },
-            { text: '第一个 Spring Boot 应用', link: '/spring/tutorials/first-app' },
-            { text: '首次生产部署', link: '/spring/tutorials/first-production' },
+            { text: '构建与部署', link: '/spring/11-practice/chapter-01-build-deploy' },
+            { text: '第一个 Spring Boot 应用', link: '/spring/11-practice/chapter-02-first-app' },
+            { text: '首次生产部署', link: '/spring/11-practice/chapter-03-first-production' },
           ],
         },
         {
