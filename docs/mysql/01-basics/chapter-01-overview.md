@@ -25,6 +25,20 @@ MySQL 是最流行的开源关系型数据库管理系统，由 Oracle 维护。
 | 许可证 | GPL (Oracle) | PostgreSQL | GPL (社区) | 商业 |
 | 适用场景 | 互联网/高并发 | 企业级/复杂查询 | 兼容 MySQL | 金融/电信 |
 
+### 3.1 性能基准（sysbench OLTP）
+
+sysbench 是评估 MySQL/PostgreSQL/MariaDB 最常用的基准工具，`oltp_read_write` 负载模拟典型 Web 应用（每事务约 18 次读、6 次写）。第三方横评在相同硬件下测得的结果（2026，单位 TPS，越高越好）：
+
+| 并发线程 | MariaDB 11 | MySQL 8.4 | PostgreSQL 17 |
+| :-- | --: | --: | --: |
+| 16 | 2,840 | 2,920 | 3,180 |
+| 64 | 8,200 | 8,540 | 9,800 |
+| 256 | 11,200 | 11,800 | 14,400 |
+
+在混合读写 OLTP 场景下，MySQL 与 MariaDB 基本持平（同源于 InnoDB 存储引擎），PostgreSQL 在更高并发下略有优势。性能不是选型的决定性因素，**功能需求与生态匹配才是**。
+
+> — [MariaDB 11 vs MySQL 8.4 vs PostgreSQL 17 OLTP Benchmark（2026）](https://dargslan.com/blog/mariadb-11-vs-mysql-8-4-vs-postgresql-17-oltp-benchmark-2026)
+
 ## 4. 存储引擎
 
 ```sql
@@ -39,15 +53,47 @@ SHOW ENGINES;
 
 ## 5. MySQL 发展历史
 
+MySQL 的起点是一个真实的生产瓶颈，源于创始人自研工具的局限。
+
+### 5.1 起因：UNIREG 无法支撑 Web
+
+1979 年，芬兰程序员 Michael Widenius（网名 Monty）为瑞典公司 TcX 开发了基于 ISAM 的内部数据库工具 **UNIREG**。1994 年 TcX 开始开发 Web 应用，需要给 UNIREG 加上 SQL 接口。团队评估了当时流行的轻量级数据库 **mSQL**（David Hughes 开发），结论是 mSQL **不支持索引、性能不够**。Monty 联系 Hughes 提议把 UNIREG 的 ISAM 存储层接入 mSQL，被拒绝——Hughes 已在开发自己的 mSQL 2。
+
+于是 Monty 决定自己实现：基于 UNIREG 的快速存储层，套用与 mSQL 几乎相同的 API，方便已有 mSQL 用户迁移。1995 年 5 月 23 日，MySQL 首次发布。
+
+### 5.2 谁在主导
+
+| 人物 | 角色 |
+| :-- | :-- |
+| Michael "Monty" Widenius | 核心作者，独自编写了大部分代码 |
+| David Axmark | 联合创始人，提出「开源 + 商业支持」的双许可模式 |
+| Allan Larsson | 联合创始人，负责公司运营 |
+
+三人于 1995 年共同成立瑞典公司 **MySQL AB**。「MySQL」的名字来自 Monty 的长女 **My**（后来他分叉出的 MariaDB 则取自幼女 Maria）。
+
+### 5.3 收购史与现在的维护者
+
 | 时间 | 事件 |
-|------|------|
-| 1995 | MySQL 1.0 发布，由 Michael Widenius 和 David Axmark 创建 |
-| 2000 | MySQL 采用 GPL 开源协议 |
-| 2008 | Sun Microsystems 以 10 亿美元收购 MySQL AB |
-| 2010 | Oracle 收购 Sun，获得 MySQL |
-| 2016 | MySQL 8.0 开发分支发布 |
-| 2018 | MySQL 8.0 GA 正式发布 |
-| 2024 | MySQL 8.4 LTS 版本发布 |
+| :-- | :-- |
+| 1995 | MySQL AB 成立，发布 MySQL |
+| 2000 | 采用 GPL 开源 |
+| 2008 | Sun Microsystems 以约 10 亿美元收购 MySQL AB |
+| 2010 | Oracle 收购 Sun，MySQL 归属 Oracle |
+
+现在 MySQL 由 **Oracle** 维护。Oracle 的收购引发了社区担忧：Monty 在 Oracle 宣布收购 Sun 的当天就 fork 出 **MariaDB**，并带走一批核心开发者，理由是担心 Oracle 不会善待 MySQL 社区版。MariaDB 成为 MySQL 最主流的开源替代分支（详见 §9）。
+
+### 5.4 发版节奏
+
+自 2023 年起，Oracle 将 MySQL 拆成两条发布线：
+
+| 发布线 | 版本举例 | 节奏 | 支持策略 |
+| :-- | :-- | :-- | :-- |
+| **LTS**（长期支持） | 8.0、8.4 | 约每 2 年一个 | 5 年 Premier + 3 年 Extended |
+| **Innovation**（创新） | 8.1~8.3、9.x | 每季度一个 | 仅维护到下一个版本发布 |
+
+8.4 LTS（2024-04）是首个 LTS，支持至 2032 年；8.0 于 2026-04 EOL。
+
+> 常见误区是「版本号越大支持越久」：9.x 版本号比 8.4 新，但支持窗口只有几个月；8.4 LTS 却支持到 2032 年。生产环境若不打算每季度滚动升级，应选 LTS。
 
 ## 6. 适用场景
 
@@ -215,4 +261,12 @@ MariaDB 是 MySQL 的分支，由原始创建者维护。
 5. **新项目选择 8.4 LTS** — 长期支持至 2032 年，稳定性优先
 6. **评估是否需要上云** — 无 DBA 团队优先考虑云 RDS
 7. **关注 MySQL vs MariaDB** — 根据团队和生态选择
+
+## 12. 参考资料
+
+- MySQL 官方手册：[The History of MySQL](https://docstore.mik.ua/orelly/weblinux2/mysql/ch01_02.htm)
+- MySQL 官方博客：[Introducing MySQL Innovation and Long-Term Support (LTS) versions](https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions)
+- Wikipedia：[MySQL](https://en.wikipedia.org/wiki/MySQL)
+- endoflife.date：[MySQL 版本与支持策略](https://endoflife.date/mysql)
+- 第三方 benchmark：[MariaDB 11 vs MySQL 8.4 vs PostgreSQL 17 OLTP Benchmark](https://dargslan.com/blog/mariadb-11-vs-mysql-8-4-vs-postgresql-17-oltp-benchmark-2026)
 

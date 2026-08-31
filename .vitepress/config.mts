@@ -1,8 +1,9 @@
 import { defineConfig } from 'vitepress'
 import { svgEditorPlugin, svgDiagramMarkdownPlugin } from 'vitepress-plugin-svg-editor'
 import { withOpenInEditor } from 'vitepress-plugin-open-in-editor'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 
-export default withOpenInEditor(defineConfig({
+export default withOpenInEditor(withMermaid(defineConfig({
   title: 'The Stack',
   description: '系统化的 Java 后端技术分析',
   lang: 'zh-CN',
@@ -15,6 +16,9 @@ export default withOpenInEditor(defineConfig({
         storage: 'vitepress',
       }),
     ],
+    optimizeDeps: {
+      include: ['fastdom', 'fastdom/extensions/fastdom-promised.js'],
+    },
   },
   markdown: {
     config(md) {
@@ -217,7 +221,7 @@ export default withOpenInEditor(defineConfig({
           ],
         },
         {
-          text: '实战场景',
+          text: '实战',
           items: [
             { text: '安装部署与环境配置', link: '/elasticsearch/10-practice/chapter-01-installation' },
             { text: '第一个 ES 应用', link: '/elasticsearch/10-practice/chapter-02-first-app' },
@@ -318,7 +322,7 @@ export default withOpenInEditor(defineConfig({
           ],
         },
         {
-          text: '实战场景',
+          text: '实战',
           items: [
             { text: '软件工程入门', link: '/engineering/09-practice/chapter-01-getting-started' },
             { text: 'Git 工作流', link: '/engineering/09-practice/chapter-02-git-workflow' },
@@ -487,7 +491,7 @@ export default withOpenInEditor(defineConfig({
           ],
         },
         {
-          text: '实战场景',
+          text: '实战',
           items: [
             { text: '安装部署与环境配置', link: '/kafka/09-practice/chapter-01-installation' },
             { text: '第一个 Kafka 应用', link: '/kafka/09-practice/chapter-02-first-app' },
@@ -596,7 +600,7 @@ export default withOpenInEditor(defineConfig({
           ],
         },
         {
-          text: '实战场景',
+          text: '实战',
           items: [
             { text: '安装部署与环境配置', link: '/rabbitmq/10-practice/chapter-01-installation' },
             { text: '第一个 RabbitMQ 应用', link: '/rabbitmq/10-practice/chapter-02-first-app' },
@@ -707,7 +711,7 @@ export default withOpenInEditor(defineConfig({
           ],
         },
         {
-          text: '实战场景',
+          text: '实战',
           items: [
             { text: '安装部署与环境配置', link: '/mysql/10-practice/chapter-01-installation' },
             { text: '第一个数据库', link: '/mysql/10-practice/chapter-02-first-db' },
@@ -917,7 +921,7 @@ export default withOpenInEditor(defineConfig({
           ],
         },
         {
-          text: '实战场景',
+          text: '实战',
           items: [
             { text: '安装部署与环境配置', link: '/redis/10-practice/chapter-01-installation' },
             { text: '第一个 Redis 应用', link: '/redis/10-practice/chapter-02-first-app' },
@@ -1045,7 +1049,7 @@ export default withOpenInEditor(defineConfig({
           ],
         },
         {
-          text: '实战场景',
+          text: '实战',
           items: [
             { text: '构建与部署', link: '/spring/11-practice/chapter-01-build-deploy' },
             { text: '第一个 Spring Boot 应用', link: '/spring/11-practice/chapter-02-first-app' },
@@ -1075,4 +1079,4 @@ export default withOpenInEditor(defineConfig({
       provider: 'local'
     }
   }
-}))
+})))
