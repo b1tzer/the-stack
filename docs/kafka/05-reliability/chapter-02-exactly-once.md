@@ -1,70 +1,156 @@
-# Exactly Once
+# Exactly Once 语义
 
-> Kafka 的"精确一次"语义（Exactly Once Semantics）保证消息既不丢也不重复。
+> Exactly Once 是消息系统的最高可靠性保证：消息恰好被处理一次，不丢不重。本章讲清三种语义的区别、幂等生产者原理、事务机制，以及消费端的 Exactly Once 实现。
 
 ## 1. 三种语义
 
-| 语义 | 含义 | 实现难度 |
-|------|------|----------|
-| At Most Once | 最多一次，可能丢消息 | 简单 |
-| At Least Once | 最少一次，可能重复 | 中等 |
-| Exactly Once | 精确一次，不丢不重 | 复杂 |
+| 语义 | 说明 | 实现 |
+| :-- | :-- | :-- |
+| At Most Once | 最多一次，可能丢消息 | acks=0 |
+| At Least Once | 至少一次，可能重复 | acks=all + 重试 |
+| Exactly Once | 恰好一次，不丢不重 | 幂等 + 事务 |
 
-## 2. Kafka 的 Exactly Once 实现
+## 2. 幂等生产者
 
-### 2.1 Producer 端：幂等 + 事务
+### 2.1 原理
+
+每个生产者实例被分配一个唯一的 Producer ID（PID），每条消息附带一个 Sequence Number：
+
+```text
+Producer 启动 → InitProducerIdRequest → Broker 分配 PID=100
+
+发送消息：
+  msg1: (PID=100, Seq=0)
+  msg2: (PID=100, Seq=1)
+  msg3: (PID=100, Seq=2)
+
+Broker 端：
+  维护每个 PID 的期望 Sequence
+  收到 (PID=100, Seq=0) → 期望=0，匹配，写入，期望=1
+  收到 (PID=100, Seq=1) → 期望=1，匹配，写入，期望=2
+  收到 (PID=100, Seq=0) → 期望=2，不匹配，丢弃（重复）
+```
+
+### 2.2 配置
 
 ```java
+props.put("enable.idempotence", true);       // 开启幂等
+props.put("acks", "all");                    // 必须
+props.put("retries", Integer.MAX_VALUE);     // 无限重试
+props.put("max.in.flight.requests.per.connection", 5);
+```
+
+### 2.3 限制
+
+| 限制 | 说明 |
+| :-- | :-- |
+| 单分区 | 幂等只保证单分区内不重复 |
+| 单会话 | PID 在 Producer 重启后重新分配 |
+| 不跨分区 | 不能保证跨分区的原子性 |
+
+## 3. 事务生产者
+
+事务解决了幂等的限制——支持跨分区原子写入。
+
+### 3.1 事务流程
+
+```java
+Properties props = new Properties();
+props.put("transactional.id", "my-transactional-id");  // 事务 ID
 props.put("enable.idempotence", true);
-props.put("transactional.id", "order-producer-1");
+props.put("acks", "all");
 
 KafkaProducer<String, String> producer = new KafkaProducer<>(props);
-producer.initTransactions();
+producer.initTransactions();  // 初始化事务
 
 try {
     producer.beginTransaction();
-    producer.send(new ProducerRecord<>("orders", "key1", "value1"));
-    producer.send(new ProducerRecord<>("orders", "key2", "value2"));
-    producer.commitTransaction();
+    producer.send(new ProducerRecord<>("topic1", "key1", "value1"));
+    producer.send(new ProducerRecord<>("topic2", "key2", "value2"));
+    producer.commitTransaction();  // 原子提交
 } catch (Exception e) {
-    producer.abortTransaction();
+    producer.abortTransaction();  // 回滚
 }
 ```
 
-**幂等保证**：同一个 Producer ID + Sequence Number 的消息只写入一次。
+### 3.2 Transaction Coordinator
 
-**事务保证**：多条消息要么全部成功，要么全部失败。
-
-### 2.2 Consumer 端：read_committed
-
-```java
-props.put("isolation.level", "read_committed");
-```
-
-Consumer 只读取已提交事务的消息。
-
-## 3. 端到端 Exactly Once
+事务由 Transaction Coordinator 管理：
 
 ```text
-Producer（幂等+事务）→ Kafka（持久化）→ Consumer（手动提交）
+Producer → Transaction Coordinator：
+  InitProducerId：获取 PID + Epoch
+  AddPartitionsToTxn：注册事务涉及的分区
+  EndTxn：提交或回滚
 
-要实现端到端 Exactly Once：
-  1. Producer 幂等 + 事务
-  2. Consumer 手动提交 Offset
-  3. Consumer 处理逻辑幂等（数据库唯一约束等）
+Transaction Coordinator → __transaction_state：
+  写入事务状态日志
+  两阶段提交：Prepare → Commit/Abort
 ```
 
-## 4. 事务的性能开销
+### 3.3 事务隔离级别
 
-| 维度 | 无事务 | 有事务 |
-|------|--------|--------|
-| 吞吐量 | 高 | 降低 10-30% |
-| 延迟 | 低 | 稍高 |
-| 适用场景 | 日志收集 | 金融、订单 |
+```java
+// 消费者配置
+props.put("isolation.level", "read_committed");  // 只读已提交的事务消息
+// 或
+props.put("isolation.level", "read_uncommitted");  // 读所有消息（包括未提交）
+```
 
-## 5. 最佳实践
+| 隔离级别 | 说明 |
+| :-- | :-- |
+| `read_uncommitted` | 默认，读所有消息（包括未提交事务的） |
+| `read_committed` | 只读已提交事务的消息 |
 
-1. **开启幂等**：`enable.idempotence=true`（几乎无性能损失）
-2. **需要原子性时用事务**：多条消息要么全成功要么全失败
-3. **Consumer 端做幂等**：即使 Exactly Once 也可能有边界情况
-4. **read_committed + 手动提交**：Consumer 端的可靠保证
+## 4. 消费端 Exactly Once
+
+Kafka 的事务只保证生产端的 Exactly Once。消费端的 Exactly Once 需要额外处理：
+
+### 4.1 手动提交 + 幂等处理
+
+```java
+while (true) {
+    ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
+    for (ConsumerRecord<String, String> record : records) {
+        // 幂等处理（如用数据库唯一键去重）
+        processIdempotent(record);
+    }
+    consumer.commitSync();  // 处理完提交
+}
+```
+
+### 4.2 事务消费（Kafka → Kafka）
+
+```java
+// 从一个 Topic 消费，处理后写入另一个 Topic，原子性
+consumer.subscribe(Collections.singletonList("input-topic"));
+producer.initTransactions();
+
+while (true) {
+    ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
+    producer.beginTransaction();
+    for (ConsumerRecord<String, String> record : records) {
+        producer.send(new ProducerRecord<>("output-topic", record.key(), process(record)));
+    }
+    // 原子提交：输出 Topic 的消息 + 输入 Topic 的 Offset
+    producer.sendOffsetsToTransaction(offsets, consumer.groupMetadata());
+    producer.commitTransaction();
+}
+```
+
+## 5. Exactly Once 的代价
+
+| 代价 | 说明 |
+| :-- | :-- |
+| 性能下降 | 事务需要两阶段提交，增加延迟 |
+| 复杂度增加 | 需要配置 transactional.id、isolation.level |
+| 存储开销 | 事务状态日志占用存储 |
+
+> 大多数场景用 At Least Once + 幂等消费就够了。只有 Kafka → Kafka 的流处理场景才需要完整的 Exactly Once。
+
+## 6. 最佳实践
+
+1. **生产环境开启幂等**：`enable.idempotence=true`，几乎无性能损耗。
+2. **事务场景用 read_committed**：避免读到未提交的消息。
+3. **消费端做幂等**：数据库唯一键、Redis SETNX 去重。
+4. **Kafka → Kafka 用事务**：原子提交 Offset + 输出消息。

@@ -1,100 +1,145 @@
 # Offset 管理
 
-> Offset 是 Consumer 在 Partition 中的消费位置。管理好 Offset 是保证"不丢消息、不重复消费"的关键。
-
-## 1. Offset 的含义
-
-```text
-Partition 0: [msg0][msg1][msg2][msg3][msg4][msg5]...
-                                              ↑
-                                        committed offset = 5
-                                        下次消费从 offset 5 开始
-```
-
-## 2. 自动提交 vs 手动提交
-
-### 自动提交（enable.auto.commit=true）
-
-```text
-每 auto.commit.interval.ms（默认5秒）自动提交当前最大 offset
-  → 可能提交了还没处理完的消息 offset
-  → Consumer 崩溃后，未处理的消息被跳过（消息丢失）
-```
-
-### 手动提交（enable.auto.commit=false）
+## 1. 自动提交
 
 ```java
-consumer.subscribe(List.of("orders"));
-
-while (true) {
-    ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
-    for (ConsumerRecord<String, String> record : records) {
-        processRecord(record);
-    }
-    consumer.commitSync();  // 处理完后手动提交
-}
+props.put("enable.auto.commit", true);
+props.put("auto.commit.interval.ms", 5000);
 ```
 
-## 3. 提交粒度
+问题：可能丢消息或重复消费。
 
-### 同步提交（commitSync）
-
-```java
-consumer.commitSync();  // 阻塞直到提交成功
-```
-
-- 可靠，但性能差
-- 适用于对可靠性要求高的场景
-
-### 异步提交（commitAsync）
+## 2. 手动提交
 
 ```java
+// 同步提交
+consumer.commitSync();
+
+// 异步提交
 consumer.commitAsync((offsets, exception) -> {
     if (exception != null) {
-        log.error("Commit failed", exception);
+        System.err.println("Commit failed: " + exception);
     }
 });
+
+// 指定 Offset 提交
+consumer.commitSync(Collections.singletonMap(
+    new TopicPartition("topic", 0), 
+    new OffsetAndMetadata(offset + 1)
+));
 ```
 
-- 性能好，但可能丢失提交结果
-- 适用于高吞吐场景
-
-### 分区级别提交
-
-```java
-Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>();
-offsets.put(new TopicPartition("orders", 0), new OffsetAndMetadata(100));
-offsets.put(new TopicPartition("orders", 1), new OffsetAndMetadata(200));
-consumer.commitSync(offsets);
-```
-
-## 4. Offset 存储位置
-
-| 版本 | 存储位置 |
-|------|---------|
-| 0.9 之前 | ZooKeeper |
-| 0.9+ | 内部 Topic `__consumer_offsets` |
-
-`__consumer_offsets` 是一个50个分区的内部 Topic，存储所有 Consumer Group 的 Offset。
-
-## 5. 重置 Offset
+## 3. 指定 Offset 消费
 
 ```java
 // 从头消费
-props.put("auto.offset.reset", "earliest");
-
-// 从最新位置消费
-props.put("auto.offset.reset", "latest");
-
-// 手动重置
 consumer.seekToBeginning(partitions);
-consumer.seek(partition, offset);
+
+// 从末尾消费
+consumer.seekToEnd(partitions);
+
+// 指定 Offset
+consumer.seek(new TopicPartition("topic", 0), 100);
 ```
 
-## 6. 最佳实践
+## 4. Offset 存储
 
-1. **手动提交 Offset**：保证消息不丢
-2. **先处理再提交**：不要先提交再处理
-3. **分区级别提交**：精确控制每个分区的 Offset
-4. **处理 Rebalance**：在 onPartitionsRevoked 中提交已处理的 Offset
-5. **幂等消费**：即使 Offset 管理完美，网络问题仍可能导致重复
+- 存储在 `__consumer_offsets` 主题中
+- Key：group.id + topic + partition
+- Value：offset
+
+## 5. Offset 存储机制详解
+
+`__consumer_offsets` 是 Kafka 内部 Topic，默认 50 个分区：
+
+```
+Key: (group.id, topic, partition)
+Value: {
+    "offset": 12345,
+    "metadata": "optional metadata string",
+    "commit_timestamp": 1692000000000
+}
+```
+
+**Offset 提交流程**：
+1. Consumer 发送 OffsetCommitRequest 到 Group Coordinator。
+2. Coordinator 将 Offset 写入 `__consumer_offsets` 的对应分区。
+3. 返回成功/失败响应。
+
+## 6. Offset 重置策略
+
+```java
+props.put("auto.offset.reset", "latest");  // 无有效 Offset 时从最新开始
+// 或
+props.put("auto.offset.reset", "earliest"); // 无有效 Offset 时从最早开始
+// 或
+props.put("auto.offset.reset", "none");     // 无有效 Offset 时抛出异常
+```
+
+**何时触发重置**：
+- 消费者首次加入组，没有已提交的 Offset。
+- 已提交的 Offset 对应的消息已被删除（超过保留时间）。
+- 已提交的 Offset 无效（数据损坏等）。
+
+## 7. 精确 Offset 管理
+
+```java
+// 场景：处理完消息后才提交 Offset
+while (running) {
+    ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
+    for (ConsumerRecord<String, String> record : records) {
+        processRecord(record);
+        // 每处理完一条就提交（性能差，但最精确）
+        consumer.commitSync(Collections.singletonMap(
+            new TopicPartition(record.topic(), record.partition()),
+            new OffsetAndMetadata(record.offset() + 1)
+        ));
+    }
+}
+```
+
+**性能优化：批量提交**
+```java
+List<ConsumerRecord<String, String>> batch = new ArrayList<>();
+while (running) {
+    ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
+    for (ConsumerRecord<String, String> record : records) {
+        processRecord(record);
+        batch.add(record);
+    }
+    if (!batch.isEmpty()) {
+        // 批量提交最新 Offset
+        Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>();
+        for (ConsumerRecord<String, String> r : batch) {
+            offsets.put(
+                new TopicPartition(r.topic(), r.partition()),
+                new OffsetAndMetadata(r.offset() + 1)
+            );
+        }
+        consumer.commitAsync(offsets, null);
+        batch.clear();
+    }
+}
+```
+
+## 8. __consumer_offsets 管理
+
+```bash
+# 查看消费者组的 Offset
+kafka-consumer-groups.sh --describe --group my-group --bootstrap-server localhost:9092
+
+# 重置 Offset（谨慎使用）
+kafka-consumer-groups.sh --group my-group --topic my-topic \
+    --reset-offsets --to-earliest --execute --bootstrap-server localhost:9092
+
+# 重置到指定时间点
+kafka-consumer-groups.sh --group my-group --topic my-topic \
+    --reset-offsets --to-datetime "2024-01-01T00:00:00.000" --execute --bootstrap-server localhost:9092
+```
+
+## 9. 最佳实践
+
+1. **生产环境使用手动提交**：自动提交可能导致消息丢失（提交后未处理）或重复消费（处理后未提交）。
+2. **使用异步提交 + 同步提交兜底**：正常用 `commitAsync()`，关闭时用 `commitSync()`。
+3. **记录处理进度**：在业务逻辑中记录已处理的 Offset，便于故障恢复。
+4. **不要频繁提交 Offset**：每条消息都提交 Offset 会严重影响性能，建议批量提交。
