@@ -1,87 +1,58 @@
-# 映射
+---
+doc_id: es-Mapping映射设计
+title: ES Mapping 设计：字段类型决定查询能力
+---
 
-> Mapping 定义了文档的字段类型和索引方式。选错类型会导致搜索不准或性能问题。
+# ES Mapping 设计：字段类型决定查询能力
 
-## 1. 字段类型
+## 1. 核心字段类型对比
 
-| 类型 | 说明 | 示例 |
-|------|------|------|
-| text | 全文检索，会被分词 | 标题、描述 |
-| keyword | 精确匹配，不分词 | 状态、标签、枚举 |
-| long/integer/short/byte | 整数 | 数量、年龄 |
-| double/float/half_float | 浮点数 | 价格、评分 |
-| date | 日期 | 创建时间 |
-| boolean | 布尔 | 是否启用 |
-| object | 嵌套对象 | 地址信息 |
-| nested | 嵌套数组（独立索引） | 评论列表 |
-| geo_point | 地理坐标 | 经纬度 |
-| ip | IP 地址 | 客户端 IP |
+| 类型 | 用途 | 是否分词 | 适用场景 | 为什么这样设计 |
+|------|------|---------|---------|-------------|
+| `text` | 全文检索 | ✅ 是 | 文章内容、商品描述 | 分词后建立倒排索引，支持任意词项查找 |
+| `keyword` | 精确匹配 | ❌ 否 | 状态码、标签、ID | 不分词，整体作为词项，支持精确匹配和聚合 |
+| `integer/long` | 数值 | ❌ 否 | 价格、数量、年龄 | 数值类型支持范围查询和排序 |
+| `date` | 日期 | ❌ 否 | 创建时间、更新时间 | 日期类型支持时间范围查询 |
+| `nested` | 嵌套对象 | - | 订单中的商品列表 | 普通对象数组会被扁平化，nested 保留对象边界 |
 
-## 2. text vs keyword（最常混淆的类型）
-
-| 维度 | text | keyword |
-|------|------|---------|
-| 分词 | ✅ 分词后存储 | ❌ 原始值存储 |
-| match 查询 | ✅ | ❌ |
-| term 查询 | ❌（匹配分词后的词项） | ✅ |
-| 聚合 | ❌ | ✅ |
-| 排序 | ❌ | ✅ |
-| 适用场景 | 标题、描述、内容 | 状态、标签、ID |
-
-**一个字段同时需要搜索和聚合**：使用 multi-field：
+## 2. 工作中常见错误（深度分析）
 
 ```json
+// ❌ 错误：对 text 类型做精确匹配（无法精确匹配）
 {
-  "title": {
-    "type": "text",
-    "fields": {
-      "keyword": { "type": "keyword" }
-    }
+  "query": {
+    "term": { "title": "Java工程师" }
   }
 }
-// title 用于全文搜索，title.keyword 用于聚合和排序
-```
+// 原因：title 是 text 类型，"Java工程师"已被分词为["Java","工程师"]
+// term 查询需要完整词项，"Java工程师"在词典中不存在，所以查不到
 
-## 3. 动态映射
-
-ES 会自动推断字段类型：
-
-| 数据 | 推断类型 |
-|------|---------|
-| "hello" | text + keyword |
-| 123 | long |
-| 12.5 | double |
-| true | boolean |
-| "2026-08-31" | date |
-
-**问题**：动态映射可能不符合预期（如数字 ID 被映射为 long 而不是 keyword）。
-
-## 4. 显式映射
-
-```json
-PUT /my-index
+// ✅ 正确：text 用 match，keyword 用 term
+// Mapping 中同时定义两种类型（multi-field）
 {
   "mappings": {
     "properties": {
-      "title": { "type": "text", "analyzer": "ik_max_word" },
-      "status": { "type": "keyword" },
-      "price": { "type": "float" },
-      "created_at": { "type": "date", "format": "yyyy-MM-dd HH:mm:ss" },
-      "tags": { "type": "keyword" }
+      "title": {
+        "type": "text",
+        "analyzer": "ik_max_word",
+        "fields": {
+          "keyword": { "type": "keyword" }  // title.keyword 用于精确匹配
+        }
+      }
     }
   }
 }
 ```
 
-## 5. 映射不能修改
+## 3. 动态 Mapping 的坑
 
-字段类型一旦创建就不能修改（只能添加新字段）。要修改类型，必须：
+> **动态 Mapping 的坑**：ES 会自动推断字段类型，但可能推断错误（如把数字字符串推断为 long），且 **Mapping 一旦创建不可修改**，只能重建索引（reindex）。**生产环境务必手动定义 Mapping**。
 
-1. 创建新索引（新映射）
-2. 用 Reindex API 迁移数据
-3. 别名切换
+> **为什么 Mapping 不可修改**：字段类型决定了数据的存储方式和索引结构，修改类型需要重新索引所有数据，ES 不支持在线修改，只能重建。
 
-```json
-POST _reindex
-{ "source": { "index": "old-index" }, "dest": { "index": "new-index" } }
-```
+## 4. 常见错误汇总
+
+| 错误场景 | 原因 | 解决方案 |
+|---------|------|---------| 
+| 对 text 字段用 term 精确匹配，查不到数据 | text 字段已被分词，term 需要完整词项 | 使用 `field.keyword` 做精确匹配 |
+| 动态 Mapping 字段类型被错误推断 | ES 自动推断，如 "123" 被推断为 long | 生产环境手动定义 Mapping |

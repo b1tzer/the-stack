@@ -1,82 +1,98 @@
 # 写入流程
 
-> 理解 ES 的写入流程，是理解为什么写入后不能立即搜索到（近实时）的关键。
+## 1. 文档写入流程
 
-## 1. 写入流程全链路
-
-```text
-Client ──▶ Coordinator Node ──▶ Primary Shard ──▶ Replica Shards
-                                │
-                                ├─ 1. 写入 Translog（WAL）
-                                ├─ 2. 写入 Memory Buffer
-                                ├─ 3. Refresh（1秒）→ Segment（OS Cache）
-                                ├─ 4. Flush → Segment（磁盘）
-                                └─ 5. Translog 清理
+```
+Client → Coordinating Node → Primary Shard → Replica Shards
 ```
 
-## 2. 详细步骤
+## 2. Refresh
 
-### 2.1 写入请求路由
-
-```text
-Client → Coordinator Node（任意节点）
-  → 根据 _id 计算 hash → 路由到对应 Primary Shard
-  → Primary Shard 写入成功后 → 并行复制到 Replica Shards
-  → 所有 Shard 确认 → 返回 Client
-```
-
-### 2.2 写入 Primary Shard
-
-```text
-1. 写入 Translog（类似 MySQL 的 Redo Log，保证数据不丢）
-2. 写入 Memory Buffer（内存缓冲区）
-3. 每 1 秒 Refresh：Memory Buffer → Segment（OS Cache）
-4. Translog 累积到 512MB 或 30 分钟 → Flush：Segment 写入磁盘
-```
-
-### 2.3 Refresh 的作用
-
-```text
-Refresh 前：数据在 Memory Buffer，搜索不到
-Refresh 后：数据在 Segment（OS Cache），可以搜索到
-```
-
-**Refresh 间隔**：默认 1 秒（`index.refresh_interval`）。这就是 ES 的"近实时"（Near Real-Time）——写入后最多 1 秒才能搜到。
-
-### 2.4 Flush 的作用
-
-```text
-Flush：将 OS Cache 中的 Segment 真正写入磁盘，同时清空 Translog
-```
-
-## 3. 近实时的含义
-
-```text
-t=0ms:   写入文档
-t=1000ms: Refresh → 可搜索
-```
-
-如果需要写入后立即可搜索：
+- 将 Buffer 中的数据写入 Segment
+- 默认 1s 一次
+- 写入后可搜索（近实时）
 
 ```json
-// 强制 Refresh（性能差，仅在特殊场景使用）
-PUT /my-index/_doc/1?refresh=true
-{ "title": "test" }
+POST /my-index/_refresh
 ```
 
-## 4. 数据安全性保证
+## 3. Flush
 
-```text
-Translog（类似 MySQL Redo Log）
-  → 保证在 Segment Flush 前崩溃，数据不丢
-  → 默认每次写入都同步 Translog（`index.translog.durability = request`）
+- 将 Translog 数据持久化到磁盘
+- 清空 Translog
+
+```json
+POST /my-index/_flush
 ```
 
-## 5. 写入性能优化
+## 4. Translog
 
-| 优化项 | 方法 | 效果 |
-|--------|------|------|
-| 增大 Refresh 间隔 | `refresh_interval = 30s` | 减少 Segment 创建频率 |
-| 批量写入 | Bulk API | 减少网络往返 |
-| 关闭副本写入 | `number_of_replicas = 0`（写入时） | 写入完成后再开启 |
-| Translog 异步 | `translog.durability = async` | 提升写入性能（有丢数据风险） |
+- 事务日志，保证数据不丢失
+- 每次写入先写 Translog
+- Flush 后清空
+
+## 5. 近实时搜索
+
+```
+写入 → Buffer → Refresh → Segment → 可搜索
+              ↓
+           Translog（持久化）
+```
+## 6. 写入流程详解
+
+```
+1. 客户端发送写入请求到协调节点
+2. 协调节点根据 _id 计算路由：shard = hash(_id) % 主分片数
+3. 请求转发到主分片所在节点
+4. 主分片执行写入：
+   a. 写入 Translog（保证持久性）
+   b. 写入内存 Buffer
+5. 主分片转发请求到所有副本分片
+6. 副本分片写入成功后返回确认
+7. 主分片返回成功给协调节点
+8. 协调节点返回客户端
+```
+
+## 7. 写入一致性
+
+```json
+# 设置写入需要多少分片确认
+PUT /my-index/_settings
+{
+  "index.write.wait_for_active_shards": 2
+}
+```
+
+| 参数值 | 说明 |
+|--------|------|
+| `all` | 所有分片确认（最安全，最慢） |
+| `1` | 只需主分片确认（最快，风险高） |
+| `2` | 主分片 + 1个副本确认（推荐） |
+| `quorum` | 多数分片确认 |
+
+## 8. 写入性能优化
+
+```json
+# 批量写入前临时关闭 refresh
+PUT /my-index/_settings
+{
+  "index.refresh_interval": "-1",
+  "index.number_of_replicas": 0
+}
+
+# 批量写入完成后恢复
+PUT /my-index/_settings
+{
+  "index.refresh_interval": "1s",
+  "index.number_of_replicas": 1
+}
+```
+
+## 9. 最佳实践
+
+- 大批量写入使用 Bulk API，每批 5~15MB
+- 批量写入期间临时关闭 refresh 和副本，写完后恢复
+- Translog 使用 `request` 模式保证数据安全
+- 监控写入队列大小，避免堆积导致节点压力过大
+- 写入失败时检查 `_bulk` 响应中每个操作的 `status` 字段
+

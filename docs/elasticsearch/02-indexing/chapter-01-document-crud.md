@@ -1,91 +1,95 @@
 # 文档 CRUD
 
-> ES 中的一切数据都是文档（Document）。理解文档的增删改查是使用 ES 的基础。
+## 1. 索引文档
 
-## 1. 索引文档（创建/更新）
-
-```json
-// 指定 ID
-PUT /my-index/_doc/1
+```bash
+# 指定 ID
+POST /my-index/_doc/1
 {
-  "title": "Java 入门",
-  "price": 59.9,
-  "tags": ["java", "programming"]
+  "name": "张三",
+  "age": 25,
+  "email": "zhangsan@example.com"
 }
 
-// 自动生成 ID
+# 自动生成 ID
 POST /my-index/_doc
 {
-  "title": "Java 入门",
-  "price": 59.9
+  "name": "李四",
+  "age": 30
 }
 ```
 
 ## 2. 获取文档
 
-```json
+```bash
 GET /my-index/_doc/1
 
-// 只返回指定字段
-GET /my-index/_doc/1?_source=title,price
+# 获取特定字段
+GET /my-index/_doc/1?_source=name,age
 ```
 
 ## 3. 更新文档
 
-```json
-// 部分更新
+```bash
+# 部分更新
 POST /my-index/_update/1
 {
-  "doc": {
-    "price": 49.9
-  }
+  "doc": { "age": 26 }
 }
 
-// 脚本更新
+# 脚本更新
 POST /my-index/_update/1
 {
   "script": {
-    "source": "ctx._source.price += params.amount",
-    "params": { "amount": 10 }
+    "source": "ctx._source.age += params.age",
+    "params": { "age": 1 }
   }
 }
 ```
 
-## 4. 删除文档
+## 4. Bulk API
 
-```json
-DELETE /my-index/_doc/1
+```bash
+POST /_bulk
+{"index": {"_index": "my-index", "_id": "1"}}
+{"name": "张三", "age": 25}
+{"update": {"_index": "my-index", "_id": "1"}}
+{"doc": {"age": 26}}
+{"delete": {"_index": "my-index", "_id": "2"}}
 ```
 
-## 5. 批量操作
+## 5. 条件更新与乐观锁
 
-```json
-POST _bulk
-{ "index": { "_index": "my-index", "_id": "1" }}
-{ "title": "Doc 1", "price": 10 }
-{ "index": { "_index": "my-index", "_id": "2" }}
-{ "title": "Doc 2", "price": 20 }
-{ "update": { "_index": "my-index", "_id": "1" }}
-{ "doc": { "price": 15 }}
-{ "delete": { "_index": "my-index", "_id": "2" }}
+```bash
+# 使用 if_seq_no + if_primary_term 做乐观锁
+POST /my-index/_update/1?if_seq_no=5&if_primary_term=1
+{
+  "doc": { "age": 27 }
+}
+
+# 使用 retry_on_conflict 处理冲突
+POST /my-index/_update/1?retry_on_conflict=3
+{
+  "doc": { "views": 100 }
+}
 ```
 
-批量操作比逐条操作快很多（减少网络往返）。
+## 6. Upsert（存在则更新，不存在则插入）
 
-## 6. 文档的不可变性
-
-ES 中的"更新"实际上是：读取旧文档 → 修改 → 写入新文档 → 删除旧文档。
-
-这就是为什么部分更新比全量更新快（不需要重新索引所有字段）。
-
-## 7. 版本控制
-
-```json
-GET /my-index/_doc/1
-// 返回 _version: 1
-
-PUT /my-index/_doc/1?version=1
-// 只有 _version=1 时才更新，否则报版本冲突
+```bash
+POST /my-index/_update/999
+{
+  "doc": { "name": "新用户", "age": 18 },
+  "doc_as_upsert": true
+}
 ```
 
-ES 使用乐观并发控制（Optimistic Concurrency Control）。
+## 7. 最佳实践
+
+- Bulk API 每批大小建议 5~15MB，不要超过 100MB
+- 使用 `_source` 过滤只返回需要的字段
+- 频繁更新场景使用 `doc_as_upsert` 避免先查后改
+- 删除操作建议使用逻辑删除（`is_deleted` 字段）而非物理删除
+- 自动生成 ID 适合日志类数据，业务数据建议指定 ID
+
+---
