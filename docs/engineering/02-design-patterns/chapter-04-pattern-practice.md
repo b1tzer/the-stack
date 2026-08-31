@@ -1,6 +1,6 @@
 # 模式实践
 
-> 本章为概览。深入讲解见 [设计模式专题 · 实战](/design-pattern/04-practice/chapter-01-spring-patterns)。
+> 本章为概览。深入讲解见 [设计模式专题 · 实战](/design-pattern/04-practice/chapter-02-spring-patterns)。
 
 ## 何时用模式
 
