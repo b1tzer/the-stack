@@ -61,10 +61,6 @@ Redis 前 11 年基本由 antirez 一人主导，他是事实上的 BDFL（终�
 
 ## 4. 版本演进与发版节奏
 
-![Redis 版本发展时间轴](/redis/01-data-model-chapter-01-overview.svg)
-
-本书聚焦 **Redis 6.0 ~ 7.2**。6.0 起支持多线程网络 IO（命令执行仍单线程），7.0 引入 Functions 和 MP-AOF，7.2 彻底用 listpack 替代 ziplist。自 7.4 起 Redis 切换为 RSALv2 + SSPLv1 双协议，社区出现 Valkey 等开源分支。
-
 ### 4.1 发版节奏
 
 Redis 计划每年发布一个主版本，每个主版本约半年后跟一个次版本。最新的稳定版本获得完整支持，此前的次版本和上一个主版本仅做维护性修补（关键 bug 与安全漏洞）。
@@ -79,6 +75,8 @@ Redis 计划每年发布一个主版本，每个主版本约半年后跟一个�
 | 6.0 | 2020 | RESP3、ACL、多线程 I/O |
 | 7.0 | 2022 | Functions、Multi-part AOF |
 | 8.0 | 2025 | 模块并入核心、Vector Set |
+
+本书聚焦 **Redis 6.0 ~ 7.2**。6.0 起支持多线程网络 IO（命令执行仍单线程），7.0 引入 Functions 和 MP-AOF，7.2 彻底用 listpack 替代 ziplist。自 7.4 起 Redis 切换为 RSALv2 + SSPLv1 双协议，社区出现 Valkey 等开源分支。
 
 ### 4.2 版本与许可证
 
