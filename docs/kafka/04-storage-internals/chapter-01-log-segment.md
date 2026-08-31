@@ -1,174 +1,119 @@
-# 日志分段与索引
+# 日志分段
 
-> Kafka 的存储核心是追加日志（Append-Only Log）。每个 Partition 是一个有序的、不可变的消息序列，物理上由多个日志段（Segment）文件组成。本章讲解日志段的结构、索引机制、清理策略，以及「顺序写入为什么这么快」。
+> Kafka 的消息存储在日志分段（Log Segment）中。理解 Segment 是理解 Kafka 高性能的钥匙。
 
-## 1. 日志分段
-
-每个 Partition 的数据存储在一组日志段文件中：
+## 1. 存储结构
 
 ```text
-topic-partition-0/
-├── 00000000000000000000.log        # 第一个日志段（base offset = 0）
-├── 00000000000000000000.index      # 偏移量索引
-├── 00000000000000000000.timeindex  # 时间戳索引
-├── 00000000000000001234.log        # 第二个日志段（base offset = 1234）
-├── 00000000000000001234.index
-├── 00000000000000001234.timeindex
-└── 00000000000000005678.log        # 第三个日志段（活跃段，正在写入）
+Topic: orders (3 partitions)
+  ├── Partition 0
+  │     ├── 00000000000000000000.log  (Segment 0: offset 0-999)
+  │     ├── 00000000000000000000.index
+  │     ├── 00000000000000000000.timeindex
+  │     ├── 00000000000000001000.log  (Segment 1: offset 1000-1999)
+  │     ├── 00000000000000001000.index
+  │     └── 00000000000000001000.timeindex
+  ├── Partition 1
+  └── Partition 2
 ```
 
-文件名 = 该段的 base offset（起始偏移量），20 位数字，左补零。
+每个 Partition 由多个 Segment 组成。每个 Segment 包含三个文件：
 
-### 1.1 日志段结构
+| 文件 | 说明 |
+|------|------|
+| .log | 实际消息数据 |
+| .index | offset → 物理位置的映射（稀疏索引） |
+| .timeindex | 时间戳 → offset 的映射 |
 
-每个 `.log` 文件由一系列 Record Batch 组成：
+## 2. Segment 的设计动机
+
+为什么不把所有消息放在一个大文件里？
 
 ```text
-┌──────────────────────────────────┐
-│ Record Batch 1                   │
-│   base offset = 0               │
-│   records: [msg0, msg1, msg2]   │
-├──────────────────────────────────┤
-│ Record Batch 2                   │
-│   base offset = 3               │
-│   records: [msg3, msg4]         │
-├──────────────────────────────────┤
-│ Record Batch 3                   │
-│   base offset = 5               │
-│   records: [msg5]               │
-└──────────────────────────────────┘
+单文件问题：
+  ├─ 删除旧消息需要重写整个文件
+  ├─ 查找 offset 需要从头扫描
+  └─ 文件太大，操作系统 mmap 效率下降
+
+分段设计：
+  ├─ 删除旧消息：直接删除整个 Segment 文件
+  ├─ 查找 offset：二分定位 Segment + 索引定位
+  └─ 每个 Segment 大小可控（默认 1GB）
 ```
 
-### 1.2 日志段滚动条件
-
-当以下任一条件满足时，当前日志段关闭，创建新段：
-
-| 条件 | 配置 | 默认值 |
-| :-- | :-- | :-- |
-| 段大小超过阈值 | `log.segment.bytes` | 1 GB |
-| 段时间超过阈值 | `log.roll.ms` / `log.roll.hours` | 7 天 |
-| 索引文件满 | `log.index.size.max.bytes` | 10 MB |
-| 时间戳超出范围 | — | 自动判断 |
-
-## 2. 索引机制
-
-### 2.1 偏移量索引
-
-偏移量索引（`.index`）是 Offset → 物理文件位置的映射，但不是每个 Offset 都有记录——它是**稀疏索引**：
+## 3. 写入流程
 
 ```text
-.index 文件内容：
-Offset=0    → Position=0
-Offset=100  → Position=8192
-Offset=200  → Position=16384
-Offset=300  → Position=24576
-...
+Producer 发送消息
+  → 追加到当前活跃 Segment 的 .log 文件末尾
+  → 更新 .index 稀疏索引
+  → 更新 .timeindex
+  → 返回 ack
 ```
 
-索引密度由 `log.index.interval.bytes`（默认 4KB）控制：每写入 4KB 数据添加一条索引记录。
+**关键**：写入是顺序追加（append-only），磁盘顺序写的速度接近内存。这是 Kafka 高吞吐的根本原因。
 
-### 2.2 查找过程
+## 4. 稀疏索引
+
+.index 文件不是每条消息都建索引，而是每隔一定字节建一个索引项（默认 4KB）。
 
 ```text
-查找 Offset = 1234 的消息：
+.index 文件：
+  offset 0     → 物理位置 0
+  offset 100   → 物理位置 4096
+  offset 200   → 物理位置 8192
+  ...
 
-1. 定位日志段：二分查找所有段的 base offset，找到包含 1234 的段
-2. 查索引：在 .index 中二分查找 ≤ 1234 的最大 Offset
-   → 找到 Offset=1200, Position=8192
-3. 顺序扫描：从 .log 文件的 Position=8192 开始顺序读取
-   → 逐条比较 Offset，找到 1234
-4. 返回消息数据
+查找 offset 150：
+  1. 二分查找 .index → 找到 offset 100 → 物理位置 4096
+  2. 从 4096 开始顺序扫描 .log → 找到 offset 150
 ```
 
-为什么用稀疏索引？
+## 5. Segment 滚动
 
-| 维度 | 稠密索引（每条消息一个索引） | 稀疏索引（每 4KB 一个索引） |
-| :-- | :-- | :-- |
-| 索引大小 | 大（与消息量成正比） | 小（可完全加载到内存） |
-| 查找精度 | 精确定位 | 需要顺序扫描一小段 |
-| 内存占用 | 高 | 低 |
-| 查找速度 | O(log n) | O(log n) + O(顺序扫描) |
+当活跃 Segment 达到以下条件时，创建新 Segment：
 
-稀疏索引的权衡：索引文件小到可以完全放内存，查找时先二分定位到附近，再顺序扫描一小段（磁盘顺序读极快）。
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| log.segment.bytes | 1GB | Segment 最大大小 |
+| log.roll.hours | 168 (7天) | Segment 最大时间 |
+| log.roll.ms | - | Segment 最大时间（毫秒） |
 
-### 2.3 时间戳索引
-
-时间戳索引（`.timeindex`）是 Timestamp → Offset 的映射：
+## 6. 消息保留与清理
 
 ```text
-.timeindex 文件内容：
-Timestamp=1712500000 → Offset=0
-Timestamp=1712500100 → Offset=100
-Timestamp=1712500200 → Offset=200
+保留策略：
+  ├─ 按时间：log.retention.hours = 168（7天）
+  ├─ 按大小：log.retention.bytes = -1（不限制）
+  └─ 两者取先满足的
+
+清理方式：
+  ├─ delete：直接删除整个 Segment
+  └─ compact：保留每个 key 的最新值（日志压缩）
 ```
 
-用途：`offsetsForTimes()` API——根据时间戳查找对应的 Offset，用于按时间回溯消费。
-
-## 3. 顺序写入为什么快
-
-Kafka 的高吞吐核心在于追加写入（Append-Only）：
+### 6.1 日志压缩（Log Compaction）
 
 ```text
-传统消息队列（随机写入）：
-  B+ 树 / 链表 → 随机磁盘 IO → 100 MB/s（HDD）
+原始日志：
+  key1:v1, key2:v1, key1:v2, key3:v1, key2:v2
 
-Kafka（顺序写入）：
-  追加日志 → 顺序磁盘 IO → 600 MB/s（HDD）/ 3 GB/s（SSD）
+压缩后：
+  key1:v2, key3:v1, key2:v2
 ```
 
-| 维度 | 随机写入 | 顺序写入 |
-| :-- | :-- | :-- |
-| 磁盘 IO | 寻道 + 旋转延迟 | 连续写入，无寻道 |
-| 性能（HDD） | ~100 MB/s | ~600 MB/s |
-| 性能（SSD） | ~500 MB/s | ~3 GB/s |
-| 操作系统优化 | 无 | 预读、合并写入 |
+保留每个 key 的最新值，删除旧值。适用于需要保留最新状态的场景（如数据库变更日志）。
 
-> 顺序写入的性能接近内存随机写入。这是 Kafka 用磁盘存储却能达到百万级 QPS 的根本原因。
+## 7. 零拷贝（Zero Copy）
 
-## 4. 日志清理策略
-
-### 4.1 删除策略（Delete）
-
-按时间或大小删除整个日志段：
-
-```properties
-log.retention.hours=168          # 保留 7 天（默认）
-log.retention.bytes=-1           # 不限制大小
-log.retention.check.interval.ms=300000  # 每 5 分钟检查一次
-```
-
-删除的是整个日志段（不是单条消息），所以段越大，删除粒度越粗。
-
-### 4.2 压缩策略（Compact）
-
-保留每个 Key 的最新值，删除旧版本：
+Kafka 使用 `sendfile()` 系统调用将数据直接从磁盘发送到网络，跳过用户态：
 
 ```text
-压缩前：                      压缩后：
-Key1: Value1 (offset 0)       Key1: Value2 (offset 2)
-Key2: Value1 (offset 1)       Key2: Value2 (offset 4)
-Key1: Value2 (offset 2)       Key3: Value1 (offset 3)
-Key3: Value1 (offset 3)
-Key2: Value2 (offset 4)
+传统方式：
+  磁盘 → 内核缓冲区 → 用户态缓冲区 → 内核发送缓冲区 → 网卡
+
+零拷贝：
+  磁盘 → 内核缓冲区 → 网卡
 ```
 
-适用场景：
-
-| 场景 | 说明 |
-| :-- | :-- |
-| 数据库 CDC | Debezium 捕获变更，Kafka 保留每个 Key 的最新状态 |
-| 事件溯源 | 保留实体的最新状态，用于重建 |
-| 配置变更 | 保留配置项的最新值 |
-
-```properties
-log.cleanup.policy=compact
-log.cleaner.min.compaction.lag.ms=0
-log.cleaner.delete.retention.ms=86400000  # 删除标记保留 24 小时
-```
-
-## 5. 最佳实践
-
-1. **使用 SSD 存储**：索引查找和日志恢复时 SSD 表现更好。
-2. **合理设置 log.segment.bytes**：太小导致频繁创建新段，太大影响清理效率。
-3. **监控日志目录大小**：`kafka-log-dirs.sh --describe` 检查存储使用。
-4. **CDC 场景用 Compact 策略**：`cleanup.policy=compact` 保留每个 Key 的最新值。
+减少了两次内存拷贝和两次上下文切换。这是 Kafka 高吞吐的另一个关键。
