@@ -1,65 +1,127 @@
 # 索引设计
 
-> 好的索引设计可以让查询从"全表扫描"变成"索引定位"，性能差距可达百倍。
-
-## 1. 索引设计原则
-
-### 最左前缀原则
+## 1. 覆盖索引
 
 ```sql
--- 联合索引 (a, b, c)
--- 可以用到索引的查询：
-WHERE a = 1
-WHERE a = 1 AND b = 2
-WHERE a = 1 AND b = 2 AND c = 3
-WHERE a = 1 AND c = 3          -- 只用到 a
-WHERE a = 1 ORDER BY b         -- 用到 a 和 b 排序
-
--- 用不到索引的查询：
-WHERE b = 2                    -- 跳过了 a
-WHERE b = 2 AND c = 3          -- 跳过了 a
+-- 查询列都在索引中，无需回表
+CREATE INDEX idx_name_email ON users(name, email);
+SELECT name, email FROM users WHERE name = '张三';  -- Using index
 ```
 
-### 区分度高的列放前面
+## 2. 前缀索引
 
 ```sql
--- user_id 区分度高（几万个值），status 区分度低（几个值）
--- 好的索引：(user_id, status)
--- 差的索引：(status, user_id)
+-- 字符串字段只索引前 N 个字符
+CREATE INDEX idx_email_prefix ON users(email(10));
 ```
 
-### 覆盖索引
+## 3. 联合索引
 
 ```sql
--- 查询只需要索引中的列，不需要回表
-SELECT user_id, status FROM orders WHERE user_id = 100;
--- 索引 (user_id, status) 包含所有需要的列
+-- 最左前缀原则
+CREATE INDEX idx_a_b_c ON users(a, b, c);
+-- 能用：WHERE a=1
+-- 能用：WHERE a=1 AND b=2
+-- 能用：WHERE a=1 AND b=2 AND c=3
+-- 不能用：WHERE b=2
+-- 不能用：WHERE c=3
 ```
 
-## 2. 索引失效场景
+## 4. 索引选择
 
-| 场景 | 示例 | 解决方案 |
-|------|------|----------|
-| 函数包裹 | `WHERE YEAR(date) = 2026` | 改为范围查询 |
-| 隐式转换 | `WHERE varchar_col = 123` | 类型匹配 |
-| LIKE 前缀 | `WHERE name LIKE '%张'` | 改为后缀匹配 |
-| OR 条件 | `WHERE a = 1 OR b = 2` | 拆分为 UNION |
-| NOT IN/NOT EXISTS | `WHERE id NOT IN (...)` | 改为 LEFT JOIN |
-| IS NULL | `WHERE col IS NULL` | 看版本，8.0+ 通常可以 |
+| 场景 | 建议 |
+|------|------|
+| 高选择性列 | 适合索引（如 email） |
+| 低选择性列 | 不适合索引（如 status） |
+| 频繁查询 | 必须索引 |
+| 频繁更新 | 谨慎索引 |
 
-## 3. 索引维护
+## 5. 联合索引设计实战
+
+**场景：电商订单查询**
+```sql
+-- 典型查询模式
+SELECT * FROM orders WHERE user_id = 100 AND status = 'paid' ORDER BY created_at DESC;
+SELECT * FROM orders WHERE user_id = 100 AND status = 'paid' AND amount > 100;
+
+-- 最佳索引设计
+CREATE INDEX idx_user_status_time ON orders(user_id, status, created_at);
+-- user_id: 等值查询，放在最前
+-- status: 等值查询，放在第二
+-- created_at: 排序/范围查询，放在最后
+```
+
+**联合索引列顺序原则：**
+1. 等值查询的列放前面
+2. 范围查询的列放后面
+3. 排序需求的列放在范围查询列之前
+4. 选择性（区分度）高的列优先考虑
 
 ```sql
--- 查看索引使用情况
-SELECT * FROM sys.schema_unused_indexes;      -- 未使用的索引
-SELECT * FROM sys.schema_redundant_indexes;    -- 冗余索引
-
--- 删除无用索引
-ALTER TABLE orders DROP INDEX idx_unused;
+-- 查看列的选择性
+SELECT
+    COUNT(DISTINCT user_id) / COUNT(*) AS user_selectivity,
+    COUNT(DISTINCT status) / COUNT(*) AS status_selectivity,
+    COUNT(DISTINCT created_at) / COUNT(*) AS time_selectivity
+FROM orders;
 ```
 
-## 4. 索引数量控制
+## 6. 索引设计反模式
 
-- 单表索引不超过 5-6 个
-- 每个索引都有写入开销（INSERT/UPDATE/DELETE 要维护索引）
-- 优先保留高频查询需要的索引
+**反模式 1：过多索引**
+```sql
+-- ❌ 每个查询都建索引
+CREATE INDEX idx_a ON t(a);
+CREATE INDEX idx_b ON t(b);
+CREATE INDEX idx_c ON t(c);
+CREATE INDEX idx_a_b ON t(a, b);
+CREATE INDEX idx_a_c ON t(a, c);
+-- 索引过多影响写入性能
+
+-- ✅ 合并索引
+CREATE INDEX idx_a_b_c ON t(a, b, c);  -- 覆盖多个查询
+```
+
+**反模式 2：索引列顺序不当**
+```sql
+-- ❌ 范围查询列放前面
+CREATE INDEX idx_age_name ON users(age, name);
+-- WHERE age > 20 AND name = '张三' → age 范围后 name 无法用索引
+
+-- ✅ 等值查询列放前面
+CREATE INDEX idx_name_age ON users(name, age);
+-- WHERE name = '张三' AND age > 20 → 两个条件都能用索引
+```
+
+**反模式 3：重复索引**
+```sql
+-- ❌ 重复索引
+CREATE INDEX idx_name ON users(name);
+CREATE INDEX idx_name_email ON users(name, email);
+-- idx_name 是 idx_name_email 的前缀，完全多余
+
+-- 检查重复索引
+SELECT * FROM sys.schema_redundant_indexes;
+```
+
+## 7. 索引设计 Checklist
+
+| 检查项 | 说明 |
+|--------|------|
+| WHERE 条件列 | 频繁出现在 WHERE 中的列需要索引 |
+| JOIN 关联列 | 被驱动表的关联列需要索引 |
+| ORDER BY 列 | 排序列可以纳入联合索引 |
+| GROUP BY 列 | 分组列可以纳入联合索引 |
+| 覆盖索引 | 查询列都在索引中避免回表 |
+| 无冗余索引 | 检查是否有重复或被包含的索引 |
+| 无过多索引 | 一般不超过 5-6 个索引 |
+
+## 8. 最佳实践
+
+1. **先分析查询模式再设计索引** — 根据实际 SQL 建索引
+2. **联合索引优先于多个单列索引** — 一个联合索引可以覆盖多个查询
+3. **覆盖索引是最优解** — 查询列都在索引中，无需回表
+4. **前缀索引用于长字符串** — 减少索引空间，但不能用于 ORDER BY
+5. **定期审查索引使用情况** — 删除未使用和重复的索引
+6. **使用 EXPLAIN 验证索引效果** — 确认索引被正确使用
+

@@ -1,87 +1,124 @@
-# 执行计划
+# 查询执行流程
 
-> 理解 MySQL 如何执行一条 SQL，是优化查询的前提。
+## 1. 完整流程
 
-## 1. 查询执行流程
-
-```text
-SQL → 解析器 → 优化器 → 执行器 → 结果
-         │         │
-         ▼         ▼
-      语法树    执行计划
-              (选择索引、连接顺序)
+```
+SQL → 连接器 → 查询缓存(8.0移除) → 解析器 → 优化器 → 执行器 → 存储引擎
 ```
 
-## 2. EXPLAIN 输出解读
+## 2. 优化器
 
 ```sql
-EXPLAIN SELECT * FROM orders WHERE user_id = 100 AND status = 'paid';
+-- 查看优化器选择
+EXPLAIN FORMAT=JSON SELECT * FROM users WHERE age > 25;
+
+-- Optimizer Trace
+SET optimizer_trace = 'enabled=on';
+SELECT * FROM users WHERE age > 25;
+SELECT * FROM information_schema.optimizer_trace\G
 ```
 
-| 字段 | 含义 | 关注点 |
-|------|------|--------|
-| type | 访问类型 | const > eq_ref > ref > range > index > ALL |
-| key | 使用的索引 | NULL=全表扫描 |
-| rows | 预估扫描行数 | 越小越好 |
-| Extra | 额外信息 | Using index=好，Using filesort=差 |
-
-### type 访问类型
-
-| type | 含义 | 性能 |
-|------|------|------|
-| const | 主键/唯一索引等值查询 | 最好 |
-| eq_ref | 连接时使用主键/唯一索引 | 很好 |
-| ref | 非唯一索引等值查询 | 好 |
-| range | 索引范围查询 | 好 |
-| index | 全索引扫描 | 一般 |
-| ALL | 全表扫描 | 差 |
-
-### Extra 信息
-
-| Extra | 含义 | 好/坏 |
-|-------|------|-------|
-| Using index | 覆盖索引，不回表 | ✅ 好 |
-| Using where | Server 层过滤 | ⚠️ 一般 |
-| Using index condition | 索引条件下推（ICP） | ✅ 好 |
-| Using temporary | 使用临时表 | ❌ 差 |
-| Using filesort | 额外排序 | ❌ 差 |
-
-## 3. 慢查询优化思路
-
-```text
-1. EXPLAIN 看执行计划
-2. type=ALL → 全表扫描 → 加索引
-3. key=NULL → 没用索引 → 检查 WHERE 条件
-4. rows 很大 → 扫描行数多 → 优化索引或条件
-5. Extra 有 filesort/temporary → 优化 ORDER BY/GROUP BY
-```
-
-## 4. 常见优化场景
-
-### 全表扫描 → 索引扫描
+## 3. 成本模型
 
 ```sql
--- 慢：status 不是索引
-SELECT * FROM orders WHERE status = 'paid';
+-- 查看表统计信息
+SELECT * FROM mysql.innodb_table_stats WHERE table_name = 'users';
 
--- 快：添加索引
-ALTER TABLE orders ADD INDEX idx_status (status);
+-- 更新统计信息
+ANALYZE TABLE users;
 ```
 
-### 索引失效
+## 4. 优化器成本模型
 
 ```sql
--- 索引失效：函数包裹
-SELECT * FROM orders WHERE YEAR(created_at) = 2026;
+-- 查看表的统计信息
+SELECT * FROM mysql.innodb_table_stats WHERE table_name = 'users';
+-- n_rows: 估算行数
+-- clustered_index_size: 聚簇索引页数
+-- sum_of_other_index_sizes: 其他索引页数
 
--- 索引生效：范围查询
-SELECT * FROM orders WHERE created_at >= '2026-01-01' AND created_at < '2027-01-01';
+-- 查看索引的统计信息
+SELECT * FROM mysql.innodb_index_stats
+WHERE table_name = 'users' AND stat_name = 'size';
+
+-- 手动更新统计信息
+ANALYZE TABLE users;
+
+-- 统计信息持久化（MySQL 8.0 默认开启）
+SHOW VARIABLES LIKE 'innodb_stats_persistent';  -- ON
+
+-- 统计信息采样页数
+SHOW VARIABLES LIKE 'innodb_stats_persistent_sample_pages';  -- 默认 20
+-- 对于大表，可以增加采样页数提高准确性
+SET GLOBAL innodb_stats_persistent_sample_pages = 100;
 ```
 
-### 覆盖索引
+## 5. Optimizer Trace 详解
 
 ```sql
--- 索引包含所有需要的列，不需要回表
-SELECT user_id, status FROM orders WHERE user_id = 100;
--- 索引：(user_id, status)
+-- 开启 Optimizer Trace
+SET optimizer_trace = 'enabled=on';
+
+-- 执行查询
+SELECT * FROM users WHERE age > 25 AND name LIKE '张%';
+
+-- 查看 Trace 结果
+SELECT * FROM information_schema.optimizer_trace\G
+
+-- 关键字段：
+-- join_preparation: 查询准备阶段
+-- join_optimization: 优化阶段
+--   - rows_estimation: 行数估算
+--   - considered_execution_plans: 考虑的执行计划
+--   - cost_investment_plan: 成本计算
+-- join_execution: 执行阶段
+
+-- 关闭
+SET optimizer_trace = 'enabled=off';
 ```
+
+## 6. 优化器提示 (Optimizer Hints)
+
+```sql
+-- MySQL 8.0+ 支持优化器提示
+
+-- 强制使用索引
+SELECT /*+ INDEX(users idx_name) */ * FROM users WHERE name = '张三';
+
+-- 忽略索引
+SELECT /*+ NO_INDEX(users idx_name) */ * FROM users WHERE name = '张三';
+
+-- 控制连接顺序
+SELECT /*+ JOIN_ORDER(users, orders) */ * FROM users u JOIN orders o ON u.id = o.user_id;
+
+-- 控制连接算法
+SELECT /*+ HASH_JOIN(o) */ * FROM users u JOIN orders o ON u.id = o.user_id;
+
+-- 限制扫描行数
+SELECT /*+ MAX_EXECUTION_TIME(1000) */ * FROM users WHERE age > 20;
+```
+
+## 7. 查询缓存（MySQL 8.0 已移除）
+
+```sql
+-- MySQL 5.7 及之前的查询缓存
+-- 问题：
+-- 1. 表级别失效，任何修改都导致缓存失效
+-- 2. 在高并发下成为瓶颈（全局锁）
+-- 3. 命中率通常很低
+-- MySQL 8.0 彻底移除了查询缓存
+
+-- 替代方案：
+-- 1. 应用层缓存（Redis）
+-- 2. ProxySQL 查询缓存
+-- 3. 连接池复用
+```
+
+## 8. 最佳实践
+
+1. **定期更新统计信息** — `ANALYZE TABLE` 或自动持久化
+2. **使用 Optimizer Trace 排查慢查询** — 了解优化器选择
+3. **谨慎使用 FORCE INDEX** — 优先让优化器自主选择
+4. **关注成本模型的准确性** — 统计信息不准会导致错误的执行计划
+5. **使用优化器提示替代全局参数调整** — 更精细的控制
+

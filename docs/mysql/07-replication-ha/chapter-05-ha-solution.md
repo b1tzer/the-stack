@@ -1,73 +1,131 @@
 # 高可用方案
 
-> MySQL 高可用方案的选择取决于业务对数据一致性、切换时间、运维复杂度的要求。
+## 1. MHA
 
-## 1. 方案对比
+Master High Availability，自动故障切换。
 
-| 方案 | 切换时间 | 数据一致性 | 运维复杂度 | 适用场景 |
-|------|----------|-----------|-----------|----------|
-| 主从 + 手动切换 | 分钟级 | 可能丢数据 | 低 | 非核心业务 |
-| MHA | 秒级 | 最多丢1条 | 中 | 通用场景 |
-| MGR (Group Replication) | 秒级 | 强一致 | 中 | 核心业务 |
-| Orchestrator | 秒级 | 可配置 | 中 | 大规模集群 |
-| ProxySQL + 主从 | 秒级 | 可配置 | 中 | 读写分离 |
+```bash
+# 检查复制状态
+masterha_check_repl --conf=/etc/mha/app1.cnf
 
-## 2. MHA（Master High Availability）
-
-```text
-Master 故障
-  → MHA Manager 检测到
-  → 从所有 Slave 中选择数据最新的
-  → 补齐差异日志
-  → 提升为新 Master
-  → 其他 Slave 指向新 Master
-  → VIP 漂移到新 Master
+# 启动 MHA Manager
+masterha_manager --conf=/etc/mha/app1.cnf
 ```
 
-## 3. MGR（MySQL Group Replication）
+## 2. Orchestrator
 
-```text
-Node 1 ←──→ Node 2 ←──→ Node 3
-         Paxos 协议
+```bash
+# 安装
+orchestrator --config=/etc/orchestrator.conf.json http
 
-写入需要多数节点确认（和 Kafka ISR 类似）
+# 查看拓扑
+orchestrator-client -c topology -i mycluster
 ```
 
-| 模式 | 说明 |
-|------|------|
-| 单主模式 | 只有一个节点可写，其他只读 |
-| 多主模式 | 所有节点可写，需要处理冲突 |
+## 3. InnoDB Cluster
 
-## 4. 读写分离
+MySQL 官方高可用方案，基于 MGR + MySQL Shell + MySQL Router。
 
-```text
-App → ProxySQL → Master（写）
-                → Slave 1（读）
-                → Slave 2（读）
+```javascript
+// MySQL Shell
+dba.configureInstance('root@192.168.1.100:3306')
+dba.createCluster('myCluster')
+cluster.addInstance('root@192.168.1.101:3306')
+cluster.addInstance('root@192.168.1.102:3306')
 ```
 
-```sql
--- ProxySQL 配置
-INSERT INTO mysql_servers VALUES (1, 'master', 3306, ...);
-INSERT INTO mysql_servers VALUES (2, 'slave1', 3306, ...);
-INSERT INTO mysql_servers VALUES (3, 'slave2', 3306, ...);
+## 4. 对比
 
--- 读写分离规则
-INSERT INTO mysql_query_rules VALUES (1, '^SELECT', 0, 2);  -- SELECT 走 Slave
+| 方案 | 自动切换 | 数据一致性 | 复杂度 |
+|------|---------|-----------|--------|
+| MHA | ✅ | 依赖 GTID | 中 |
+| Orchestrator | ✅ | 依赖 GTID | 中 |
+| InnoDB Cluster | ✅ | 强一致 | 低 |
+
+## 5. Keepalived + VIP
+
+```bash
+# /etc/keepalived/keepalived.conf
+vrrp_script check_mysql {
+    script "/usr/local/bin/check_mysql.sh"
+    interval 2
+    weight -20
+    fall 3
+    rise 2
+}
+
+vrrp_instance VI_1 {
+    state MASTER
+    interface eth0
+    virtual_router_id 51
+    priority 100
+    advert_int 1
+    
+    virtual_ipaddress {
+        192.168.1.200/24
+    }
+    
+    track_script {
+        check_mysql
+    }
+}
 ```
 
-### 读写分离的问题
+```bash
+#!/bin/bash
+# /usr/local/bin/check_mysql.sh
+mysql -h 127.0.0.1 -u root -psecret -e "SELECT 1" > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+exit 0
+```
 
-- 主从延迟导致读到旧数据
-- 写后立即读可能不一致
-- 解决方案：关键读走 Master，或使用半同步复制
+## 6. 方案选择指南
 
-## 5. 选型建议
+| 方案 | 自动切换 | 数据一致性 | 复杂度 | 适用场景 |
+|------|---------|-----------|--------|----------|
+| 传统主从 + VIP | ❌ 需手动 | 最终一致 | 低 | 小规模、非核心 |
+| MHA | ✅ | 依赖 GTID | 中 | 中大规模、传统架构 |
+| Orchestrator | ✅ | 依赖 GTID | 中 | 大规模、拓扑管理 |
+| InnoDB Cluster | ✅ | 强一致（Paxos） | 低 | 新项目、官方推荐 |
+| ProxySQL + 主从 | ✅ | 最终一致 | 中 | 读写分离场景 |
+| 云 RDS | ✅ | 强一致 | 最低 | 云环境、预算充足 |
 
-| 场景 | 推荐方案 |
-|------|----------|
-| 小规模、非核心 | 主从 + 手动切换 |
-| 通用业务 | MHA 或 Orchestrator |
-| 金融、强一致 | MGR 单主模式 |
-| 读多写少 | ProxySQL 读写分离 |
-| 云环境 | RDS 高可用版 |
+## 7. 故障切换流程
+
+```
+1. 故障检测
+   ├── 心跳检测（Keepalived/MHA/Orchestrator）
+   ├── 应用层检测（连接失败）
+   └── 复制延迟检测
+
+2. 故障确认
+   ├── 多次检测确认（避免误判）
+   └── 人工确认（可选）
+
+3. 主从切换
+   ├── 停止旧主库写入
+   ├── 确保从库数据最新（GTID）
+   ├── 提升从库为主库
+   └── 其他从库指向新主库
+
+4. 应用切换
+   ├── VIP 漂移 / DNS 切换 / 代理路由
+   └── 应用重连
+
+5. 旧主库恢复
+   ├── 修复后作为从库加入
+   └── 数据追赶
+```
+
+## 8. 最佳实践
+
+1. **新项目使用 InnoDB Cluster** — 官方方案，最简单可靠
+2. **已有主从架构使用 Orchestrator** — 强大的拓扑管理
+3. **必须开启 GTID** — 故障切换的基础
+4. **定期演练故障切换** — 确保切换流程可用
+5. **监控告警** — 复制延迟、节点状态、连接数
+6. **避免脑裂** — 使用仲裁节点或多数派机制
+7. **应用层容错** — 连接重试、超时设置、降级方案
+
