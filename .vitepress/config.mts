@@ -377,6 +377,7 @@ export default withOpenInEditor(defineConfig({
             { text: 'MyBatis', link: '/java/05-java-data-access/chapter-03-mybatis' },
             { text: 'ORM 深入', link: '/java/05-java-data-access/chapter-04-orm-deep' },
             { text: '性能优化', link: '/java/05-java-data-access/chapter-05-performance' },
+            { text: 'Druid 连接池', link: '/java/05-java-data-access/chapter-06-druid' },
           ],
         },
       ],

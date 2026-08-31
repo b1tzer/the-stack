@@ -232,7 +232,7 @@ try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH, fals
 - 连接池：所有请求排队等连接
 - 数据库：全表扫描、锁等待、磁盘 I/O
 
-### 7.3.2 各层监控要点
+### 3.2 各层监控要点
 
 ```java
 // 使用 Micrometer + AOP 监控每层耗时
@@ -272,45 +272,11 @@ public class DaoMetricsAspect {
 | 连接池 | 活跃连接数、等待线程数 | HikariCP JMX |
 | Database | 慢查询日志、锁等待、缓冲命中率 | MySQL Performance Schema |
 
-## 7.4 常见问题排查
+## 4. 常见问题排查
 
-### 7.4.1 慢查询
+慢查询的 EXPLAIN 分析与索引优化见 [MySQL 卷 · 执行计划](../../mysql/05-query-optimization/chapter-02-explain.md)，死锁的成因与锁机制见 [MySQL 卷 · 死锁](../../mysql/04-transaction-lock/chapter-03-deadlock.md)。本节聚焦数据访问层的 Java 侧排查。
 
-**症状**：接口 RT 突然飙升，数据库 CPU 飙高。
-
-**排查流程**：
-
-```sql
--- 1. 找到慢查询
-SHOW PROCESSLIST;  -- 查看当前正在执行的 SQL
-
--- 2. 分析执行计划
-EXPLAIN SELECT * FROM orders
-WHERE user_id = 123 AND status = 'PAID'
-ORDER BY create_time DESC;
-
--- 3. 检查索引使用情况
-+----+-------------+--------+------+---------------+------+---------+------+-------+-----------------------------+
-| id | select_type | table  | type | possible_keys | key  | key_len | ref  | rows  | Extra                       |
-+----+-------------+--------+------+---------------+------+---------+------+-------+-----------------------------+
-|  1 | SIMPLE      | orders | ALL  | NULL          | NULL | NULL    | NULL | 98765 | Using where; Using filesort |
-+----+-------------+--------+------+---------------+------+---------+------+-------+-----------------------------+
--- type=ALL → 全表扫描！rows=98765 → 扫了近10万行
-```
-
-**解决方案**：
-
-```sql
--- 添加复合索引
-ALTER TABLE orders ADD INDEX idx_user_status_time (user_id, status, create_time);
-
--- 再次 EXPLAIN，确认 type 变为 ref，rows 大幅下降
-EXPLAIN SELECT * FROM orders
-WHERE user_id = 123 AND status = 'PAID'
-ORDER BY create_time DESC;
-```
-
-### 7.4.2 连接耗尽
+### 4.1 连接耗尽
 
 **症状**：大量请求超时，日志出现 `Connection is not available, request timed out`。
 
@@ -352,50 +318,7 @@ public void goodExample() {
 }
 ```
 
-### 7.4.3 死锁
-
-**症状**：数据库日志出现 `Deadlock found when trying to get lock`。
-
-**死锁的典型场景**：
-
-```text
-事务 A                          事务 B
-─────                          ─────
-UPDATE account SET              UPDATE account SET
-  balance = balance - 100         balance = balance + 100
-WHERE id = 1;                   WHERE id = 2;
-  → 锁定 id=1 ✓                  → 锁定 id=2 ✓
-
-UPDATE account SET              UPDATE account SET
-  balance = balance + 100         balance = balance - 100
-WHERE id = 2;                   WHERE id = 1;
-  → 等待 id=2 锁 ✗ (被B持有)      → 等待 id=1 锁 ✗ (被A持有)
-
-           死锁！ 💀
-```
-
-**解决方案**：统一加锁顺序。
-
-```java
-// ✅ 始终按 id 从小到大的顺序加锁
-public void transfer(int fromId, int toId, BigDecimal amount) {
-    int first = Math.min(fromId, toId);
-    int second = Math.max(fromId, toId);
-
-    // 先锁 id 小的，再锁 id 大的
-    accountDao.lock(first);
-    accountDao.lock(second);
-
-    try {
-        // 执行转账逻辑
-    } finally {
-        accountDao.unlock(second);
-        accountDao.unlock(first);
-    }
-}
-```
-
-### 7.4.4 问题排查对照表
+### 4.2 问题排查对照表
 
 | 问题 | 可能原因 | 排查方向 | 解决方案 |
 |------|----------|----------|----------|
@@ -410,7 +333,7 @@ public void transfer(int fromId, int toId, BigDecimal amount) {
 | 数据库 CPU 高 | 复杂 JOIN | 执行计划分析 | 拆分查询或反范式化 |
 | 连接抖动 | maxLifetime 太大 | 数据库 wait_timeout 对比 | 设为 wait_timeout 的 80% |
 
-## 7.5 数据访问最佳实践总结
+## 5. 数据访问最佳实践总结
 
 经过本章的学习，我们可以提炼出六条数据访问层的核心实践：
 
