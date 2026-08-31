@@ -2,7 +2,7 @@
 
 > 除了五种基础类型，Redis 还提供了四类高级数据类型：BitMap、HyperLogLog、Geo、Stream。它们并非全新的底层结构，而是对基础类型的巧妙封装——BitMap 与 HyperLogLog 基于 String，Geo 基于 ZSet，Stream 基于专属的 Radix Tree。
 
-## 1. BitMap：位操作
+## 1. BitMap：位操作 {#bitmap}
 
 BitMap 不是独立类型，而是 String 上的一组位操作命令——把 String 当作一个可以按位读写的比特数组。
 
@@ -21,7 +21,7 @@ BITOP AND dest key1 key2      # 位运算（AND/OR/XOR/NOT）
 
 **优势**：一个 bit 记录一个状态，内存效率极高。1 亿用户签到约需 12.5MB 内存（1 亿 bit ÷ 8 = 1250 万字节，纯计算值，不含字符串头部开销）。
 
-## 2. HyperLogLog：基数统计
+## 2. HyperLogLog：基数统计 {#hyperloglog}
 
 HyperLogLog 用于统计「不重复元素的数量」（基数），典型场景是 UV（独立访客）统计。它基于 String，用概率算法在固定内存下估算基数。
 

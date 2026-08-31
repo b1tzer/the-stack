@@ -874,6 +874,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '高级类型', link: '/redis/01-data-model/chapter-03-advanced-types' },
             { text: '数据结构', link: '/redis/01-data-model/chapter-04-data-structures' },
             { text: '对象编码', link: '/redis/01-data-model/chapter-05-object-encoding' },
+            { text: '线上问题案例集', link: '/redis/01-data-model/chapter-06-production-cases' },
           ],
         },
         {
@@ -885,6 +886,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: 'AOF', link: '/redis/02-standalone-core/chapter-04-aof' },
             { text: '过期策略', link: '/redis/02-standalone-core/chapter-05-expiration' },
             { text: '淘汰策略', link: '/redis/02-standalone-core/chapter-06-eviction' },
+            { text: '线上问题案例集', link: '/redis/02-standalone-core/chapter-07-production-cases' },
           ],
         },
         {
@@ -909,6 +911,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '分布式锁', link: '/redis/04-high-availability/chapter-04-distributed-lock' },
             { text: '事务与 Lua', link: '/redis/04-high-availability/chapter-05-transaction-lua' },
             { text: 'Pipeline 与 Pub/Sub', link: '/redis/04-high-availability/chapter-06-pipeline-pubsub' },
+            { text: '线上问题案例集', link: '/redis/04-high-availability/chapter-07-production-cases' },
           ],
         },
         {

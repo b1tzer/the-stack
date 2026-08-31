@@ -82,7 +82,7 @@ quorum = 2 → 3 个哨兵中 2 个确认 → ODOWN（客观下线）
 
 如果所有哨兵都同时执行故障转移，可能选出不同的新主，导致脑裂。Leader 机制保证只有一个哨兵执行转移。
 
-## 4. 故障转移流程
+## 4. 故障转移流程 {#failover}
 
 ![哨兵故障转移流程](/redis/04-high-availability-chapter-02-sentinel-2.svg)
 

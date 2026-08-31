@@ -2,7 +2,7 @@
 
 > AOF（Append Only File）通过记录每一条写命令来实现持久化，比 RDB 更接近「实时」。本章讲解 AOF 的原理、重写机制、fsync 策略，以及 RDB + AOF 的混合持久化方案。
 
-## 1. AOF 原理
+## 1. AOF 原理 {#aof-principle}
 
 AOF 记录服务器收到的每一条写命令，重启时按顺序重新执行这些命令来重建数据。
 
@@ -120,7 +120,7 @@ Redis 4.0 引入混合持久化：AOF 重写时，文件开头是 RDB 快照，�
 aof-use-rdb-preamble yes   # 开启混合持久化（4.0+ 默认开启）
 ```
 
-## 4. AOF 文件损坏修复
+## 4. AOF 文件损坏修复 {#aof-repair}
 
 AOF 文件可能因为宕机、磁盘故障等原因损坏。Redis 提供了修复工具：
 

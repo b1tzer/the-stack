@@ -21,7 +21,7 @@ maxmemory-policy allkeys-lru
 
 当内存达到 `maxmemory` 时，Redis 根据 `maxmemory-policy` 指定的策略淘汰键。若策略是 `noeviction`（不淘汰），则写命令直接报错。
 
-## 2. 八种淘汰策略
+## 2. 八种淘汰策略 {#eviction-policies}
 
 淘汰策略 = 「淘汰范围」×「淘汰算法」的组合。
 
@@ -91,7 +91,7 @@ typedef struct redisObject {
 
 每次访问键时更新 `lru` 为当前时钟值。淘汰时比较 `lru` 值，最小的（最久未访问）被淘汰。
 
-### 3.4 LRU 的问题
+### 3.4 LRU 的问题 {#lru-problems}
 
 LRU 只看「最近访问时间」，不看「访问频率」。一个键被偶然访问一次，LRU 就认为它是「新」的，不会被淘汰——即使它之后再也不会被访问。
 
