@@ -115,13 +115,26 @@ export default withOpenInEditor(defineConfig({
             { text: '反模式', link: '/design-pattern/04-practice/chapter-04-anti-patterns' },
           ],
         },
+        {
+          text: '教程',
+          items: [
+            { text: '设计模式入门', link: '/design-pattern/tutorials/getting-started' },
+          ],
+        },
+        {
+          text: '参考手册',
+          items: [
+            { text: '模式速查表', link: '/design-pattern/reference/pattern-cheatsheet' },
+            { text: 'UML 类图速查', link: '/design-pattern/reference/uml-cheatsheet' },
+          ],
+        },
       ],
       '/elasticsearch/': [
         {
           text: '基础入门',
           items: [
+            { text: 'ES 引入', link: '/elasticsearch/01-basics/chapter-00-intro' },
             { text: 'ES 概览', link: '/elasticsearch/01-basics/chapter-01-overview' },
-            { text: '安装部署', link: '/elasticsearch/01-basics/chapter-02-install-config' },
             { text: '核心概念', link: '/elasticsearch/01-basics/chapter-03-core-concepts' },
             { text: 'REST API', link: '/elasticsearch/01-basics/chapter-04-rest-api' },
           ],
@@ -217,6 +230,21 @@ export default withOpenInEditor(defineConfig({
             { text: '数据同步', link: '/elasticsearch/10-practice/chapter-04-data-sync' },
           ],
         },
+        {
+          text: '教程',
+          items: [
+            { text: '安装部署与环境配置', link: '/elasticsearch/tutorials/installation' },
+            { text: '第一个 ES 应用', link: '/elasticsearch/tutorials/first-app' },
+            { text: '首次生产部署', link: '/elasticsearch/tutorials/first-production' },
+          ],
+        },
+        {
+          text: '参考手册',
+          items: [
+            { text: '参数速查', link: '/elasticsearch/reference/parameters' },
+            { text: 'API 速查', link: '/elasticsearch/reference/api' },
+          ],
+        },
       ],
       '/engineering/': [
         {
@@ -309,6 +337,21 @@ export default withOpenInEditor(defineConfig({
             { text: '案例分析', link: '/engineering/09-practice/chapter-04-case-studies' },
           ],
         },
+        {
+          text: '教程',
+          items: [
+            { text: '软件工程入门', link: '/engineering/tutorials/getting-started' },
+            { text: 'Git 工作流', link: '/engineering/tutorials/git-workflow' },
+          ],
+        },
+        {
+          text: '参考手册',
+          items: [
+            { text: '设计原则速查', link: '/engineering/reference/principles' },
+            { text: '工具链速查', link: '/engineering/reference/toolchain' },
+            { text: 'Code Review 速查', link: '/engineering/reference/code-review-checklist' },
+          ],
+        },
       ],
       '/java/': [
         {
@@ -351,7 +394,7 @@ export default withOpenInEditor(defineConfig({
             { text: '异步编程', link: '/java/03-java-concurrency/chapter-11-async-model' },
             { text: '虚拟线程与结构化并发', link: '/java/03-java-concurrency/chapter-12-virtual-thread' },
             { text: '诊断与优化', link: '/java/03-java-concurrency/chapter-13-diagnostics' },
-            { text: '案例集：死锁、线程池与虚拟线程', link: '/java/03-java-concurrency/chapter-13-diagnostics-cases' },
+            { text: '案例集：死锁、线程池与虚拟线程', link: '/java/03-java-concurrency/chapter-14-diagnostics-cases' },
           ],
         },
         {
@@ -467,6 +510,21 @@ export default withOpenInEditor(defineConfig({
             { text: '性能调优', link: '/kafka/09-practice/chapter-03-performance-tuning' },
           ],
         },
+        {
+          text: '教程',
+          items: [
+            { text: '安装部署与环境配置', link: '/kafka/tutorials/installation' },
+            { text: '第一个 Kafka 应用', link: '/kafka/tutorials/first-app' },
+            { text: '首次生产部署', link: '/kafka/tutorials/first-production' },
+          ],
+        },
+        {
+          text: '参考手册',
+          items: [
+            { text: '参数速查', link: '/kafka/reference/parameters' },
+            { text: '命令速查', link: '/kafka/reference/commands' },
+          ],
+        },
       ],
       '/rabbitmq/': [
         {
@@ -567,13 +625,27 @@ export default withOpenInEditor(defineConfig({
             { text: '性能基准', link: '/rabbitmq/10-practice/chapter-04-performance-benchmark' },
           ],
         },
+        {
+          text: '教程',
+          items: [
+            { text: '安装部署与环境配置', link: '/rabbitmq/tutorials/installation' },
+            { text: '第一个 RabbitMQ 应用', link: '/rabbitmq/tutorials/first-app' },
+            { text: '首次生产部署', link: '/rabbitmq/tutorials/first-production' },
+          ],
+        },
+        {
+          text: '参考手册',
+          items: [
+            { text: '参数速查', link: '/rabbitmq/reference/parameters' },
+            { text: '命令速查', link: '/rabbitmq/reference/commands' },
+          ],
+        },
       ],
       '/mysql/': [
         {
           text: '基础入门',
           items: [
             { text: 'MySQL 概览', link: '/mysql/01-basics/chapter-01-overview' },
-            { text: '安装部署', link: '/mysql/01-basics/chapter-02-install-config' },
             { text: '整体架构', link: '/mysql/01-basics/chapter-03-architecture' },
             { text: '字符集与排序规则', link: '/mysql/01-basics/chapter-04-charset-collation' },
             { text: 'SQL 规范与最佳实践', link: '/mysql/01-basics/chapter-05-sql-best-practices' },
@@ -605,8 +677,7 @@ export default withOpenInEditor(defineConfig({
             { text: '事务与 MVCC', link: '/mysql/04-transaction-lock/chapter-01-transaction' },
             { text: '锁机制', link: '/mysql/04-transaction-lock/chapter-02-lock' },
             { text: '死锁', link: '/mysql/04-transaction-lock/chapter-03-deadlock' },
-            { text: '乐观锁', link: '/mysql/04-transaction-lock/chapter-04-optimistic-lock' },
-            { text: '锁选型：悲观锁 vs 乐观锁', link: '/mysql/04-transaction-lock/chapter-05-lock-selection' },
+            { text: '锁选型：悲观锁 vs 乐观锁', link: '/mysql/04-transaction-lock/chapter-04-lock-selection' },
           ],
         },
         {
@@ -667,6 +738,24 @@ export default withOpenInEditor(defineConfig({
             { text: 'Spring 集成', link: '/mysql/10-practice/chapter-01-spring-integration' },
             { text: '常见问题', link: '/mysql/10-practice/chapter-02-common-issues' },
             { text: '性能调优', link: '/mysql/10-practice/chapter-03-performance-tuning' },
+          ],
+        },
+        {
+          text: '教程',
+          items: [
+            { text: '安装部署与环境配置', link: '/mysql/tutorials/installation' },
+            { text: '第一个数据库', link: '/mysql/tutorials/first-db' },
+            { text: 'MySQL 转 PostgreSQL', link: '/mysql/tutorials/mysql-to-pg' },
+            { text: '首次生产部署', link: '/mysql/tutorials/first-production' },
+          ],
+        },
+        {
+          text: '参考手册',
+          items: [
+            { text: '参数速查', link: '/mysql/reference/parameters' },
+            { text: '数据类型速查', link: '/mysql/reference/types' },
+            { text: '函数速查', link: '/mysql/reference/functions' },
+            { text: '错误码速查', link: '/mysql/reference/errors' },
           ],
         },
       ],
@@ -730,7 +819,7 @@ export default withOpenInEditor(defineConfig({
           items: [
             { text: '配置调优', link: '/postgresql/07-performance/chapter-01-config-tuning' },
             { text: '查询优化', link: '/postgresql/07-performance/chapter-02-query-optimization' },
-            { text: '扩展策略', link: '/postgresql/07-performance/chapter-04-scaling' },
+            { text: '扩展策略', link: '/postgresql/07-performance/chapter-03-scaling' },
           ],
         },
         {
@@ -859,6 +948,22 @@ export default withOpenInEditor(defineConfig({
             { text: '实战项目', link: '/redis/05-operations/chapter-05-hands-on-project' },
           ],
         },
+        {
+          text: '教程',
+          items: [
+            { text: '安装部署与环境配置', link: '/redis/tutorials/installation' },
+            { text: '第一个 Redis 应用', link: '/redis/tutorials/first-app' },
+            { text: '首次生产部署', link: '/redis/tutorials/first-production' },
+          ],
+        },
+        {
+          text: '参考手册',
+          items: [
+            { text: '参数速查', link: '/redis/reference/parameters' },
+            { text: '命令速查', link: '/redis/reference/commands' },
+            { text: '错误码速查', link: '/redis/reference/errors' },
+          ],
+        },
       ],
       '/spring/': [
         {
@@ -884,7 +989,6 @@ export default withOpenInEditor(defineConfig({
             { text: 'DevTools 热部署', link: '/spring/02-spring-boot/chapter-05-devtools' },
             { text: 'API 文档', link: '/spring/02-spring-boot/chapter-06-api-doc' },
             { text: '启动流程与启动参数', link: '/spring/02-spring-boot/chapter-07-startup' },
-            { text: '构建与部署', link: '/spring/02-spring-boot/chapter-09-build-deploy' },
           ],
         },
         {
@@ -969,6 +1073,21 @@ export default withOpenInEditor(defineConfig({
             { text: '容器化部署', link: '/spring/10-production/chapter-02-containerization' },
             { text: 'GraalVM 原生镜像', link: '/spring/10-production/chapter-03-graalvm' },
             { text: 'CI/CD 流水线', link: '/spring/10-production/chapter-04-cicd' },
+          ],
+        },
+        {
+          text: '教程',
+          items: [
+            { text: '构建与部署', link: '/spring/tutorials/build-deploy' },
+            { text: '第一个 Spring Boot 应用', link: '/spring/tutorials/first-app' },
+            { text: '首次生产部署', link: '/spring/tutorials/first-production' },
+          ],
+        },
+        {
+          text: '参考手册',
+          items: [
+            { text: '注解速查', link: '/spring/reference/annotations' },
+            { text: 'Starter 速查', link: '/spring/reference/starters' },
           ],
         },
       ],

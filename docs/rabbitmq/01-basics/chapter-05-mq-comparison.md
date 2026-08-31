@@ -1,71 +1,45 @@
 # 消息队列选型
 
-> RabbitMQ、Kafka、RocketMQ、Pulsar 各有擅长的场景。选型不是选"最好"的，而是选"最合适"的。
+> 选消息队列不是选「最好的」，而是选「最适合的」。本章聚焦 RabbitMQ 的核心优势与适用场景。完整技术对比见 [Kafka · 消息队列选型](/kafka/01-basics/chapter-04-mq-comparison)。
 
-## 1. 全景对比
+## RabbitMQ 的核心优势
 
-| 维度 | RabbitMQ | Kafka | RocketMQ | Pulsar |
-| :-- | :-- | :-- | :-- | :-- |
-| 协议 | AMQP 0-9-1 | 自定义 | 自定义 | 自定义 |
-| 吞吐量 | 万级 QPS | 百万级 QPS | 十万级 QPS | 百万级 QPS |
-| 延迟 | 微秒~毫秒 | 毫秒级 | 毫秒级 | 毫秒级 |
-| 消息堆积 | 差（性能下降） | 优秀 | 优秀 | 优秀 |
-| 消息模型 | Queue + Exchange | Topic + Partition | Topic + Queue | Topic + Subscription |
-| 路由能力 | 强（4 种 Exchange） | 弱（分区有序） | 支持 Tag 过滤 | 支持 Tag 过滤 |
-| 事务消息 | 支持 | 支持（0.11+） | 支持（半消息） | 支持 |
-| 延迟消息 | 插件 | 不原生支持 | 支持 | 支持 |
-| 死信队列 | 原生支持 | 不原生支持 | 支持 | 支持 |
-| 协议多面手 | AMQP/MQTT/STOMP | 自定义 | 自定义 | AMQP/MQTT |
-| 运维复杂度 | 低 | 中 | 中 | 高 |
-| 生态成熟度 | 极高 | 极高 | 高 | 中 |
+| 维度 | RabbitMQ 的特点 |
+|------|----------------|
+| 路由能力 | 4 种 Exchange（Direct/Topic/Fanout/Headers），路由规则灵活 |
+| 延迟 | 微秒级，比 Kafka 低一个数量级 |
+| 协议支持 | AMQP/MQTT/STOMP，IoT 场景天然适配 |
+| 死信队列 | 原生支持，无需额外开发 |
+| 延迟消息 | 插件原生支持 |
+| 运维成本 | 低于 Kafka，轻量级部署 |
 
-## 2. 场景选型指南
+## 选 RabbitMQ 的场景
 
-### 2.1 选 RabbitMQ
-
-- 需要复杂路由规则（Topic/Direct/Fanout）
+- 复杂路由规则（按 routing key 精确/模糊匹配）
 - 消息量中等（万级 QPS 以内）
-- 需要可靠投递，消息不能丢
-- 团队熟悉 AMQP 协议
-- 需要支持多种协议（MQTT/STOMP）
-- 企业内部微服务间通信
+- 需要微秒级低延迟
+- IoT 设备通信（MQTT 协议）
+- 企业内部微服务间可靠投递
+- 需要死信队列、延迟消息等高级特性
 
-### 2.2 选 Kafka
+## 不选 RabbitMQ 的场景
 
-- 日志收集、大数据流处理
-- 超高吞吐（百万级 QPS）
-- 消息可以大量堆积
-- 需要消息回溯
-- 流处理（Kafka Streams/Flink）
+| 场景 | 原因 | 推荐 |
+|------|------|------|
+| 日志收集/大数据流 | 消息堆积后性能下降 | Kafka |
+| 百万级 QPS | Erlang 单节点瓶颈 | Kafka / Pulsar |
+| 消息回溯 | 不支持按 offset 回溯 | Kafka |
+| 流处理 | 无原生流处理引擎 | Kafka Streams / Flink |
 
-### 2.3 选 RocketMQ
+## 组合使用
 
-- 电商订单、金融交易
-- 需要事务消息（半消息）
-- 延迟消息场景
-- 团队以 Java 为主
-- 阿里生态集成
-
-### 2.4 选 Pulsar
-
-- 多租户场景
-- 计算存储分离架构
-- 同时需要队列和流语义
-- 云原生环境
-
-## 3. 组合使用
-
-实际项目中经常组合使用：
+实际项目中经常组合：
 
 ```text
 IoT 设备 ──MQTT──▶ RabbitMQ ──AMQP──▶ 业务服务
                                       │
                                       ▼
-                              Kafka（日志收集）
-                                      │
-                                      ▼
-                              Flink（流处理）
-                                      │
-                                      ▼
-                              Elasticsearch（搜索）
+                              Kafka（日志/事件流）
 ```
+
+> 不要为了「统一技术栈」强行用一个 MQ 解决所有问题。RabbitMQ 擅长业务消息、灵活路由；Kafka 擅长大数据量、高吞吐。各取所长。
