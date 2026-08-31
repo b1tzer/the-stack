@@ -118,7 +118,7 @@ public String hgetSharded(String baseKey, String field, int shardCount) {
 | :-- | :-- |
 | 单点压力 | 流量集中在单个 key 所在的节点，成为瓶颈 |
 | 集群倾斜 | Cluster 模式下热 key 所在分片负载过高 |
-| 击穿风险 | 热 key 过期瞬间引发缓存击穿（见第 2 章） |
+| 击穿风险 | 热 key 过期瞬间引发缓存击穿（见 [缓存失效](./chapter-01-cache-invalidation) §3） |
 
 ### 2.3 发现
 

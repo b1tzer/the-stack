@@ -24,15 +24,22 @@
 
 ![主从全量同步流程](/redis/04-high-availability-chapter-01-replication-2.svg)
 
-全量同步步骤：
+全量同步的时序：
 
-1. 从节点发送 `PSYNC ? -1`（首次不知道 runid）
-2. 主节点返回 `+FULLRESYNC <runid> <offset>`，触发 `BGSAVE`
-3. 主节点 fork 子进程生成 RDB 快照，同时新写命令进入**复制缓冲区（repl_backlog）**
-4. RDB 生成完毕，主节点把 RDB 发送给从节点
-5. 从节点清空旧数据，加载 RDB
-6. RDB 加载完后，主节点把缓冲区中 RDB 生成期间的增量命令发给从节点
-7. 同步完成，之后进入增量复制阶段
+```mermaid
+sequenceDiagram
+    participant S as 从节点
+    participant M as 主节点
+
+    S->>M: PSYNC ? -1（首次不知道 runid）
+    M-->>S: +FULLRESYNC runid offset
+    M->>M: fork 子进程 BGSAVE 生成 RDB
+    Note over M: 新写命令进入 repl_backlog
+    M-->>S: 发送 RDB 快照
+    S->>S: 清空旧数据，加载 RDB
+    M-->>S: 发送缓冲区中的增量命令
+    Note over S,M: 进入增量复制阶段
+```
 
 ### 2.2 BGSAVE 的 fork 代价
 
@@ -44,7 +51,7 @@
 | 内存开销 | fork 后父子进程共享内存页，写入时才复制，极端情况内存翻倍 |
 | 主线程阻塞 | fork 期间主线程短暂阻塞（毫秒级） |
 
-> 生产环境常见问题：数据量过大（>10GB）导致 fork 耗时长，fork 期间主线程阻塞导致请求超时。解决方案：控制单实例内存在 10GB 以内，或使用 `io-threads` 分担 IO。
+> 生产环境常见问题：数据量过大（>10GB）导致 fork 耗时长，fork 期间主线程阻塞导致请求超时。解决方案：控制单实例内存在 10GB 以内，并避免频繁 fork（如多个从节点同时全量同步）。
 
 ### 2.3 复制缓冲区大小 {#repl-buffer}
 
@@ -107,10 +114,15 @@ redis-cli INFO replication
 
 Redis 的复制是**异步**的：主节点写完就返回客户端成功，不等待从节点确认。
 
-```text
-客户端 → 主节点：SET key value
-主节点 → 客户端：OK（立即返回）
-主节点 → 从节点：SET key value（异步传播）
+```mermaid
+sequenceDiagram
+    participant C as 客户端
+    participant M as 主节点
+    participant S as 从节点
+
+    C->>M: SET key value
+    M-->>C: OK（立即返回）
+    M-->>S: SET key value（异步传播）
 ```
 
 ### 4.1 异步的代价

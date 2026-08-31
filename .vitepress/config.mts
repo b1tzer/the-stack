@@ -28,6 +28,9 @@ export default withOpenInEditor(withMermaid(defineConfig({
   
   themeConfig: {
     logo: '/assets/logo.svg',
+    outline: {
+      level: [2, 3],
+    },
     
     editLink: {
       text: '在编辑器中打开源文件',
@@ -35,19 +38,34 @@ export default withOpenInEditor(withMermaid(defineConfig({
     
     nav: [
       { text: '首页', link: '/' },
-      { text: 'Java', link: '/java/01-java-language/chapter-01-type-system' },
-      { text: 'Spring', link: '/spring/01-core/chapter-01-spring-overview' },
-      { text: 'Redis', link: '/redis/01-data-model/chapter-01-overview' },
-      { text: '更多', items: [
-        { text: 'PostgreSQL', link: '/postgresql/01-pg-unique/chapter-01-pg-overview' },
-        { text: 'MySQL', link: '/mysql/01-basics/chapter-01-overview' },
-        { text: 'Kafka', link: '/kafka/01-basics/chapter-01-overview' },
-        { text: 'RabbitMQ', link: '/rabbitmq/01-basics/chapter-01-overview' },
-        { text: 'Elasticsearch', link: '/elasticsearch/01-basics/chapter-01-overview' },
-        { text: '设计模式', link: '/design-pattern/00-intro/chapter-01-why-patterns' },
-        { text: '软件工程', link: '/engineering/01-principles/chapter-01-overview' },
-        { text: 'AI 工程', link: '/ai/01-LLM接口与提示词工程' },
-      ]
+      { text: 'Java', link: '/java/01-java-language/chapter-01-type-system', activeMatch: '^/java/' },
+      { text: 'Spring', link: '/spring/01-core/chapter-01-spring-overview', activeMatch: '^/spring/' },
+      { text: 'Redis', link: '/redis/01-data-model/chapter-01-overview', activeMatch: '^/redis/' },
+      {
+        text: '数据库',
+        activeMatch: '^/(mysql|postgresql)/',
+        items: [
+          { text: 'MySQL', link: '/mysql/01-basics/chapter-01-overview' },
+          { text: 'PostgreSQL', link: '/postgresql/01-pg-unique/chapter-01-pg-overview' },
+        ],
+      },
+      {
+        text: '消息队列',
+        activeMatch: '^/(kafka|rabbitmq)/',
+        items: [
+          { text: 'Kafka', link: '/kafka/01-basics/chapter-01-overview' },
+          { text: 'RabbitMQ', link: '/rabbitmq/01-basics/chapter-01-overview' },
+        ],
+      },
+      { text: 'Elasticsearch', link: '/elasticsearch/01-basics/chapter-01-overview', activeMatch: '^/elasticsearch/' },
+      {
+        text: '工程',
+        activeMatch: '^/(design-pattern|engineering|ai)/',
+        items: [
+          { text: '设计模式', link: '/design-pattern/00-intro/chapter-01-why-patterns' },
+          { text: '软件工程', link: '/engineering/01-principles/chapter-01-overview' },
+          { text: 'AI 工程', link: '/ai/01-LLM接口与提示词工程' },
+        ],
       },
     ],
 
@@ -892,14 +910,10 @@ export default withOpenInEditor(withMermaid(defineConfig({
         {
           text: '缓存工程',
           items: [
-            { text: '穿透', link: '/redis/03-cache-engineering/chapter-01-penetration' },
-            { text: '击穿', link: '/redis/03-cache-engineering/chapter-02-breakdown' },
-            { text: '雪崩', link: '/redis/03-cache-engineering/chapter-03-avalanche' },
-            { text: '一致性', link: '/redis/03-cache-engineering/chapter-04-consistency' },
-            { text: '大 Key 与热 Key', link: '/redis/03-cache-engineering/chapter-05-big-hot-key' },
-            { text: '缓存模式全景', link: '/redis/03-cache-engineering/chapter-06-cache-patterns' },
-            { text: '多级缓存实战', link: '/redis/03-cache-engineering/chapter-07-multi-level-cache' },
-            { text: '雪崩纵深防御', link: '/redis/03-cache-engineering/chapter-08-avalanche-defense' },
+            { text: '缓存失效：穿透·击穿·雪崩', link: '/redis/03-cache-engineering/chapter-01-cache-invalidation' },
+            { text: '缓存写路径：四种模式与一致性', link: '/redis/03-cache-engineering/chapter-02-cache-write-patterns' },
+            { text: '多级缓存与纵深防御', link: '/redis/03-cache-engineering/chapter-03-multi-level-defense' },
+            { text: '大 Key 与热 Key', link: '/redis/03-cache-engineering/chapter-04-big-hot-key' },
           ],
         },
         {

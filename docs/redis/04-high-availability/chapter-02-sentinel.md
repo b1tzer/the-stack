@@ -38,7 +38,7 @@
 
 | 阶段 | 全称 | 说明 |
 | :-- | :-- | :-- |
-| 主观下线（SDOWN） | Subjectively Down | 单个哨兵认为主节点下线 |
+| 主观下线（SDOWN） | Subjectively Down | 单个哨兵认为某个节点（主/从/哨兵）下线 |
 | 客观下线（ODOWN） | Objectively Down | 达到 quorum 个哨兵都认为下线 |
 
 单个哨兵判断下线可能是网络抖动导致的误判，多个哨兵达成共识才可靠。
@@ -99,10 +99,16 @@ quorum = 2 → 3 个哨兵中 2 个确认 → ODOWN（客观下线）
 
 ### 4.2 执行切换
 
-```text
-领头哨兵 → 新主节点：REPLICAOF NO ONE（提升为主）
-领头哨兵 → 其他从节点：REPLICAOF <新主IP> <新主端口>（跟随新主）
-领头哨兵 → 原主节点（恢复后）：REPLICAOF <新主IP> <新主端口>（降级为从）
+```mermaid
+sequenceDiagram
+    participant L as 领头哨兵
+    participant N as 新主节点
+    participant O as 其他从节点
+    participant M as 原主节点（恢复后）
+
+    L->>N: REPLICAOF NO ONE（提升为主）
+    L->>O: REPLICAOF 新主IP 新主端口（跟随新主）
+    L->>M: REPLICAOF 新主IP 新主端口（降级为从）
 ```
 
 ### 4.3 客户端通知

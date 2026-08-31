@@ -49,3 +49,9 @@
 .VPDoc:not(.has-sidebar) .content {
   max-width: none !important;
 }
+
+/* Mermaid 图居中：插件把图渲染成 .mermaid 容器，svg 默认左对齐，用 flex 居中且不改动 svg 自身尺寸 */
+.mermaid {
+  display: flex;
+  justify-content: center;
+}
