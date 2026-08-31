@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="200" viewBox="0 0 920 200" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif">
+  <rect width="920" height="200" fill="#ffffff"/>
+
+  <!-- encoding 字段 -->
+  <rect x="40" y="45" width="200" height="52" rx="8" fill="#f6f8fa" stroke="#9aa4af"/>
+  <text x="140" y="66" text-anchor="middle" font-size="13" font-weight="700" fill="#24292f">encoding</text>
+  <text x="140" y="86" text-anchor="middle" font-size="12" fill="#57606a">元素编码（16/32/64 位）</text>
+
+  <!-- length 字段 -->
+  <rect x="260" y="45" width="200" height="52" rx="8" fill="#f6f8fa" stroke="#9aa4af"/>
+  <text x="360" y="66" text-anchor="middle" font-size="13" font-weight="700" fill="#24292f">length</text>
+  <text x="360" y="86" text-anchor="middle" font-size="12" fill="#57606a">元素数量</text>
+
+  <!-- contents 有序数组 -->
+  <rect x="40" y="120" width="840" height="56" rx="8" fill="#ffffff" stroke="#9aa4af"/>
+  <g stroke="#c0c8d0" stroke-width="1">
+    <line x1="140" y1="120" x2="140" y2="176"/>
+    <line x1="240" y1="120" x2="240" y2="176"/>
+    <line x1="340" y1="120" x2="340" y2="176"/>
+    <line x1="440" y1="120" x2="440" y2="176"/>
+    <line x1="540" y1="120" x2="540" y2="176"/>
+    <line x1="640" y1="120" x2="640" y2="176"/>
+    <line x1="740" y1="120" x2="740" y2="176"/>
+  </g>
+  <text x="90" y="153" text-anchor="middle" font-size="15" fill="#DC382D">1</text>
+  <text x="190" y="153" text-anchor="middle" font-size="15" fill="#DC382D">3</text>
+  <text x="290" y="153" text-anchor="middle" font-size="15" fill="#DC382D">5</text>
+  <text x="390" y="153" text-anchor="middle" font-size="15" fill="#DC382D">7</text>
+  <text x="490" y="153" text-anchor="middle" font-size="15" fill="#DC382D">9</text>
+  <text x="590" y="153" text-anchor="middle" font-size="15" fill="#DC382D">11</text>
+  <text x="690" y="153" text-anchor="middle" font-size="15" fill="#DC382D">13</text>
+  <text x="790" y="153" text-anchor="middle" font-size="15" fill="#DC382D">15</text>
+
+  <text x="460" y="125" text-anchor="middle" font-size="12" fill="#57606a">contents[]：升序整数数组，二分查找 O(log n)</text>
+</svg>

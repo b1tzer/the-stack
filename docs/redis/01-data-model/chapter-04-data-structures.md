@@ -17,6 +17,8 @@ struct __attribute__ ((__packed__)) sdshdr8 {
 };
 ```
 
+![SDS 结构内存布局](/redis/01-data-model-chapter-04-data-structures-3.svg)
+
 Redis 7.0 有5种 SDS 类型（sdshdr5/8/16/32/64），按字符串长度自动选择：
 
 | 类型 | len 范围 | 说明 |
@@ -74,12 +76,7 @@ typedef struct list {
 
 Redis 7.0 的 List 底层是 quicklist——一个双向链表，每个节点是一个连续内存的 listpack：
 
-```text
-quicklist（链表）
-  ├── 节点1（listpack，存多个元素）
-  ├── 节点2（listpack，存多个元素）
-  └── 节点3（listpack，存多个元素）
-```
+![quicklist 结构](/redis/01-data-model-chapter-04-data-structures-4.svg)
 
 quicklist 的优势：两端操作 O(1)（链表特性），节点内连续内存（缓存友好），比纯链表省内存。
 
@@ -124,7 +121,11 @@ typedef struct dictEntry {
 
 核心设计：`ht[2]` 两个哈希表，正常时只用 `ht[0]`，rehash 时两个都用。
 
+![字典结构](/redis/01-data-model-chapter-04-data-structures-5.svg)
+
 ### 3.2 渐进式 rehash
+
+![渐进式 rehash](/redis/01-data-model-chapter-04-data-structures-1.svg)
 
 当哈希表的负载因子（used/size）过高或过低时，Redis 触发 rehash，把 `ht[0]` 的数据逐步迁移到 `ht[1]`：
 
@@ -159,6 +160,8 @@ rehash 过程：
 ## 4. 跳表（skiplist）
 
 跳表是 ZSet 的底层结构之一（当元素较多时），支持 O(log n) 的范围查询。
+
+![跳表结构](/redis/01-data-model-chapter-04-data-structures-2.svg)
 
 ### 4.1 结构
 
@@ -206,6 +209,11 @@ P(level = n) = 1/4^(n-1)
 
 Redis 选择跳表的原因：实现简单、范围查询天然支持（`ZRANGEBYSCORE`）、比红黑树更容易维护。
 
+::: tip 延伸：跳表可视化动画
+- [VisuAlgo - Skip List](https://visualgo.net/zh)（进入后选择「跳表」模块，可交互观察插入、查找、删除过程）
+- [Skip List Visualizer](https://alltools.dev/tools/visualizations/skip-list-visualizer)（独立跳表演示，可调参数 p 观察层级分布）
+:::
+
 ## 5. 整数集合（intset）
 
 intset 是 Set 的底层编码（当元素全是整数且数量少时）：
@@ -219,6 +227,8 @@ typedef struct intset {
 ```
 
 特点：有序数组、二分查找 O(log n)、自动升级编码（存入更大整数时从16位升级到32位）。
+
+![整数集合结构](/redis/01-data-model-chapter-04-data-structures-6.svg)
 
 ## 6. listpack（压缩列表替代）
 
@@ -243,6 +253,8 @@ listpack 节点：[encoding][data][self-len]
 
 节点长度变化只影响自己，不会波及其他节点，彻底消除连锁更新。
 
+![ziplist 连锁更新 vs listpack](/redis/01-data-model-chapter-04-data-structures-7.svg)
+
 ## 7. 小结
 
 | 结构 | 用途 | 核心优势 |
@@ -253,3 +265,8 @@ listpack 节点：[encoding][data][self-len]
 | skiplist | ZSet 底层 | O(log n) 范围查询，实现简单 |
 | intset | Set（纯小整数） | 有序数组，自动升级编码 |
 | listpack | Hash/ZSet/Set（小数据） | 连续内存，无连锁更新 |
+
+::: info 📖 延伸阅读
+- [小林coding - Redis 数据结构](https://xiaolincoding.com/redis/data_struct/data_struct.html)：全结构图解，含 SDS、字典、跳表、quicklist、listpack 等新旧版本对照
+- [腾讯云 - 为了拿捏 Redis 数据结构，我画了 40 张图](https://cloud.tencent.com/developer/article/1909810)：完整图解系列
+:::

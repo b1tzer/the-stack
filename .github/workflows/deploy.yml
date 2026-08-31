@@ -80,8 +80,6 @@ jobs:
 
   build-and-deploy:
     name: Build & Deploy
-    needs: sync-dev-to-main
-    if: ${{ github.event_name != 'schedule' || needs['sync-dev-to-main'].result == 'success' }}
     runs-on: ubuntu-latest
     env:
       NODE_OPTIONS: '--max-old-space-size=4096'
