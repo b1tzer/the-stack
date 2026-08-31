@@ -65,7 +65,29 @@ public void good() {
 
 > **踩坑提醒**：`@Transactional` 默认只回滚 `RuntimeException` 和 `Error`，**不回滚 checked exception**。这是最容易踩的坑。永远写 `@Transactional(rollbackFor = Exception.class)`。
 
----
+### 1.4 事务是 AOP 的典型应用
+
+`@Transactional` 之所以能"自动"开启、提交、回滚事务，底层靠的是 AOP。AOP 的三大要素在事务场景中有明确对应：
+
+| AOP 概念 | 事务场景的对应 |
+| :-- | :-- |
+| 切面（Aspect） | 事务管理切面 |
+| 切入点（Pointcut） | 标注了 `@Transactional` 的方法 |
+| 通知（Advice） | `TransactionInterceptor`（环绕通知） |
+
+事务方法调用经过 `TransactionInterceptor` 的完整链路：
+
+```text
+@Transactional 注解
+        ↓ 解析为切入点
+TransactionInterceptor（环绕通知）
+        ↓ 拦截
+AOP 代理（JDK / CGLIB）
+        ↓ 调用
+目标 Bean 的业务方法
+```
+
+代理机制（JDK 动态代理 vs CGLIB、为什么自调用会失效）已在 [AOP 章节](../01-core/chapter-05-aop.md) §4 与 §9.3 讲透，这里不再重复。
 
 ## 2. 传播行为
 

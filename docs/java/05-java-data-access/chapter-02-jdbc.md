@@ -565,3 +565,4 @@ graph TD
     B --> I[第五卷后续章节]
 ```
 
+JDBC 到此讲完数据库的「统一接口」这一层。接口之下，SQL 的执行流程、索引原理、锁与事务隔离这些数据库内核知识，由 [MySQL](../../mysql/01-basics/chapter-01-overview.md) 与 [PostgreSQL](../../postgresql/01-pg-unique/chapter-01-pg-overview.md) 专题承接；接口之上，连接池、批处理与链路排查见下一章 [性能优化](./chapter-05-performance.md)。

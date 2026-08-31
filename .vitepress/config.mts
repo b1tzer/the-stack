@@ -376,23 +376,7 @@ export default withOpenInEditor(defineConfig({
             { text: 'JDBC', link: '/java/05-java-data-access/chapter-02-jdbc' },
             { text: 'MyBatis', link: '/java/05-java-data-access/chapter-03-mybatis' },
             { text: 'ORM 深入', link: '/java/05-java-data-access/chapter-04-orm-deep' },
-            { text: '数据库核心原理', link: '/java/05-java-data-access/chapter-05-db-principles' },
-            { text: 'Spring 事务', link: '/java/05-java-data-access/chapter-06-spring-transaction' },
-            { text: '性能优化', link: '/java/05-java-data-access/chapter-07-performance' },
-          ],
-        },
-        {
-          text: '企业架构',
-          items: [
-            { text: '企业系统部署', link: '/java/06-java-enterprise/chapter-01-security-deploy' },
-            { text: '可观测性', link: '/java/06-java-enterprise/chapter-02-observability' },
-          ],
-        },
-        {
-          text: '性能与架构',
-          items: [
-            { text: '性能工程', link: '/java/07-performance-architecture/chapter-01-performance' },
-            { text: '架构案例', link: '/java/07-performance-architecture/chapter-02-case-studies' },
+            { text: '性能优化', link: '/java/05-java-data-access/chapter-05-performance' },
           ],
         },
       ],
