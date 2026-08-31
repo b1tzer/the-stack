@@ -19,7 +19,7 @@ BITOP AND dest key1 key2      # 位运算（AND/OR/XOR/NOT）
 - **在线状态**：一个超大 BitMap 记录所有用户在线与否
 - **布隆过滤器基础**：位数组是布隆过滤器的底层载体
 
-**优势**：一个 bit 记录一个状态，内存效率极高。1 亿用户签到只需约 12MB 内存。
+**优势**：一个 bit 记录一个状态，内存效率极高。1 亿用户签到约需 12.5MB 内存（1 亿 bit ÷ 8 = 1250 万字节，纯计算值，不含字符串头部开销）。
 
 ## 2. HyperLogLog：基数统计
 
@@ -39,7 +39,7 @@ PFMERGE dest uv:1 uv:2                # 合并多个 HLL
 | 标准误差 | 约 0.81% |
 | 适用场景 | 允许误差的大规模去重计数 |
 
-**对比**：用 Set 统计 1 亿 UV 需要数 GB 内存，HyperLogLog 只需 12KB，代价是 0.81% 的误差。当「精确」不是刚需而「规模」是刚需时，HyperLogLog 是首选。
+**对比**：用 Set 统计 1 亿 UV 需要数 GB 内存，HyperLogLog 只需 12KB，代价是约 0.81% 的标准误差（Redis 官方文档）。当「精确」不是刚需而「规模」是刚需时，HyperLogLog 是首选。
 
 > HyperLogLog 只能估算基数，不能返回具体元素。如果需要「去重后还能取出元素」，请用 Set。
 
@@ -60,7 +60,9 @@ GEOSEARCH cities FROMMEMBER "北京" BYRADIUS 1000 km   # 附近查询
 - **配送范围**：判断地址是否在配送半径内
 - **地理位置检索**：结合距离排序
 
-**底层原理**：Redis 用 Geohash 算法把二维坐标降维成一维字符串，再以 ZSet 的 score 存储。所以 Geo 天然继承了 ZSet 的「范围查询 O(log n)」能力。
+**底层原理**：Redis 用 Geohash 算法把二维坐标（经度、纬度各 26 位）交织成一个 52 位整数，直接作为 ZSet 的 score 存储，精度约 0.6 米。所以 Geo 天然继承了 ZSet 的「范围查询 O(log n)」能力。
+
+两点精度相关的限制（Redis 官方文档）：坐标纬度限制在 ±85.05112878° 内，极地附近无法索引；距离计算用 Haversine 公式、假设地球为球体，最坏情况误差约 0.5%。
 
 ## 4. Stream：消息流
 
@@ -91,7 +93,7 @@ XREADGROUP GROUP group1 c1 STREAMS mystream >   # 消费者组读取
 | :-- | :-- | :-- | :-- | :-- |
 | BitMap | String | `SETBIT`/`BITCOUNT` | 签到、在线状态 | 偏移量需连续 |
 | HyperLogLog | String | `PFADD`/`PFCOUNT` | UV 统计 | 0.81% 误差、不可取元素 |
-| Geo | ZSet | `GEOADD`/`GEOSEARCH` | 附近的人、配送 | 精度约 1 米 |
+| Geo | ZSet | `GEOADD`/`GEOSEARCH` | 附近的人、配送 | 约 0.6 米（52 位 Geohash） |
 | Stream | Radix Tree | `XADD`/`XREADGROUP` | 消息队列 | 需消费者组管理 |
 
 ## 6. 实操演示：四种高级类型场景

@@ -72,6 +72,8 @@ Redis 的近似 LRU：
 maxmemory-samples 10   # 采样数越大越接近精确 LRU，但 CPU 开销也越大
 ```
 
+采样数是精度与 CPU 开销的权衡：抽样越多，越可能命中真正的最久未访问键，但每次淘汰要遍历更多键。Redis 作者 antirez 在《Random notes on improving the Redis LRU algorithm》中的结论是：增大采样数能显著逼近精确 LRU，但收益随采样数递增而递减，因此默认值取 5 作为起点。
+
 ### 3.3 LRU 时钟
 
 Redis 用一个 24 位的时钟（`lruclock`）记录访问时间，精度为秒，约 194 天溢出一次：
