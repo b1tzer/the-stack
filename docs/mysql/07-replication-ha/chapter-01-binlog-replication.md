@@ -1,160 +1,91 @@
-# 异步复制与半同步复制
+# 异步复制
 
-## 1. 异步复制
+> MySQL 主从复制是最基础的高可用方案。理解复制原理，才能理解延迟、数据不一致等问题的根因。
 
-```ini
-# 主库
-server-id = 1
-log-bin = mysql-bin
-binlog_format = ROW
+## 1. 复制原理
 
-# 从库
-server-id = 2
-relay-log = relay-bin
-read_only = ON
+```text
+Master                          Slave
+  │                               │
+  ├─ 写入 Binlog ──────────────▶  │
+  │                               ├─ IO Thread 读取 Binlog
+  │                               ├─ 写入 Relay Log
+  │                               ├─ SQL Thread 执行 Relay Log
+  │                               └─ 数据同步完成
 ```
 
-```sql
--- 从库配置
-CHANGE MASTER TO
-    MASTER_HOST='192.168.1.100',
-    MASTER_USER='repl',
-    MASTER_PASSWORD='secret',
-    MASTER_AUTO_POSITION=1;
+三个线程：
+- **Master Binlog Dump Thread**：发送 Binlog 给 Slave
+- **Slave IO Thread**：接收 Binlog，写入 Relay Log
+- **Slave SQL Thread**：执行 Relay Log 中的 SQL
 
-START SLAVE;
+## 2. 复制格式
+
+| 格式 | 说明 | 优缺点 |
+|------|------|--------|
+| STATEMENT | 记录 SQL 语句 | 日志小，但函数（NOW()）可能不一致 |
+| ROW | 记录行变更 | 日志大，但数据一致性好 |
+| MIXED | 自动选择 | 折中方案 |
+
+**推荐 ROW 格式**：数据一致性最好。
+
+## 3. 主从延迟
+
+### 延迟原因
+
+- Slave 单线程执行 Relay Log（5.7+ 支持多线程）
+- Master 写入量大
+- Slave 硬件性能差
+- 网络延迟
+
+### 查看延迟
+
+```sql
 SHOW SLAVE STATUS\G
+-- Seconds_Behind_Master: 0 表示无延迟
 ```
 
-## 2. 半同步复制
+### 减少延迟
 
 ```sql
--- 主库
+-- 开启多线程复制（5.7+）
+slave_parallel_workers = 4
+slave_parallel_type = LOGICAL_CLOCK
+```
+
+## 4. 半同步复制
+
+```text
+Master 写入 Binlog → 等待至少一个 Slave 确认收到 → 返回客户端
+```
+
+比异步复制更可靠，但延迟更高。
+
+```sql
+-- Master 端
 INSTALL PLUGIN rpl_semi_sync_master SONAME 'semisync_master.so';
 SET GLOBAL rpl_semi_sync_master_enabled = 1;
 
--- 从库
+-- Slave 端
 INSTALL PLUGIN rpl_semi_sync_slave SONAME 'semisync_slave.so';
 SET GLOBAL rpl_semi_sync_slave_enabled = 1;
 ```
 
-## 3. 延迟问题
+## 5. 复制拓扑
+
+| 拓扑 | 说明 | 适用场景 |
+|------|------|----------|
+| 一主一从 | 最简单 | 小规模 |
+| 一主多从 | 读扩展 | 读多写少 |
+| 级联复制 | Master → Slave → Slave | 大规模，减少 Master 压力 |
+| 双主复制 | 互为主从 | 高可用（需处理冲突） |
+
+## 6. GTID 复制
 
 ```sql
--- 查看从库延迟
-SHOW SLAVE STATUS\G
--- Seconds_Behind_Master
+-- 基于事务 ID 而非文件+偏移量
+gtid_mode = ON
+enforce_gtid_consistency = ON
 ```
 
-## 4. 复制原理详解
-
-复制的数据来源是 Binlog，其记录格式与事件类型见 [Binlog](../02-innodb-internals/chapter-06-binlog.md)。
-
-```
-主库：
-1. 事务提交 → 写入 Binlog
-2. Binlog Dump Thread 发送 Binlog 事件给从库
-
-从库：
-1. IO Thread 接收 Binlog 事件 → 写入 Relay Log
-2. SQL Thread 读取 Relay Log → 重放 SQL/行变更
-
-MySQL 8.0.26+ 改名：
-- Binlog Dump Thread → Binlog Dump Thread
-- IO Thread → Replica IO Thread
-- SQL Thread → Replica SQL Thread
-```
-
-## 5. 复制延迟排查
-
-```sql
--- 查看从库延迟
-SHOW REPLICA STATUS\G
--- Seconds_Behind_Source: 延迟秒数
--- Replica_SQL_Running: SQL 线程是否运行
--- Replica_IO_Running: IO 线程是否运行
-
--- 延迟原因排查：
--- 1. 主库大事务
-SELECT * FROM information_schema.innodb_trx ORDER BY trx_started ASC;
-
--- 2. 从库单线程回放（MySQL 5.7 之前）
--- 解决：开启多线程复制
-SET GLOBAL slave_parallel_type = 'LOGICAL_CLOCK';
-SET GLOBAL slave_parallel_workers = 8;
-
--- 3. 从库硬件性能不足
--- 4. 网络延迟
-```
-
-## 6. 多线程复制
-
-```sql
--- MySQL 5.7+ 支持基于 LOGICAL_CLOCK 的多线程复制
-
--- 查看当前并行复制配置
-SHOW VARIABLES LIKE 'slave_parallel_type';      -- DATABASE / LOGICAL_CLOCK
-SHOW VARIABLES LIKE 'slave_parallel_workers';    -- 默认 0（单线程）
-
--- 启用多线程复制
-STOP REPLICA;
-SET GLOBAL slave_parallel_type = 'LOGICAL_CLOCK';
-SET GLOBAL slave_parallel_workers = 8;
-SET GLOBAL slave_preserve_commit_order = ON;  -- 保证提交顺序
-START REPLICA;
-
--- MySQL 8.0.27+ 支持写集（Write Set）并行复制
-SET GLOBAL binlog_transaction_dependency_tracking = 'WRITESET';
-```
-
-## 7. 复制过滤
-
-```sql
--- 主库端过滤（不推荐，会丢失数据）
-# my.cnf
-binlog-do-db = mydb        -- 只记录指定库
-binlog-ignore-db = test    -- 忽略指定库
-
--- 从库端过滤（推荐）
-# my.cnf
-replicate-do-db = mydb           -- 只复制指定库
-replicate-ignore-db = test        -- 忽略指定库
-replicate-do-table = mydb.users   -- 只复制指定表
-replicate-wild-do-table = mydb.log_%  -- 通配符匹配
-
--- 动态设置（MySQL 8.0.26+）
-STOP REPLICA;
-CHANGE REPLICATION FILTER REPLICATE_DO_DB = (mydb, mydb2);
-START REPLICA;
-```
-
-## 8. 复制监控
-
-```sql
--- 监控复制状态
-SHOW REPLICA STATUS\G
-
--- 监控复制延迟
-SELECT
-    TIMESTAMPDIFF(SECOND, MAX(COMMIT_TIMESTAMP), NOW()) AS delay_seconds
-FROM performance_schema.replication_applier_status_by_worker;
-
--- 监控复制错误
-SELECT * FROM performance_schema.replication_applier_status_by_worker
-WHERE LAST_ERROR_NUMBER != 0;
-
--- 跳过错误（谨慎使用）
-STOP REPLICA;
-SET GLOBAL sql_replica_skip_counter = 1;
-START REPLICA;
-```
-
-## 9. 最佳实践
-
-1. **使用 ROW 格式 Binlog** — 数据一致性最好
-2. **开启多线程复制** — 减少从库延迟
-3. **监控复制延迟** — 设置告警阈值
-4. **从库设置 read_only** — 防止误写
-5. **定期检查复制一致性** — 使用 pt-table-checksum
-6. **主从切换使用 GTID** — 简化切换流程
-
+GTID 让复制更简单：不需要手动指定 Binlog 文件和位置，自动定位。
