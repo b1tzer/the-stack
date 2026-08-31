@@ -1,100 +1,63 @@
 # 安全配置
 
-> RabbitMQ 安全涉及用户认证、权限控制、TLS 加密和网络隔离。
-
 ## 1. 用户管理
 
 ```bash
-# 添加用户
+# 创建管理员
 rabbitmqctl add_user admin strong_password
-
-# 设置用户标签
 rabbitmqctl set_user_tags admin administrator
 
-# 删除用户
+# 创建应用用户
+rabbitmqctl add_user appuser app_password
+
+# 设置权限（vhost, configure, write, read）
+rabbitmqctl set_permissions -p / appuser ".*" ".*" ".*"
+
+# 限制权限（只能访问特定 Exchange/Queue）
+rabbitmqctl set_permissions -p / appuser "^order\\..*" "^order\\..*" "^order\\..*"
+
+# 删除默认 guest
 rabbitmqctl delete_user guest
-
-# 修改密码
-rabbitmqctl change_password admin new_password
 ```
 
-用户标签：
+## 2. 权限模型
 
-| 标签 | 权限 |
-| :-- | :-- |
-| (none) | 无管理权限 |
-| management | 可登录 Management UI |
-| policymaker | 可管理策略 |
-| monitoring | 可查看集群状态 |
-| administrator | 完全管理权限 |
+| 权限 | 说明 | 正则 |
+|------|------|------|
+| configure | 可以创建/删除 Exchange 和 Queue | `^order\\..*` |
+| write | 可以发布消息 | `^order\\..*` |
+| read | 可以消费消息 | `^order\\..*` |
 
-## 2. 权限控制
-
-```bash
-# 设置权限
-rabbitmqctl set_permissions -p / admin "^admin\." "^admin\." "^admin\."
-```
-
-权限格式：
-
-```text
-set_permissions -p <vhost> <user> <conf> <write> <read>
-```
-
-| 权限 | 说明 | 正则示例 |
-| :-- | :-- | :-- |
-| conf | 可配置（声明/删除交换器、队列） | `^order\.` |
-| write | 可写入（发布消息） | `^order\.` |
-| read | 可读取（消费消息） | `^order\.` |
-
-## 3. VHost 隔离
-
-```bash
-# 创建 vhost
-rabbitmqctl add_vhost /order
-
-# 设置权限
-rabbitmqctl set_permissions -p /order order-service "^order\." "^order\." "^order\."
-```
-
-## 4. TLS 加密
-
-### 4.1 生成证书
-
-```bash
-# CA 证书
-openssl req -x509 -newkey rsa:4096 -keyout ca-key.pem -out ca-cert.pem -days 365 -nodes
-
-# 服务端证书
-openssl req -newkey rsa:4096 -keyout server-key.pem -out server-req.pem -nodes
-openssl x509 -req -in server-req.pem -CA ca-cert.pem -CAkey ca-key.pem -CAcreateserial -out server-cert.pem -days 365
-```
-
-### 4.2 配置 TLS
+## 3. TLS 加密
 
 ```ini
 # rabbitmq.conf
 listeners.ssl.default = 5671
-ssl_options.cacertfile = /path/to/ca-cert.pem
-ssl_options.certfile = /path/to/server-cert.pem
-ssl_options.keyfile = /path/to/server-key.pem
+ssl_options.cacertfile = /path/to/ca_certificate.pem
+ssl_options.certfile = /path/to/server_certificate.pem
+ssl_options.keyfile = /path/to/server_key.pem
 ssl_options.verify = verify_peer
 ssl_options.fail_if_no_peer_cert = true
 ```
 
-## 5. 网络隔离
+## 4. 网络安全
 
-```bash
-# 限制 Management UI 只能从内网访问
+```ini
+# 限制监听地址
+listeners.tcp.local = 127.0.0.1:5672
+
+# 禁止 guest 远程登录
+loopback_users.guest = true
+
+# 限制 Management UI 访问
 management.listener.port = 15672
 management.listener.ip = 127.0.0.1
 ```
 
-## 6. 最佳实践
+## 5. 最佳实践
 
 - 删除默认 guest 用户
-- 每个服务使用独立用户
-- 最小权限原则
-- 生产环境必须启用 TLS
-- 使用 vhost 隔离不同业务
-- 定期轮换密码和证书
+- 应用用户使用最小权限原则
+- 生产环境启用 TLS
+- 限制 Management UI 的访问 IP
+- 定期轮换密码

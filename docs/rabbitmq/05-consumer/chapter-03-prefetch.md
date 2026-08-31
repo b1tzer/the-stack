@@ -1,86 +1,80 @@
-# Prefetch 与背压控制
+# Prefetch 与背压
 
-> Prefetch 是 RabbitMQ 控制消费者一次能接收多少未确认消息的机制，是实现背压控制的核心。
+> Prefetch 控制 Broker 向 Consumer 推送消息的速率，防止 Consumer 被压垮。
 
-## 1. 什么是 Prefetch
+## 1. 问题：没有 Prefetch 会怎样
 
 ```text
-prefetch = 10
-
-Consumer ← [消息1][消息2]...[消息10] ← Queue
-              │
-              ▼
-         处理 + ACK
-              │
-              ▼
-         再接收最多 10 条
+Broker ──msg1──▶ Consumer（正在处理 msg1）
+Broker ──msg2──▶ Consumer（msg2 在缓冲区等待）
+Broker ──msg3──▶ Consumer（msg3 在缓冲区等待）
+...
+Broker ──msg1000──▶ Consumer（缓冲区爆了，内存溢出）
 ```
 
-消费者在 ACK 之前最多持有 prefetch 条消息。
+没有 Prefetch，Broker 会尽可能快地推送消息，不管 Consumer 处理得过来不。
 
-## 2. 设置 Prefetch
+## 2. Prefetch 设置
 
 ```java
-// 全局 prefetch（该 Channel 上所有消费者共享）
+// 设置 Prefetch 为 10
+channel.basicQos(10);
+```
+
+| 值 | 含义 |
+|------|------|
+| 0 | 不限制（默认，危险） |
+| 1 | 一次只推 1 条，处理完再推下一条 |
+| N | 最多有 N 条未确认消息 |
+
+## 3. Prefetch 的工作原理
+
+```text
+Prefetch = 5
+  当前 unacked 消息数 = 3
+  Broker 可以继续推 2 条（5 - 3 = 2）
+  
+  Consumer ack 1 条 → unacked = 2 → Broker 可以推 3 条
+```
+
+Broker 维护一个滑动窗口：`未确认消息数 < Prefetch` 时才推送。
+
+## 4. Prefetch 值的选择
+
+| Prefetch | 适用场景 |
+|----------|----------|
+| 1 | 消息处理很慢（如调用外部 API）、需要严格公平 |
+| 10-50 | 一般业务处理（数据库操作、简单计算） |
+| 100+ | 消息处理很快（内存操作）、高吞吐场景 |
+| 0 | 不推荐（除非 Consumer 有自己完善的背压机制） |
+
+**经验法则**：Prefetch 设为 Consumer 每秒处理能力的 1-2 倍。如果 Consumer 每秒处理 50 条，Prefetch 设为 50-100。
+
+## 5. 全局 Prefetch vs  Channel Prefetch
+
+```java
+// Channel 级别：这个 Channel 上所有消费者共享
 channel.basicQos(10);
 
-// 单消费者 prefetch
-channel.basicQos(10, false);  // per-consumer = false
-channel.basicQos(10, true);   // per-consumer = true
+// 全局级别：这个 Connection 上所有 Channel 共享
+channel.basicQos(100, true);  // global = true
 ```
 
-## 3. Prefetch 与吞吐量
+**推荐用 Channel 级别**（global = false），每个消费者的 Prefetch 独立控制。
 
-| prefetch | 吞吐量 | 延迟 | 内存占用 |
-| :-- | :-- | :-- | :-- |
-| 1 | 低 | 高 | 低 |
-| 10 | 中 | 中 | 中 |
-| 100 | 高 | 低 | 高 |
-| 无限 | 最高 | 最低 | 最高 |
+## 6. 背压（Backpressure）
 
-## 4. Quorum Queue 的 Prefetch
+当 Consumer 处理速度跟不上 Broker 推送速度时，Prefetch 起到背压作用：
 
-Quorum Queue 推荐设置较大的 prefetch：
-
-```java
-// Quorum Queue 推荐 prefetch >= 投递限制
-channel.basicQos(100); // x-delivery-limit 默认不限
+```text
+Consumer 处理慢 → unacked 消息数达到 Prefetch → Broker 停止推送
+Consumer ack 一条 → unacked 减 1 → Broker 恢复推送
 ```
 
-原因：Quorum Queue 的消息确认需要多数节点参与，过小的 prefetch 会降低吞吐。
+这是一种优雅的流控机制：不需要 Consumer 主动拒绝，Prefetch 自动调节推送速率。
 
-## 5. 背压控制策略
+## 7. Quorum Queue 的 Prefetch 注意事项
 
-### 5.1 固定 Prefetch
+Quorum Queue 的消息默认不在内存中缓存（`x-max-in-memory-length = 0`）。如果 Prefetch 设得很大，大量消息会被推送到 Consumer，但 Consumer 处理慢时，这些消息需要从磁盘重新读取。
 
-```java
-channel.basicQos(50); // 固定 50
-```
-
-### 5.2 动态 Prefetch
-
-```java
-// 根据消费者处理速度动态调整
-int processingTime = measureProcessingTime();
-int prefetch = Math.max(10, 1000 / processingTime);
-channel.basicQos(prefetch);
-```
-
-### 5.3 全局限流
-
-```java
-// 限制整个队列的投递速率
-// 使用 x-max-length + reject-publish
-Map<String, Object> args = new HashMap<>();
-args.put("x-max-length", 10000);
-args.put("x-overflow", "reject-publish");
-channel.queueDeclare("bounded.queue", true, false, false, args);
-```
-
-## 6. 最佳实践
-
-- 根据消费者处理速度设置 prefetch
-- CPU 密集型任务：prefetch = CPU 核心数
-- IO 密集型任务：prefetch = 2~4 倍 CPU 核心数
-- 不要设置过大的 prefetch，避免消息堆积在消费者内存
-- Quorum Queue 使用较大的 prefetch（100+）
+建议：Quorum Queue 的 Prefetch 不要设太大，10-50 是合理范围。

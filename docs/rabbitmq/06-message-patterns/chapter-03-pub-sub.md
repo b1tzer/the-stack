@@ -1,55 +1,59 @@
-# 发布/订阅模式
+# 发布/订阅
 
-> 发布/订阅（Pub/Sub）模式让一条消息被多个消费者组同时消费，每个组内只有一个消费者处理。
+> 发布/订阅（Pub/Sub）模式：一条消息被多个消费者各自消费，互不影响。
 
-## 1. 模式原理
+## 1. 模式说明
 
 ```text
-Producer ──▶ Fanout Exchange ──┬── Queue A ── Consumer Group A
-                               ├── Queue B ── Consumer Group B
-                               └── Queue C ── Consumer Group C
+Producer ──▶ Fanout Exchange ──▶ Queue A ──▶ Consumer A
+                              ──▶ Queue B ──▶ Consumer B
+                              ──▶ Queue C ──▶ Consumer C
 ```
 
-- 每个消费者组有自己的队列
-- 消息广播到所有队列
-- 组内竞争消费
+每个消费者有自己的 Queue，消息被广播到所有 Queue。每个消费者独立消费，互不影响。
 
-## 2. 实现方式
+## 2. 与竞争消费者的区别
+
+| 维度 | 竞争消费者 | 发布/订阅 |
+|------|-----------|----------|
+| 消费者数量 | 一条消息只被一个消费者处理 | 一条消息被所有消费者处理 |
+| Queue | 所有消费者共享一个 Queue | 每个消费者有自己的 Queue |
+| 用途 | 负载均衡 | 事件广播 |
+
+## 3. 实现方式
 
 ```java
-// 声明交换器
-channel.exchangeDeclare("event.exchange", BuiltinExchangeType.FANOUT, true);
+// 声明 Fanout Exchange
+channel.exchangeDeclare("event.fanout", BuiltinExchangeType.FANOUT, true);
 
-// 消费者组 A
-channel.queueDeclare("event.group-a", true, false, false, null);
-channel.queueBind("event.group-a", "event.exchange", "");
-channel.basicConsume("event.group-a", false, groupAConsumer, tag -> {});
+// 每个服务创建自己的 Queue 并绑定
+channel.queueDeclare("sms.queue", true, false, false, null);
+channel.queueBind("sms.queue", "event.fanout", "");
 
-// 消费者组 B
-channel.queueDeclare("event.group-b", true, false, false, null);
-channel.queueBind("event.group-b", "event.exchange", "");
-channel.basicConsume("event.group-b", false, groupBConsumer, tag -> {});
+channel.queueDeclare("email.queue", true, false, false, null);
+channel.queueBind("email.queue", "event.fanout", "");
+
+channel.queueDeclare("push.queue", true, false, false, null);
+channel.queueBind("push.queue", "event.fanout", "");
+
+// 发送一条消息，三个服务都收到
+channel.basicPublish("event.fanout", "", null, body);
 ```
 
-## 3. 与竞争消费者的区别
+## 4. 典型场景
 
-| 特性 | 竞争消费者 | 发布/订阅 |
-| :-- | :-- | :-- |
-| 消息投递 | 一个消费者 | 每个组一个消费者 |
-| 消息复制 | 不复制 | 复制到每个队列 |
-| 适用场景 | 任务分发 | 事件广播 |
+- 用户注册后：发短信、发邮件、加积分、写日志
+- 配置变更：所有服务清除本地缓存
+- 订单状态变更：库存、物流、通知各自处理
 
-## 4. Topic 交换器实现选择性订阅
+## 5. 临时订阅
 
-```text
-Producer ──▶ Topic Exchange ──┬── order.* ──▶ 订单服务队列
-                              ├── payment.* ──▶ 支付服务队列
-                              └── # ──▶ 日志服务队列
+```java
+// 客户端创建临时 Queue，断开自动删除
+String tempQueue = channel.queueDeclare().getQueue();
+channel.queueBind(tempQueue, "realtime.fanout", "");
+
+channel.basicConsume(tempQueue, true, consumer);
 ```
 
-## 5. 典型场景
-
-- 事件驱动架构（领域事件广播）
-- 数据同步（缓存失效、索引更新）
-- 多系统集成（同一事件多个下游消费）
-- 日志分发（不同服务关注不同日志）
+适用于：实时通知、WebSocket 推送。

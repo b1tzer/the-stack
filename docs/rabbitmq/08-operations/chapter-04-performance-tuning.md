@@ -1,102 +1,66 @@
 # 性能调优
 
-> RabbitMQ 性能调优涉及 Broker 配置、队列选择、生产者和消费者参数优化。
+## 1. Producer 端优化
 
-## 1. Broker 调优
+| 优化项 | 方法 | 效果 |
+|--------|------|------|
+| 异步 Confirm | 用 addConfirmListener 替代 waitForConfirms | 吞吐量提升 3-5 倍 |
+| 批量发送 | 累积一批消息后统一发送 | 减少网络往返 |
+| 多 Channel | 每个线程一个 Channel | 并行发送 |
+| 消息压缩 | GZIP/Snappy 压缩消息体 | 减少网络传输量 |
+| 连接复用 | 所有线程共享一个 Connection | 减少连接开销 |
 
-### 1.1 内存
+## 2. Broker 端优化
 
-```ini
-# 内存高水位（物理内存的 40-60%）
-vm_memory_high_watermark.relative = 0.5
+| 参数 | 默认值 | 推荐值 | 说明 |
+|------|--------|--------|------|
+| vm_memory_high_watermark | 0.6 | 0.7 | 内存高水位 |
+| disk_free_limit | 50M | 1G | 磁盘低水位 |
+| channel_max | 2047 | 2047 | 最大 Channel 数 |
+| heartbeat | 60 | 30 | 心跳间隔 |
+| tcp_listen_options.backlog | 128 | 1024 | TCP 连接队列 |
+| tcp_listen_options.nodelay | true | true | 关闭 Nagle 算法 |
 
-# 内存告警后的处理
-vm_memory_high_watermark_paging_ratio = 0.75
-```
+## 3. Consumer 端优化
 
-### 1.2 磁盘
+| 优化项 | 方法 | 效果 |
+|--------|------|------|
+| 合理 Prefetch | 设为每秒处理能力的 1-2 倍 | 平衡吞吐和延迟 |
+| 批量 ACK | 多条消息处理完后统一 ACK | 减少 ACK 往返 |
+| 多消费者 | 增加消费者数量 | 水平扩展 |
+| 异步处理 | 消费者内部用异步 IO | 提升单消费者吞吐 |
 
-```ini
-# 磁盘空闲空间阈值
-disk_free_limit.absolute = 2GB
-```
+## 4. Queue 选型对性能的影响
 
-### 1.3 TCP
+| Queue 类型 | 写入吞吐 | 读取吞吐 | 延迟 |
+|-----------|----------|----------|------|
+| Classic (内存) | 最高 | 最高 | 微秒 |
+| Classic (磁盘) | 中 | 中 | 毫秒 |
+| Quorum | 中 | 高 | 1-5ms |
+| Stream | 高 | 高 | 毫秒 |
 
-```ini
-tcp_listen_options.backlog = 128
-tcp_listen_options.nodelay = true
-tcp_listen_options.sndbuf = 196608
-tcp_listen_options.recbuf = 196608
-```
-
-## 2. 队列选择
-
-| 场景 | 推荐队列 |
-| :-- | :-- |
-| 高可靠性 | Quorum Queue |
-| 高吞吐 | Classic Queue (lazy) |
-| 消息回溯 | Stream Queue |
-| 大量堆积 | Stream Queue / Lazy Queue |
-
-## 3. 生产者调优
-
-```java
-// 异步 Confirm
-channel.confirmSelect();
-channel.addConfirmListener(confirmCallback, nackCallback);
-
-// 批量发送
-int batchSize = 200;
-// ... 批量发送逻辑
-
-// 消息压缩
-AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
-    .contentEncoding("gzip")
-    .build();
-```
-
-## 4. 消费者调优
-
-```java
-// 合理的 prefetch
-channel.basicQos(100); // Quorum Queue 推荐较大值
-
-// 多消费者并行
-ExecutorService executor = Executors.newFixedThreadPool(10);
-for (int i = 0; i < 10; i++) {
-    executor.submit(() -> {
-        channel.basicConsume(queue, false, deliverCallback, cancelCallback);
-    });
-}
-```
-
-## 5. 监控调优
+## 5. 监控驱动调优
 
 ```bash
-# 查看队列性能指标
-rabbitmqctl list_queues name messages message_bytes \
-  message_bytes_ready message_bytes_unacknowledged \
-  messages_ready messages_unacknowledged \
-  consumers
+# 检查队列深度
+rabbitmqctl list_queues name messages_ready messages_unacknowledged
 
-# 查看连接性能
-rabbitmqctl list_connections recv_oct recv_cnt send_oct send_cnt
+# 检查连接和通道
+rabbitmqctl list_connections name channels
+
+# 检查内存使用
+rabbitmqctl list_queues name memory | sort -t$'\t' -k2 -rn | head -10
 ```
 
-## 6. 性能基准
+## 6. 压测工具
 
-| 配置 | 吞吐量 |
-| :-- | :-- |
-| Classic Queue, 单节点 | ~20,000 msg/s |
-| Classic Queue, 异步 Confirm | ~30,000 msg/s |
-| Quorum Queue, 3 节点 | ~10,000 msg/s |
-| Stream Queue | ~1,000,000 msg/s |
-
-## 7. 最佳实践
-
-- 根据场景选择队列类型
-- 生产者必须使用异步 Confirm
-- 消费者 prefetch 根据处理能力调整
-- 大消息压缩后再发送
-- 定期清理过期队列和交换器
+```bash
+# 使用 PerfTest 压测
+bin/runjava com.rabbitmq.perf.PerfTest \
+  -h amqp://localhost \
+  -x 5 -y 5 \  # 5 生产者 5 消费者
+  -u test.queue \
+  -a \  # 异步确认
+  --queue-args x-queue-type=quorum \
+  --rate 10000
+```

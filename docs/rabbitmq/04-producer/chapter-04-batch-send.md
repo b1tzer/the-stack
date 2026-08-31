@@ -1,82 +1,108 @@
-# 批量发送与性能优化
+# 批量发送
 
-> 单条发送效率低，批量发送是提升生产者吞吐量的关键手段。
+> 逐条发送消息的性能瓶颈不在 Broker，而在网络往返。批量发送可以显著提升吞吐量。
 
-## 1. 单条发送的问题
+## 1. 为什么需要批量发送
 
 ```text
-每条消息 = 1 次网络往返
-1000 条消息 = 1000 次网络往返
+逐条发送：
+  Producer ──msg1──▶ Broker ──confirm──▶ Producer
+  Producer ──msg2──▶ Broker ──confirm──▶ Producer
+  Producer ──msg3──▶ Broker ──confirm──▶ Producer
+  每条消息一次网络往返，延迟叠加
+
+批量发送：
+  Producer ──[msg1,msg2,msg3]──▶ Broker ──[confirm]──▶ Producer
+  一批消息一次网络往返
 ```
 
-## 2. 批量发送
+## 2. RabbitMQ 的批量方式
+
+RabbitMQ 没有原生的"批量发送 API"，但可以通过以下方式实现：
+
+### 2.1 批量 Confirm
 
 ```java
 channel.confirmSelect();
-
 int batchSize = 100;
-int outstandingMessageCount = 0;
+int count = 0;
 
-for (int i = 0; i < messageCount; i++) {
-    channel.basicPublish(exchange, routingKey, null, bodies[i]);
-    outstandingMessageCount++;
-
-    if (outstandingMessageCount == batchSize) {
-        channel.waitForConfirmsOrDie(5_000);
-        outstandingMessageCount = 0;
+for (Message msg : messages) {
+    channel.basicPublish("exchange", "routingKey", props, msg);
+    count++;
+    if (count % batchSize == 0) {
+        channel.waitForConfirmsOrDie(5000);
     }
 }
-
-if (outstandingMessageCount > 0) {
-    channel.waitForConfirmsOrDie(5_000);
+if (count % batchSize != 0) {
+    channel.waitForConfirmsOrDie(5000);
 }
 ```
 
-## 3. 异步批量 + Confirm
+### 2.2 异步批量 Confirm
 
 ```java
 channel.confirmSelect();
-SortedSet<Long> confirmSet = Collections.synchronizedSortedSet(new TreeSet<>());
+ConcurrentNavigableMap<Long, Message> outstanding = new ConcurrentSkipListMap<>();
 
 channel.addConfirmListener(
     (tag, multiple) -> {
         if (multiple) {
-            confirmSet.headSet(tag + 1).clear();
+            ConcurrentNavigableMap<Long, Message> confirmed = outstanding.headMap(tag + 1);
+            confirmed.clear();
         } else {
-            confirmSet.remove(tag);
+            outstanding.remove(tag);
         }
     },
     (tag, multiple) -> {
-        // 处理 nack
+        // nack：重新发送
+        Message msg = outstanding.get(tag);
+        resend(msg);
     }
 );
 
-// 批量发送
-for (Message message : messages) {
-    long seqNo = channel.getNextPublishSeqNo();
-    confirmSet.add(seqNo);
-    channel.basicPublish(exchange, routingKey, null, message);
+for (Message msg : messages) {
+    long seq = channel.getNextPublishSeqNo();
+    outstanding.put(seq, msg);
+    channel.basicPublish("exchange", "routingKey", props, msg);
 }
+```
 
-// 等待所有确认
-while (!confirmSet.isEmpty()) {
-    Thread.sleep(10);
+## 3. Channel 复用
+
+```java
+// 一个线程一个 Channel，多线程并行发送
+ExecutorService executor = Executors.newFixedThreadPool(10);
+Connection connection = factory.newConnection();
+
+for (List<Message> batch : partitions) {
+    executor.submit(() -> {
+        Channel ch = connection.createChannel();
+        ch.confirmSelect();
+        for (Message msg : batch) {
+            ch.basicPublish("exchange", "key", props, msg);
+        }
+        ch.waitForConfirmsOrDie(5000);
+        ch.close();
+    });
 }
 ```
 
 ## 4. 性能对比
 
-| 方式 | 吞吐量 | 说明 |
-| :-- | :-- | :-- |
-| 单条同步 | ~200 msg/s | 每条等确认 |
-| 批量同步 | ~5000 msg/s | 100 条等一次确认 |
-| 异步 Confirm | ~30000 msg/s | 不等待，回调确认 |
+| 方式 | 吞吐量（参考值） | 延迟 |
+|------|-----------------|------|
+| 逐条发送 + 无 Confirm | ~5 万 msg/s | 低 |
+| 逐条发送 + 同步 Confirm | ~1 万 msg/s | 高 |
+| 批量发送 + 批量 Confirm | ~10 万 msg/s | 中 |
+| 异步 Confirm | ~15 万 msg/s | 低 |
+| 多 Channel 并行 + 异步 Confirm | ~30 万 msg/s | 低 |
 
-## 5. 优化建议
+*参考值：3 节点 Quorum Queue，消息体 1KB，千兆网络*
 
-- 使用异步 Confirm，不要同步等待
-- 合理设置 batchSize（100~500）
-- 使用 Channel 池化（多 Channel 并行发送）
-- 开启 TCP Nagle 禁用（`tcp_nodelay = true`）
-- 使用消息压缩（gzip / snappy）
-- 大消息考虑分割或使用流式传输
+## 5. 注意事项
+
+1. **批量大小不是越大越好**：太大的批次会增加单次发送的延迟
+2. **内存压力**：大批量发送时，客户端缓冲区可能撑满（`publisher-returns` 监控）
+3. **确认超时**：批量 Confirm 要设置合理的超时，避免无限等待
+4. **消费者端也需要批量**：生产者批量发送，消费者也应该批量确认

@@ -1,79 +1,47 @@
 # 镜像队列
 
-> 镜像队列（Mirrored Queue）是 RabbitMQ 经典的高可用方案：队列在多个节点上维护副本。RabbitMQ 3.10+ 已废弃，推荐使用 Quorum Queue。
+> ⚠️ 镜像队列（Mirrored Queue）已在 RabbitMQ 3.x 中废弃，被 Quorum Queue 取代。本章仅作历史参考。
 
-## 1. 工作原理
-
-```text
-Node 1 (Master)    Node 2 (Mirror)    Node 3 (Mirror)
-┌──────────┐       ┌──────────┐       ┌──────────┐
-│  Queue A │──────▶│  Queue A │──────▶│  Queue A │
-│  Master  │ 异步   │  Mirror  │ 异步   │  Mirror  │
-└──────────┘       └──────────┘       └──────────┘
-```
-
-- Master 处理所有读写
-- Mirror 异步复制 Master 的消息
-- Master 故障时，最老的 Mirror 提升为新 Master
-
-## 2. 配置方式
-
-### 2.1 命令行配置
-
-```bash
-# 所有队列镜像到所有节点
-rabbitmqctl set_policy ha-all "." '{"ha-mode":"all"}' --apply-to queues
-
-# 镜像到指定数量的节点
-rabbitmqctl set_policy ha-two "." '{"ha-mode":"exactly","ha-params":2}' --apply-to queues
-
-# 镜像到指定节点
-rabbitmqctl set_policy ha-nodes "." '{"ha-mode":"nodes","ha-params":["rabbit@node1","rabbit@node2"]}' --apply-to queues
-```
-
-### 2.2 队列参数
-
-```java
-Map<String, Object> args = new HashMap<>();
-args.put("x-ha-policy", "all");
-channel.queueDeclare("ha.queue", true, false, false, args);
-```
-
-## 3. 同步模式
-
-| 模式 | 说明 | 性能 |
-| :-- | :-- | :-- |
-| 异步（默认） | Master 确认即返回 | 高 |
-| 同步 | 等待 Mirror 确认 | 低 |
-
-```bash
-# 强制同步
-rabbitmqctl sync_queue <queue-name>
-
-# 取消同步
-rabbitmqctl cancel_sync_queue <queue-name>
-```
-
-## 4. 故障转移
+## 1. 镜像队列的原理
 
 ```text
-Master 故障 → 选择最老的 Mirror → 提升为新 Master → 客户端重连
+Queue: order.queue
+  Master (Node 1) ← 所有读写
+    │
+    ├─ Mirror (Node 2) ← 异步复制
+    └─ Mirror (Node 3) ← 异步复制
 ```
 
-故障转移期间：
+- 所有读写都走 Master
+- Master 将消息异步复制到 Mirror
+- Master 崩溃后，最老的 Mirror 提升为新 Master
 
-- 未同步的消息可能丢失
-- 客户端需要重新连接
-- 消费者需要重新注册
+## 2. 镜像队列的问题
 
-## 5. 与 Quorum Queue 的对比
+| 问题 | 说明 |
+|------|------|
+| 异步复制 | Master 崩溃时，未同步到 Mirror 的消息丢失 |
+| 故障转移慢 | 需要重新选举 Mirror 为 Master |
+| 性能瓶颈 | 所有读写都走 Master |
+| 脑裂风险 | 网络分区时可能出现多个 Master |
 
-| 特性 | 镜像队列 | Quorum Queue |
-| :-- | :-- | :-- |
-| 一致性 | 异步复制 | Raft 共识 |
-| 数据安全 | 可能丢消息 | 不丢已确认消息 |
-| 性能 | 更高 | 略低 |
-| 故障恢复 | 手动/自动切换 | 自动选举 |
-| 状态 | 废弃（3.10+） | 推荐 |
+## 3. 为什么迁移到 Quorum Queue
 
-**新项目必须使用 Quorum Queue，不要使用镜像队列。**
+| 维度 | 镜像队列 | Quorum Queue |
+|------|---------|--------------|
+| 复制方式 | 异步 | 同步（Raft） |
+| 消息丢失 | 可能 | 极低（多数确认） |
+| 故障转移 | 手动/半自动 | 自动（Raft Leader 选举） |
+| 一致性 | 最终一致 | 强一致 |
+
+**结论**：新项目不要用镜像队列，直接用 Quorum Queue。
+
+## 4. 迁移步骤
+
+```bash
+# 1. 创建 Quorum Queue（新名称）
+# 2. 修改生产者发送到新 Queue
+# 3. 等待旧 Queue 消费完毕
+# 4. 删除旧 Queue 和镜像策略
+rabbitmqctl clear_policy ha-all
+```

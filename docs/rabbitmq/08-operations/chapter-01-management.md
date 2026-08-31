@@ -1,93 +1,94 @@
 # 管理与监控
 
-> RabbitMQ 提供丰富的管理工具：Management UI、HTTP API、CLI、Prometheus 插件。
-
 ## 1. Management UI
 
 ```bash
+# 启用管理插件
 rabbitmq-plugins enable rabbitmq_management
-# 访问 http://host:15672
+
+# 访问
+http://localhost:15672  # 默认用户 guest/guest
 ```
 
-功能概览：
+功能：队列管理、连接查看、消息发布、策略配置、用户管理。
 
-- 队列/交换器/绑定管理
-- 消息发布与消费
-- 用户与权限管理
-- 集群状态监控
-- 连接与通道查看
-
-## 2. HTTP API
-
-```bash
-# 获取队列列表
-curl -u guest:guest http://localhost:15672/api/queues
-
-# 获取队列详情
-curl -u guest:guest http://localhost:15672/api/queues/%2F/order.queue
-
-# 发布消息
-curl -u guest:guest -X POST http://localhost:15672/api/exchanges/%2F/order.exchange/publish \
-  -H "content-type: application/json" \
-  -d '{"properties":{},"routing_key":"order.created","payload":"hello","payload_encoding":"string"}'
-```
-
-## 3. rabbitmqctl CLI
+## 2. rabbitmqctl 命令
 
 ```bash
 # 集群状态
 rabbitmqctl cluster_status
 
-# 队列列表
-rabbitmqctl list_queues name messages consumers
+# 节点状态
+rabbitmqctl status
 
-# 连接列表
+# 列出队列
+rabbitmqctl list_queues name messages consumers memory
+
+# 列出连接
 rabbitmqctl list_connections name peer_host state
 
-# 通道列表
-rabbitmqctl list_channels consumer_count messages_unacknowledged
+# 列出通道
+rabbitmqctl list_channels connection_name number consumer_count
 
-# 用户管理
-rabbitmqctl add_user admin password
-rabbitmqctl set_user_tags admin administrator
-rabbitmqctl set_permissions -p / admin ".*" ".*" ".*"
+# 列出交换机
+rabbitmqctl list_exchanges
+
+# 列出绑定
+rabbitmqctl list_bindings
+
+# 清空队列
+rabbitmqctl purge_queue queue_name
 ```
 
-## 4. Prometheus 插件
+## 3. Prometheus 监控
 
 ```bash
+# 启用 Prometheus 插件
 rabbitmq-plugins enable rabbitmq_prometheus
-# 指标端点 http://host:15692/metrics
+
+# 指标端点
+http://localhost:15692/metrics
 ```
 
-### 4.1 关键指标
+### 关键指标
 
-| 指标 | 说明 |
-| :-- | :-- |
-| rabbitmq_queue_messages | 队列消息总数 |
-| rabbitmq_queue_messages_ready | 待消费消息数 |
-| rabbitmq_queue_messages_unacked | 未确认消息数 |
-| rabbitmq_queue_consumers | 消费者数量 |
-| rabbitmq_connections | 连接数 |
-| rabbitmq_channels | 通道数 |
-| rabbitmq_node_mem_used | 节点内存使用 |
-| rabbitmq_node_disk_free | 节点磁盘空闲 |
+| 指标 | 说明 | 告警阈值 |
+|------|------|----------|
+| rabbitmq_queue_messages | 队列消息总数 | 持续增长 |
+| rabbitmq_queue_messages_ready | 待消费消息数 | > 10000 |
+| rabbitmq_queue_messages_unacked | 未确认消息数 | > Prefetch × 2 |
+| rabbitmq_connections | 连接数 | > 80% max |
+| rabbitmq_channels | 通道数 | > 80% max |
+| rabbitmq_node_mem_used | 节点内存使用 | > 80% |
+| rabbitmq_node_disk_free | 磁盘可用空间 | < disk_free_limit |
+| rabbitmq_channel_messages_published_total | 发布速率 | 基线监控 |
+| rabbitmq_channel_messages_delivered_total | 投递速率 | 基线监控 |
 
-## 5. Grafana Dashboard
+## 4. 日志
 
-推荐 Dashboard：
+```bash
+# 日志位置
+/var/log/rabbitmq/rabbit@hostname.log
 
-- RabbitMQ Overview: ID 10991
-- RabbitMQ Queue: ID 11003
-- RabbitMQ Erlang: ID 11005
+# 日志级别
+rabbitmqctl set_log_level debug  # debug/info/warning/error
+```
 
-## 6. 告警规则
+## 5. 常用运维操作
 
-| 告警 | 条件 |
-| :-- | :-- |
-| 内存告警 | 内存使用 > 80% |
-| 磁盘告警 | 磁盘空闲 < 阈值 |
-| 队列堆积 | messages > 10000 持续 5 分钟 |
-| 消费者缺失 | consumers = 0 持续 2 分钟 |
-| 连接数告警 | connections > 阈值 |
-| 网络分区 | partitions > 0 |
+```bash
+# 关闭节点
+rabbitmqctl stop_app
+
+# 重置节点（清除所有数据）
+rabbitmqctl reset
+
+# 强制移除故障节点
+rabbitmqctl forget_cluster_node rabbit@failed_node
+
+# 同步队列
+rabbitmqctl sync_queue queue_name
+
+# 取消同步
+rabbitmqctl cancel_sync_queue queue_name
+```

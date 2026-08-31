@@ -1,114 +1,92 @@
 # RPC 模式
 
-> RabbitMQ 原生支持请求-应答（RPC）模式，通过 `replyTo` 和 `correlationId` 实现异步远程调用。
+> RabbitMQ 原生支持 RPC（Remote Procedure Call）模式：客户端发请求，服务端处理后返回结果。
 
-## 1. RPC 架构
+## 1. RPC 的实现原理
 
 ```text
-Client                         Server
+Client                          Server
   │                               │
-  │── basicPublish ──────────────▶│  请求
-  │   (replyTo=rpc.queue,        │
-  │    correlationId=abc-123)    │
+  ├─ basicPublish(request.queue) ──▶ │
+  │   correlationId = "abc123"    │
+  │   replyTo = "callback.queue"  │
+  │                               ├─ 处理请求
   │                               │
-  │                               │── 处理请求
+  │ ◀── basicPublish(callback.queue) ──┤
+  │   correlationId = "abc123"    │
+  │   result = "..."              │
   │                               │
-  │◀── basicPublish ──────────────│  响应
-  │   (routingKey=rpc.queue,     │
-  │    correlationId=abc-123)    │
-  │                               │
+  ├─ 匹配 correlationId           │
+  │   返回结果给调用方              │
 ```
 
-## 2. 客户端实现
+关键属性：
+- `replyTo`：客户端告诉服务端"结果发到哪个 Queue"
+- `correlationId`：匹配请求和响应的唯一标识
+
+## 2. 实现代码
+
+### 客户端
 
 ```java
-// 1. 声明回调队列
-String replyQueue = channel.queueDeclare().getQueue();
+// 声明回调 Queue（排他，连接断开自动删除）
+String callbackQueue = channel.queueDeclare().getQueue();
 
-// 2. 注册消费者
-Map<String, Object> pendingRequests = new ConcurrentHashMap<>();
-
-channel.basicConsume(replyQueue, true, (tag, delivery) -> {
-    String correlationId = delivery.getProperties().getCorrelationId();
-    CompletableFuture<String> future = pendingRequests.remove(correlationId);
-    if (future != null) {
-        future.complete(new String(delivery.getBody()));
-    }
-}, tag -> {});
-
-// 3. 发送 RPC 请求
+// 发送请求
 String correlationId = UUID.randomUUID().toString();
 AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
     .correlationId(correlationId)
-    .replyTo(replyQueue)
+    .replyTo(callbackQueue)
     .build();
 
-CompletableFuture<String> future = new CompletableFuture<>();
-pendingRequests.put(correlationId, future);
+channel.basicPublish("", "rpc.request.queue", props, requestBody);
 
-channel.basicPublish("", "rpc.queue", props, requestBody);
-
-// 4. 等待响应
-String response = future.get(10, TimeUnit.SECONDS);
-```
-
-## 3. 服务端实现
-
-```java
-channel.basicQos(1); // 一次处理一个请求
-
-channel.basicConsume("rpc.queue", false, (tag, delivery) -> {
-    String request = new String(delivery.getBody());
-    String correlationId = delivery.getProperties().getCorrelationId();
-    String replyTo = delivery.getProperties().getReplyTo();
-
-    // 处理请求
-    String response = processRequest(request);
-
-    // 发送响应
-    AMQP.BasicProperties replyProps = new AMQP.BasicProperties.Builder()
-        .correlationId(correlationId)
-        .build();
-    channel.basicPublish("", replyTo, replyProps, response.getBytes());
-
-    channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
-}, tag -> {});
-```
-
-## 4. 超时处理
-
-```java
-// 设置消息 TTL
-AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
-    .correlationId(correlationId)
-    .replyTo(replyQueue)
-    .expiration("10000") // 10 秒超时
-    .build();
-
-// 客户端超时
-try {
-    String response = future.get(10, TimeUnit.SECONDS);
-} catch (TimeoutException e) {
-    pendingRequests.remove(correlationId);
-    log.error("RPC 超时");
+// 等待响应
+GetResponse response = channel.basicGet(callbackQueue, true);
+while (response == null) {
+    Thread.sleep(10);
+    response = channel.basicGet(callbackQueue, true);
 }
+String result = new String(response.getBody());
 ```
 
-## 5. 与 gRPC/HTTP 的对比
+### 服务端
 
-| 特性 | RabbitMQ RPC | gRPC | HTTP/REST |
-| :-- | :-- | :-- | :-- |
-| 通信模式 | 异步 | 同步/流式 | 同步 |
-| 协议 | AMQP | HTTP/2 | HTTP/1.1 |
-| 序列化 | 自定义 | Protobuf | JSON |
-| 服务发现 | 队列名 | DNS/注册中心 | DNS/网关 |
-| 负载均衡 | 队列内竞争 | 客户端/服务端 | 网关 |
-| 适用场景 | 内部异步调用 | 微服务间 | 外部 API |
+```java
+channel.basicConsume("rpc.request.queue", false, new DefaultConsumer(channel) {
+    @Override
+    public void handleDelivery(String tag, Envelope envelope,
+                               AMQP.BasicProperties props, byte[] body) {
+        // 处理请求
+        String result = processRequest(new String(body));
+        
+        // 返回结果
+        AMQP.BasicProperties replyProps = new AMQP.BasicProperties.Builder()
+            .correlationId(props.getCorrelationId())
+            .build();
+        
+        channel.basicPublish("", props.getReplyTo(), replyProps, result.getBytes());
+        channel.basicAck(envelope.getDeliveryTag(), false);
+    }
+});
+```
 
-## 6. 最佳实践
+## 3. 注意事项
 
-- 为每个 RPC 请求设置唯一 correlationId
-- 回复队列使用 exclusive 临时队列
-- 设置合理的超时时间
-- 服务端 prefetch=1，避免请求堆积
-- 考虑使用 gRPC 替代同步 RPC 场景
+1. **回调 Queue 用排他**：每个客户端一个临时 Queue，断开自动清理
+2. **correlationId 必须唯一**：用于匹配请求和响应
+3. **设置超时**：客户端等待响应要设超时，避免无限等待
+4. **服务端异常处理**：处理失败时返回错误信息，不要让客户端一直等
+5. **并发请求**：多个请求并发时，用 correlationId 区分不同响应
+
+## 4. RPC vs 直接 HTTP 调用
+
+| 维度 | RabbitMQ RPC | HTTP/RPC |
+|------|-------------|----------|
+| 异步 | 天然异步 | 需要额外实现 |
+| 解耦 | 通过 Queue 解耦 | 直接依赖 |
+| 负载均衡 | 多个 Server 竞争消费 | 需要负载均衡器 |
+| 延迟 | 较高（经过 Broker） | 低 |
+| 复杂度 | 较高（correlationId 匹配） | 低 |
+
+**建议**：如果只是简单的同步调用，用 HTTP/gRPC。如果需要异步、解耦、或已有 RabbitMQ 基础设施，用 RPC 模式。

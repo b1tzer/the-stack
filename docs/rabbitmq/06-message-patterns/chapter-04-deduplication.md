@@ -1,105 +1,68 @@
 # 消息去重
 
-> 在网络抖动、生产者重试等场景下，同一条消息可能被发送多次。消息去重保证消息被幂等处理。
+> 消息可能被重复投递（网络问题、Consumer 崩溃、Publisher 重发）。去重是保证"恰好一次"处理的关键。
 
-## 1. 消息重复的原因
+## 1. 为什么会重复
 
-| 原因 | 说明 |
-| :-- | :-- |
-| 生产者重试 | Confirm 超时后重发 |
-| 消费者重试 | 处理失败后 nack 重新入队 |
-| 网络抖动 | ACK 丢失导致消息重新投递 |
-| Broker 故障 | 消息从其他节点恢复 |
+| 场景 | 原因 |
+|------|------|
+| Publisher Confirm 超时 | Producer 以为发送失败，重发，但 Broker 其实已收到 |
+| Consumer 处理完但 ACK 前崩溃 | 消息重新入队，被另一个 Consumer 消费 |
+| 网络抖动 | ACK 丢失，Broker 重新投递 |
 
-## 2. 生产端去重
+## 2. 去重方案
 
-### 2.1 幂等生产者
-
-```java
-String messageId = UUID.randomUUID().toString();
-
-AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
-    .messageId(messageId)
-    .build();
-
-channel.basicPublish(exchange, routingKey, props, body);
-```
-
-### 2.2 去重表（Redis）
+### 2.1 Redis Set 去重
 
 ```java
-String dedupKey = "msg:dedup:" + messageId;
-
-if (redis.setnx(dedupKey, "1", 24, TimeUnit.HOURS)) {
-    // 消息未发送过，正常发送
-    channel.basicPublish(exchange, routingKey, props, body);
+String messageId = props.getMessageId();
+Boolean isNew = redis.opsForValue().setIfAbsent("msg:dedup:" + messageId, "1", 24, TimeUnit.HOURS);
+if (Boolean.TRUE.equals(isNew)) {
+    processMessage(body);
+    channel.basicAck(tag, false);
 } else {
-    // 消息已发送过，跳过
-    log.info("消息去重: {}", messageId);
+    log.info("Duplicate: {}", messageId);
+    channel.basicAck(tag, false);  // 直接确认，不重复处理
 }
 ```
 
-## 3. 消费端去重
-
-### 3.1 幂等消费
+### 2.2 数据库唯一约束
 
 ```java
-channel.basicConsume(queue, false, (tag, delivery) -> {
-    String messageId = delivery.getProperties().getMessageId();
-
-    // 检查是否已处理
-    if (redis.exists("msg:processed:" + messageId)) {
-        channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
-        return;
-    }
-
-    // 处理消息
-    processMessage(delivery);
-
-    // 标记已处理
-    redis.setex("msg:processed:" + messageId, 86400, "1");
-    channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
-}, tag -> {});
-```
-
-### 3.2 数据库唯一约束
-
-```java
-// 利用数据库唯一约束去重
 try {
-    messageDao.insert(messageId, content);
-    processMessage(content);
+    orderService.createOrder(orderId, data);
+    channel.basicAck(tag, false);
 } catch (DuplicateKeyException e) {
-    log.info("消息已处理: {}", messageId);
+    log.info("Duplicate order: {}", orderId);
+    channel.basicAck(tag, false);
 }
 ```
 
-### 3.3 业务幂等
+### 2.3 乐观锁（版本号）
 
 ```java
-// 更新操作天然幂等
-orderDao.updateStatus(orderId, "PAID");
-
-// 扣减操作需要乐观锁
-int affected = inventoryDao.decrease(productId, quantity, expectedVersion);
-if (affected == 0) {
-    log.info("库存已扣减，跳过重复消息");
+int updated = orderRepository.updateStatus(orderId, "PAID", "CREATED");
+if (updated > 0) {
+    channel.basicAck(tag, false);
+} else {
+    log.info("Already processed: {}", orderId);
+    channel.basicAck(tag, false);
 }
 ```
 
-## 4. 去重策略选择
+## 3. 去重窗口
 
-| 策略 | 适用场景 | 说明 |
-| :-- | :-- | :-- |
-| Redis 去重表 | 通用 | 简单高效，需要 Redis |
-| 数据库唯一约束 | 持久化场景 | 依赖数据库 |
-| 业务幂等 | 特定操作 | 最优方案 |
-| 消息 ID 去重 | 短期去重 | 重启后失效 |
+Redis 去重的 TTL 就是"去重窗口"。窗口大小取决于：
 
-## 5. 最佳实践
+- 消息的最大可能延迟（如延迟队列的 TTL）
+- Consumer 的最大处理时间
+- 网络的最大延迟
 
-- 消费端必须设计为幂等
-- 优先使用业务天然幂等（如状态更新）
-- 使用全局唯一消息 ID（UUID / 雪花算法）
-- 去重窗口根据业务设置（通常 24~72 小时）
-- 去重存储选择 Redis 或数据库，不要用内存
+**经验法则**：去重窗口 = 最大消息 TTL + 最大处理时间 + 缓冲时间。
+
+## 4. 最佳实践
+
+1. **每条消息设置唯一 messageId**（Producer 端）
+2. **Consumer 端做幂等**，不要依赖 Broker 保证
+3. **选择合适的去重方案**：Redis 适合高并发，数据库适合强一致
+4. **去重窗口不要太短**，宁可长一些

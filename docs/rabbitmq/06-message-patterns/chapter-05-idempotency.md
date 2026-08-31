@@ -1,91 +1,87 @@
 # 幂等性设计
 
-> 幂等性是分布式消息系统的核心要求：无论消息被处理多少次，结果都与处理一次相同。
+> 幂等性 = 同一个操作执行多次，结果和执行一次相同。这是分布式消息系统的基石。
 
-## 1. 幂等的定义
+## 1. 为什么需要幂等
 
 ```text
-f(f(x)) = f(x)
+Producer 发送 msg1 → Broker 收到 → Consumer 处理 → ACK 前崩溃
+                                              ↓
+                            消息重新入队 → Consumer 再次处理
+
+如果 createOrder 不是幂等的 → 创建了两个订单！
 ```
 
-无论执行一次还是多次，结果相同。
+## 2. 幂等性实现层次
 
-## 2. 常见操作的幂等性
-
-| 操作 | 天然幂等 | 说明 |
-| :-- | :-- | :-- |
-| SELECT | ✅ | 读操作天然幂等 |
-| UPDATE SET col=val | ✅ | 设置固定值 |
-| UPDATE SET col=col+N | ❌ | 需要条件或版本号 |
-| INSERT | ❌ | 可能重复插入 |
-| DELETE | ✅ | 删除已删除的数据不影响 |
-
-## 3. 设计模式
-
-### 3.1 唯一标识 + 去重表
+### 2.1 消息级别幂等
 
 ```java
-public void processOrder(OrderMessage msg) {
-    // 1. 检查是否已处理
-    if (processedMessageRepository.exists(msg.getMessageId())) {
-        return;
-    }
+// Producer：每条消息带唯一 ID
+AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
+    .messageId(UUID.randomUUID().toString())
+    .build();
 
-    // 2. 处理业务
-    orderService.createOrder(msg);
-
-    // 3. 记录已处理
-    processedMessageRepository.save(msg.getMessageId());
+// Consumer：用消息 ID 去重
+String msgId = props.getMessageId();
+if (isDuplicate(msgId)) {
+    channel.basicAck(tag, false);
+    return;
 }
+processMessage(body);
+markAsProcessed(msgId);
+channel.basicAck(tag, false);
 ```
 
-### 3.2 状态机
+### 2.2 业务级别幂等
 
 ```java
-// 订单状态机：CREATED → PAID → SHIPPED → COMPLETED
-public void payOrder(String orderId) {
-    int affected = orderDao.updateStatus(orderId, "PAID", "CREATED");
-    if (affected == 0) {
-        // 状态不是 CREATED，说明已处理过
-        log.info("订单已支付或状态异常: {}", orderId);
-        return;
-    }
-    // 继续处理支付逻辑
-}
+// 方案 1：唯一约束
+CREATE UNIQUE INDEX uk_order_id ON orders(order_id);
+// 重复插入 → DuplicateKeyException → 直接忽略
+
+// 方案 2：状态机
+UPDATE orders SET status = 'PAID' WHERE order_id = ? AND status = 'CREATED';
+// 已经 PAID 的订单 → affected rows = 0 → 不重复处理
+
+// 方案 3：去重表
+INSERT INTO processed_messages(message_id) VALUES(?);
+// 重复 → DuplicateKeyException → 直接忽略
 ```
 
-### 3.3 乐观锁
+### 2.3 外部服务调用幂等
 
 ```java
-// 用版本号防止重复扣减
-public void decreaseStock(String productId, int quantity, int version) {
-    int affected = inventoryDao.decrease(productId, quantity, version);
-    if (affected == 0) {
-        throw new OptimisticLockException("库存版本冲突");
-    }
-}
+// 调用支付接口时，传递幂等键
+PaymentRequest request = new PaymentRequest();
+request.setIdempotencyKey(orderId);  // 同一个订单只扣一次款
+paymentService.charge(request);
 ```
 
-### 3.4 Token 机制
+## 3. 幂等性检查的时机
 
-```java
-// 1. 服务端生成唯一 token
-String token = generateToken();
-redis.setex("token:" + token, 300, "1");
-
-// 2. 客户端携带 token 请求
-public void submit(String token) {
-    if (redis.del("token:" + token) == 0) {
-        throw new DuplicateRequestException("重复请求");
-    }
-    // 处理请求
-}
+```text
+1. 收到消息 → 检查是否重复
+2. 业务处理 → 利用数据库约束保证
+3. 调用外部服务 → 传递幂等键
+4. ACK → 确认消息
 ```
 
-## 4. 最佳实践
+## 4. 常见陷阱
 
-- 消息系统必须设计幂等消费者
-- 优先使用业务天然幂等
-- 使用全局唯一消息 ID
-- 去重和业务操作在同一事务中
-- 考虑去重存储的容量和过期策略
+| 陷阱 | 正确做法 |
+|------|----------|
+| 先 ack 再处理 | 先处理再 ack |
+| 只检查不标记 | 检查和标记用同一个原子操作 |
+| 去重窗口太短 | 覆盖最大重试时间 |
+| 外部调用不做幂等 | 传递幂等键 |
+| 数据库事务中检查+处理+标记 | 用数据库约束天然保证 |
+
+## 5. 总结
+
+幂等性不是单一技术，而是一种设计思想：
+
+1. **Producer**：每条消息带唯一 ID
+2. **Broker**：Confirm + ACK 保证不丢
+3. **Consumer**：去重 + 数据库约束保证不重复
+4. **外部调用**：幂等键保证不重复扣款/发货

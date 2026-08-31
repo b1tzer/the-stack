@@ -1,91 +1,79 @@
 # Federation 与 Shovel
 
-> Federation 和 Shovel 是 RabbitMQ 跨集群/跨机房消息同步的两种方案。
+> Federation 和 Shovel 是 RabbitMQ 的跨集群消息复制方案，用于连接不同数据中心或不同集群。
 
 ## 1. Federation
 
-Federation 在两个 RabbitMQ 实例之间建立单向消息流：
+Federation 在两个 RabbitMQ 集群之间建立"联邦"关系，上游的消息自动同步到下游。
 
 ```text
-Upstream (上游)                Downstream (下游)
-┌──────────┐                  ┌──────────┐
-│ Exchange │──Federation Link──▶│ Exchange │
-│  Queue   │                  │  Queue   │
-└──────────┘                  └──────────┘
+上游集群 (Beijing)              下游集群 (Shanghai)
+  Exchange A ──Federation Link──▶ Exchange A'
+  Queue B    ──Federation Link──▶ Queue B'
 ```
 
-### 1.1 配置
+### 配置
 
 ```bash
-# 启用插件
+# 启用 Federation 插件
 rabbitmq-plugins enable rabbitmq_federation
 rabbitmq-plugins enable rabbitmq_federation_management
 
-# 配置 upstream
+# 添加 upstream
 rabbitmqctl set_parameter federation-upstream my-upstream \
-  '{"uri":"amqp://user:pass@upstream-host","ack-mode":"on-confirm"}'
+  '{"uri":"amqp://user:***@upstream-host:5672","prefetch-count":1000}'
 
-# 配置 policy
-rabbitmqctl set_policy federate "^federated\." \
+# 设置策略
+rabbitmqctl set_policy federate-me "^order\\." \
   '{"federation-upstream-set":"all"}' --apply-to exchanges
 ```
 
-### 1.2 ACK 模式
+### 适用场景
 
-| 模式 | 说明 | 可靠性 |
-| :-- | :-- | :-- |
-| on-confirm | 等待下游确认 | 高 |
-| on-publish | 发送即确认 | 中 |
-| no-ack | 不确认 | 低 |
+- 跨数据中心消息同步
+- 多环境（开发/测试/生产）消息桥接
+- 云上云下消息互通
 
 ## 2. Shovel
 
-Shovel 是更灵活的消息搬运工具：
+Shovel 比 Federation 更灵活：可以在任意两个 Broker（不限于 RabbitMQ）之间搬运消息。
 
 ```text
-Source Queue ──Shovel──▶ Destination Exchange
+Source Broker ──Shovel──▶ Destination Broker
+(RabbitMQ)                (RabbitMQ / 其他 AMQP)
 ```
 
-### 2.1 配置
+### 配置
 
 ```bash
-# 启用插件
 rabbitmq-plugins enable rabbitmq_shovel
 rabbitmq-plugins enable rabbitmq_shovel_management
 
-# 配置 shovel
+# 动态 Shovel
 rabbitmqctl set_parameter shovel my-shovel \
-  '{"src-protocol":"amqp091","src-uri":"amqp://source-host","src-queue":"source.queue", \
-    "dest-protocol":"amqp091","dest-uri":"amqp://dest-host","dest-exchange":"dest.exchange", \
-    "ack-mode":"on-confirm","reconnect-delay":5}'
-```
-
-### 2.2 动态 Shovel
-
-```bash
-# 创建
-rabbitmqctl set_parameter shovel my-shovel '{...}'
-
-# 删除
-rabbitmqctl clear_parameter shovel my-shovel
-
-# 查看
-rabbitmqctl list_parameters
+  '{
+    "src-protocol": "amqp091",
+    "src-uri": "amqp://source-host:5672",
+    "src-queue": "order.queue",
+    "dest-protocol": "amqp091",
+    "dest-uri": "amqp://dest-host:5672",
+    "dest-queue": "order.queue"
+  }'
 ```
 
 ## 3. Federation vs Shovel
 
-| 特性 | Federation | Shovel |
-| :-- | :-- | :-- |
-| 方向 | 单向 | 单向/双向 |
-| 粒度 | 交换器级别 | 队列到交换器 |
-| 配置 | Policy | Parameter |
-| 适用场景 | 跨集群交换器同步 | 点对点消息搬运 |
-| 灵活性 | 较低 | 更高 |
+| 维度 | Federation | Shovel |
+|------|-----------|--------|
+| 粒度 | Exchange/Queue 级别 | 单条消息级别 |
+| 配置 | 策略驱动 | 参数驱动 |
+| 协议 | 只支持 AMQP | 支持 AMQP + MQTT |
+| 灵活性 | 较低 | 较高 |
+| 适用场景 | 集群间同步 | 精确的消息搬运 |
 
-## 4. 典型场景
+## 4. 注意事项
 
-- 多机房部署，消息就近消费
-- 灾备集群，消息实时同步
-- 混合云部署，本地与云端消息互通
-- 数据迁移，逐步切换消费者
+- Federation 是异步的，不保证实时同步
+- 消息可能被重复投递（网络中断恢复后）
+- 消费者确认不会回传到上游（下游独立消费）
+- 跨集群延迟会影响整体吞吐量

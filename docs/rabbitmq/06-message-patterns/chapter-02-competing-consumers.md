@@ -1,92 +1,86 @@
 # 竞争消费者
 
-> 竞争消费者（Competing Consumers）是 RabbitMQ 最基本的负载均衡模式：多个消费者订阅同一个队列，消息只被其中一个消费。
+> 竞争消费者（Competing Consumers）是最常用的消息消费模式：多个消费者竞争消费同一个 Queue，实现负载均衡。
 
-## 1. 模式原理
+## 1. 模式说明
 
 ```text
-Producer ──▶ Queue ──┬── Consumer 1
-                     ├── Consumer 2
-                     └── Consumer 3
+                    ┌─ Consumer 1
+Queue ──round-robin──┼─ Consumer 2
+                    └─ Consumer 3
 ```
 
-- 每条消息只投递给一个消费者
-- 多个消费者之间是竞争关系
-- 天然实现负载均衡
+- 每条消息只被一个消费者处理
+- 消息在消费者之间轮询分发
+- 自动实现负载均衡
 
 ## 2. 实现方式
 
 ```java
-// 多个消费者订阅同一个队列
-for (int i = 0; i < consumerCount; i++) {
-    channel.basicConsume("work.queue", false,
-        "consumer-" + i,
-        (tag, delivery) -> {
-            processMessage(delivery);
-            channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
-        },
-        tag -> {});
+// 多个消费者订阅同一个 Queue
+for (int i = 0; i < 3; i++) {
+    final int consumerId = i;
+    channel.basicConsume("order.queue", false, "consumer-" + i, new DefaultConsumer(channel) {
+        @Override
+        public void handleDelivery(String tag, Envelope envelope,
+                                   AMQP.BasicProperties props, byte[] body) {
+            log.info("Consumer {} processing: {}", consumerId, envelope.getDeliveryTag());
+            processOrder(body);
+            channel.basicAck(envelope.getDeliveryTag(), false);
+        }
+    });
 }
 ```
 
-## 3. 消费者分配策略
+## 3. 消息分配策略
 
-### 3.1 Round-Robin（默认）
+RabbitMQ 默认使用 round-robin（轮询），但实际分配还受 Prefetch 影响：
 
-消息按轮询方式分配给消费者：
-
-```text
-消息1 → Consumer 1
-消息2 → Consumer 2
-消息3 → Consumer 3
-消息4 → Consumer 1
-...
-```
-
-### 3.2 按 Prefetch 分配
-
-设置不同 prefetch，处理能力强的消费者接收更多消息：
+| 策略 | 配置 | 效果 |
+|------|------|------|
+| Round-Robin（默认） | Prefetch=0 | 消息轮流分配 |
+| Fair Dispatch | Prefetch=1 | 处理完一条才推下一条 |
+| Prefetch=N | Prefetch=N | 最多 N 条未确认 |
 
 ```java
-// 处理能力强的消费者
-channel.basicQos(100);
-
-// 处理能力弱的消费者
-channel.basicQos(10);
+// Fair Dispatch：处理慢的消费者少拿消息
+channel.basicQos(1);  // Prefetch = 1
 ```
 
-## 4. 消费者动态伸缩
-
-```java
-// 启动新消费者
-channel.basicConsume("work.queue", false, newConsumerTag,
-    deliverCallback, cancelCallback);
-
-// 停止消费者
-channel.basicCancel(consumerTag);
-```
-
-运行时可以随时增加或减少消费者，无需修改配置。
-
-## 5. 消息顺序保证
-
-竞争消费者模式下，单条消息的顺序无法保证：
+## 4. 消费者扩缩容
 
 ```text
-消息1 → Consumer 1（处理慢）
-消息2 → Consumer 2（处理快）
-结果：消息2 先处理完成
+场景：订单高峰
+  ├─ 启动 10 个消费者实例
+  ├─ 每个实例 5 个消费者线程
+  └─ 共 50 个消费者竞争消费 order.queue
+
+场景：低谷
+  ├─ 缩减到 3 个实例
+  └─ 共 15 个消费者
 ```
 
-需要顺序保证的场景：
+消费者数量可以动态调整，不需要修改 Queue 配置。
 
-- 使用单消费者
-- 使用一致性哈希交换器
-- 按业务 ID 路由到固定队列
+## 5. 注意事项
 
-## 6. 典型场景
+**5.1 消息顺序**
 
-- 异步任务处理（邮件发送、图片处理）
-- 工作队列（耗时任务分发）
-- 日志收集（多消费者并行处理）
-- 消息分发（一个队列多个消费者）
+竞争消费者模式下，消息的处理顺序不保证。如果需要顺序处理，用单个消费者或用消息 hash 分配到固定 Queue。
+
+**5.2 幂等性**
+
+由于 ACK 机制，消息可能被重复投递。消费者必须做幂等处理。
+
+**5.3 消费者故障**
+
+如果消费者崩溃（未 ack），消息自动重新入队，被其他消费者消费。这是竞争消费者模式的天然容错能力。
+
+## 6. 与 Kafka Consumer Group 的区别
+
+| 维度 | RabbitMQ 竞争消费者 | Kafka Consumer Group |
+|------|--------------------|--------------------|
+| 分配方式 | Broker 推送（round-robin） | Consumer 主动拉取 |
+| 分区 | 无分区概念 | 每个 Partition 分配一个 Consumer |
+| 顺序 | 不保证 | 同 Partition 内有序 |
+| 回溯 | 不支持 | 支持 |

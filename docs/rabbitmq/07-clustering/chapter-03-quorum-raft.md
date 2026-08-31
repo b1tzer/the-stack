@@ -1,84 +1,79 @@
-# Quorum Queue 与 Raft
+# Quorum 与 Raft
 
-> Quorum Queue 基于 Raft 共识协议，是 RabbitMQ 推荐的高可用队列方案。本章深入 Raft 协议在 RabbitMQ 中的实现。
+> Quorum Queue 基于 Raft 共识协议实现高可用。理解 Raft 是理解 Quorum Queue 行为的关键。
 
-## 1. Raft 协议基础
+## 1. Raft 协议核心
 
-Raft 是分布式共识算法，核心机制：
-
-```text
-Leader Election（领导选举）
-Log Replication（日志复制）
-Safety（安全性保证）
-```
-
-## 2. Quorum Queue 的 Raft 实现
-
-### 2.1 Leader 选举
+Raft 是一种分布式共识算法，保证多个节点对日志顺序达成一致。
 
 ```text
-Node 1 (Leader)    Node 2 (Follower)    Node 3 (Follower)
-      │                    │                    │
-      │──心跳─────────────▶│                    │
-      │──心跳─────────────────────────────────▶│
-      │                    │                    │
-      │                    │ (Leader 故障)       │
-      │                    │                    │
-      │                    │◀──选举请求──────────│
-      │                    │──投票─────────────▶│
-      │                    │                    │ (成为 Leader)
+Leader ──日志复制──▶ Follower 1
+                  ──▶ Follower 2
+
+写入成功条件：Leader + 多数 Follower 确认
+  3 节点：需要 2 个确认（Leader + 1 Follower）
+  5 节点：需要 3 个确认（Leader + 2 Follower）
 ```
 
-### 2.2 日志复制
+## 2. Quorum Queue 中的 Raft
 
 ```text
-Producer ──▶ Leader
-                │
-                ├──复制──▶ Follower 1
-                │            │
-                │            └──确认──▶ Leader
-                │
-                └──复制──▶ Follower 2
-                             │
-                             └──确认──▶ Leader
+Producer ──▶ Leader Node ──Raft 日志──▶ Follower 1
+                                   ──▶ Follower 2
 
-多数确认后 → 消息提交 → 返回 Producer 确认
+Consumer ◀── Leader Node（只从 Leader 读取）
 ```
 
-## 3. Quorum Queue 配置
+- **写入**：消息先写入 Leader 的 Raft 日志，复制到多数节点后返回 Confirm
+- **读取**：只从 Leader 读取（Quorum Queue 不支持从 Follower 读）
+- **Leader 选举**：Leader 崩溃后，Follower 自动发起选举
 
-```java
-Map<String, Object> args = new HashMap<>();
-args.put("x-queue-type", "quorum");
-args.put("x-quorum-initial-group-size", 3);
-args.put("x-delivery-limit", 5);
-channel.queueDeclare("order.quorum", true, false, false, args);
+## 3. Leader 选举
+
+```text
+Leader 崩溃
+  → Follower 发现心跳超时
+  → Follower 转为 Candidate，发起投票
+  → 多数节点投票 → 新 Leader 当选
+  → 耗时通常 1-5 秒
 ```
 
-## 4. Leader 选举配置
+## 4. 日志复制与持久性
 
-```ini
-# rabbitmq.conf
-quorum_queue.leader_locator = client-local  # 优先本地节点
-# 或
-quorum_queue.leader_locator = balanced       # 均衡分布
+```text
+消息写入流程：
+  1. Producer 发送消息到 Leader
+  2. Leader 追加到 Raft 日志（磁盘）
+  3. Leader 复制日志到 Followers
+  4. 多数节点写入磁盘后 → 返回 Producer Confirm
+  5. Leader 提交（commit）→ 消息可被消费
 ```
 
-## 5. 性能特性
+**持久性保证**：只要多数节点不同时崩溃，消息就不会丢。
 
-| 特性 | 说明 |
-| :-- | :-- |
-| 写入延迟 | 比经典队列高（需要多数确认） |
-| 读取延迟 | Leader 本地读取，与经典队列相当 |
-| 吞吐量 | 受 Raft 日志复制影响，略低于经典队列 |
-| 消息堆积 | 内存受限，不适合大量堆积 |
+## 5. Quorum Queue 的脑裂处理
 
-## 6. 运维命令
+Raft 协议天然防止脑裂：
 
-```bash
-# 查看队列 Leader 分布
-rabbitmq-diagnostics quorum_queue_members <queue-name>
+- 网络分区时，少数派分区的节点无法获得多数投票，不能选出 Leader
+- 多数派分区正常工作
+- 网络恢复后，少数派同步多数派的数据
 
-# 查看 Raft 状态
-rabbitmq-diagnostics inspect_quorum_queue <queue-name>
-```
+## 6. 性能特征
+
+| 维度 | 特征 |
+|------|------|
+| 写入延迟 | 1-5ms（需要 Raft 共识） |
+| 读取延迟 | 微秒级（直接从 Leader 读） |
+| 吞吐量 | 2-5 万 msg/s（3 节点） |
+| 故障恢复 | 1-5 秒（Leader 重选） |
+
+## 7. 集群大小建议
+
+| 节点数 | 容错 | 适用场景 |
+|--------|------|----------|
+| 3 | 容忍 1 节点故障 | 大多数场景 |
+| 5 | 容忍 2 节点故障 | 高可靠性要求 |
+| 7 | 容忍 3 节点故障 | 极高可靠性（少用） |
+
+**不要用偶数节点**：4 节点和 3 节点的容错能力相同（都只能容忍 1 个故障），但多了一个节点的开销。
