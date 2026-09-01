@@ -274,7 +274,7 @@ public class DaoMetricsAspect {
 
 ## 4. 常见问题排查
 
-慢查询的 EXPLAIN 分析与索引优化见 [MySQL 卷 · 执行计划](../../mysql/05-query-optimization/chapter-02-explain.md)，死锁的成因与锁机制见 [MySQL 卷 · 死锁](../../mysql/04-transaction-lock/chapter-03-deadlock.md)。本节聚焦数据访问层的 Java 侧排查。
+慢查询的 EXPLAIN 分析与索引优化见 [MySQL 卷 · 执行计划](../../mysql/05-query-optimization/chapter-01-execution-plan.md)，死锁的成因与锁机制见 [MySQL 卷 · 死锁](../../mysql/04-transaction-lock/chapter-03-deadlock.md)。本节聚焦数据访问层的 Java 侧排查。
 
 ### 4.1 连接耗尽
 
