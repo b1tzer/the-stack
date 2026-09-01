@@ -87,6 +87,46 @@ XREADGROUP GROUP group1 c1 STREAMS mystream >   # 消费者组读取
 
 **对比 List 做队列**：List 的 `BLPOP` 实现的是「消费即销毁」，消息被弹出后无法回溯；Stream 的消息读取后仍保留，配合消费者组可支持 ACK 与重试，语义更接近 Kafka 这类消息系统。
 
+**Java 实现**（Jedis）：
+
+```java
+// 生产者
+jedis.xadd("mystream", StreamEntryID.NEW_ENTRY,
+    Map.of("name", "张三", "age", "25"));
+
+// 消费者（消费者组）
+jedis.xgroupCreate("mystream", "mygroup", new StreamEntryID("0-0"), true);
+
+List<StreamEntry> entries = jedis.xreadGroup(
+    "mygroup", "consumer1",
+    XReadGroupParams.xReadGroupParams().count(1).block(5000),
+    Map.of("mystream", new StreamEntryID(">"))
+);
+
+for (StreamEntry entry : entries) {
+    System.out.println("收到：" + entry.getFields());
+    jedis.xack("mystream", "mygroup", entry.getID());
+}
+```
+
+**选型对比**：
+
+| 维度 | Pub/Sub | Stream | Kafka/RocketMQ |
+| :-- | :-- | :-- | :-- |
+| 消息持久化 | 否 | 是 | 是 |
+| 消费者组 | 否 | 是 | 是 |
+| 确认机制 | 否 | XACK | ACK |
+| 消息回放 | 否 | 支持 | 支持 |
+| 吞吐量 | 高 | 中 | 高 |
+| 运维复杂度 | 低（Redis 自带） | 低（Redis 自带） | 高（独立部署） |
+| 适用场景 | 实时通知 | 轻量级消息 | 大规模消息 |
+
+| 场景 | 推荐 |
+| :-- | :-- |
+| 实时通知、缓存清除广播 | Pub/Sub |
+| 轻量级消息队列（万级 QPS） | Stream |
+| 大规模消息（百万级 QPS）、复杂路由 | Kafka / RocketMQ |
+
 ## 5. 高级类型速查
 
 | 类型 | 底层 | 核心命令 | 典型场景 | 关键限制 |

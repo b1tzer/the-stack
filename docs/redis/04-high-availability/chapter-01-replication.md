@@ -47,7 +47,7 @@ sequenceDiagram
 
 | 项目 | 说明 |
 | :-- | :-- |
-| fork 耗时 | 取决于内存页表大小，具体值用 `latest_fork_usec` 实测（见 [RDB 持久化](../02-standalone-core/chapter-03-rdb.md)） |
+| fork 耗时 | 取决于内存页表大小，具体值用 `latest_fork_usec` 实测（见 [持久化](../02-standalone-core/chapter-05-persistence.md)） |
 | 内存开销 | fork 后父子进程共享内存页，写入时才复制，极端情况内存翻倍 |
 | 主线程阻塞 | fork 期间主线程短暂阻塞（毫秒级） |
 
@@ -202,7 +202,7 @@ WAIT 1 5000   # 等待至少 1 个从节点确认，超时 5 秒
 原主节点恢复 → 变成从节点 → 被新主的数据覆盖 → key3 彻底丢失
 ```
 
-这个问题由哨兵的故障转移机制处理（见第 2 章）。
+这个问题由哨兵的故障转移机制处理（见 [哨兵](./chapter-02-sentinel.md)）。
 
 ## 6. 配置参考
 

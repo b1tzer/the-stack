@@ -113,7 +113,7 @@ dict 同时承担三类职责：
 | 职责 | 实例 | 说明 |
 | :-- | :-- | :-- |
 | 全局键空间 | `redisDb.dict` | 每个库的主字典，存全部 key → value |
-| 过期字典 | `redisDb.expires` | 独立 dict，存 key → 过期时间戳（见[过期删除](../02-standalone-core/chapter-05-expiration.md)） |
+| 过期字典 | `redisDb.expires` | 独立 dict，存 key → 过期时间戳（见[过期与淘汰](../02-standalone-core/chapter-06-expiration-eviction.md)） |
 | 类型底层编码 | Set / Hash 的 hashtable 编码 | 元素多、非整数时，Set 和 Hash 内部就是一个 dict（见[对象系统与编码](./chapter-05-object-encoding.md)） |
 
 注意区分两个名词：`dict` 是底层数据结构（`dict.c` 里的通用哈希表，用户不可见），`Hash` 是对外数据类型（`HSET` / `HGET` 命令族）。Hash 可能用 dict 作为底层编码，但并非必然——field 少、值小时用 listpack 编码（见[对象系统与编码](./chapter-05-object-encoding.md)），此时底层不是 dict；反过来，`redisDb.dict`、`redisDb.expires` 都是 dict，却都不是 Hash 类型。

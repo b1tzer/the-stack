@@ -6,7 +6,7 @@
 
 前一章讨论的是 Redis 的底层数据结构——也就是各种“零件”的真实形态；本章讨论的是 `redisObject.encoding` 字段——也就是 Redis 在运行时为某个类型实际选用了哪种零件。
 
-编码不是另一套结构，它只是一个“指向第 4 章那些结构的选择器”：
+编码不是另一套结构，它只是一个“指向 [数据结构](./chapter-04-data-structures.md) 那些结构的选择器”：
 
 - `encoding` = `intset` → 这个 Set 当前用整数集合实现
 - `encoding` = `hashtable` → 这个 Set 当前用字典实现

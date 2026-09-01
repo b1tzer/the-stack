@@ -16,7 +16,7 @@ EXEC               # 一次性执行所有命令
 
 ### 1.1 执行流程
 
-![事务 MULTI/EXEC 执行流程](/redis/04-high-availability-chapter-05-transaction-lua-1.svg)
+![事务 MULTI/EXEC 执行流程](/redis/02-standalone-core-chapter-03-transaction-lua-1.svg)
 
 ```text
 客户端 MULTI → 服务端标记事务开始
@@ -72,7 +72,7 @@ SET balance (val-100)  # 扣款
 EXEC                   # 若 balance 在 WATCH 后被改过，返回 nil（放弃）
 ```
 
-![WATCH 乐观锁流程](/redis/04-high-availability-chapter-05-transaction-lua-2.svg)
+![WATCH 乐观锁流程](/redis/02-standalone-core-chapter-03-transaction-lua-2.svg)
 
 ### 2.1 CAS 模式
 

@@ -7,7 +7,7 @@
   <rect width="920" height="330" fill="#ffffff"/>
 
   <!-- 列标题 -->
-  <text x="210" y="36" text-anchor="middle" font-size="15" font-weight="700" fill="#24292f">高可用知识点（前六章）</text>
+  <text x="210" y="36" text-anchor="middle" font-size="15" font-weight="700" fill="#24292f">高可用知识点（前三章）</text>
   <text x="710" y="36" text-anchor="middle" font-size="15" font-weight="700" fill="#24292f">对应的生产问题</text>
 
   <!-- 左列：知识点 -->
@@ -44,5 +44,5 @@
   </g>
 
   <!-- 图例 -->
-  <text x="460" y="300" text-anchor="middle" font-size="12" fill="#57606a">左列是前六章的知识点，右列是它能在生产环境解释的现象——failover 路径未被验证，故障被放大</text>
+  <text x="460" y="300" text-anchor="middle" font-size="12" fill="#57606a">左列是前三章的知识点，右列是它能在生产环境解释的现象——failover 路径未被验证，故障被放大</text>
 </svg>

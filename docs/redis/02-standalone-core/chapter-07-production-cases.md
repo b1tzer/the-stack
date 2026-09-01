@@ -75,11 +75,11 @@ AWS 支持排查后给出结论：存在长时运行的 `KEYS` 命令阻塞了�
 
 ### 4.2 根因
 
-两个侧面都源于 [RDB 持久化 §2](./chapter-03-rdb.md#fork-cow) 的 fork 与写时复制（COW）。
+两个侧面都源于 [持久化 §2](./chapter-05-persistence.md#fork-cow) 的 fork 与写时复制（COW）。
 
-**侧面一是 fork 本身的阻塞。** BGSAVE 通过 `fork()` 创建子进程，fork 要复制父进程的页表，页表大小随内存规模线性增长。那个 4.0 实例 RSS 已达 16GB、页表 33MB，`latest_fork_usec` 实测 1014778 微秒——约 1 秒，正好与每 15 分钟一次 BGSAVE、应用每 10 多分钟一次卡顿吻合。fork 期间主线程停顿，所有请求排队。这对应 [RDB 持久化 §2.4](./chapter-03-rdb.md#fork-usec)：fork 耗时 > 1s 已是严重问题。
+**侧面一是 fork 本身的阻塞。** BGSAVE 通过 `fork()` 创建子进程，fork 要复制父进程的页表，页表大小随内存规模线性增长。那个 4.0 实例 RSS 已达 16GB、页表 33MB，`latest_fork_usec` 实测 1014778 微秒——约 1 秒，正好与每 15 分钟一次 BGSAVE、应用每 10 多分钟一次卡顿吻合。fork 期间主线程停顿，所有请求排队。这对应 [持久化 §2.4](./chapter-05-persistence.md#fork-usec)：fork 耗时 > 1s 已是严重问题。
 
-**侧面二是透明大页（THP）对 COW 的放大。** THP 开启时内核以 2MB 大页分配内存。fork 后父进程写一个字节，就触发整页 2MB 的 COW 复制，而非普通 4KB 页——开销放大 512 倍。写越频繁，子进程复制越多，内存越逼近翻倍。这正是 [RDB 持久化 §2.3](./chapter-03-rdb.md#fork-cost) 点名的「另一个易忽略的坑：透明大页」。
+**侧面二是透明大页（THP）对 COW 的放大。** THP 开启时内核以 2MB 大页分配内存。fork 后父进程写一个字节，就触发整页 2MB 的 COW 复制，而非普通 4KB 页——开销放大 512 倍。写越频繁，子进程复制越多，内存越逼近翻倍。这正是 [持久化 §2.3](./chapter-05-persistence.md#fork-cost) 点名的「另一个易忽略的坑：透明大页」。
 
 ### 4.3 处理与预防
 
@@ -104,9 +104,9 @@ Bad file format reading the append only file: make a backup of your AOF file, th
 
 ### 5.2 根因
 
-AOF 记录每一条写命令（见[AOF 与混合持久化 §1](./chapter-04-aof.md#aof-principle)）。宕机或磁盘异常发生在「命令写到一半」时，AOF 文件末尾会残留一条不完整的命令。
+AOF 记录每一条写命令（见[持久化 §7](./chapter-05-persistence.md#aof-principle)）。宕机或磁盘异常发生在「命令写到一半」时，AOF 文件末尾会残留一条不完整的命令。
 
-Redis 启动时先校验 AOF 完整性，发现格式错误就**拒绝加载**、进程退出——宁可起不来，也不服务一份不一致的数据。这就是[该章 §4](./chapter-04-aof.md#aof-repair) 讲的「AOF 文件损坏」场景。
+Redis 启动时先校验 AOF 完整性，发现格式错误就**拒绝加载**、进程退出——宁可起不来，也不服务一份不一致的数据。这就是[持久化 §10](./chapter-05-persistence.md#aof-repair) 讲的「AOF 文件损坏」场景。
 
 这个案例由 Cisco 官方支持文档记录，与国内常见的「磁盘故障 → AOF 损坏」根因一致，但给出了完整的官方修复链路。
 
@@ -133,11 +133,11 @@ redis-check-aof --fix /data/redis/appendonly.aof                # 截断损坏�
 
 ### 6.2 根因
 
-大量数据在 00:00 这个时间点同时过期，触发了[过期删除 §3](./chapter-05-expiration.md#active-expire) 的定期删除风暴。
+大量数据在 00:00 这个时间点同时过期，触发了[过期与淘汰 §1.3](./chapter-06-expiration-eviction.md#active-expire) 的定期删除风暴。
 
 Redis 的过期清理靠「惰性删除 + 定期删除」配合。定期删除在**主线程**里执行：随机抽样 20 个键，删掉已过期的；若过期占比超过 25%，就继续这一轮扫描。当海量键集中过期时，抽样几乎每轮都能命中过期键，清理循环持续占用主线程，批量 `unlink` 命令集中产生，CPU 被清理任务占满，正常读写被延迟。
 
-这正是[过期删除 §6](./chapter-05-expiration.md#production-notes) 点名的「大量键同时过期，触发定期删除风暴，CPU 飙升」。
+这正是[过期与淘汰 §1.6](./chapter-06-expiration-eviction.md#production-notes) 点名的「大量键同时过期，触发定期删除风暴，CPU 飙升」。
 
 ### 6.3 处理与预防
 
@@ -154,11 +154,11 @@ Redis 的过期清理靠「惰性删除 + 定期删除」配合。定期删除�
 
 ### 7.2 根因
 
-根因是[内存淘汰 §2](./chapter-06-eviction.md#eviction-policies) 的淘汰策略选错，叠加 LRU 算法本身的缺陷（见[§3.4](./chapter-06-eviction.md#lru-problems)）。
+根因是[过期与淘汰 §2.2](./chapter-06-expiration-eviction.md#eviction-policies) 的淘汰策略选错，叠加 LRU 算法本身的缺陷（见[过期与淘汰 §2.5](./chapter-06-expiration-eviction.md#lru-vs-lfu)）。
 
 `volatile-lru` 的语义是「只在**有 TTL 的键**里淘汰最近最少使用的」。会话数据设了很长的 TTL（数天），本不该被快速清空。但 LRU 只看「最近一次访问时间」，不看「剩余 TTL」也不看「访问频率」：写尖峰时内存瞬间打满，一个「TTL 还剩 24 小时、但 10 分钟没被访问」的会话键，会被优先于「TTL 只剩 1 秒、但刚被访问」的键淘汰。
 
-[内存淘汰 §3.4](./chapter-06-eviction.md#lru-problems) 已经点出这个缺陷：LRU 会把「偶然访问过的键」误判为「新」的，反之也会把「暂时没被访问但还重要」的键误判为「旧」的。配置一旦选错，淘汰就变成了对活跃数据的批量误删。
+[过期与淘汰 §2.5](./chapter-06-expiration-eviction.md#lru-vs-lfu) 已经点出这个缺陷：LRU 会把「偶然访问过的键」误判为「新」的，反之也会把「暂时没被访问但还重要」的键误判为「旧」的。配置一旦选错，淘汰就变成了对活跃数据的批量误删。
 
 ### 7.3 处理与预防
 
