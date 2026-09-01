@@ -37,7 +37,7 @@
 | :-- | :-- | :-- |
 | 容量 | `maximumSize(1000~10000)` | 根据内存预算设置 `maxmemory` |
 | TTL | 短（1~5 分钟） | 中（5~30 分钟 + 随机偏移） |
-| 淘汰策略 | LRU（默认） | allkeys-lru / volatile-lru |
+| 淘汰策略 | W-TinyLFU（默认） | allkeys-lru / volatile-lru |
 | 数据一致性 | 弱（实例间不共享） | 中等 |
 
 > L1 的 TTL 必须短于 L2。如果 L1 TTL 比 L2 还长，会出现 L1 还有旧值但 L2 已经过期更新了的情况。

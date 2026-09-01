@@ -102,7 +102,7 @@ antirez 卸任后，Redis 的规模已无法继续用「一人拍板」的 BDFL 
 
 目前 Redis 的开源项目由 **Redis 公司**（原名 Redis Labs，2021 年更名）主导。这家公司 2011 年以 Garantia Data 之名成立，专做 Redis 相关的商业服务。Core Team 成员主要来自 Redis 公司，也有来自云厂商的贡献者。
 
-2024 年 11 月，antirez 以「Redis 布道者」身份回归 Redis 公司，不再负责日常维护，转向技术布道和新特性设计（如 Vector Set）。
+2024 年 12 月，antirez 以「Redis 布道者」身份回归 Redis 公司，不再负责日常维护，转向技术布道和新特性设计（如 Vector Set）。
 
 ## 6. 适用场景与反模式
 

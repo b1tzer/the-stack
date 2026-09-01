@@ -897,7 +897,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '命令与 RESP', link: '/redis/02-standalone-core/chapter-02-command-resp' },
             { text: '事务与 Lua', link: '/redis/02-standalone-core/chapter-03-transaction-lua' },
             { text: 'Pipeline 与 Pub/Sub', link: '/redis/02-standalone-core/chapter-04-pipeline-pubsub' },
-            { text: '持久化', link: '/redis/02-standalone-core/chapter-05-persistence' },
+            { text: '持久化 RDB 与 AOF', link: '/redis/02-standalone-core/chapter-05-persistence' },
             { text: '过期与淘汰', link: '/redis/02-standalone-core/chapter-06-expiration-eviction' },
             { text: '线上问题案例集', link: '/redis/02-standalone-core/chapter-07-production-cases' },
           ],

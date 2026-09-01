@@ -35,7 +35,7 @@ INFO memory                  # 查看内存
 ```bash
 SLOWLOG GET 10              # 查看最近 10 条慢查询
 SLOWLOG LEN                 # 慢查询总数
-CONFIG SET slowlog-log-solder-than 10000   # 超过 10ms 记为慢查询
+CONFIG SET slowlog-log-slower-than 10000   # 超过 10ms 记为慢查询
 ```
 
 ### 2.2 常见慢命令与替代
@@ -84,7 +84,7 @@ SCAN 0 MATCH user:* COUNT 100
 OBJECT ENCODING key
 
 # 配置编码阈值
-hash-max-listpack-entries 128
+hash-max-listpack-entries 512
 hash-max-listpack-value 64
 set-max-intset-entries 512
 zset-max-listpack-entries 128
@@ -153,7 +153,7 @@ UNLINK bigkey   # 而非 DEL
 | 内存 | `maxmemory-policy` | `allkeys-lfu` |
 | 持久化 | `appendfsync` | `everysec` |
 | 持久化 | 主节点持久化 | 必须开启 |
-| 慢查询 | `slowlog-log-solder-than` | 10000（10ms） |
+| 慢查询 | `slowlog-log-slower-than` | 10000（10ms） |
 | 连接 | 连接池 | 必须使用 |
 | 命令 | 无 KEYS/大 DEL | SCAN/UNLINK 替代 |
 | 监控 | 内存/延迟/命中率 | 已接入告警 |

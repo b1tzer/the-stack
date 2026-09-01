@@ -106,7 +106,7 @@ Redis 的事件处理采用 Reactor 模式——一个事件分发器 + 多个�
 
 ### 3.1 serverCron 定时任务
 
-除了 IO 事件，Redis 还有一个 10ms 执行一次的定时任务 `serverCron`：
+除了 IO 事件，Redis 还有一个 100ms 执行一次的定时任务 `serverCron`：
 
 | 任务 | 说明 |
 | :-- | :-- |

@@ -130,8 +130,8 @@ APPEND a "abc"      # 变成 raw 或 embstr
 ### 4.1 listpack 编码（小数据）
 
 ```bash
-# 默认：元素 ≤ 128 个 且 每个值 ≤ 64 字节时用 listpack
-hash-max-listpack-entries 128
+# 默认：元素 ≤ 512 个 且 每个值 ≤ 64 字节时用 listpack
+hash-max-listpack-entries 512
 hash-max-listpack-value 64
 ```
 
@@ -149,8 +149,8 @@ listpack: [len|field1][len|value1][len|field2][len|value2]...[end]
 HSET user:1001 name "张三" age 25 email "zhangsan@qq.com"
 # 3 个 field，用 listpack
 
-HSET user:1001 field1 "v1" field2 "v2" ... field200 "v200"
-# 超过 128 个 field，自动切换为 hashtable
+HSET user:1001 field1 "v1" field2 "v2" ... field600 "v600"
+# 超过 512 个 field，自动切换为 hashtable
 ```
 
 ### 4.3 编码切换不可逆 {#irreversible}
@@ -214,7 +214,7 @@ typedef struct zset {
 
 | 配置 | 默认值 | 说明 |
 | :-- | :-- | :-- |
-| `hash-max-listpack-entries` | 128 | Hash 超过此值切换为 hashtable |
+| `hash-max-listpack-entries` | 512 | Hash 超过此值切换为 hashtable |
 | `hash-max-listpack-value` | 64 | Hash 值超过此字节数切换 |
 | `set-max-intset-entries` | 512 | Set 超过此值切换 |
 | `zset-max-listpack-entries` | 128 | ZSet 超过此值切换 |
