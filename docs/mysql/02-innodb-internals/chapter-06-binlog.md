@@ -11,7 +11,7 @@ Binlog（Binary Log，二进制日志）是 **MySQL Server 层**产生的日志�
 1. **主从复制**：从库拉取主库的 Binlog，重放这些变更，从而保持数据一致；
 2. **数据恢复**：配合全量备份做时间点恢复（PITR），把数据库恢复到某个历史时刻。
 
-与 Redo Log 的定位差异见 [Redo Log](./chapter-04-redo-log.md) §9，这里先记住一句：**Redo Log 是 InnoDB 的私有账本，管崩溃恢复；Binlog 是 Server 层的公共账本，管复制与恢复。**
+与 Redo Log 的定位差异见 [Redo Log §5.2](./chapter-04-redo-log.md#redo-vs-binlog)，这里先记住一句：**Redo Log 是 InnoDB 的私有账本，管崩溃恢复；Binlog 是 Server 层的公共账本，管复制与恢复。**
 
 ![Binlog：Server 层逻辑日志 — 是什么 / 怎么做到 / 干什么](/mysql/02-innodb-internals-chapter-06-binlog.svg)
 
@@ -103,7 +103,7 @@ SET binlog_format = 'ROW';
 崩溃恢复时，InnoDB 用 Redo Log prepare 记录里携带的 **XID**（事务唯一标识）去 Binlog 里匹配同名 XID 事件。XID 事件是 `ROW` 格式下事务提交时写入的标记，两者 XID 相同即认为「这个事务的 Binlog 已完整落盘」。
 :::
 
-两阶段提交的完整流程与 `sync_binlog`、`innodb_flush_log_at_trx_commit` 的配合见 [Redo Log](./chapter-04-redo-log.md) §10。
+两阶段提交的完整流程与 `sync_binlog`、`innodb_flush_log_at_trx_commit` 的配合见 [Redo Log §5.1](./chapter-04-redo-log.md#two-phase-commit)。
 
 ## 3. 查看与解析
 

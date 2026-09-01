@@ -115,14 +115,14 @@ MySQL 5.6 之前，Undo Log 存放在系统表空间 `ibdata1` 里，无法独�
 
 ### 3.1 版本链：Undo 的另一半用途
 
-Undo Log 除了回滚，还支撑 MVCC。 [事务与 MVCC](../04-transaction-lock/chapter-01-transaction.md) §6 已经详细讲过：每行记录的 `DB_ROLL_PTR` 指向 Undo 中的旧版本，多次修改串成一条从当前版本通到最老版本的链。
+Undo Log 除了回滚，还支撑 MVCC。 [事务与 MVCC §2.3](../04-transaction-lock/chapter-01-transaction.md#version-chain) 已经详细讲过：每行记录的 `DB_ROLL_PTR` 指向 Undo 中的旧版本，多次修改串成一条从当前版本通到最老版本的链。
 
 ```text
 当前记录 → Undo v3 → Undo v2 → Undo v1
 (trx=105)  (trx=104) (trx=102) (trx=101)
 ```
 
-快照读时，事务沿这条链，用 Read View 判定每个版本是否可见。**版本链与可见性判定的完整算法见 [事务与 MVCC](../04-transaction-lock/chapter-01-transaction.md) §7~§8，本文不再重复。** 这里只强调 Undo 视角下的一个推论：
+快照读时，事务沿这条链，用 Read View 判定每个版本是否可见。**版本链与可见性判定的完整算法见 [事务与 MVCC §3.2](../04-transaction-lock/chapter-01-transaction.md#visibility-judgment)，本文不再重复。** 这里只强调 Undo 视角下的一个推论：
 
 > 每一条 Undo 记录，都被两类对象「引用」——**回滚时的事务**，以及**可能看见这个旧版本的 Read View**。只有当两类引用都消失，这条 Undo 才能被 Purge 安全删除。
 
@@ -171,12 +171,12 @@ SHOW VARIABLES LIKE 'innodb_max_purge_lag';
 - 版本链变长，快照读要走更多步才能定位可见版本，查询变慢；
 - 事务本身若还持有行锁，还会连带阻塞其他事务。
 
-排查手段与「避免长事务」的完整清单见 [事务与 MVCC](../04-transaction-lock/chapter-01-transaction.md) §12~§13。
+排查手段与「避免长事务」的完整清单见 [事务与 MVCC §4.3](../04-transaction-lock/chapter-01-transaction.md#long-transaction)。
 
 ## 5. 最佳实践
 
 1. **避免长事务**：这是控制 Undo 体积的第一优先级，见 §4.3。
 2. **大批量删除分批执行**：把一次 `DELETE` 大量行拆成多个小事务，缩短单条 Undo 链，给 Purge 留出节奏。
 3. **监控 Undo 与 Purge 状态**：`SHOW GLOBAL STATUS LIKE 'Innodb_undo%';` 观察 Undo 页数量；关注 Purge 是否落后。
-4. **高并发读场景可考虑 `READ COMMITTED`**：Read View 每次重建，生命周期短，Undo 清理更及时，见 [事务与 MVCC](../04-transaction-lock/chapter-01-transaction.md) §9。
+4. **高并发读场景可考虑 `READ COMMITTED`**：Read View 每次重建，生命周期短，Undo 清理更及时，见 [事务与 MVCC §3.3](../04-transaction-lock/chapter-01-transaction.md#rr-rc-read-view)。
 5. **理解 DELETE 的「假删除」**：删除后磁盘不立刻释放是正常现象，不必恐慌，等 Purge 处理即可。

@@ -193,7 +193,7 @@ Checkpoint 做的事：把 Buffer Pool 里「LSN 小于某个值」的脏页批�
 
 ## 5. 与 Binlog 的关系
 
-### 5.1 两阶段提交：Redo Log 与 Binlog 的一致性
+### 5.1 两阶段提交：Redo Log 与 Binlog 的一致性 {#two-phase-commit}
 
 Redo Log 只解决「InnoDB 自己崩溃不丢数据」。但 MySQL 还有第二份日志——**Binlog**（Server 层，用于主从复制和按时间点恢复）。于是每个事务的提交，都要同时保证两份日志一致：Redo Log 里有，Binlog 里也得有。
 
@@ -229,7 +229,7 @@ InnoDB 用**两阶段提交**解决这个「两份日志无法原子写」的难
 
 Binlog 的格式、事件类型与参数见 [Binlog](./chapter-06-binlog.md)。
 
-### 5.2 Redo Log 与 Binlog 的区别
+### 5.2 Redo Log 与 Binlog 的区别 {#redo-vs-binlog}
 
 | 对比项 | Redo Log | Binlog |
 | :-- | :-- | :-- |

@@ -105,7 +105,7 @@ MVCC（Multi-Version Concurrency Control，多版本并发控制）的核心思�
 
 理解 MVCC，就是理解三件事：**一行数据里藏了什么**、**旧版本怎么串成链**、**Read View 怎么判定一个版本可不可见**。下面依次展开。
 
-### 2.2 一行数据里藏了什么：三个隐藏列
+### 2.2 一行数据里藏了什么：三个隐藏列 {#hidden-columns}
 
 InnoDB 的聚簇索引里，每一行记录除了你定义的列，还额外带着三个隐藏列：
 
@@ -126,7 +126,7 @@ InnoDB 的聚簇索引里，每一行记录除了你定义的列，还额外带�
 
 `DB_ROW_ID` 只在表没有主键、也没有非空唯一索引时，才充当隐藏主键，与 MVCC 无关。
 
-### 2.3 版本链：Undo Log 串起来的旧版本
+### 2.3 版本链：Undo Log 串起来的旧版本 {#version-chain}
 
 回到开头的场景。初始插入 `(1, 500)` 时，这行记录只有当前版本，`DB_ROLL_PTR` 为空。
 
@@ -181,7 +181,7 @@ Read View 是一份「快照读可见性判定」的上下文。每次快照读�
 `min_trx_id` 在 InnoDB 源码里叫 `m_up_limit_id`（低水位），`max_trx_id` 叫 `m_low_limit_id`（高水位）。含义是：ID 低于低水位的事务一定已提交，ID 不低于高水位的事务一定还没开始。阅读源码或八股文时遇到这两个名字，对应到这里即可。
 :::
 
-### 3.2 可见性判断：一条记录怎么决定「看不看得见」
+### 3.2 可见性判断：一条记录怎么决定「看不看得见」 {#visibility-judgment}
 
 有了 Read View，就能回答 MVCC 的核心问题。对版本链上的某个版本，记它的 `DB_TRX_ID` 为 `trx_id`，判定规则如下：
 
@@ -242,7 +242,7 @@ Read View（T2 创建，事务 A 复用）：
 
 事务 A 读到 500，与开头观察一致。**这一段「102 >= 102 所以不可见」的推演，正是 MVCC 最容易出错、也最该讲清的地方**：`max_trx_id` 必须取「Read View 创建时刻」的下一个 ID，而不是事后全局的某个大数。理解了它，才真正理解为什么 RR 能挡住「另一个事务提交后的修改」。
 
-### 3.3 RR 与 RC 的分水岭：Read View 何时生成
+### 3.3 RR 与 RC 的分水岭：Read View 何时生成 {#rr-rc-read-view}
 
 `REPEATABLE READ` 和 `READ COMMITTED` 用的是同一套可见性规则，区别只在一件事：**Read View 什么时候创建、创建几次。**
 
@@ -277,12 +277,12 @@ SELECT * FROM accounts WHERE id = 1 LOCK IN SHARE MODE;
 快照读回答「我该看到哪个历史版本」，靠 Read View 判定；当前读回答「我能不能动这行数据」，靠行锁。行锁的三种算法（Record / Gap / Next-Key Lock）见 [锁机制](./chapter-02-lock.md)。
 :::
 
-### 4.2 幻读：RR 下真的解决了吗
+### 4.2 幻读：RR 下真的解决了吗 {#phantom-read}
 
 `REPEATABLE READ` 号称解决了幻读，实际是**分两条路径**解决的：
 
 - **快照读路径**：整个事务复用同一个 Read View，后插入的行 `trx_id >= max_trx_id`，天然不可见，所以读不到幻影行；
-- **当前读路径**：靠 `Next-Key Lock` 锁住「记录 + 间隙」，阻止别的并发事务往查询范围内插入新行。间隙锁细节见 [锁机制](./chapter-02-lock.md) §1.2。
+- **当前读路径**：靠 `Next-Key Lock` 锁住「记录 + 间隙」，阻止别的并发事务往查询范围内插入新行。间隙锁细节见 [锁机制 §2.2](./chapter-02-lock.md#gap-lock)。
 
 但 RR 并未 100% 消灭幻读。一个经典残留场景是：事务先做一次快照读，再对同一范围做当前读。快照读没锁任何东西，别的会话可以在这中间插入新行；随后的 `SELECT ... FOR UPDATE` 走当前读，会读到那条新插入的行——于是「快照读没看到、当前读看到了」，从结果集行数变化的角度看，幻读仍在。
 
@@ -296,7 +296,7 @@ SELECT * FROM accounts WHERE id > 0 FOR UPDATE;  -- 当前读：读到 2 行，�
 
 结论是：**RR 消除了「纯快照读」和「纯当前读」两种路径下的幻读，但无法消除「快照读与当前读混用」时的幻读。** 业务上需要在事务内既读又写同一范围时，要么全程用当前读，要么接受这个边界。
 
-### 4.3 长事务的代价：Undo Log 为什么清不掉
+### 4.3 长事务的代价：Undo Log 为什么清不掉 {#long-transaction}
 
 版本链上的旧版本不能无限保留，Purge 线程会在「不再被任何 Read View 需要」时清理它们。判断标准是：**只要还存在一个 Read View，其 `min_trx_id` 小于等于某旧版本的 `trx_id`，这个版本就可能还被某个事务看见，不能删。**
 
@@ -323,7 +323,7 @@ ORDER BY trx_started ASC;
 
 看到 `duration_sec` 很大的事务，就是 Undo 膨胀和锁等待的潜在源头。
 
-## 5. 最佳实践
+## 5. 最佳实践 {#best-practices}
 
 1. **默认用 `REPEATABLE READ`**：InnoDB 的默认值，兼顾一致性与并发。
 2. **高并发读场景可考虑 `READ COMMITTED`**：Read View 每次重建，Purge 更及时，且 RC 下行锁更少（无间隙锁），见 [锁机制](./chapter-02-lock.md)。
