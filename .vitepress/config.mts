@@ -27,7 +27,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
   },
   
   themeConfig: {
-    logo: '/assets/logo.svg',
+    logo: '/logo.svg',
     outline: {
       level: [2, 3],
     },
@@ -37,7 +37,6 @@ export default withOpenInEditor(withMermaid(defineConfig({
     },
     
     nav: [
-      { text: '首页', link: '/' },
       { text: 'Java', link: '/java/01-java-language/chapter-01-type-system', activeMatch: '^/java/' },
       { text: 'Spring', link: '/spring/01-core/chapter-01-spring-overview', activeMatch: '^/spring/' },
       { text: 'Redis', link: '/redis/01-data-model/chapter-01-overview', activeMatch: '^/redis/' },
