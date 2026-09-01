@@ -13,7 +13,7 @@ hero:
       link: /java/01-java-language/chapter-01-type-system
     - theme: alt
       text: 在 GitHub 上查看
-      link: https://github.com/b1tzer/b1tzer.github.io
+      link: https://github.com/b1tzer/the-stack
 
 features:
   - icon: ☕
