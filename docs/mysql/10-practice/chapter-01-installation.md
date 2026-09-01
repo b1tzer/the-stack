@@ -19,7 +19,49 @@ apt install mysql-server-8.0
 yum install mysql-community-server
 ```
 
-## 2. 核心配置 (my.cnf)
+## 2. 快速搭建
+
+装好后，用下面的语句从建库到查执行计划快速走通一遍：
+
+```sql
+-- 连接（宿主机或容器内执行）
+-- mysql -u root -p
+
+-- 建库（字符集 utf8mb4）
+CREATE DATABASE demo DEFAULT CHARACTER SET utf8mb4 DEFAULT COLLATE utf8mb4_0900_ai_ci;
+USE demo;
+
+-- 建表：自增主键 + 唯一索引
+CREATE TABLE users (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(50) NOT NULL UNIQUE,
+  email VARCHAR(100) NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 基本 CRUD
+INSERT INTO users (username, email) VALUES ('alice', 'alice@example.com');
+SELECT * FROM users WHERE username = 'alice';
+UPDATE users SET email = 'alice_new@example.com' WHERE username = 'alice';
+DELETE FROM users WHERE username = 'bob';
+
+-- 事务：先建转账表，再演示提交
+CREATE TABLE accounts (
+  user_id INT PRIMARY KEY,
+  balance DECIMAL(10,2) NOT NULL DEFAULT 0
+);
+START TRANSACTION;
+UPDATE accounts SET balance = balance - 100 WHERE user_id = 1;
+UPDATE accounts SET balance = balance + 100 WHERE user_id = 2;
+COMMIT;
+
+-- 查看执行计划
+EXPLAIN SELECT * FROM users WHERE email = 'alice@example.com';
+```
+
+## 3. 核心配置 (my.cnf)
 
 ```ini
 [mysqld]
@@ -47,7 +89,7 @@ slow_query_log = 1
 long_query_time = 1
 ```
 
-## 3. 字符集
+## 4. 字符集
 
 ```sql
 -- 查看字符集
@@ -57,7 +99,7 @@ SHOW CHARACTER SET;
 CREATE DATABASE mydb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-## 4. 生产环境推荐配置
+## 5. 生产环境推荐配置
 
 ```ini
 [mysqld]
@@ -108,7 +150,7 @@ binlog_expire_logs_seconds = 604800    # 7 天
 sync_binlog = 1                        # 与 innodb_flush_log_at_trx_commit=1 配合保证双1
 ```
 
-## 5. 关键参数调优说明
+## 6. 关键参数调优说明
 
 | 参数 | 默认值 | 建议值 | 说明 |
 |------|--------|--------|------|
@@ -118,7 +160,7 @@ sync_binlog = 1                        # 与 innodb_flush_log_at_trx_commit=1 �
 | max_connections | 151 | 根据业务量设置 | 过大浪费内存，过小连接拒绝 |
 | innodb_io_capacity | 200 | SSD: 2000 | InnoDB 后台 IO 能力 |
 
-## 6. 安装后安全加固
+## 7. 安装后安全加固
 
 ```bash
 # 运行安全配置向导
@@ -132,7 +174,7 @@ mysql_secure_installation
 # 5. 刷新权限表
 ```
 
-## 7. 多实例部署
+## 8. 多实例部署
 
 ```bash
 # 使用 mysqld_multi 管理多实例

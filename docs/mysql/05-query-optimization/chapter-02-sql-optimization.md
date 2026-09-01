@@ -3,25 +3,39 @@
 ## 1. 避免 SELECT *
 
 ```sql
--- 差
-SELECT * FROM users WHERE id = 1;
--- 好
-SELECT id, name, email FROM users WHERE id = 1;
+SELECT * FROM users WHERE id = 1;  -- ❌ 返回多余列
+SELECT id, name, email FROM users WHERE id = 1;  -- ✅ 只取需要的列
 ```
 
 ## 2. 避免索引失效
 
-```sql
--- 差：函数操作
-WHERE YEAR(created_at) = 2024
--- 好
-WHERE created_at >= '2024-01-01' AND created_at < '2025-01-01'
+索引失效会让查询退化为全表扫描。几种常见写法：
 
--- 差：隐式类型转换
-WHERE phone = 13800138000
--- 好
-WHERE phone = '13800138000'
+```sql
+-- 函数操作
+WHERE YEAR(created_at) = 2024  -- ❌
+WHERE created_at >= '2024-01-01' AND created_at < '2025-01-01'  -- ✅
+
+-- 隐式类型转换
+WHERE phone = 13800138000  -- ❌ phone 是 VARCHAR
+WHERE phone = '13800138000'  -- ✅
+
+-- 前导通配符
+WHERE name LIKE '%张'  -- ❌
+WHERE name LIKE '张%'  -- ✅
+
+-- OR 两边都需有索引
+WHERE a = 1 OR b = 2  -- ❌ b 无索引时失效
+SELECT * FROM t WHERE a = 1
+UNION
+SELECT * FROM t WHERE b = 2  -- ✅
+
+-- NOT IN 不处理 NULL 且性能差
+WHERE id NOT IN (SELECT user_id FROM orders)  -- ❌
+WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.user_id = u.id)  -- ✅
 ```
+
+完整失效场景与判断方法见 [索引使用与失效](../03-index/chapter-03-index-usage.md)。
 
 ## 3. 分页优化
 

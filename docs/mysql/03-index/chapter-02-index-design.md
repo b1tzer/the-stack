@@ -1,21 +1,13 @@
 # 索引设计
 
-## 1. 覆盖索引
-
-```sql
--- 查询列都在索引中，无需回表
-CREATE INDEX idx_name_email ON users(name, email);
-SELECT name, email FROM users WHERE name = '张三';  -- Using index
-```
-
-## 2. 前缀索引
+## 1. 前缀索引
 
 ```sql
 -- 字符串字段只索引前 N 个字符
 CREATE INDEX idx_email_prefix ON users(email(10));
 ```
 
-## 3. 联合索引
+## 2. 联合索引
 
 ```sql
 -- 最左前缀原则
@@ -27,7 +19,7 @@ CREATE INDEX idx_a_b_c ON users(a, b, c);
 -- 不能用：WHERE c=3
 ```
 
-## 4. 索引选择
+## 3. 索引选择
 
 | 场景 | 建议 |
 |------|------|
@@ -36,7 +28,7 @@ CREATE INDEX idx_a_b_c ON users(a, b, c);
 | 频繁查询 | 必须索引 |
 | 频繁更新 | 谨慎索引 |
 
-## 5. 联合索引设计实战
+## 4. 联合索引设计实战
 
 **场景：电商订单查询**
 ```sql
@@ -66,7 +58,7 @@ SELECT
 FROM orders;
 ```
 
-## 6. 索引设计反模式
+## 5. 索引设计反模式
 
 **反模式 1：过多索引**
 ```sql
@@ -104,7 +96,7 @@ CREATE INDEX idx_name_email ON users(name, email);
 SELECT * FROM sys.schema_redundant_indexes;
 ```
 
-## 7. 索引设计 Checklist
+## 6. 索引设计 Checklist
 
 | 检查项 | 说明 |
 |--------|------|
@@ -116,7 +108,7 @@ SELECT * FROM sys.schema_redundant_indexes;
 | 无冗余索引 | 检查是否有重复或被包含的索引 |
 | 无过多索引 | 一般不超过 5-6 个索引 |
 
-## 8. 最佳实践
+## 7. 最佳实践
 
 1. **先分析查询模式再设计索引** — 根据实际 SQL 建索引
 2. **联合索引优先于多个单列索引** — 一个联合索引可以覆盖多个查询

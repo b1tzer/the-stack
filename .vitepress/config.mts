@@ -641,16 +641,16 @@ export default withOpenInEditor(withMermaid(defineConfig({
           text: '基础入门',
           items: [
             { text: 'MySQL 概览', link: '/mysql/01-basics/chapter-01-overview' },
-            { text: '整体架构', link: '/mysql/01-basics/chapter-03-architecture' },
-            { text: '字符集与排序规则', link: '/mysql/01-basics/chapter-04-charset-collation' },
-            { text: 'SQL 规范与最佳实践', link: '/mysql/01-basics/chapter-05-sql-best-practices' },
+            { text: '整体架构', link: '/mysql/01-basics/chapter-02-architecture' },
+            { text: '字符集与排序规则', link: '/mysql/01-basics/chapter-03-charset-collation' },
+            { text: 'SQL 规范与最佳实践', link: '/mysql/01-basics/chapter-04-sql-best-practices' },
           ],
         },
         {
           text: 'InnoDB 内核',
           items: [
-            { text: 'Buffer Pool', link: '/mysql/02-innodb-internals/chapter-01-buffer-pool' },
-            { text: '数据页与行格式', link: '/mysql/02-innodb-internals/chapter-02-data-page' },
+            { text: '数据页与行格式', link: '/mysql/02-innodb-internals/chapter-01-data-page' },
+            { text: 'Buffer Pool', link: '/mysql/02-innodb-internals/chapter-02-buffer-pool' },
             { text: '表空间', link: '/mysql/02-innodb-internals/chapter-03-tablespace' },
             { text: 'Redo Log', link: '/mysql/02-innodb-internals/chapter-04-redo-log' },
             { text: 'Undo Log', link: '/mysql/02-innodb-internals/chapter-05-undo-log' },
@@ -678,11 +678,10 @@ export default withOpenInEditor(withMermaid(defineConfig({
         {
           text: '查询优化',
           items: [
-            { text: '查询执行流程', link: '/mysql/05-query-optimization/chapter-01-execution-plan' },
-            { text: 'EXPLAIN', link: '/mysql/05-query-optimization/chapter-02-explain' },
-            { text: 'SQL 优化', link: '/mysql/05-query-optimization/chapter-03-sql-optimization' },
-            { text: '连接优化', link: '/mysql/05-query-optimization/chapter-04-join-optimization' },
-            { text: '子查询优化', link: '/mysql/05-query-optimization/chapter-05-subquery-optimization' },
+            { text: '查询执行流程与 EXPLAIN', link: '/mysql/05-query-optimization/chapter-01-execution-plan' },
+            { text: 'SQL 优化', link: '/mysql/05-query-optimization/chapter-02-sql-optimization' },
+            { text: '连接优化', link: '/mysql/05-query-optimization/chapter-03-join-optimization' },
+            { text: '子查询优化', link: '/mysql/05-query-optimization/chapter-04-subquery-optimization' },
           ],
         },
         {
@@ -690,8 +689,8 @@ export default withOpenInEditor(withMermaid(defineConfig({
           items: [
             { text: '窗口函数', link: '/mysql/06-advanced-features/chapter-01-window-function' },
             { text: 'CTE', link: '/mysql/06-advanced-features/chapter-02-cte' },
-            { text: '生成列', link: '/mysql/06-advanced-features/chapter-03-generated-column' },
-            { text: 'JSON', link: '/mysql/06-advanced-features/chapter-04-json' },
+            { text: 'JSON', link: '/mysql/06-advanced-features/chapter-03-json' },
+            { text: '生成列', link: '/mysql/06-advanced-features/chapter-04-generated-column' },
             { text: '分区表', link: '/mysql/06-advanced-features/chapter-05-partition' },
             { text: '全文索引', link: '/mysql/06-advanced-features/chapter-06-fulltext-index' },
             { text: '存储过程与触发器', link: '/mysql/06-advanced-features/chapter-07-stored-procedure' },
@@ -712,10 +711,9 @@ export default withOpenInEditor(withMermaid(defineConfig({
           items: [
             { text: '备份恢复', link: '/mysql/08-operations/chapter-01-backup-restore' },
             { text: '监控', link: '/mysql/08-operations/chapter-02-monitoring' },
-            { text: '安全', link: '/mysql/08-operations/chapter-03-security' },
-            { text: '用户管理', link: '/mysql/08-operations/chapter-04-user-management' },
-            { text: '日常维护', link: '/mysql/08-operations/chapter-05-maintenance' },
-            { text: '连接管理', link: '/mysql/08-operations/chapter-06-connection-mgmt' },
+            { text: '安全与用户管理', link: '/mysql/08-operations/chapter-03-security' },
+            { text: '日常维护', link: '/mysql/08-operations/chapter-04-maintenance' },
+            { text: '连接管理', link: '/mysql/08-operations/chapter-05-connection-mgmt' },
           ],
         },
         {
@@ -731,12 +729,10 @@ export default withOpenInEditor(withMermaid(defineConfig({
           text: '实战',
           items: [
             { text: '安装部署与环境配置', link: '/mysql/10-practice/chapter-01-installation' },
-            { text: '第一个数据库', link: '/mysql/10-practice/chapter-02-first-db' },
-            { text: 'MySQL 转 PostgreSQL', link: '/mysql/10-practice/chapter-03-mysql-to-pg' },
-            { text: '首次生产部署', link: '/mysql/10-practice/chapter-04-first-production' },
-            { text: 'Spring 集成', link: '/mysql/10-practice/chapter-05-spring-integration' },
-            { text: '常见问题', link: '/mysql/10-practice/chapter-06-common-issues' },
-            { text: '性能调优', link: '/mysql/10-practice/chapter-07-performance-tuning' },
+            { text: '首次生产部署', link: '/mysql/10-practice/chapter-02-first-production' },
+            { text: 'Spring 集成', link: '/mysql/10-practice/chapter-03-spring-integration' },
+            { text: '常见问题', link: '/mysql/10-practice/chapter-04-common-issues' },
+            { text: '性能调优', link: '/mysql/10-practice/chapter-05-performance-tuning' },
           ],
         },
         {

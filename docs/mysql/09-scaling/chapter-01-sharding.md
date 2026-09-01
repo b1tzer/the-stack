@@ -37,15 +37,7 @@ spring:
 | 哈希分片 | 按 hash 值 | 均匀分布 |
 | 一致性哈希 | 节点变更影响小 | 动态扩容 |
 
-## 4. 分布式 ID
-
-```java
-// 雪花算法
-SnowflakeIdGenerator generator = new SnowflakeIdGenerator(1, 1);
-long id = generator.nextId();
-```
-
-## 5. 分库分表带来的问题
+## 4. 分库分表带来的问题
 
 | 问题 | 说明 | 解决方案 |
 |------|------|----------|
@@ -56,7 +48,7 @@ long id = generator.nextId();
 | 扩容困难 | 数据迁移复杂 | 一致性哈希 / 预分片 |
 | 聚合查询 | COUNT/SUM 需要汇总 | 应用层汇总 / ES |
 
-## 6. 分布式 ID 方案
+## 5. 分布式 ID 方案
 
 ```java
 // 雪花算法 (Snowflake)
@@ -89,7 +81,7 @@ public class SnowflakeIdGenerator {
 // 百度 UidGenerator: https://github.com/baidu/uid-generator
 ```
 
-## 7. ShardingSphere 配置实战
+## 6. ShardingSphere 配置实战
 
 ```yaml
 # ShardingSphere-Proxy 分库分表配置
@@ -135,7 +127,7 @@ rules:
         type: SNOWFLAKE
 ```
 
-## 8. 最佳实践
+## 7. 最佳实践
 
 1. **能不分就不分** — 单表千万级以内，优化索引和查询即可
 2. **垂直拆分优先** — 按业务拆分数据库，简单有效

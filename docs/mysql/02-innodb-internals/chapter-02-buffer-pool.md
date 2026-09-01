@@ -18,7 +18,7 @@ InnoDB 不按「行」而是按「页」读写磁盘。默认页大小 `innodb_p
 SHOW VARIABLES LIKE 'innodb_page_size';  -- 默认 16384（16KB）
 ```
 
-页的内部布局（File Header、Page Directory、User Records 等）在 [数据页](./chapter-02-data-page.md) 展开，这里只需记住：**Buffer Pool 是一块内存，里面装的全是 16KB 的页。**
+页的内部布局（File Header、Page Directory、User Records 等）在 [数据页](./chapter-01-data-page.md) 展开，这里只需记住：**Buffer Pool 是一块内存，里面装的全是 16KB 的页。**
 
 ## 3. Buffer Pool 内部的三张链表
 

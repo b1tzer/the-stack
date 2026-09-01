@@ -20,21 +20,6 @@ WHERE a = 1 OR b = 2  -- ❌ 如果 b 没索引
 WHERE a = 1 UNION SELECT * FROM users WHERE b = 2  -- ✅
 ```
 
-## 2. EXPLAIN 解读
-
-```sql
-EXPLAIN SELECT * FROM users WHERE name = '张三';
-```
-
-| 字段 | 说明 |
-|------|------|
-| type | ALL(全表扫描) → index → range → ref → eq_ref → const |
-| key | 实际使用的索引 |
-| rows | 预估扫描行数 |
-| Extra | Using index/Using where/Using temporary/Using filesort |
-
-## 3. 更多索引失效场景
-
 **不等于操作：**
 ```sql
 -- NOT IN、NOT EXISTS、!=、<> 通常不走索引
@@ -88,11 +73,20 @@ WHERE username = '12345'  -- ✅
 -- 表用 utf8mb4，连接用 latin1 → 隐式转换 → 索引失效
 ```
 
-## 4. 索引失效判断方法
+## 2. 索引失效判断方法
 
 ```sql
--- 使用 EXPLAIN 判断是否走索引
 EXPLAIN SELECT * FROM users WHERE name = '张三';
+```
+
+| 字段 | 说明 |
+|------|------|
+| type | ALL(全表扫描) → index → range → ref → eq_ref → const |
+| key | 实际使用的索引 |
+| rows | 预估扫描行数 |
+| Extra | Using index/Using where/Using temporary/Using filesort |
+
+```sql
 -- 观察 key 列：NULL 表示没走索引
 
 -- 使用 EXPLAIN FORMAT=JSON 查看详细信息
@@ -103,7 +97,7 @@ EXPLAIN FORMAT=JSON SELECT * FROM users WHERE YEAR(created_at) = 2024;
 EXPLAIN ANALYZE SELECT * FROM users WHERE name = '张三';
 ```
 
-## 5. 强制使用/忽略索引
+## 3. 强制使用/忽略索引
 
 ```sql
 -- 强制使用指定索引
@@ -116,7 +110,7 @@ SELECT * FROM users IGNORE INDEX(idx_age) WHERE age > 25;
 SELECT * FROM users USE INDEX(idx_name) WHERE name = '张三';
 ```
 
-## 6. 最佳实践
+## 4. 最佳实践
 
 1. **避免在索引列上使用函数** — 改用范围查询或函数索引
 2. **保持数据类型一致** — 避免隐式类型转换
