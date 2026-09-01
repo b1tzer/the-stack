@@ -1,27 +1,31 @@
 # 日常维护
 
-## 1. OPTIMIZE TABLE
+## 1. 表维护命令
+
+### 1.1 OPTIMIZE TABLE
 
 ```sql
 -- 整理碎片
 OPTIMIZE TABLE users;
 ```
 
-## 2. ANALYZE TABLE
+### 1.2 ANALYZE TABLE
 
 ```sql
 -- 更新统计信息
 ANALYZE TABLE users;
 ```
 
-## 3. CHECK TABLE
+### 1.3 CHECK TABLE
 
 ```sql
 -- 检查表完整性
 CHECK TABLE users;
 ```
 
-## 4. 表空间管理
+## 2. 空间与数据清理
+
+### 2.1 表空间管理
 
 ```sql
 -- 查看表大小
@@ -35,7 +39,7 @@ WHERE table_schema = 'mydb'
 ORDER BY total_mb DESC;
 ```
 
-## 5. 清理历史数据
+### 2.2 清理历史数据
 
 ```sql
 -- 删除 30 天前的数据
@@ -45,7 +49,7 @@ DELETE FROM logs WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
 DELETE FROM logs WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY) LIMIT 10000;
 ```
 
-## 6. 碎片整理
+### 2.3 碎片整理
 
 ```sql
 -- 查看碎片率
@@ -71,7 +75,7 @@ ALTER TABLE users ENGINE=InnoDB;
 -- pt-online-schema-change --alter "ENGINE=InnoDB" D=mydb,t=users --execute
 ```
 
-## 7. 历史数据归档
+### 2.4 历史数据归档
 
 ```sql
 -- 创建归档表（结构相同）
@@ -104,7 +108,7 @@ DELIMITER ;
 ALTER TABLE orders DROP PARTITION p2023;
 ```
 
-## 8. 数据库升级
+## 3. 数据库升级
 
 ```bash
 # 升级前检查
@@ -132,7 +136,9 @@ tail -f /var/log/mysql/error.log
 mysql_upgrade -u root -p  # MySQL 8.0.16+ 自动执行
 ```
 
-## 9. 日常维护 Checklist
+## 4. 维护清单
+
+### 4.1 日常维护 Checklist
 
 | 项目 | 频率 | 命令 |
 |------|------|------|
@@ -147,7 +153,7 @@ mysql_upgrade -u root -p  # MySQL 8.0.16+ 自动执行
 | 权限审计 | 每月 | `SHOW GRANTS` |
 | 性能基线对比 | 每月 | Grafana 趋势图 |
 
-## 10. 最佳实践
+### 4.2 最佳实践
 
 1. **维护窗口选择业务低峰期** — 减少对业务影响
 2. **大表操作使用 pt-osc/gh-ost** — 避免锁表
@@ -155,4 +161,3 @@ mysql_upgrade -u root -p  # MySQL 8.0.16+ 自动执行
 4. **维护前必须备份** — 防止误操作
 5. **自动化维护任务** — 使用 cron 或调度系统
 6. **监控维护任务执行情况** — 确保任务成功完成
-

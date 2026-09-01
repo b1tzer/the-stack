@@ -1,6 +1,8 @@
 # 锁选型：悲观锁 vs 乐观锁
 
-## 1. 核心区别
+## 1. 两种锁的本质区别
+
+### 1.1 核心区别
 
 | 特性 | 悲观锁 | 乐观锁 |
 |------|--------|--------|
@@ -10,7 +12,9 @@
 | 冲突处理 | 等待锁释放 | 重试业务逻辑 |
 | 适用场景 | 写多读少、冲突频繁 | 读多写少、冲突较少 |
 
-## 2. 悲观锁实现
+## 2. 悲观锁
+
+### 2.1 悲观锁实现
 
 ```sql
 -- SELECT ... FOR UPDATE：对选中行加排他锁
@@ -27,7 +31,7 @@ SELECT * FROM products WHERE id = 1 LOCK IN SHARE MODE;
 COMMIT;
 ```
 
-### 2.1 悲观锁的粒度
+### 2.2 悲观锁的粒度
 
 ```sql
 -- 行锁（推荐）
@@ -43,7 +47,7 @@ UNLOCK TABLES;
 SELECT * FROM orders WHERE user_id BETWEEN 100 AND 200 FOR UPDATE;
 ```
 
-### 2.2 悲观锁超时
+### 2.3 悲观锁超时
 
 ```sql
 -- 设置锁等待超时
@@ -53,9 +57,11 @@ SET innodb_lock_wait_timeout = 5;  -- 默认 50 秒
 -- ERROR 1205 (HY000): Lock wait timeout exceeded
 ```
 
-## 3. 乐观锁实现
+## 3. 乐观锁
 
-### 3.1 版本号机制
+### 3.1 乐观锁实现
+
+### 3.2 版本号机制
 
 ```sql
 -- 表结构
@@ -75,7 +81,7 @@ WHERE id = 1 AND version = 0;
 -- 如果 affected_rows = 0，说明被其他事务修改，需要重试
 ```
 
-### 3.2 时间戳机制
+### 3.3 时间戳机制
 
 ```sql
 -- 表结构
@@ -92,7 +98,7 @@ SET stock = stock - 1
 WHERE id = 1 AND updated_at = '2024-01-01 10:00:00';
 ```
 
-### 3.3 CAS（Compare And Swap）
+### 3.4 CAS（Compare And Swap）
 
 ```sql
 -- 直接比较原值
@@ -103,7 +109,9 @@ WHERE id = 1 AND balance = 1000;
 -- 如果 affected_rows = 0，说明余额已被修改
 ```
 
-## 4. 选型决策树
+## 4. 选型与实战
+
+### 4.1 选型决策树
 
 ```
 冲突频率如何？
@@ -116,9 +124,9 @@ WHERE id = 1 AND balance = 1000;
     └── 复杂业务 → 乐观锁 + 业务校验
 ```
 
-## 5. 典型场景选型
+### 4.2 典型场景选型
 
-### 5.1 适合悲观锁的场景
+### 4.3 适合悲观锁的场景
 
 ```sql
 -- 1. 金融转账（数据一致性要求极高）
@@ -144,7 +152,7 @@ UPDATE orders SET status = 'paid' WHERE id = 100 AND status = 'pending';
 COMMIT;
 ```
 
-### 5.2 适合乐观锁的场景
+### 4.4 适合乐观锁的场景
 
 ```sql
 -- 1. 用户信息更新（冲突少）
@@ -163,7 +171,7 @@ SET value = 'new_value', version = version + 1
 WHERE key = 'site_name' AND version = 1;
 ```
 
-## 6. 乐观锁重试策略
+### 4.5 乐观锁重试策略
 
 ```python
 # Python 伪代码
@@ -187,7 +195,7 @@ def update_with_retry(table, id, max_retries=3):
     return False  # 重试耗尽
 ```
 
-### 6.1 Java 实现：JPA 与手动版
+### 4.6 Java 实现：JPA 与手动版
 
 乐观锁的 Java 落地有两种方式：JPA 内置的 `@Version` 注解，以及手写 SQL 的版本号比对。
 
@@ -269,7 +277,7 @@ public class ManualOptimisticLockService {
 
 两者本质相同：都靠「更新时比对版本号、影响行数为 0 判定冲突」实现乐观锁。
 
-## 7. 混合方案
+### 4.7 混合方案
 
 ```sql
 -- 读多写少 + 偶尔高并发
@@ -286,7 +294,7 @@ UPDATE products SET stock = stock - 1, version = version + 1 WHERE id = 1;
 COMMIT;
 ```
 
-## 8. 性能对比测试
+### 4.8 性能对比测试
 
 | 方案 | QPS (低冲突) | QPS (高冲突) | 死锁风险 |
 |------|-------------|-------------|---------|
@@ -294,7 +302,7 @@ COMMIT;
 | 乐观锁 | 15,000 | 8,000 (含重试) | 无 |
 | 乐观锁+悲观锁降级 | 14,000 | 3,000 | 低 |
 
-## 9. 最佳实践总结
+## 5. 最佳实践总结
 
 | 场景 | 推荐方案 | 理由 |
 |------|---------|------|

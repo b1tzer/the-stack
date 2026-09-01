@@ -1,6 +1,8 @@
 # 分区表
 
-## 1. 范围分区
+## 1. 分区类型
+
+### 1.1 范围分区
 
 ```sql
 CREATE TABLE orders (
@@ -16,7 +18,7 @@ CREATE TABLE orders (
 );
 ```
 
-## 2. 列表分区
+### 1.2 列表分区
 
 ```sql
 CREATE TABLE users (
@@ -30,7 +32,7 @@ CREATE TABLE users (
 );
 ```
 
-## 3. 哈希分区
+### 1.3 哈希分区
 
 ```sql
 CREATE TABLE logs (
@@ -39,15 +41,7 @@ CREATE TABLE logs (
 ) PARTITION BY HASH (id) PARTITIONS 4;
 ```
 
-## 4. 分区裁剪
-
-```sql
--- 只扫描相关分区
-EXPLAIN SELECT * FROM orders WHERE created_at = '2024-06-01';
--- 输出：p2024
-```
-
-## 5. KEY 分区
+### 1.4 KEY 分区
 
 ```sql
 -- 按 KEY 分区（类似 HASH，但使用 MySQL 内部哈希函数）
@@ -68,7 +62,44 @@ CREATE TABLE logs (
 ) PARTITION BY KEY (message_id) PARTITIONS 4;
 ```
 
-## 6. 分区管理操作
+## 2. 分区裁剪
+
+### 2.1 基本用法
+
+```sql
+-- 只扫描相关分区
+EXPLAIN SELECT * FROM orders WHERE created_at = '2024-06-01';
+-- 输出：p2024
+```
+
+### 2.2 分区裁剪详解
+
+```sql
+-- 分区裁剪（Partition Pruning）：只扫描相关分区
+
+-- ✅ 触发分区裁剪
+EXPLAIN SELECT * FROM orders WHERE created_at = '2024-06-01';
+-- partitions: p2024
+
+EXPLAIN SELECT * FROM orders WHERE created_at >= '2024-01-01' AND created_at < '2025-01-01';
+-- partitions: p2024
+
+-- ❌ 不触发分区裁剪
+EXPLAIN SELECT * FROM orders WHERE YEAR(created_at) = 2024;
+-- partitions: ALL（函数操作导致无法裁剪）
+
+-- 替代方案
+EXPLAIN SELECT * FROM orders WHERE created_at >= '2024-01-01' AND created_at < '2025-01-01';
+-- partitions: p2024
+
+-- 查看裁剪信息
+EXPLAIN SELECT * FROM orders WHERE id = 100;
+-- 如果 id 不是分区键，会扫描所有分区
+```
+
+## 3. 分区管理
+
+### 3.1 分区管理操作
 
 ```sql
 -- 添加分区
@@ -111,32 +142,9 @@ WHERE table_schema = 'mydb' AND table_name = 'orders'
 ORDER BY partition_ordinal_position;
 ```
 
-## 7. 分区裁剪详解
+## 4. 限制与最佳实践
 
-```sql
--- 分区裁剪（Partition Pruning）：只扫描相关分区
-
--- ✅ 触发分区裁剪
-EXPLAIN SELECT * FROM orders WHERE created_at = '2024-06-01';
--- partitions: p2024
-
-EXPLAIN SELECT * FROM orders WHERE created_at >= '2024-01-01' AND created_at < '2025-01-01';
--- partitions: p2024
-
--- ❌ 不触发分区裁剪
-EXPLAIN SELECT * FROM orders WHERE YEAR(created_at) = 2024;
--- partitions: ALL（函数操作导致无法裁剪）
-
--- 替代方案
-EXPLAIN SELECT * FROM orders WHERE created_at >= '2024-01-01' AND created_at < '2025-01-01';
--- partitions: p2024
-
--- 查看裁剪信息
-EXPLAIN SELECT * FROM orders WHERE id = 100;
--- 如果 id 不是分区键，会扫描所有分区
-```
-
-## 8. 分区表的限制
+### 4.1 分区表的限制
 
 | 限制 | 说明 |
 |------|------|
@@ -147,7 +155,7 @@ EXPLAIN SELECT * FROM orders WHERE id = 100;
 | 空间索引 | 分区表不支持空间索引 |
 | 临时表 | 临时表不能分区 |
 
-## 9. 最佳实践
+### 4.2 最佳实践
 
 1. **分区适用于时序数据** — 日志、订单、监控数据
 2. **分区键选择查询最频繁的过滤列** — 确保分区裁剪
@@ -155,4 +163,3 @@ EXPLAIN SELECT * FROM orders WHERE id = 100;
 4. **定期清理历史分区** — `DROP PARTITION` 比 `DELETE` 快得多
 5. **分区表的查询必须包含分区键** — 否则全分区扫描
 6. **考虑使用表分区替代分库分表** — 单机场景下更简单
-

@@ -2,7 +2,11 @@
 
 > 一条 `DELETE` 之后立刻 `ROLLBACK`，被删的行又回来了。InnoDB 没给每张表做「删除前的备份」，它凭什么能精确撤销？凭的是一份「逆向操作」日志——Undo Log。同一份日志还顺手撑起了 MVCC 的无锁读：它同时是「回滚的依据」和「历史版本的仓库」。
 
-## 1. 从一次回滚说起
+## 1. Undo Log 是什么
+
+![Undo Log 全景：逆向操作日志 + MVCC 版本链载体](/mysql/02-innodb-internals-chapter-05-undo-log.svg)
+
+### 1.1 从一次回滚说起
 
 先建立一个具体场景：
 
@@ -27,7 +31,7 @@ Undo Log 与 Redo Log 是两份目的相反的日志：
 
 一句话区分：**Redo 保证「改过的不会丢」，Undo 保证「改错的能改回」。** 前者见 [Redo Log](./chapter-04-redo-log.md)，本章聚焦后者。
 
-## 2. Undo Log 记录的不是数据快照，是「逆向操作」
+### 1.2 Undo Log 记录的不是数据快照，是「逆向操作」
 
 Undo Log 是**逻辑日志**，它不复制整行数据，而是记录「如何撤销这次修改」。同样是把 `balance` 从 500 改成 400，Undo Log 记录的语义是「把这一行的 balance 加 100」，而不是「旧值是 500」。
 
@@ -47,9 +51,11 @@ Undo 记录（简化）
 └─ 指向前一条 Undo   构成同事务内的 Undo 链
 ```
 
-事务内连续多次修改同一行，会形成一条事务内部的 Undo 链；而不同事务对同一行的修改，则通过行记录里的 `DB_ROLL_PTR` 串成跨事务的**版本链**（见 §5）。
+事务内连续多次修改同一行，会形成一条事务内部的 Undo 链；而不同事务对同一行的修改，则通过行记录里的 `DB_ROLL_PTR` 串成跨事务的**版本链**（见 §3.1）。
 
-## 3. 两类 Undo：insert undo 与 update undo
+## 2. 两类 Undo 与存储位置
+
+### 2.1 两类 Undo：insert undo 与 update undo
 
 Undo Log 按「回滚需要做什么」分为两类，它们的清理时机完全不同：
 
@@ -68,7 +74,7 @@ Undo Log 按「回滚需要做什么」分为两类，它们的清理时机完�
 
 这就是「同一份 Undo Log，两类记录，两套生命周期」的由来。也解释了为什么频繁 `INSERT` 的表 Undo 压力小，而频繁 `UPDATE` / `DELETE` 的表 Undo 容易堆积。
 
-## 4. Undo Log 存在哪里：回滚段与 Undo 表空间
+### 2.2 Undo Log 存在哪里：回滚段与 Undo 表空间
 
 Undo Log 不是独立于表空间的文件，它存放在**回滚段（Rollback Segment）**里。回滚段是 Undo 页的组织单元，一个回滚段管理一串 Undo 页链表。
 
@@ -105,9 +111,11 @@ MySQL 5.6 之前，Undo Log 存放在系统表空间 `ibdata1` 里，无法独�
 
 多个事务的 Undo 记录可以共享同一个回滚段、同一组 Undo 页，通过链表串起来。这里的存储细节不需要全部记住，需要理解的是：**Undo Log 占用的是独立空间，且这段空间只有在 Purge 清理后才会真正释放。**
 
-## 5. 版本链：Undo 的另一半用途
+## 3. 版本链：MVCC 的载体
 
-Undo Log 除了回滚，还支撑 MVCC。前文 [事务与 MVCC](../04-transaction-lock/chapter-01-transaction.md) §6 已经详细讲过：每行记录的 `DB_ROLL_PTR` 指向 Undo 中的旧版本，多次修改串成一条从当前版本通到最老版本的链。
+### 3.1 版本链：Undo 的另一半用途
+
+Undo Log 除了回滚，还支撑 MVCC。 [事务与 MVCC](../04-transaction-lock/chapter-01-transaction.md) §6 已经详细讲过：每行记录的 `DB_ROLL_PTR` 指向 Undo 中的旧版本，多次修改串成一条从当前版本通到最老版本的链。
 
 ```text
 当前记录 → Undo v3 → Undo v2 → Undo v1
@@ -120,7 +128,9 @@ Undo Log 除了回滚，还支撑 MVCC。前文 [事务与 MVCC](../04-transacti
 
 这个「双引用」事实，是理解下一节 Purge 时机的钥匙。
 
-## 6. DELETE 是「假删除」：delete mark
+## 4. 删除、清理与膨胀
+
+### 4.1 DELETE 是「假删除」：delete mark
 
 `DELETE` 产生的 update undo，牵扯一个容易误解的细节：**InnoDB 的 `DELETE` 并不是立刻把行从页里抹掉**，而是先做一次**删除标记（delete mark）**——在记录头上打一个「已删除」标志，行数据仍留在原地。
 
@@ -131,11 +141,11 @@ Undo Log 除了回滚，还支撑 MVCC。前文 [事务与 MVCC](../04-transacti
 
 所以 `DELETE` 之后磁盘空间不会立即变小，要等 Purge 真正清理，空间才释放。这是「删了数据，磁盘占用却没降」这一常见现象的根因。
 
-## 7. Purge：谁来清理、何时清理
+### 4.2 Purge：谁来清理、何时清理
 
 Purge 线程（一组后台线程）负责清理「不再需要」的 Undo 记录。它要判断两类 Undo 分别何时可删：
 
-- **insert undo**：对应事务已提交即可删（原因见 §3）；
+- **insert undo**：对应事务已提交即可删（原因见 §2.1）；
 - **update undo**：对应事务已提交，**且**不存在任何 Read View 还需要这个旧版本。
 
 第二条判断的执行方式是：Purge 维护一个「最老的活跃 Read View」，只要某条 update undo 的 `trx_id` 比这个最老 Read View 的 `min_trx_id` 还小（即早于所有可能看见它的读视图），就能安全清理。
@@ -150,9 +160,9 @@ SHOW VARIABLES LIKE 'innodb_max_purge_lag';
 
 当 Purge 追不上 Undo 的产生速度时，Undo 空间会持续膨胀。`innodb_max_purge_lag` 非 0 时，InnoDB 会在 Purge 落后超过阈值后对 DML 限流——通过让写操作「等一等 Purge」来给清理腾出时间，避免磁盘被 Undo 撑满。
 
-## 8. 长事务：Undo 膨胀的元凶
+### 4.3 长事务：Undo 膨胀的元凶
 
-结合 §7 的清理条件，就能推出一个反直觉的结论：**一条已经提交、甚至早已结束的 update undo，可能因为一个「还没结束的长事务」而迟迟无法被 Purge。**
+结合 §4.2 的清理条件，就能推出一个反直觉的结论：**一条已经提交、甚至早已结束的 update undo，可能因为一个「还没结束的长事务」而迟迟无法被 Purge。**
 
 原因：那个长事务持有「很老」的 Read View，它的 `min_trx_id` 停在很久以前。Purge 判定时，凡是 `trx_id` 大于这个 `min_trx_id` 的 update undo 都被认为「可能被看见」，一律保留。于是：
 
@@ -163,9 +173,9 @@ SHOW VARIABLES LIKE 'innodb_max_purge_lag';
 
 排查手段与「避免长事务」的完整清单见 [事务与 MVCC](../04-transaction-lock/chapter-01-transaction.md) §12~§13。
 
-## 9. 最佳实践
+## 5. 最佳实践
 
-1. **避免长事务**：这是控制 Undo 体积的第一优先级，见 §8。
+1. **避免长事务**：这是控制 Undo 体积的第一优先级，见 §4.3。
 2. **大批量删除分批执行**：把一次 `DELETE` 大量行拆成多个小事务，缩短单条 Undo 链，给 Purge 留出节奏。
 3. **监控 Undo 与 Purge 状态**：`SHOW GLOBAL STATUS LIKE 'Innodb_undo%';` 观察 Undo 页数量；关注 Purge 是否落后。
 4. **高并发读场景可考虑 `READ COMMITTED`**：Read View 每次重建，生命周期短，Undo 清理更及时，见 [事务与 MVCC](../04-transaction-lock/chapter-01-transaction.md) §9。

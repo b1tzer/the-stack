@@ -1,6 +1,8 @@
 # 查询执行流程与 EXPLAIN
 
-## 1. 完整流程
+## 1. 执行流程与优化器
+
+### 1.1 完整流程
 
 ```
 SQL → 连接器 → 查询缓存(8.0移除) → 解析器 → 优化器 → 执行器 → 存储引擎
@@ -8,7 +10,7 @@ SQL → 连接器 → 查询缓存(8.0移除) → 解析器 → 优化器 → �
 
 一条 SQL 从发出到返回结果，依次经过连接器、解析器、优化器、执行器，最后到达存储引擎。对性能影响最大的是**优化器**——它决定用哪个索引、按什么顺序连接表，同一个 SQL 可能跑出数量级差异。
 
-## 2. 优化器与成本模型
+### 1.2 优化器与成本模型
 
 优化器不「猜」执行计划，而是基于**成本模型**打分，选成本最低的那个。成本由表的行数估算、索引页数、IO 代价共同决定，而这些数据来自统计信息。
 
@@ -36,7 +38,7 @@ SHOW VARIABLES LIKE 'innodb_stats_persistent_sample_pages'; -- 默认 20
 SET GLOBAL innodb_stats_persistent_sample_pages = 100;
 ```
 
-## 3. Optimizer Trace 详解
+### 1.3 Optimizer Trace 详解
 
 想知道优化器「为什么选这个计划」，单看 `EXPLAIN` 只给结果，要看决策过程得开 Optimizer Trace：
 
@@ -63,7 +65,7 @@ Trace 的关键字段：
   - `cost_investment_plan`：成本计算
 - `join_execution`：执行阶段
 
-## 4. 优化器提示 (Optimizer Hints)
+### 1.4 优化器提示 (Optimizer Hints)
 
 当优化器选错计划时，可以用 Hint 在单条 SQL 上强制干预，而不是改全局参数：
 
@@ -84,7 +86,7 @@ SELECT /*+ HASH_JOIN(o) */ * FROM users u JOIN orders o ON u.id = o.user_id;
 SELECT /*+ MAX_EXECUTION_TIME(1000) */ * FROM users WHERE age > 20;
 ```
 
-## 5. 查询缓存（MySQL 8.0 已移除）
+### 1.5 查询缓存（MySQL 8.0 已移除）
 
 MySQL 5.7 及之前的查询缓存，因三个缺陷被移除：
 
@@ -94,7 +96,9 @@ MySQL 5.7 及之前的查询缓存，因三个缺陷被移除：
 
 替代方案：应用层缓存（Redis）、ProxySQL 查询缓存、连接池复用。
 
-## 6. EXPLAIN 基本用法
+## 2. EXPLAIN 基础
+
+### 2.1 EXPLAIN 基本用法
 
 `EXPLAIN` 是观察执行计划、验证优化器决策的主要工具：
 
@@ -103,7 +107,7 @@ EXPLAIN SELECT * FROM users WHERE age > 25;
 EXPLAIN ANALYZE SELECT * FROM users WHERE age > 25;  -- 8.0.18+，含实际执行时间
 ```
 
-## 7. 核心字段
+### 2.2 核心字段
 
 | 字段 | 说明 |
 |------|------|
@@ -115,7 +119,7 @@ EXPLAIN ANALYZE SELECT * FROM users WHERE age > 25;  -- 8.0.18+，含实际执�
 | filtered | 过滤比例 |
 | Extra | 额外信息 |
 
-## 8. type 访问类型（从差到好）
+### 2.3 type 访问类型（从差到好）
 
 | type | 说明 |
 |------|------|
@@ -127,7 +131,7 @@ EXPLAIN ANALYZE SELECT * FROM users WHERE age > 25;  -- 8.0.18+，含实际执�
 | const | 主键/唯一索引等值查询 |
 | system | 系统表 |
 
-## 9. Extra 常见值
+### 2.4 Extra 常见值
 
 | Extra | 说明 |
 |------|------|
@@ -137,7 +141,9 @@ EXPLAIN ANALYZE SELECT * FROM users WHERE age > 25;  -- 8.0.18+，含实际执�
 | Using filesort | 文件排序 |
 | Using index condition | 索引下推 |
 
-## 10. EXPLAIN FORMAT=JSON
+## 3. EXPLAIN 进阶格式
+
+### 3.1 EXPLAIN FORMAT=JSON
 
 ```sql
 EXPLAIN FORMAT=JSON SELECT * FROM users WHERE name = '张三' AND age > 25;
@@ -170,7 +176,7 @@ EXPLAIN FORMAT=JSON SELECT * FROM users WHERE name = '张三' AND age > 25;
 }
 ```
 
-## 11. EXPLAIN ANALYZE（MySQL 8.0.18+）
+### 3.2 EXPLAIN ANALYZE（MySQL 8.0.18+）
 
 ```sql
 -- 显示实际执行时间，而不仅是估算
@@ -194,7 +200,7 @@ WHERE u.age > 25;
 - `actual time`: 实际执行时间（毫秒）
 - `loops`: 执行次数
 
-## 12. EXPLAIN FORMAT=TREE（MySQL 8.0.16+）
+### 3.3 EXPLAIN FORMAT=TREE（MySQL 8.0.16+）
 
 ```sql
 -- 树形格式，更容易理解
@@ -211,7 +217,7 @@ WHERE u.age > 25;
     -> Index lookup on o using idx_user_id (user_id = u.id)  (cost=0.68 rows=3)
 ```
 
-## 13. 常见 EXPLAIN 结果解读
+### 3.4 常见 EXPLAIN 结果解读
 
 | 场景 | type | Extra | 说明 | 优化建议 |
 |------|------|-------|------|----------|
@@ -224,7 +230,7 @@ WHERE u.age > 25;
 | 使用临时表 | ALL | Using temporary | 需要优化 | GROUP BY/ORDER BY 优化 |
 | 文件排序 | ALL | Using filesort | 需要优化 | ORDER BY 列加索引 |
 
-## 14. 最佳实践
+## 4. 最佳实践
 
 1. **定期更新统计信息** — `ANALYZE TABLE` 或依赖自动持久化，统计不准是执行计划跑偏的常见根因
 2. **用 Optimizer Trace 排查慢查询** — 看清优化器为什么这么选
@@ -234,4 +240,3 @@ WHERE u.age > 25;
 6. **关注 Extra 列** — 出现 Using temporary / Using filesort 需要优化
 7. **type 至少达到 range 级别** — ALL 表示全表扫描，必须优化
 8. **key_len 越短越好** — 说明索引使用效率高
-

@@ -1,6 +1,8 @@
 # 子查询优化
 
-## 1. 子查询类型
+## 1. 子查询基础
+
+### 1.1 子查询类型
 
 ```sql
 -- 标量子查询
@@ -13,7 +15,7 @@ SELECT * FROM users WHERE id IN (SELECT user_id FROM orders);
 SELECT * FROM users u WHERE EXISTS (SELECT 1 FROM orders o WHERE o.user_id = u.id);
 ```
 
-## 2. 优化策略
+### 1.2 优化策略
 
 ```sql
 -- 慢：IN 子查询
@@ -27,11 +29,13 @@ SELECT * FROM users WHERE id NOT IN (SELECT user_id FROM orders);
 SELECT u.* FROM users u LEFT JOIN orders o ON u.id = o.user_id WHERE o.id IS NULL;
 ```
 
-## 3. 半连接 (Semi-Join)
+### 1.3 半连接 (Semi-Join)
 
 MySQL 8.0 自动将某些 IN 子查询转换为半连接。
 
-## 4. 关联子查询优化
+## 2. 各类子查询优化
+
+### 2.1 关联子查询优化
 
 ```sql
 -- 关联子查询：子查询引用外部查询的列
@@ -52,7 +56,7 @@ JOIN (
 WHERE o.amount > avg_t.avg_amount;
 ```
 
-## 5. EXISTS vs IN 选择
+### 2.2 EXISTS vs IN 选择
 
 ```sql
 -- 外层表大，内层表小 → IN 更好
@@ -72,7 +76,7 @@ SELECT * FROM users u WHERE EXISTS (
 -- → EXISTS: 遍历 1 万用户，每个在订单表索引查找 → 效率高
 ```
 
-## 6. 派生表优化
+### 2.3 派生表优化
 
 ```sql
 -- 派生表（FROM 子句中的子查询）
@@ -93,7 +97,7 @@ SELECT * FROM (
 -- 必须物化派生表
 ```
 
-## 7. ANY/ALL 子查询优化
+### 2.4 ANY/ALL 子查询优化
 
 ```sql
 -- ANY (等价于 IN)
@@ -109,7 +113,9 @@ SELECT * FROM users WHERE salary > ALL (
 SELECT * FROM users WHERE salary > (SELECT MAX(salary) FROM employees WHERE department = 'IT');
 ```
 
-## 8. 子查询调试方法
+## 3. 调试方法
+
+### 3.1 子查询调试方法
 
 ```sql
 -- 使用 EXPLAIN 分析子查询执行计划
@@ -126,7 +132,7 @@ SELECT * FROM information_schema.optimizer_trace\G
 SET optimizer_trace = 'enabled=off';
 ```
 
-## 9. 最佳实践总结
+## 4. 最佳实践总结
 
 | 场景 | 优化方法 | 原因 |
 |------|---------|------|
@@ -137,4 +143,3 @@ SET optimizer_trace = 'enabled=off';
 | 派生表 | 简化为 JOIN | MySQL 8.0 自动合并 |
 | 大表 IN 小表 | 保持 IN | 物化后用索引查找 |
 | 小表 IN 大表 | 改为 EXISTS | 避免物化大表 |
-

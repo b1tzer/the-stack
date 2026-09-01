@@ -1,6 +1,8 @@
 # 字符集与排序规则
 
-## 1. 字符集基础
+## 1. 字符集与排序规则基础
+
+### 1.1 字符集基础
 
 ```sql
 -- 查看支持的字符集
@@ -12,7 +14,7 @@ SHOW CHARACTER SET;
 -- latin1: 西欧字符
 ```
 
-## 2. utf8 vs utf8mb4
+### 1.2 utf8 vs utf8mb4
 
 ```sql
 -- MySQL 中的 utf8 实际是 utf8mb3（3 字节）
@@ -24,7 +26,7 @@ CREATE TABLE example (
 ) DEFAULT CHARSET=utf8mb4;
 ```
 
-## 3. 排序规则 (Collation)
+### 1.3 排序规则 (Collation)
 
 ```sql
 -- 查看字符集的排序规则
@@ -37,7 +39,7 @@ SHOW COLLATION LIKE 'utf8mb4%';
 -- utf8mb4_bin: 二进制比较，区分大小写
 ```
 
-## 4. 排序规则对索引的影响
+### 1.4 排序规则对索引的影响
 
 ```sql
 -- 不同排序规则会导致索引失效
@@ -50,7 +52,9 @@ JOIN table_b b ON a.name = b.name;
 -- 两表的 name 列排序规则必须一致，否则无法使用索引
 ```
 
-## 5. 服务端与客户端字符集
+## 2. 字符集配置与转换
+
+### 2.1 服务端与客户端字符集
 
 ```sql
 -- 查看当前字符集设置
@@ -67,7 +71,7 @@ SHOW VARIABLES LIKE 'collation%';
 SET NAMES utf8mb4;
 ```
 
-## 6. 字符集转换问题
+### 2.2 字符集转换问题
 
 ```sql
 -- 乱码通常原因：
@@ -80,7 +84,7 @@ SET NAMES utf8mb4;
 collation-server=utf8mb4_0900_ai_ci]
 ```
 
-## 7. 修改已有表的字符集
+### 2.3 修改已有表的字符集
 
 ```sql
 -- 修改表字符集
@@ -92,7 +96,7 @@ ALTER TABLE users MODIFY name VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4
 -- 注意：大表修改需要 pt-osc 或 gh-ost
 ```
 
-## 8. 最佳实践
+## 3. 最佳实践
 
 | 场景 | 推荐 |
 |------|------|

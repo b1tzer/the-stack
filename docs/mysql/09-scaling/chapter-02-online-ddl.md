@@ -1,13 +1,15 @@
 # 在线 DDL
 
-## 1. 原生 Online DDL
+## 1. 三种方案概览
+
+### 1.1 原生 Online DDL
 
 ```sql
 -- 8.0+ 支持
 ALTER TABLE users ADD COLUMN age INT, ALGORITHM=INPLACE, LOCK=NONE;
 ```
 
-## 2. pt-osc
+### 1.2 pt-osc
 
 ```bash
 # Percona Toolkit
@@ -17,7 +19,7 @@ pt-online-schema-change \
     D=mydb,t=users
 ```
 
-## 3. gh-ost
+### 1.3 gh-ost
 
 ```bash
 # GitHub
@@ -28,7 +30,7 @@ gh-ost \
     --execute
 ```
 
-## 4. 对比
+### 1.4 对比
 
 | 工具 | 原理 | 优点 | 缺点 |
 |------|------|------|------|
@@ -36,7 +38,9 @@ gh-ost \
 | pt-osc | 触发器复制 | 成熟稳定 | 触发器开销 |
 | gh-ost | Binlog 流 | 无触发器 | 需要 Binlog |
 
-## 5. 原生 Online DDL 详解
+## 2. 各方案详解
+
+### 2.1 原生 Online DDL 详解
 
 ```sql
 -- 支持 Online DDL 的操作
@@ -65,7 +69,7 @@ ALTER TABLE users ADD COLUMN remark VARCHAR(200) DEFAULT '', ALGORITHM=INSTANT; 
 ALTER TABLE users DROP COLUMN remark, ALGORITHM=INSTANT;  -- 瞬间完成
 ```
 
-## 6. pt-osc 详解
+### 2.2 pt-osc 详解
 
 ```bash
 # 基本用法
@@ -97,7 +101,7 @@ pt-online-schema-change \
 # 6. 删除旧表和触发器
 ```
 
-## 7. gh-ost 详解
+### 2.3 gh-ost 详解
 
 ```bash
 # 基本用法
@@ -132,7 +136,9 @@ echo "chunk-size=500" | nc -U /tmp/gh-ost.sock  # 修改参数
 # 6. 原子切换表名
 ```
 
-## 8. DDL 操作风险评估
+## 3. 风险评估
+
+### 3.1 DDL 操作风险评估
 
 | 操作 | 风险 | 建议方案 |
 |------|------|----------|
@@ -145,7 +151,7 @@ echo "chunk-size=500" | nc -U /tmp/gh-ost.sock  # 修改参数
 | DROP COLUMN | 中 | Online DDL |
 | ADD PRIMARY KEY | 极高 | pt-osc / gh-ost |
 
-## 9. 最佳实践
+## 4. 最佳实践
 
 1. **优先使用原生 Online DDL** — MySQL 8.0 INSTANT DDL 性能最好
 2. **大表 DDL 使用 gh-ost** — 无触发器，可暂停恢复
@@ -153,4 +159,3 @@ echo "chunk-size=500" | nc -U /tmp/gh-ost.sock  # 修改参数
 4. **设置负载阈值** — 负载过高自动暂停
 5. **监控从库延迟** — 避免从库延迟过大
 6. **在业务低峰期执行** — 减少对业务影响
-

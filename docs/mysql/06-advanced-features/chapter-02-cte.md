@@ -1,6 +1,8 @@
 # CTE 与递归查询
 
-## 1. 普通 CTE
+## 1. CTE 基础
+
+### 1.1 普通 CTE
 
 ```sql
 WITH active_users AS (
@@ -9,7 +11,7 @@ WITH active_users AS (
 SELECT * FROM active_users WHERE name LIKE '张%';
 ```
 
-## 2. 递归 CTE
+### 1.2 递归 CTE
 
 ```sql
 WITH RECURSIVE org_tree AS (
@@ -27,14 +29,16 @@ WITH RECURSIVE org_tree AS (
 SELECT * FROM org_tree ORDER BY level, id;
 ```
 
-## 3. 应用场景
+## 2. 递归 CTE 进阶
+
+### 2.1 应用场景
 
 - 组织架构树
 - 评论回复层级
 - 分类目录
 - 路径展开
 
-## 4. 递归 CTE 限制与控制
+### 2.2 递归 CTE 限制与控制
 
 ```sql
 -- 递归深度限制
@@ -52,7 +56,7 @@ WITH RECURSIVE cnt AS (
 SELECT * FROM cnt;
 ```
 
-## 5. 实际业务场景
+## 3. 实际业务场景
 
 ```sql
 -- 场景 1：生成日期序列
@@ -114,7 +118,7 @@ WITH RECURSIVE paths AS (
 SELECT * FROM paths WHERE end_node = 'Z' ORDER BY hops LIMIT 1;  -- 最短路径
 ```
 
-## 6. CTE vs 子查询 vs 临时表
+## 4. CTE vs 子查询 vs 临时表
 
 | 特性 | CTE | 子查询 | 临时表 |
 |------|-----|--------|--------|
@@ -125,11 +129,10 @@ SELECT * FROM paths WHERE end_node = 'Z' ORDER BY hops LIMIT 1;  -- 最短路径
 | 索引支持 | ❌ | 取决于子查询 | ✅ |
 | 适用场景 | 复杂查询拆解 | 简单过滤 | 需要索引的中间结果 |
 
-## 7. 最佳实践
+## 5. 最佳实践
 
 1. **CTE 提高可读性** — 将复杂查询拆分为逻辑块
 2. **递归 CTE 必须有终止条件** — 防止无限递归
 3. **大结果集的 CTE 考虑物化** — MySQL 8.0 自动物化
 4. **需要索引时用临时表替代 CTE** — CTE 不支持索引
 5. **同一 CTE 可多次引用** — 避免重复计算
-

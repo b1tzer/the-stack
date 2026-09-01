@@ -1,6 +1,8 @@
 # 读写分离
 
-## 1. ProxySQL
+## 1. 方案配置
+
+### 1.1 ProxySQL
 
 ```ini
 # proxysql.cnf
@@ -25,14 +27,14 @@ mysql_query_rules:
       apply: 1
 ```
 
-## 2. MySQL Router
+### 1.2 MySQL Router
 
 ```bash
 mysqlrouter --bootstrap root@192.168.1.100:3306 --user=mysql
 systemctl start mysqlrouter
 ```
 
-## 3. Spring Boot 配置
+### 1.3 Spring Boot 配置
 
 ```yaml
 spring:
@@ -43,7 +45,9 @@ spring:
       url: jdbc:mysql://192.168.1.101:3306/mydb
 ```
 
-## 4. 读写分离架构
+## 2. 整体架构
+
+### 2.1 读写分离架构
 
 ```
                      ┌──────────────┐
@@ -61,7 +65,9 @@ spring:
        └─────────────┘ └──────────┘ └──────────┘
 ```
 
-## 5. ProxySQL 高级配置
+## 3. 进阶方案
+
+### 3.1 ProxySQL 高级配置
 
 ```sql
 -- 连接 ProxySQL 管理接口
@@ -89,7 +95,7 @@ SELECT * FROM monitor.mysql_server_connect_log ORDER BY time_start_us DESC LIMIT
 SELECT * FROM monitor.mysql_server_replication_lag_log ORDER BY time_start_us DESC LIMIT 10;
 ```
 
-## 6. ShardingSphere-JDBC 读写分离
+### 3.2 ShardingSphere-JDBC 读写分离
 
 ```yaml
 # application.yml
@@ -127,7 +133,9 @@ spring:
             type: ROUND_ROBIN
 ```
 
-## 7. 读写分离注意事项
+## 4. 注意事项
+
+### 4.1 读写分离注意事项
 
 | 问题 | 原因 | 解决方案 |
 |------|------|----------|
@@ -166,11 +174,10 @@ public class OrderService {
 }
 ```
 
-## 8. 最佳实践
+## 5. 最佳实践
 
 1. **写后读走主库** — 避免主从延迟导致数据不一致
 2. **监控从库延迟** — 延迟超过阈值自动摘除
 3. **使用连接池** — 减少连接建立开销
 4. **读写分离中间件选择** — ProxySQL（运维友好）> ShardingSphere（Java 生态）> MySQL Router（官方）
 5. **从库数量合理** — 2-3 个从库即可满足大多数场景
-

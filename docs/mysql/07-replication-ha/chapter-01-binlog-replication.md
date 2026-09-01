@@ -1,6 +1,8 @@
 # 异步复制与半同步复制
 
-## 1. 异步复制
+## 1. 复制模式
+
+### 1.1 异步复制
 
 ```ini
 # 主库
@@ -26,7 +28,7 @@ START SLAVE;
 SHOW SLAVE STATUS\G
 ```
 
-## 2. 半同步复制
+### 1.2 半同步复制
 
 ```sql
 -- 主库
@@ -38,7 +40,9 @@ INSTALL PLUGIN rpl_semi_sync_slave SONAME 'semisync_slave.so';
 SET GLOBAL rpl_semi_sync_slave_enabled = 1;
 ```
 
-## 3. 延迟问题
+## 2. 复制原理与延迟处理
+
+### 2.1 延迟问题
 
 ```sql
 -- 查看从库延迟
@@ -46,7 +50,7 @@ SHOW SLAVE STATUS\G
 -- Seconds_Behind_Master
 ```
 
-## 4. 复制原理详解
+### 2.2 复制原理详解
 
 复制的数据来源是 Binlog，其记录格式与事件类型见 [Binlog](../02-innodb-internals/chapter-06-binlog.md)。
 
@@ -65,7 +69,7 @@ MySQL 8.0.26+ 改名：
 - SQL Thread → Replica SQL Thread
 ```
 
-## 5. 复制延迟排查
+### 2.3 复制延迟排查
 
 ```sql
 -- 查看从库延迟
@@ -87,7 +91,7 @@ SET GLOBAL slave_parallel_workers = 8;
 -- 4. 网络延迟
 ```
 
-## 6. 多线程复制
+### 2.4 多线程复制
 
 ```sql
 -- MySQL 5.7+ 支持基于 LOGICAL_CLOCK 的多线程复制
@@ -107,7 +111,9 @@ START REPLICA;
 SET GLOBAL binlog_transaction_dependency_tracking = 'WRITESET';
 ```
 
-## 7. 复制过滤
+## 3. 过滤与监控
+
+### 3.1 复制过滤
 
 ```sql
 -- 主库端过滤（不推荐，会丢失数据）
@@ -128,7 +134,7 @@ CHANGE REPLICATION FILTER REPLICATE_DO_DB = (mydb, mydb2);
 START REPLICA;
 ```
 
-## 8. 复制监控
+### 3.2 复制监控
 
 ```sql
 -- 监控复制状态
@@ -149,7 +155,7 @@ SET GLOBAL sql_replica_skip_counter = 1;
 START REPLICA;
 ```
 
-## 9. 最佳实践
+## 4. 最佳实践
 
 1. **使用 ROW 格式 Binlog** — 数据一致性最好
 2. **开启多线程复制** — 减少从库延迟
@@ -157,4 +163,3 @@ START REPLICA;
 4. **从库设置 read_only** — 防止误写
 5. **定期检查复制一致性** — 使用 pt-table-checksum
 6. **主从切换使用 GTID** — 简化切换流程
-

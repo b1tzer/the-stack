@@ -1,6 +1,8 @@
 # JSON 类型
 
-## 1. 基本操作
+## 1. 基础用法
+
+### 1.1 基本操作
 
 ```sql
 CREATE TABLE docs (
@@ -18,7 +20,7 @@ SELECT data->>'$.name' FROM docs;  -- 返回字符串
 UPDATE docs SET data = JSON_SET(data, '$.email', 'zhangsan@example.com') WHERE id = 1;
 ```
 
-## 2. JSON 函数
+### 1.2 JSON 函数
 
 | 函数 | 说明 |
 |------|------|
@@ -30,7 +32,9 @@ UPDATE docs SET data = JSON_SET(data, '$.email', 'zhangsan@example.com') WHERE i
 | JSON_ARRAY | 创建数组 |
 | JSON_OBJECT | 创建对象 |
 
-## 3. JSON 索引
+## 2. 查询与索引
+
+### 2.1 JSON 索引
 
 ```sql
 -- 虚拟列 + 索引
@@ -38,7 +42,7 @@ ALTER TABLE docs ADD COLUMN name VARCHAR(50) AS (JSON_UNQUOTE(JSON_EXTRACT(data,
 CREATE INDEX idx_name ON docs(name);
 ```
 
-## 4. JSON 数组操作
+### 2.2 JSON 数组操作
 
 ```sql
 -- 创建包含数组的 JSON
@@ -68,7 +72,7 @@ SELECT * FROM users, JSON_TABLE(data, '$.hobbies[*]' COLUMNS (
 )) AS jt;
 ```
 
-## 5. JSON 聚合与条件
+### 2.3 JSON 聚合与条件
 
 ```sql
 -- JSON_OBJECT 聚合
@@ -97,7 +101,7 @@ SELECT * FROM users WHERE
 SELECT * FROM users WHERE data->>'$.city' = '北京';
 ```
 
-## 6. JSON 索引方案
+### 2.4 JSON 索引方案
 
 ```sql
 -- 方案 1：虚拟列 + 索引（推荐）
@@ -123,7 +127,9 @@ SELECT * FROM tags WHERE JSON_OVERLAPS(data->'$.tags', '[2, 5]');
 CREATE INDEX idx_json_name ON users((JSON_UNQUOTE(JSON_EXTRACT(data, '$.name'))));
 ```
 
-## 7. JSON 与应用层集成
+## 3. 应用集成
+
+### 3.1 JSON 与应用层集成
 
 ```java
 // Spring Boot + JPA 中使用 JSON
@@ -157,7 +163,7 @@ public class JsonConverter implements AttributeConverter<Map<String, Object>, St
 }
 ```
 
-## 8. 最佳实践
+## 4. 最佳实践
 
 1. **JSON 适合半结构化数据** — 不同记录有不同字段
 2. **高频查询字段应提取为虚拟列并建索引** — 性能远优于 JSON 函数查询
@@ -165,4 +171,3 @@ public class JsonConverter implements AttributeConverter<Map<String, Object>, St
 4. **使用 `->>` 替代 `JSON_UNQUOTE(JSON_EXTRACT())`** — 语法更简洁
 5. **多值索引用于数组查询** — MySQL 8.0.17+ 的重要特性
 6. **结构化字段用传统列，半结构化用 JSON** — 不要滥用 JSON
-

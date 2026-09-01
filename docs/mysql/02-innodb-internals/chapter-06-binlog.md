@@ -2,7 +2,9 @@
 
 > Redo Log 负责让主库崩溃后能恢复数据，Binlog 负责把这份数据「复制」出去。一个事务提交时，两份日志都要写。问题在于：**如果先写 Redo 再写 Binlog，中间断电，主库通过 Redo 恢复了这个事务，Binlog 里却没有——从库会永远少这一笔；反过来先写 Binlog 再写 Redo，主库回滚了，从库却执行了。** 这正是两阶段提交要解决的事。
 
-## 1. Binlog 是什么，用来干什么
+## 1. 概述与记录格式
+
+### 1.1 Binlog 是什么，用来干什么
 
 Binlog（Binary Log，二进制日志）是 **MySQL Server 层**产生的日志，与存储引擎无关。它记录的是「数据库做了哪些变更」的逻辑日志，两个用途：
 
@@ -11,7 +13,9 @@ Binlog（Binary Log，二进制日志）是 **MySQL Server 层**产生的日志�
 
 与 Redo Log 的定位差异见 [Redo Log](./chapter-04-redo-log.md) §9，这里先记住一句：**Redo Log 是 InnoDB 的私有账本，管崩溃恢复；Binlog 是 Server 层的公共账本，管复制与恢复。**
 
-## 2. 三种记录格式：同一个事务，三种记法
+![Binlog：Server 层逻辑日志 — 是什么 / 怎么做到 / 干什么](/mysql/02-innodb-internals-chapter-06-binlog.svg)
+
+### 1.2 三种记录格式：同一个事务，三种记法
 
 Binlog 可以按三种格式记录同一条 `UPDATE`：
 
@@ -48,7 +52,9 @@ SET binlog_format = 'ROW';
 -- ###   @2='张三三'                 -- name（AFTER）
 ```
 
-## 3. 为什么需要两阶段提交
+## 2. 两阶段提交
+
+### 2.1 为什么需要两阶段提交
 
 这是 Binlog 最核心、也最容易背答案却不理解的问题。先放下结论，从「一份事务要写两份日志」这个事实推。
 
@@ -99,7 +105,9 @@ SET binlog_format = 'ROW';
 
 两阶段提交的完整流程与 `sync_binlog`、`innodb_flush_log_at_trx_commit` 的配合见 [Redo Log](./chapter-04-redo-log.md) §10。
 
-## 4. 查看与解析 Binlog
+## 3. 查看与解析
+
+### 3.1 查看与解析 Binlog
 
 ```sql
 -- 查看 Binlog 文件列表
@@ -120,7 +128,7 @@ mysqlbinlog --base64-output=DECODE-ROWS -v binlog.000001
 
 `-v` 会把 ROW 格式的行变更还原成 `### @1=...` 形式；加两个 `-vv` 会附带字段类型等更多信息。
 
-## 5. Binlog 事件类型
+### 3.2 Binlog 事件类型
 
 一个 Binlog 文件由一系列事件（Event）顺序组成。常见事件：
 
@@ -133,7 +141,9 @@ mysqlbinlog --base64-output=DECODE-ROWS -v binlog.000001
 | `XID` | 事务提交标记（两阶段提交的「分水岭」） |
 | `ROTATE` | 文件轮转，切到下一个 Binlog 文件 |
 
-## 6. Binlog 管理与清理
+## 4. 管理与恢复
+
+### 4.1 Binlog 管理与清理
 
 Binlog 只会追加、不会复用，需要主动清理，否则会写满磁盘。
 
@@ -154,7 +164,7 @@ PURGE BINARY LOGS TO 'binlog.000010';
 SET GLOBAL binlog_expire_logs_seconds = 604800;  -- 7 天
 ```
 
-## 7. 基于 Binlog 的时间点恢复（PITR）
+### 4.2 基于 Binlog 的时间点恢复（PITR）
 
 误删数据后，用「全量备份 + Binlog 重放」把数据恢复到误操作前：
 
@@ -176,7 +186,7 @@ mysqlbinlog --start-datetime='2024-01-01 12:31:00' \
 
 恢复依赖的是 Binlog 的**有序性与完整性**，这也是为什么生产上要 `sync_binlog=1`（每次提交都刷盘）保证 Binlog 不丢。
 
-## 8. 最佳实践
+## 5. 最佳实践
 
 1. **用 `ROW` 格式**：一致性最强，便于精确恢复与排查。
 2. **开启 `sync_binlog=1`**：与 `innodb_flush_log_at_trx_commit=1` 配合构成「双 1」，崩溃时数据与 Binlog 都不丢。

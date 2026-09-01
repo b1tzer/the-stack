@@ -1,10 +1,12 @@
 # MySQL 概览
 
-## 1. 什么是 MySQL
+## 1. 认识 MySQL
+
+### 1.1 什么是 MySQL
 
 MySQL 是最流行的开源关系型数据库管理系统，由 Oracle 维护。
 
-## 2. 版本选择
+### 1.2 版本选择
 
 | 版本 | 特性 | 状态 | 推荐 |
 |------|------|------|------|
@@ -13,7 +15,7 @@ MySQL 是最流行的开源关系型数据库管理系统，由 Oracle 维护。
 | 8.4 | LTS，性能优化，安全增强 | 长期支持 | ✅ 新项目首选 |
 | 9.0 | Innovation 版本，最新特性 | 快速迭代 | 测试环境 |
 
-## 3. 与 PostgreSQL/MariaDB/Oracle 对比
+### 1.3 与 PostgreSQL/MariaDB/Oracle 对比
 
 | 特性 | MySQL | PostgreSQL | MariaDB | Oracle |
 |------|-------|-----------|---------|--------|
@@ -25,7 +27,7 @@ MySQL 是最流行的开源关系型数据库管理系统，由 Oracle 维护。
 | 许可证 | GPL (Oracle) | PostgreSQL | GPL (社区) | 商业 |
 | 适用场景 | 互联网/高并发 | 企业级/复杂查询 | 兼容 MySQL | 金融/电信 |
 
-### 3.1 性能基准（sysbench OLTP）
+#### 1.3.1 性能基准（sysbench OLTP）
 
 sysbench 是评估 MySQL/PostgreSQL/MariaDB 最常用的基准工具，`oltp_read_write` 负载模拟典型 Web 应用（每事务约 18 次读、6 次写）。第三方横评在相同硬件下测得的结果（2026，单位 TPS，越高越好）：
 
@@ -39,7 +41,7 @@ sysbench 是评估 MySQL/PostgreSQL/MariaDB 最常用的基准工具，`oltp_rea
 
 > — [MariaDB 11 vs MySQL 8.4 vs PostgreSQL 17 OLTP Benchmark（2026）](https://dargslan.com/blog/mariadb-11-vs-mysql-8-4-vs-postgresql-17-oltp-benchmark-2026)
 
-## 4. 存储引擎
+### 1.4 存储引擎
 
 ```sql
 -- 查看支持的存储引擎
@@ -51,17 +53,17 @@ SHOW ENGINES;
 -- Memory: 内存表、重启丢失
 ```
 
-## 5. MySQL 发展历史
+## 2. 发展历史
 
 MySQL 的起点是一个真实的生产瓶颈，源于创始人自研工具的局限。
 
-### 5.1 起因：UNIREG 无法支撑 Web
+### 2.1 起因：UNIREG 无法支撑 Web
 
 1979 年，芬兰程序员 Michael Widenius（网名 Monty）为瑞典公司 TcX 开发了基于 ISAM 的内部数据库工具 **UNIREG**。1994 年 TcX 开始开发 Web 应用，需要给 UNIREG 加上 SQL 接口。团队评估了当时流行的轻量级数据库 **mSQL**（David Hughes 开发），结论是 mSQL **不支持索引、性能不够**。Monty 联系 Hughes 提议把 UNIREG 的 ISAM 存储层接入 mSQL，被拒绝——Hughes 已在开发自己的 mSQL 2。
 
 于是 Monty 决定自己实现：基于 UNIREG 的快速存储层，套用与 mSQL 几乎相同的 API，方便已有 mSQL 用户迁移。1995 年 5 月 23 日，MySQL 首次发布。
 
-### 5.2 谁在主导
+### 2.2 谁在主导
 
 | 人物 | 角色 |
 | :-- | :-- |
@@ -71,7 +73,7 @@ MySQL 的起点是一个真实的生产瓶颈，源于创始人自研工具的�
 
 三人于 1995 年共同成立瑞典公司 **MySQL AB**。「MySQL」的名字来自 Monty 的长女 **My**（后来他分叉出的 MariaDB 则取自幼女 Maria）。
 
-### 5.3 收购史与现在的维护者
+### 2.3 收购史与现在的维护者
 
 | 时间 | 事件 |
 | :-- | :-- |
@@ -80,9 +82,9 @@ MySQL 的起点是一个真实的生产瓶颈，源于创始人自研工具的�
 | 2008 | Sun Microsystems 以约 10 亿美元收购 MySQL AB |
 | 2010 | Oracle 收购 Sun，MySQL 归属 Oracle |
 
-现在 MySQL 由 **Oracle** 维护。Oracle 的收购引发了社区担忧：Monty 在 Oracle 宣布收购 Sun 的当天就 fork 出 **MariaDB**，并带走一批核心开发者，理由是担心 Oracle 不会善待 MySQL 社区版。MariaDB 成为 MySQL 最主流的开源替代分支（详见 §9）。
+现在 MySQL 由 **Oracle** 维护。Oracle 的收购引发了社区担忧：Monty 在 Oracle 宣布收购 Sun 的当天就 fork 出 **MariaDB**，并带走一批核心开发者，理由是担心 Oracle 不会善待 MySQL 社区版。MariaDB 成为 MySQL 最主流的开源替代分支（详见 §5.1）。
 
-### 5.4 发版节奏
+### 2.4 发版节奏
 
 自 2023 年起，Oracle 将 MySQL 拆成两条发布线：
 
@@ -95,7 +97,7 @@ MySQL 的起点是一个真实的生产瓶颈，源于创始人自研工具的�
 
 > 常见误区是「版本号越大支持越久」：9.x 版本号比 8.4 新，但支持窗口只有几个月；8.4 LTS 却支持到 2032 年。生产环境若不打算每季度滚动升级，应选 LTS。
 
-## 6. 适用场景
+## 3. 适用场景
 
 **适合使用 MySQL 的场景：**
 - 互联网 Web 应用（读多写少）
@@ -109,7 +111,9 @@ MySQL 的起点是一个真实的生产瓶颈，源于创始人自研工具的�
 - 海量数据存储 → 考虑分布式数据库
 - 强一致性多写场景 → 考虑 CockroachDB
 
-## 7. MySQL 8.0 核心新特性
+## 4. 版本新特性
+
+### 4.1 MySQL 8.0 核心新特性
 
 ```sql
 -- 1. 窗口函数
@@ -136,11 +140,11 @@ ALTER TABLE employees ALTER INDEX idx_name VISIBLE;
 DROP TABLE IF EXISTS t1, t2;  -- 要么全成功，要么全失败
 ```
 
-## 8. MySQL 8.4 LTS 新特性详解
+### 4.2 MySQL 8.4 LTS 新特性详解
 
 MySQL 8.4 是首个 LTS（长期支持）版本，适合生产环境。
 
-### 8.1 生命周期
+#### 4.2.1 生命周期
 
 ```
 8.4 LTS: 2024 年发布，支持至 2032 年
@@ -148,7 +152,7 @@ MySQL 8.4 是首个 LTS（长期支持）版本，适合生产环境。
 9.x: 创新版本线，每季度发布
 ```
 
-### 8.2 核心改进
+#### 4.2.2 核心改进
 
 ```sql
 -- 1. Redo Log 动态调整（8.0.30+ 已有，8.4 优化）
@@ -170,7 +174,7 @@ CREATE USER 'app'@'%' IDENTIFIED WITH caching_sha2_password BY 'StrongP@ss123';
 -- 临时表空间管理改进
 ```
 
-### 8.3 与 8.0 的区别
+#### 4.2.3 与 8.0 的区别
 
 | 特性 | 8.0 | 8.4 LTS |
 |------|-----|--------|
@@ -180,11 +184,13 @@ CREATE USER 'app'@'%' IDENTIFIED WITH caching_sha2_password BY 'StrongP@ss123';
 | Redo Log | 静态配置 | 动态调整 |
 | 推荐场景 | 追求新特性 | 生产环境首选 |
 
-## 9. MySQL vs MariaDB 选型指南
+## 5. 选型指南
+
+### 5.1 MySQL vs MariaDB 选型指南
 
 MariaDB 是 MySQL 的分支，由原始创建者维护。
 
-### 9.1 核心差异
+#### 5.1.1 核心差异
 
 | 特性 | MySQL | MariaDB |
 |------|-------|---------|
@@ -196,7 +202,7 @@ MariaDB 是 MySQL 的分支，由原始创建者维护。
 | 默认字符集 | utf8mb4 (8.0+) | utf8mb4 (10.2+) |
 | 许可证 | GPL (Oracle) | GPL (社区) |
 
-### 9.2 选型建议
+#### 5.1.2 选型建议
 
 ```
 选 MySQL 的理由：
@@ -212,9 +218,9 @@ MariaDB 是 MySQL 的分支，由原始创建者维护。
 - 追求社区驱动的创新
 ```
 
-## 10. 云数据库（RDS）选型
+### 5.2 云数据库（RDS）选型
 
-### 10.1 主流云 RDS 对比
+#### 5.2.1 主流云 RDS 对比
 
 | 云厂商 | 产品 | MySQL 版本 | 特点 |
 |--------|------|-----------|------|
@@ -224,7 +230,7 @@ MariaDB 是 MySQL 的分支，由原始创建者维护。
 | 华为云 | RDS for MySQL | 5.7/8.0 | 国产化支持 |
 | Google Cloud | Cloud SQL | 5.7/8.0 | 与 GCP 生态集成 |
 
-### 10.2 RDS vs 自建对比
+#### 5.2.2 RDS vs 自建对比
 
 | 特性 | 云 RDS | 自建 MySQL |
 |------|-------|----------|
@@ -236,7 +242,7 @@ MariaDB 是 MySQL 的分支，由原始创建者维护。
 | 灵活性 | 受限（参数/插件） | 完全控制 |
 | 数据安全 | 依赖云厂商 | 完全掌控 |
 
-### 10.3 RDS 选型建议
+#### 5.2.3 RDS 选型建议
 
 ```
 推荐云 RDS 的场景：
@@ -252,7 +258,7 @@ MariaDB 是 MySQL 的分支，由原始创建者维护。
 - 成本敏感，长期运行
 ```
 
-## 11. 最佳实践
+## 6. 最佳实践
 
 1. **生产环境始终使用 InnoDB** — MyISAM 已过时，不支持事务和行锁
 2. **统一使用 utf8mb4** — utf8 只支持 3 字节，无法存储 emoji
@@ -262,11 +268,10 @@ MariaDB 是 MySQL 的分支，由原始创建者维护。
 6. **评估是否需要上云** — 无 DBA 团队优先考虑云 RDS
 7. **关注 MySQL vs MariaDB** — 根据团队和生态选择
 
-## 12. 参考资料
+## 7. 参考资料
 
 - MySQL 官方手册：[The History of MySQL](https://docstore.mik.ua/orelly/weblinux2/mysql/ch01_02.htm)
 - MySQL 官方博客：[Introducing MySQL Innovation and Long-Term Support (LTS) versions](https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions)
 - Wikipedia：[MySQL](https://en.wikipedia.org/wiki/MySQL)
 - endoflife.date：[MySQL 版本与支持策略](https://endoflife.date/mysql)
 - 第三方 benchmark：[MariaDB 11 vs MySQL 8.4 vs PostgreSQL 17 OLTP Benchmark](https://dargslan.com/blog/mariadb-11-vs-mysql-8-4-vs-postgresql-17-oltp-benchmark-2026)
-

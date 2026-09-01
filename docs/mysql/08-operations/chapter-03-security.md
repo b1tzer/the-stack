@@ -1,6 +1,8 @@
 # 安全与用户管理
 
-## 1. 权限体系
+## 1. 账号与权限
+
+### 1.1 权限体系
 
 MySQL 的权限按层级划分：全局 → 数据库 → 表 → 列 → 存储过程，逐层收窄。授权用 `GRANT`，撤权用 `REVOKE`。
 
@@ -46,7 +48,7 @@ SELECT * FROM mysql.db WHERE User = 'app_user';
 SELECT * FROM mysql.tables_priv WHERE User = 'app_user';
 ```
 
-## 2. 角色 (8.0+)
+### 1.2 角色 (8.0+)
 
 角色把一组权限打包，再赋给用户，避免逐个用户重复授权：
 
@@ -66,7 +68,7 @@ SET DEFAULT ROLE ALL TO 'app_user'@'%';
 SELECT * FROM mysql.role_edges;
 ```
 
-## 3. 用户生命周期管理
+### 1.3 用户生命周期管理
 
 ```sql
 -- 创建用户（带完整选项）
@@ -93,7 +95,7 @@ ALTER USER 'app_user'@'%' IDENTIFIED BY 'NewP@ss456';
 ALTER USER USER() IDENTIFIED BY 'NewP@ss456';  -- 当前用户
 ```
 
-## 4. 密码策略
+### 1.4 密码策略
 
 密码策略靠 `validate_password` 组件强制复杂度，并可叠加过期、历史、失败锁定：
 
@@ -125,7 +127,9 @@ SET GLOBAL connection_control_failed_connections_threshold = 5;
 SET GLOBAL connection_control_min_connection_delay = 1800000;   -- 锁定 30 分钟
 ```
 
-## 5. 连接安全
+## 2. 连接与传输安全
+
+### 2.1 连接安全
 
 ```sql
 -- 限制连接来源
@@ -141,7 +145,7 @@ ALTER USER 'app_user'@'%' WITH MAX_USER_CONNECTIONS 50;
 ALTER USER 'app_user'@'%' WITH MAX_CONNECTIONS_PER_HOUR 1000;
 ```
 
-## 6. SSL
+### 2.2 SSL
 
 ```ini
 [mysqld]
@@ -151,14 +155,16 @@ ssl-key = /etc/mysql/ssl/server-key.pem
 require_secure_transport = ON
 ```
 
-## 7. 数据加密
+## 3. 数据安全
+
+### 3.1 数据加密
 
 ```sql
 -- 表空间加密
 ALTER TABLE users ENCRYPTION='Y';
 ```
 
-## 8. SQL 注入防护
+### 3.2 SQL 注入防护
 
 ```java
 // ❌ 危险：字符串拼接
@@ -176,7 +182,7 @@ SELECT * FROM users WHERE name = #{name}
 SELECT * FROM users WHERE name = '${name}'
 ```
 
-## 9. 数据脱敏
+### 3.3 数据脱敏
 
 ```sql
 -- 创建脱敏视图
@@ -191,7 +197,9 @@ FROM users;
 -- 动态数据脱敏（MySQL Enterprise Edition）或应用层实现
 ```
 
-## 10. 审计日志
+## 4. 审计与合规
+
+### 4.1 审计日志
 
 ```sql
 -- MySQL Enterprise Audit
@@ -205,7 +213,31 @@ SET GLOBAL server_audit_file_rotate_size = 104857600;  -- 100MB
 SET GLOBAL server_audit_file_rotations = 10;
 ```
 
-## 11. 安全最佳实践模板
+### 4.2 用户审计
+
+```sql
+-- 查看所有用户
+SELECT User, Host, account_locked, password_expired
+FROM mysql.user ORDER BY User;
+
+-- 查看长时间未使用的用户
+SELECT User, Host FROM mysql.user
+WHERE User NOT IN (
+    SELECT DISTINCT USER FROM performance_schema.events_statements_summary_by_user_by_event_name
+);
+
+-- 查看权限过大的用户
+SELECT User, Host FROM mysql.user
+WHERE Super_priv = 'Y' OR Grant_priv = 'Y'
+AND User NOT IN ('root', 'mysql.sys');
+
+-- 查看空密码用户
+SELECT User, Host FROM mysql.user WHERE authentication_string = '';
+```
+
+## 5. 最佳实践
+
+### 5.1 安全最佳实践模板
 
 ```sql
 -- 应用账号模板
@@ -232,29 +264,7 @@ ALTER USER 'app_admin'@'192.168.1.%' PASSWORD EXPIRE INTERVAL 60 DAY;
 FLUSH PRIVILEGES;
 ```
 
-## 12. 用户审计
-
-```sql
--- 查看所有用户
-SELECT User, Host, account_locked, password_expired
-FROM mysql.user ORDER BY User;
-
--- 查看长时间未使用的用户
-SELECT User, Host FROM mysql.user
-WHERE User NOT IN (
-    SELECT DISTINCT USER FROM performance_schema.events_statements_summary_by_user_by_event_name
-);
-
--- 查看权限过大的用户
-SELECT User, Host FROM mysql.user
-WHERE Super_priv = 'Y' OR Grant_priv = 'Y'
-AND User NOT IN ('root', 'mysql.sys');
-
--- 查看空密码用户
-SELECT User, Host FROM mysql.user WHERE authentication_string = '';
-```
-
-## 13. 最佳实践
+### 5.2 安全清单
 
 1. **最小权限原则** — 只授予必要的权限
 2. **不同环境使用不同账号** — 开发、测试、生产分离
@@ -266,4 +276,3 @@ SELECT User, Host FROM mysql.user WHERE authentication_string = '';
 8. **敏感数据脱敏** — 生产数据不暴露给非授权人员
 9. **开启审计日志** — 满足合规要求
 10. **定期审计用户和权限** — 清理无用账号，使用角色简化管理
-

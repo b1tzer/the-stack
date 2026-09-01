@@ -1,6 +1,8 @@
 # 连接优化
 
-## 1. 连接算法
+## 1. 连接基础与原则
+
+### 1.1 连接算法
 
 | 算法 | 说明 | 适用场景 |
 |------|------|---------|
@@ -8,7 +10,7 @@
 | Block Nested Loop | 块嵌套循环 | 无索引连接 |
 | Hash Join | 哈希连接 | 8.0+ 等值连接 |
 
-## 2. 优化原则
+### 1.2 优化原则
 
 ```sql
 -- 小表驱动大表
@@ -20,7 +22,7 @@ WHERE u.status = 'active';
 CREATE INDEX idx_user_id ON orders(user_id);
 ```
 
-## 3. JOIN 优化
+### 1.3 JOIN 优化
 
 ```sql
 -- 使用 EXPLAIN 查看驱动表
@@ -30,7 +32,9 @@ EXPLAIN SELECT * FROM orders o JOIN users u ON o.user_id = u.id;
 -- 确保小表驱动大表
 ```
 
-## 4. Nested Loop Join (NLJ)
+## 2. 三种连接算法
+
+### 2.1 Nested Loop Join (NLJ)
 
 ```sql
 -- 最基本的连接算法
@@ -48,7 +52,7 @@ EXPLAIN SELECT * FROM orders o JOIN users u ON o.user_id = u.id;
 -- 总 IO 成本：100 (扫描 users) + 100 × 3 (索引查找 orders) = 400 次 IO
 ```
 
-## 5. Block Nested Loop Join (BNL)
+### 2.2 Block Nested Loop Join (BNL)
 
 ```sql
 -- 当被驱动表没有索引时使用
@@ -71,7 +75,7 @@ CREATE INDEX idx_user_id ON user_profiles(user_id);
 SET SESSION join_buffer_size = 1024 * 1024;  -- 1MB
 ```
 
-## 6. Hash Join（MySQL 8.0.18+）
+### 2.3 Hash Join（MySQL 8.0.18+）
 
 ```sql
 -- 等值连接时，优化器自动选择 Hash Join
@@ -90,7 +94,9 @@ JOIN user_profiles p ON u.id = p.user_id;
 SHOW VARIABLES LIKE 'join_buffer_size';  -- 默认 256KB
 ```
 
-## 7. 连接顺序优化
+## 3. 连接优化技巧
+
+### 3.1 连接顺序优化
 
 ```sql
 -- 优化器会自动选择最优连接顺序
@@ -106,7 +112,7 @@ SELECT STRAIGHT_JOIN * FROM t1 JOIN t2 ON t1.id = t2.t1_id JOIN t3 ON t2.id = t3
 SELECT /*+ JOIN_ORDER(t1, t2, t3) */ * FROM t1 JOIN t2 JOIN t3 WHERE ...;
 ```
 
-## 8. 自连接优化
+### 3.2 自连接优化
 
 ```sql
 -- 查找同部门薪资最高的员工
@@ -123,7 +129,7 @@ JOIN (
 ) e2 ON e1.department = e2.department AND e1.salary = e2.max_salary;
 ```
 
-## 9. 最佳实践
+## 4. 最佳实践
 
 1. **被驱动表连接字段必须有索引** — 最重要的优化
 2. **小表驱动大表** — 优化器通常自动选择
@@ -131,4 +137,3 @@ JOIN (
 4. **避免超过 3 个表的 JOIN** — 过多表连接优化器可能选择错误计划
 5. **使用 EXPLAIN FORMAT=TREE 查看连接算法** — 确认使用了正确的算法
 6. **适当增大 join_buffer_size** — 减少 BNL 的磁盘溢出
-

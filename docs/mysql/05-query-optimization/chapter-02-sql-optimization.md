@@ -1,13 +1,15 @@
 # SQL 优化技巧
 
-## 1. 避免 SELECT *
+## 1. 查询写法优化
+
+### 1.1 避免 SELECT *
 
 ```sql
 SELECT * FROM users WHERE id = 1;  -- ❌ 返回多余列
 SELECT id, name, email FROM users WHERE id = 1;  -- ✅ 只取需要的列
 ```
 
-## 2. 避免索引失效
+### 1.2 避免索引失效
 
 索引失效会让查询退化为全表扫描。几种常见写法：
 
@@ -37,7 +39,7 @@ WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.user_id = u.id)  -- ✅
 
 完整失效场景与判断方法见 [索引使用与失效](../03-index/chapter-03-index-usage.md)。
 
-## 3. 分页优化
+### 1.3 分页优化
 
 ```sql
 -- 慢：OFFSET 大
@@ -46,7 +48,7 @@ SELECT * FROM users ORDER BY id LIMIT 1000000, 10;
 SELECT * FROM users WHERE id > 1000000 ORDER BY id LIMIT 10;
 ```
 
-## 4. 批量操作
+### 1.4 批量操作
 
 ```sql
 -- 慢
@@ -56,7 +58,9 @@ INSERT INTO users (name) VALUES ('b');
 INSERT INTO users (name) VALUES ('a'), ('b'), ('c');
 ```
 
-## 5. COUNT 优化
+## 2. 聚合与排序优化
+
+### 2.1 COUNT 优化
 
 ```sql
 -- COUNT(*) vs COUNT(1) vs COUNT(col)
@@ -82,7 +86,7 @@ CREATE TABLE table_counts (
 -- 缓存行数，定期与数据库同步
 ```
 
-## 6. ORDER BY 优化
+### 2.2 ORDER BY 优化
 
 ```sql
 -- 利用索引排序，避免 filesort
@@ -98,7 +102,7 @@ SELECT * FROM t WHERE a = 1 ORDER BY b DESC;      -- ✅ 8.0+ 降序索引支持
 SHOW VARIABLES LIKE 'max_length_for_sort_data';  -- 默认 4096 字节
 ```
 
-## 7. GROUP BY 优化
+### 2.3 GROUP BY 优化
 
 ```sql
 -- GROUP BY 也会产生 filesort 或 temporary
@@ -118,7 +122,9 @@ WHERE department IN ('IT', 'HR')
 GROUP BY department;
 ```
 
-## 8. UNION 优化
+## 3. 集合与写操作优化
+
+### 3.1 UNION 优化
 
 ```sql
 -- UNION vs UNION ALL
@@ -142,7 +148,7 @@ UNION ALL
 ORDER BY created_at DESC LIMIT 10;
 ```
 
-## 9. UPDATE/DELETE 优化
+### 3.2 UPDATE/DELETE 优化
 
 ```sql
 -- 批量删除优化
@@ -179,7 +185,7 @@ END
 WHERE id IN (1, 2, 3);
 ```
 
-## 10. 最佳实践总结
+## 4. 最佳实践总结
 
 | 优化项 | 方法 | 效果 |
 |--------|------|------|
@@ -190,4 +196,3 @@ WHERE id IN (1, 2, 3);
 | GROUP BY | 索引前缀 | 避免临时表 |
 | 批量操作 | 合并多条语句 | 减少网络往返 |
 | 大表删除 | 分批执行 | 避免长事务 |
-

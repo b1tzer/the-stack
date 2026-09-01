@@ -1,6 +1,8 @@
 # 窗口函数
 
-## 1. 基本语法
+## 1. 窗口函数基础
+
+### 1.1 基本语法
 
 ```sql
 SELECT 
@@ -13,7 +15,7 @@ SELECT
 FROM employees;
 ```
 
-## 2. 常用窗口函数
+### 1.2 常用窗口函数
 
 | 函数 | 说明 |
 |------|------|
@@ -25,7 +27,7 @@ FROM employees;
 | FIRST_VALUE() | 窗口内第一行 |
 | LAST_VALUE() | 窗口内最后一行 |
 
-## 3. 聚合窗口函数
+### 1.3 聚合窗口函数
 
 ```sql
 SELECT 
@@ -37,7 +39,9 @@ SELECT
 FROM employees;
 ```
 
-## 4. 窗口帧 (Window Frame)
+## 2. 窗口帧与进阶函数
+
+### 2.1 窗口帧 (Window Frame)
 
 ```sql
 -- ROWS: 物理行
@@ -74,7 +78,7 @@ SELECT
 FROM daily_sales;
 ```
 
-## 5. NTILE 分桶
+### 2.2 NTILE 分桶
 
 ```sql
 -- 将数据分为 N 个桶
@@ -94,7 +98,7 @@ SELECT
 FROM employees;
 ```
 
-## 6. PERCENT_RANK 和 CUME_DIST
+### 2.3 PERCENT_RANK 和 CUME_DIST
 
 ```sql
 -- PERCENT_RANK: 百分比排名 (0 到 1)
@@ -114,7 +118,7 @@ FROM employees;
 -- 表示薪资 >= 当前行的人数比例
 ```
 
-## 7. 实际业务场景
+## 3. 实际业务场景
 
 ```sql
 -- 场景 1：连续 N 天登录用户
@@ -153,11 +157,10 @@ SELECT * FROM (
 ) t WHERE rn <= 3;  -- 每个部门薪资 Top 3
 ```
 
-## 8. 最佳实践
+## 4. 最佳实践
 
 1. **PARTITION BY 类似 GROUP BY 但不折叠行** — 保留每行明细
 2. **ORDER BY 在 OVER 子句中定义窗口排序** — 与查询的 ORDER BY 无关
 3. **窗口函数不能在 WHERE 中使用** — 需要包装为子查询
 4. **多个窗口函数可共用一个 OVER** — 减少重复定义
 5. **窗口帧默认行为** — ORDER BY 存在时默认 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-

@@ -1,6 +1,8 @@
 # 索引优化实践
 
-## 1. 索引下推 (ICP)
+## 1. 查询优化机制
+
+### 1.1 索引下推 (ICP)
 
 ```sql
 -- MySQL 5.6+ 自动启用
@@ -8,7 +10,7 @@ SELECT * FROM users WHERE name LIKE '张%' AND age = 25;
 -- 在 idx_name_age 索引层直接过滤 age，减少回表
 ```
 
-## 2. MRR (Multi-Range Read)
+### 1.2 MRR (Multi-Range Read)
 
 ```sql
 -- 优化随机 IO
@@ -16,7 +18,7 @@ SELECT * FROM users WHERE age BETWEEN 20 AND 30;
 -- 先收集主键，排序后顺序回表
 ```
 
-## 3. 索引合并
+### 1.3 索引合并
 
 ```sql
 -- 多个索引条件交集
@@ -24,7 +26,7 @@ SELECT * FROM users WHERE name = '张三' AND age = 25;
 -- 可能同时使用 idx_name 和 idx_age
 ```
 
-## 4. 优化建议
+### 1.4 优化建议
 
 1. 优先使用覆盖索引
 2. 联合索引把选择性高的列放前面
@@ -36,7 +38,9 @@ SELECT * FROM users WHERE name = '张三' AND age = 25;
 SELECT * FROM sys.schema_unused_indexes;
 ```
 
-## 5. 索引跳跃扫描 (Index Skip Scan)
+## 2. 索引特性
+
+### 2.1 索引跳跃扫描 (Index Skip Scan)
 
 MySQL 8.0.13+ 引入，当联合索引的前缀列选择性低时，优化器可以跳过前缀列。
 
@@ -54,7 +58,7 @@ EXPLAIN SELECT * FROM users WHERE age = 25;
 -- Extra 列会显示 Using index for skip scan
 ```
 
-## 6. 降序索引 (Descending Index)
+### 2.2 降序索引 (Descending Index)
 
 MySQL 8.0+ 支持真正的降序索引。
 
@@ -70,7 +74,7 @@ CREATE INDEX idx_a_asc_b_desc ON t(a ASC, b DESC);
 -- SELECT * FROM t ORDER BY a ASC, b DESC; -- 完美匹配
 ```
 
-## 7. 不可见索引 (Invisible Index)
+### 2.3 不可见索引 (Invisible Index)
 
 ```sql
 -- 将索引设为不可见（优化器不再使用，但仍然维护）
@@ -88,7 +92,9 @@ ALTER TABLE users ALTER INDEX idx_email VISIBLE;
 -- 2. 临时禁用索引排查性能问题
 ```
 
-## 8. 索引监控与分析
+## 3. 监控与最佳实践
+
+### 3.1 索引监控与分析
 
 ```sql
 -- 查看索引使用情况（MySQL 8.0+）
@@ -123,7 +129,7 @@ WHERE stat_name = 'size' AND database_name = 'mydb'
 ORDER BY stat_value DESC;
 ```
 
-## 9. 最佳实践总结
+### 3.2 最佳实践总结
 
 | 优化手段 | 场景 | 效果 |
 |---------|------|------|
@@ -133,4 +139,3 @@ ORDER BY stat_value DESC;
 | Index Skip Scan | 联合索引前缀选择性低 | 避免全表扫描 |
 | 降序索引 | ORDER BY DESC | 避免 filesort |
 | 不可见索引 | 测试索引影响 | 安全验证 |
-

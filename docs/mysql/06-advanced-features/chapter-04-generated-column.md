@@ -1,6 +1,8 @@
 # 生成列与函数索引
 
-## 1. 生成列
+## 1. 生成列与函数索引
+
+### 1.1 生成列
 
 ```sql
 CREATE TABLE products (
@@ -11,7 +13,7 @@ CREATE TABLE products (
 );
 ```
 
-## 2. 函数索引 (8.0+)
+### 1.2 函数索引 (8.0+)
 
 ```sql
 -- 对函数结果建索引
@@ -23,13 +25,15 @@ SELECT * FROM users WHERE UPPER(name) = 'ZHANGSAN';
 SELECT * FROM orders WHERE YEAR(created_at) = 2024;
 ```
 
-## 3. 应用场景
+## 2. 生成列的选择与应用
+
+### 2.1 应用场景
 
 - 不区分大小写查询
 - 按年/月查询
 - 计算字段索引
 
-## 4. 虚拟列 vs 存储列
+### 2.2 虚拟列 vs 存储列
 
 ```sql
 -- 虚拟列（VIRTUAL）：不占用存储空间，查询时实时计算
@@ -54,7 +58,9 @@ ALTER TABLE products ADD COLUMN total_price DECIMAL(10,2)
 --   ❌ 写入时需要计算
 ```
 
-## 5. JSON 虚拟列索引
+## 3. 虚拟列索引实践
+
+### 3.1 JSON 虚拟列索引
 
 ```sql
 -- MySQL 8.0.17+ 虚拟列支持二级索引
@@ -75,7 +81,7 @@ SELECT * FROM users WHERE first_name = '张三';  -- 走 idx_first_name 索引
 SELECT * FROM users WHERE email = 'test@example.com';  -- 走 idx_email 索引
 ```
 
-## 6. 多列虚拟索引
+### 3.2 多列虚拟索引
 
 ```sql
 -- 联合虚拟索引
@@ -94,7 +100,7 @@ CREATE INDEX idx_user_month ON orders(user_id, order_month);
 SELECT * FROM orders WHERE user_id = 100 AND order_month = '2024-06';
 ```
 
-## 7. 实际业务场景
+## 4. 实际业务场景
 
 ```sql
 -- 场景 1：不区分大小写查询
@@ -131,11 +137,10 @@ CREATE INDEX idx_final_price ON products(final_price);
 SELECT * FROM products WHERE final_price < 100 ORDER BY final_price;
 ```
 
-## 8. 最佳实践
+## 5. 最佳实践
 
 1. **读多写少场景用 STORED 列** — 可以建索引，查询效率高
 2. **写多读少场景用 VIRTUAL 列** — 不占存储，写入快
 3. **JSON 字段提取用虚拟列 + 索引** — 替代 JSON_CONTAINS 查询
 4. **避免过度使用生成列** — 增加表结构复杂度
 5. **MySQL 8.0.13+ 虚拟列支持索引** — 优先使用虚拟列
-

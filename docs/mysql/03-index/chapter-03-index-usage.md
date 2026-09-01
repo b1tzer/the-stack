@@ -1,6 +1,8 @@
 # 索引使用与失效
 
-## 1. 索引失效场景
+## 1. 索引失效
+
+### 1.1 索引失效场景
 
 ```sql
 -- 函数操作
@@ -73,7 +75,7 @@ WHERE username = '12345'  -- ✅
 -- 表用 utf8mb4，连接用 latin1 → 隐式转换 → 索引失效
 ```
 
-## 2. 索引失效判断方法
+### 1.2 索引失效判断方法
 
 ```sql
 EXPLAIN SELECT * FROM users WHERE name = '张三';
@@ -97,7 +99,9 @@ EXPLAIN FORMAT=JSON SELECT * FROM users WHERE YEAR(created_at) = 2024;
 EXPLAIN ANALYZE SELECT * FROM users WHERE name = '张三';
 ```
 
-## 3. 强制使用/忽略索引
+## 2. 索引控制与最佳实践
+
+### 2.1 强制使用/忽略索引
 
 ```sql
 -- 强制使用指定索引
@@ -110,11 +114,10 @@ SELECT * FROM users IGNORE INDEX(idx_age) WHERE age > 25;
 SELECT * FROM users USE INDEX(idx_name) WHERE name = '张三';
 ```
 
-## 4. 最佳实践
+### 2.2 最佳实践
 
 1. **避免在索引列上使用函数** — 改用范围查询或函数索引
 2. **保持数据类型一致** — 避免隐式类型转换
 3. **LIKE 查询以通配符开头时考虑全文索引**
 4. **OR 条件确保两边都有索引** — 或改用 UNION
 5. **定期用 EXPLAIN 验证关键查询** — 确保索引被正确使用
-

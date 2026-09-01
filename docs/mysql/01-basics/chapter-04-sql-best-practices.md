@@ -23,7 +23,9 @@ CREATE TABLE order_items (...);
 -- 全文索引：ft_表名_列名
 ```
 
-## 2. SELECT 规范
+## 2. 语句规范
+
+### 2.1 SELECT 规范
 
 ```sql
 -- ❌ 返回多余列，表结构变更后易出错
@@ -33,7 +35,7 @@ SELECT * FROM users WHERE id = 1;
 SELECT id, name, email FROM users WHERE id = 1;
 ```
 
-## 3. INSERT 规范
+### 2.2 INSERT 规范
 
 ```sql
 -- ✅ 显式列出列名，不依赖列顺序
@@ -46,7 +48,7 @@ INSERT INTO users (name, email) VALUES
 ('test3', 'test3@example.com');
 ```
 
-## 4. UPDATE/DELETE 规范
+### 2.3 UPDATE/DELETE 规范
 
 ```sql
 -- ❌ 不带 WHERE 会更新/删除整张表
@@ -62,7 +64,7 @@ DELETE FROM logs WHERE created_at < '2024-01-01' LIMIT 1000;
 -- 循环执行直到影响行数为 0
 ```
 
-## 5. JOIN 规范
+### 2.4 JOIN 规范
 
 ```sql
 -- ❌ 隐式连接，易漏 WHERE 产生笛卡尔积
@@ -74,7 +76,7 @@ FROM users u
 INNER JOIN orders o ON u.id = o.user_id;
 ```
 
-## 6. 事务规范
+### 2.5 事务规范
 
 ```sql
 -- ✅ 事务短小，只包含必要的 SQL
@@ -87,7 +89,7 @@ COMMIT;
 -- ❌ 长时间不提交
 ```
 
-## 7. 代码规范 Checklist
+## 3. 代码规范 Checklist
 
 | 检查项 | 要求 |
 |--------|------|

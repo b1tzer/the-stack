@@ -1,6 +1,8 @@
 # Spring Boot 集成
 
-## 1. 配置
+## 1. 基础接入
+
+### 1.1 配置
 
 ```yaml
 spring:
@@ -14,7 +16,7 @@ spring:
       minimum-idle: 5
 ```
 
-## 2. JPA 适配
+### 1.2 JPA 适配
 
 ```yaml
 spring:
@@ -24,7 +26,7 @@ spring:
       ddl-auto: update
 ```
 
-## 3. MyBatis 适配
+### 1.3 MyBatis 适配
 
 ```xml
 <!-- 返回自增主键 -->
@@ -41,7 +43,9 @@ spring:
 </insert>
 ```
 
-## 4. 连接池配置（HikariCP）
+## 2. 连接管理
+
+### 2.1 连接池配置（HikariCP）
 
 ```yaml
 spring:
@@ -76,7 +80,7 @@ public class DataSourceConfig {
 }
 ```
 
-## 5. 多数据源配置
+### 2.2 多数据源配置
 
 ```java
 @Configuration
@@ -125,7 +129,9 @@ public class ReadWriteRoutingDataSource extends AbstractRoutingDataSource {
 }
 ```
 
-## 6. MyBatis 高级配置
+## 3. 进阶用法
+
+### 3.1 MyBatis 高级配置
 
 ```java
 // 自定义类型处理器
@@ -154,7 +160,7 @@ public class LocalDateTimeTypeHandler extends BaseTypeHandler<LocalDateTime> {
 List<User> findByCondition(UserQuery query);
 ```
 
-## 7. 事务管理
+### 3.2 事务管理
 
 ```java
 @Service
@@ -201,7 +207,7 @@ public class OrderService {
 }
 ```
 
-## 8. 最佳实践
+## 4. 最佳实践
 
 1. **使用 HikariCP 连接池** — 性能最好的连接池
 2. **连接池大小合理设置** — 不是越大越好
@@ -210,4 +216,3 @@ public class OrderService {
 5. **事务注解指定 rollbackFor** — 默认只回滚 RuntimeException
 6. **避免在事务中做远程调用** — 缩短事务时间
 7. **批量操作使用 batch 模式** — 减少网络往返
-
