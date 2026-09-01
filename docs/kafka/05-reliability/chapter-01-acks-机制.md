@@ -95,31 +95,7 @@ unclean.leader.election.enable=false   # 推荐：禁止
 
 ## 5. 消费者端可靠性
 
-### 5.1 自动提交 vs 手动提交
-
-```java
-// 自动提交：可能丢失消息
-props.put("enable.auto.commit", true);
-props.put("auto.commit.interval.ms", 5000);
-
-// 手动提交：处理完再提交（推荐）
-props.put("enable.auto.commit", false);
-while (true) {
-    ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
-    for (ConsumerRecord<String, String> record : records) {
-        process(record);  // 处理消息
-    }
-    consumer.commitSync();  // 处理完提交
-}
-```
-
-### 5.2 自动提交的风险
-
-```text
-poll() → 返回消息 → 自动提交 Offset（5秒间隔）→ 处理消息 → 处理中途宕机
-                                                         ↓
-重启后从已提交的 Offset 开始 → 中途未处理完的消息丢失
-```
+自动提交与手动提交的差异、自动提交丢消息的风险，见 [Offset 管理](../03-consumer/chapter-03-offset-management.md)。
 
 ## 6. 端到端可靠性配置
 

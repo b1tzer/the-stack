@@ -12,41 +12,7 @@
 
 ## 2. 幂等生产者
 
-### 2.1 原理
-
-每个生产者实例被分配一个唯一的 Producer ID（PID），每条消息附带一个 Sequence Number：
-
-```text
-Producer 启动 → InitProducerIdRequest → Broker 分配 PID=100
-
-发送消息：
-  msg1: (PID=100, Seq=0)
-  msg2: (PID=100, Seq=1)
-  msg3: (PID=100, Seq=2)
-
-Broker 端：
-  维护每个 PID 的期望 Sequence
-  收到 (PID=100, Seq=0) → 期望=0，匹配，写入，期望=1
-  收到 (PID=100, Seq=1) → 期望=1，匹配，写入，期望=2
-  收到 (PID=100, Seq=0) → 期望=2，不匹配，丢弃（重复）
-```
-
-### 2.2 配置
-
-```java
-props.put("enable.idempotence", true);       // 开启幂等
-props.put("acks", "all");                    // 必须
-props.put("retries", Integer.MAX_VALUE);     // 无限重试
-props.put("max.in.flight.requests.per.connection", 5);
-```
-
-### 2.3 限制
-
-| 限制 | 说明 |
-| :-- | :-- |
-| 单分区 | 幂等只保证单分区内不重复 |
-| 单会话 | PID 在 Producer 重启后重新分配 |
-| 不跨分区 | 不能保证跨分区的原子性 |
+幂等生产者的 PID + Sequence Number 原理、配置、限制，见 [ACK 机制与重试](../02-producer/chapter-03-acks-retries.md) §2。
 
 ## 3. 事务生产者
 

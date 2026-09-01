@@ -4,50 +4,13 @@
 
 ## 1. 三种 ACK 模式
 
-| acks | 说明 | 可靠性 | 吞吐量 |
+| acks | 可靠性 | 吞吐量 | 适用场景 |
 | :-- | :-- | :-- | :-- |
-| 0 | 不等确认，发完就忘 | 最低（可能丢消息） | 最高 |
-| 1 | Leader 写入后确认 | 中（Leader 宕机可能丢） | 中 |
-| all | ISR 全部写入后确认 | 最高 | 最低 |
+| 0 | 最低（可能丢消息） | 最高 | 日志收集、监控指标 |
+| 1 | 中（Leader 宕机可能丢） | 中 | 一般业务 |
+| all | 最高 | 最低 | 金融、订单等不可丢数据 |
 
-### 1.1 acks=0
-
-```text
-Producer → Broker：发完即返回
-不等待任何确认
-```
-
-适用场景：日志收集、监控指标等允许丢失的场景。
-
-### 1.2 acks=1
-
-```text
-Producer → Leader：写入本地日志
-Leader → Producer：返回 ACK
-之后 Leader 宕机 → Follower 未同步 → 数据丢失
-```
-
-风险：Leader 写入后、Follower 同步前 Leader 宕机，数据丢失。
-
-### 1.3 acks=all
-
-```text
-Producer → Leader：写入本地日志
-Leader → Follower1：同步
-Leader → Follower2：同步
-Follower1 → Leader：确认
-Follower2 → Leader：确认
-Leader → Producer：所有 ISR 确认后返回 ACK
-```
-
-配合 `min.insync.replicas=2`，保证至少 2 个副本同步成功。
-
-```properties
-acks=all
-min.insync.replicas=2   # ISR 至少 2 个副本
-```
-
-> `min.insync.replicas=2` + `acks=all` 是生产环境的标配。如果 ISR 只剩 1 个副本，Broker 拒绝写入（`NotEnoughReplicasException`），避免在可靠性不足时继续写入。
+三种模式各自的丢数据推理、`min.insync.replicas` 的配合、Unclean Leader 选举，见 [ACK 机制与可靠性保证](../05-reliability/chapter-01-acks-机制.md) §2~§4。本章只保留与生产者相关的重试与幂等配置。
 
 ## 2. 幂等生产者
 

@@ -32,9 +32,23 @@ KeyValueIterator<String, Long> all = store.all();
 
 ## 3. 状态恢复
 
-- 状态存储在本地 RocksDB
-- 通过 Changelog Topic 恢复
-- 无需外部数据库
+状态存储是**本地**的：RocksDB 的数据写在当前实例的磁盘上。问题在于，Rebalance 或实例重启后，一个分区的处理权可能从机器 A 转移到机器 B，而 B 的本地 RocksDB 里没有这个分区的任何历史状态。
+
+解决方式是把「状态变更」同时写进 Kafka：每次 `put` 都会追加一条记录到一个 Changelog Topic。当新实例接管分区时，从头消费这个 Changelog Topic，重放全部变更，就能在本地重建出完整状态。
+
+```text
+实例 A 处理分区 0：
+  put("k1", 1) → Changelog 追加 [k1=1]
+  put("k2", 2) → Changelog 追加 [k2=2]
+  put("k1", 3) → Changelog 追加 [k1=3]
+
+实例 A 宕机，实例 B 接管分区 0：
+  B 的本地 RocksDB 是空的
+  B 从头消费 Changelog → 重放 [k1=1] [k2=2] [k1=3]
+  → 重建出 {k1=3, k2=2}
+```
+
+所以「状态能恢复」不是免费的——它要求每次状态更新都被写进 Kafka。这解释了为什么 Kafka Streams 的状态存储天然依赖 Kafka 本身，而不是外部数据库。
 
 ## 4. 状态存储类型
 
@@ -79,6 +93,8 @@ put(key1, value3) → Changelog: [key1=value1, key2=value2, key1=value3]
 - 使用 Compact 策略，保留每个 Key 的最新值。
 - 自动创建，命名格式：`{application-id}-{store-name}-changelog`。
 - 恢复时从头消费 Changelog Topic。
+
+为什么用 Compact 而不是按时间删除？同一个 Key 在 Changelog 里会被写很多次（每次更新一条）。如果全部保留，恢复时就要重放大量早已被覆盖的旧值。Compact 只保留每个 Key 的最新一条，恰好匹配状态恢复的语义——恢复只需要「每个 Key 的最终值」，不需要中间历史。这样既压缩了存储，也缩短了恢复时的重放时间。
 
 ## 6. 交互式查询详解
 

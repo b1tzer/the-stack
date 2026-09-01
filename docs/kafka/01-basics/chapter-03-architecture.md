@@ -127,45 +127,7 @@ Consumer 反序列化消息
 
 ## 5. 副本同步机制
 
-### 5.1 ISR 写入流程
-
-```text
-Producer 发送消息到 Leader
-    │
-    ▼
-Leader 写入本地日志，更新 LEO（Log End Offset）
-    │
-    ▼
-Follower 发送 Fetch 请求拉取新消息
-    │
-    ▼
-Follower 写入本地日志，更新自己的 LEO
-    │
-    ▼
-Leader 更新 HW（High Watermark）= min(所有 ISR 的 LEO)
-    │
-    ▼
-HW 之前的消息对消费者可见
-```
-
-| 概念 | 说明 |
-| :-- | :-- |
-| LEO | Log End Offset，日志末尾偏移量（下一条写入的位置） |
-| HW | High Watermark，高水位线（消费者可见的最大 Offset） |
-| ISR | 与 Leader 保持同步的副本集合 |
-
-> 消费者只能读到 HW 之前的消息。HW 以下的消息才是「已提交」的——这保证了消费者不会读到可能丢失的数据。
-
-### 5.2 ISR 动态调整
-
-```text
-replica.lag.time.max.ms = 30000（默认30秒）
-
-Follower 超过 30 秒没有 Fetch 请求 → 移出 ISR
-Follower 恢复同步、追上 Leader → 加回 ISR
-```
-
-ISR 收缩的危险：如果 ISR 只剩 Leader 一个副本，acks=all 等同于 acks=1，可靠性下降。
+ISR 写入流程、LEO/HW 概念、ISR 动态调整，见 [副本机制](../04-storage-internals/chapter-03-replication.md) §2~§4。
 
 ## 6. 元数据管理
 

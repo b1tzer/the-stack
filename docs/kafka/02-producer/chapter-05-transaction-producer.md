@@ -1,5 +1,7 @@
 # 事务生产者
 
+> 事务生产者解决跨分区原子写入：多条消息要么全部可见，要么全部不可见。本文聚焦工程用法与故障处理；「三种语义、两阶段提交、隔离级别」等机制原理见 [Exactly Once 语义](../05-reliability/chapter-02-exactly-once.md)。
+
 ## 1. 事务 API
 
 ```java
@@ -56,10 +58,17 @@ Producer                               Transaction Coordinator
     │    消费者通过 read_committed 读取       │
 ```
 
-**关键点**：
-- Transaction Coordinator 是一个 Broker 节点，通过 `transactional.id` 的哈希值选举。
-- 事务消息先写入分区，但对 `read_committed` 消费者不可见，直到 COMMIT 标记写入。
-- 如果事务超时（`transaction.timeout.ms`），Coordinator 自动回滚。
+**Transaction Coordinator 为什么必须固定**
+
+`transactional.id` 通过哈希落到 `__transaction_state` 的某个分区，该分区的 Leader 就是本事务的 Transaction Coordinator。为什么不随机挑，而要哈希固定？因为事务的「进行中 / 已提交 / 已回滚」状态要写进 `__transaction_state` 日志；如果每次请求随机选一个 Broker，事务状态就散落在多个节点，任何一处失败都无法判断该提交还是该回滚。哈希保证同一个 `transactional.id` 的所有请求始终路由到同一个 Coordinator，状态天然集中。
+
+**Epoch 是防「僵尸生产者」的版本号**
+
+`PID + Epoch` 中的 Epoch 是一个递增的版本号。典型场景：旧 Producer 实例因网络分区「失联」，你以为它挂了，于是用同一个 `transactional.id` 起了新实例；新实例 `initTransactions()` 时，Coordinator 把 Epoch 从 0 递增到 1。此后旧实例「复活」再发请求，携带的仍是旧 Epoch=0，Coordinator 发现版本对不上，直接拒绝并触发 `ProducerFencedException`。没有 Epoch，旧实例就能继续往事务里写数据，污染新实例已经提交或回滚的事务。
+
+**COMMIT 标记决定可见性**
+
+事务消息写入分区后，`read_committed` 消费者暂时看不到它；只有 Coordinator 把 COMMIT 标记写进 `__transaction_state` 后，这些消息才对消费者可见。这就是两阶段的边界：写数据是第一阶段，写 COMMIT 标记是第二阶段，两阶段之间宕机则事务回滚。
 
 ## 5. 消费-生产 Exactly Once 模式
 

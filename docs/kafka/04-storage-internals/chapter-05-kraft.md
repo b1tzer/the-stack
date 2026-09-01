@@ -2,6 +2,8 @@
 
 > KRaft（Kafka Raft）是 Kafka 4.0 的默认模式，用 Raft 协议替代 ZooKeeper 管理元数据。本章讲清 KRaft 的架构、配置、迁移步骤，以及与 ZooKeeper 模式的对比。
 
+> 本文讲 KRaft 架构与 Raft 共识原理；Controller 的职责与选举机制见 [Controller](./chapter-04-controller.md)。
+
 ## 1. 为什么要去掉 ZooKeeper
 
 | 问题 | 说明 |
@@ -20,7 +22,7 @@
 │                                                 │
 │  Controller 1 ◄────Raft 日志复制────► Controller 2
 │       │                                      │    │
-│       └──────────Raft 日�复制──────────────┘    │
+│       └──────────Raft 日志复制──────────────┘    │
 │                    Controller 3                  │
 │                                                 │
 │              __cluster_metadata                 │
@@ -39,6 +41,23 @@
 | `__cluster_metadata` | 特殊 Topic，存储所有集群元数据（Topic/分区/副本分配） |
 | Broker | 从 Controller 拉取元数据，处理客户端请求 |
 
+### 2.1 为什么多数派提交才安全
+
+Raft 的一致性靠「多数派确认」，而不是「全部节点确认」。假设 Quorum 有 3 个 Controller，只要 2 个（多数）落盘一条元数据变更，这条变更就算提交：
+
+```text
+3 个节点，多数派 = 2
+
+场景：Leader 写入「创建 Topic X」的日志
+  Leader 落盘 → 复制到 Follower1 落盘 → Follower2 尚未收到
+  多数派（Leader + Follower1）已确认 → 提交成功
+  此时 Follower2 故障，不影响一致性
+```
+
+为什么「多数」就够了？因为任意两次多数派集合必然相交。假设旧 Leader 已把某条日志提交给多数派 {A, B}，之后它宕机，新 Leader 必须赢得多数派选票才能上任——这个多数派里至少有一个节点包含旧日志，所以新 Leader 一定「见过」这条已提交日志，不会覆盖它，也不会丢失它。
+
+这就是 Raft 用「多数派」而非「全部」的原因：既容忍少数节点故障，又保证任意两次提交互不矛盾。
+
 ## 3. 与 ZooKeeper 模式对比
 
 | 特性 | ZooKeeper 模式 | KRaft 模式 |
@@ -50,6 +69,23 @@
 | 运维复杂度 | 高（维护 ZK 集群） | 低（只需 Kafka） |
 | 故障恢复 | 慢（重新加载元数据） | 快（Raft 日志回放） |
 | 部署依赖 | ZooKeeper + Kafka | 只需 Kafka |
+
+### 3.1 为什么 KRaft 能支撑更多分区
+
+分区上限的瓶颈在元数据写入路径，而不是存储容量：
+
+```text
+ZooKeeper 模式：
+  元数据变更 → Controller 写 ZooKeeper → ZooKeeper 广播给 Broker
+  问题：每次变更都是一次独立写事务，且所有写都经过 ZooKeeper 唯一 Leader
+
+KRaft 模式：
+  元数据变更 → KRaft Leader 写本地日志 → 复制给 Controller 节点
+  Broker 从 Controller 拉取快照 + 增量日志
+  问题：写入走 Kafka 自己的日志，顺序追加、批量复制
+```
+
+ZooKeeper 本质是通用协调服务，元数据以零散的 ZNode 键值存储，每次变更都单独走一次写事务。KRaft 把元数据当作「Kafka 自己的一条日志流」处理，顺序追加、批量复制，天然适合高频变更——所以分区上限能从约 20 万提升到约 200 万。
 
 ## 4. 配置详解
 

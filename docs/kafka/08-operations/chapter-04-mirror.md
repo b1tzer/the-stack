@@ -82,6 +82,8 @@ checkpoints.topic.replication.factor=1
 | 消费者组同步 | 不支持 | 支持 |
 | 监控 | 有限 | 丰富的 Connect 指标 |
 
+> MM2 能同步 Offset，MM1 不能，根源在架构差异。MM1 只是一个独立的消费-生产进程：它消费源集群消息时产生的 Offset 只留在源集群的 `__consumer_offsets` 里，没有通道把它搬到目标集群。灾备切换后，目标集群的消费者拿不到可用的消费进度，只能从头或从最新位置开始消费。MM2 基于 Connect，额外内置了两个专用连接器——`MirrorCheckpointConnector` 定期读取源集群消费组的 Offset 并写入目标集群的 checkpoint 主题，`MirrorSourceConnector` 在复制消息的同时把源 Offset 翻译成目标集群的 Offset。也就是说，MM2 在复制「消息」之外，额外维护了一条复制「消费进度」的通道。
+
 ## 7. 跨集群复制场景
 
 ### 7.1 场景1：跨数据中心复制
@@ -93,6 +95,8 @@ west->east.enabled=true
 # 使用主题前缀避免循环复制
 replication.policy.class=org.apache.kafka.connect.mirror.DefaultReplicationPolicy
 ```
+
+双向复制时，从 east 复制到 west 的消息如果不标记来源，会被 west 当成自己的新消息再复制回 east，形成无限循环。`DefaultReplicationPolicy` 给复制来的主题加前缀（如 `east.my-topic`），再通过 `topics.exclude` 把带前缀的主题排除在反向复制之外，从而切断循环。
 
 ### 7.2 场景2：灾难恢复
 ```properties

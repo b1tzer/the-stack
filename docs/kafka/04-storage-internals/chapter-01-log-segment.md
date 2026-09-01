@@ -127,44 +127,7 @@ Kafka（顺序写入）：
 
 ## 4. 日志清理策略
 
-### 4.1 删除策略（Delete）
-
-按时间或大小删除整个日志段：
-
-```properties
-log.retention.hours=168          # 保留 7 天（默认）
-log.retention.bytes=-1           # 不限制大小
-log.retention.check.interval.ms=300000  # 每 5 分钟检查一次
-```
-
-删除的是整个日志段（不是单条消息），所以段越大，删除粒度越粗。
-
-### 4.2 压缩策略（Compact）
-
-保留每个 Key 的最新值，删除旧版本：
-
-```text
-压缩前：                      压缩后：
-Key1: Value1 (offset 0)       Key1: Value2 (offset 2)
-Key2: Value1 (offset 1)       Key2: Value2 (offset 4)
-Key1: Value2 (offset 2)       Key3: Value1 (offset 3)
-Key3: Value1 (offset 3)
-Key2: Value2 (offset 4)
-```
-
-适用场景：
-
-| 场景 | 说明 |
-| :-- | :-- |
-| 数据库 CDC | Debezium 捕获变更，Kafka 保留每个 Key 的最新状态 |
-| 事件溯源 | 保留实体的最新状态，用于重建 |
-| 配置变更 | 保留配置项的最新值 |
-
-```properties
-log.cleanup.policy=compact
-log.cleaner.min.compaction.lag.ms=0
-log.cleaner.delete.retention.ms=86400000  # 删除标记保留 24 小时
-```
+删除（Delete）与压缩（Compact）两种清理策略的配置、适用场景与选型，见 [数据保留](../05-reliability/chapter-04-data-retention.md)。
 
 ## 5. 最佳实践
 

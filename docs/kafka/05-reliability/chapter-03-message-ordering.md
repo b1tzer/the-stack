@@ -14,23 +14,7 @@
 
 ### 2.1 重试导致乱序
 
-```text
-发送 msg1 → 失败（重试中）
-发送 msg2 → 成功
-msg1 重试成功
-结果：msg2 在 msg1 之前（乱序）
-```
-
-解决方案：
-
-```java
-// 方案1：关闭在途请求（性能差）
-props.put("max.in.flight.requests.per.connection", 1);
-
-// 方案2：开启幂等性（推荐）
-props.put("enable.idempotence", true);
-// 内部通过 Sequence Number 重排序，允许最多 5 个在途请求
-```
+重试导致乱序的场景与两种解决方案，见 [ACK 机制与重试](../02-producer/chapter-03-acks-retries.md) §4。
 
 ### 2.2 分区扩展导致乱序
 

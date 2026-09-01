@@ -10,11 +10,7 @@ for (int i = 0; i < 10; i++) {
         consumer.subscribe(Arrays.asList("topic"));
         while (true) {
             ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
-            // 处理消息
-        }
-    }).start();
-}
-
+```java
 // 方案2：单消费者多线程处理
 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
 ExecutorService executor = Executors.newFixedThreadPool(10);
@@ -22,6 +18,13 @@ for (ConsumerRecord<String, String> record : records) {
     executor.submit(() -> processMessage(record));
 }
 ```
+
+两种方案的取舍在「offset 是否有序」：
+
+- 方案 1（多消费者实例）各自独立 poll、独立提交 offset，天然并行且顺序可控，代价是每个线程一个 `KafkaConsumer` 实例（`KafkaConsumer` 不是线程安全的）。
+- 方案 2（单消费者 + 线程池）省实例，但**破坏了处理顺序**：`processMessage` 在线程池里并发执行，后到的消息可能先处理完。如果处理完一条就提交 offset，提交的 offset 会「越过」还在处理中的前序消息——一旦此时宕机，那些尚未处理完的前序消息会被当作已消费而丢失，造成**重复消费或丢消息**。
+
+所以方案 2 的正确姿势不是「每处理完一条就提交」，而是等一批消息全部处理完再提交，或者为 offset 维护一个有序的提交队列。```
 
 ## 2. 批量处理
 
@@ -38,6 +41,12 @@ if (records.count() > 0) {
     consumer.commitSync();
 }
 ```
+
+背压要解决的问题是「消费快、处理慢」导致的**内存无界增长**。`poll()` 会一次性把 `max.poll.records` 条消息拉进 JVM 内存，如果处理速度跟不上拉取速度，每轮 poll 攒下的一批消息还没处理完，下一轮 poll 又拉来一批，消息对象在堆里越堆越多，最终 OOM。
+
+上面的写法把「拉取」和「处理」串成同一步：处理完当前批、提交 offset，才开始下一轮 poll。这等于把消费速率钳制在处理速率上，队列长度恒为一批，内存就不会失控。
+
+更精细的做法是引入有界队列 + 信号量，让背压既限制内存又保留一定缓冲，而不是简单地在 poll 循环里串行处理。
 
 ## 4. 消费者性能瓶颈分析
 
