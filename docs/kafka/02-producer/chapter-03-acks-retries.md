@@ -4,7 +4,7 @@
 
 ## 1. 三种 ACK 模式
 
-`acks=0 / 1 / all` 三种模式的语义、丢数据推理、与 `min.insync.replicas` 的配合、Unclean Leader 选举，见 [ACK 机制与可靠性保证](../05-reliability/chapter-01-acks.md) §2~§4。本章只保留与生产者相关的重试与幂等配置。
+`acks=0 / 1 / all` 三种模式的语义、丢数据推理、与 `min.insync.replicas` 的配合、Unclean Leader 选举，见 [ACK 机制与可靠性保证](../06-reliability/chapter-01-acks.md) §2~§4。本章只保留与生产者相关的重试与幂等配置。
 
 ## 2. 幂等生产者
 

@@ -201,7 +201,7 @@ Kafka 2.4 起，消费者可以从 Follower 而不是 Leader 读，用于降低�
 | `transaction.state.log.min.isr` | 2 | 2 | 内部事务 topic |
 | `offsets.topic.replication.factor` | 3 | 3 | 内部 offsets topic |
 
-Producer 端配合的 `acks` 语义与 `min.insync.replicas` 的交互见 [ACK 机制与可靠性保证](../05-reliability/chapter-01-acks.md)。
+Producer 端配合的 `acks` 语义与 `min.insync.replicas` 的交互见 [ACK 机制与可靠性保证](../06-reliability/chapter-01-acks.md)。
 
 ## 8. 常态监控指标
 

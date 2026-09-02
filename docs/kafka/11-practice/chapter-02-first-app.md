@@ -33,7 +33,7 @@ spring:
 
 两个值需要重点解释，它们决定了消息可靠性：
 
-- `acks: all`：消息写入所有 ISR 副本后才确认，避免 Leader 宕机丢数据。三种 ACK 的取舍见 [ACK 机制与可靠性保证](../05-reliability/chapter-01-acks.md)。
+- `acks: all`：消息写入所有 ISR 副本后才确认，避免 Leader 宕机丢数据。三种 ACK 的取舍见 [ACK 机制与可靠性保证](../06-reliability/chapter-01-acks.md)。
 - `enable-auto-commit: false`：关闭自动提交 Offset。这一项和 §4 消费者里的 `Acknowledgment` 是一对联动配置，缺了任意一个，另一边的行为都会改变，下面 §4 单独讲。
 
 ## 3. 生产者
@@ -114,7 +114,7 @@ poll() → 返回消息 → 到点自动提交 Offset → 业务处理中宕机
 重启后从已提交的 Offset 继续 → 这条没处理完的消息被跳过（丢失）
 ```
 
-手动提交把「提交」这个动作移到业务处理完成之后：`ack.acknowledge()` 写在 `log.info` 之后，表示处理完才确认。宕机重启会重新消费这条消息——可能重复，但不会丢。重复由业务幂等处理解决，见 [Exactly Once 语义](../05-reliability/chapter-02-exactly-once.md) §4。
+手动提交把「提交」这个动作移到业务处理完成之后：`ack.acknowledge()` 写在 `log.info` 之后，表示处理完才确认。宕机重启会重新消费这条消息——可能重复，但不会丢。重复由业务幂等处理解决，见 [Exactly Once 语义](../06-reliability/chapter-02-exactly-once.md) §4。
 
 ## 5. 测试
 

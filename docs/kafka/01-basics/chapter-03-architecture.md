@@ -127,7 +127,7 @@ Consumer 反序列化消息
 
 ## 5. 副本同步机制
 
-ISR 写入流程、LEO/HW 概念、ISR 动态调整，见 [副本机制](../04-storage-internals/chapter-03-replication.md) §2~§4。
+ISR 写入流程、LEO/HW 概念、ISR 动态调整，见 [副本机制](../05-storage-internals/chapter-03-replication.md) §2~§4。
 
 ## 6. 元数据管理
 

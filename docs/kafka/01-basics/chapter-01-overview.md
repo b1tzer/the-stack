@@ -79,8 +79,8 @@ Kafka 是数据流事实标准：超过 80% 的 Fortune 500 企业使用（[IBM]
 
 Kafka 的高吞吐来自四个机制，各一句话概括，深度见对应文档：
 
-- **顺序写入**：消息追加到日志文件末尾，用顺序磁盘写换取吞吐。见 [日志分段与索引](../04-storage-internals/chapter-01-log-segment.md)。
-- **零拷贝**：`sendfile()` 跳过用户态，数据从内核缓冲区直达网卡，减少 CPU 拷贝。见 [Page Cache 与零拷贝](../04-storage-internals/chapter-02-page-cache.md)。
+- **顺序写入**：消息追加到日志文件末尾，用顺序磁盘写换取吞吐。见 [日志分段与索引](../05-storage-internals/chapter-01-log-segment.md)。
+- **零拷贝**：`sendfile()` 跳过用户态，数据从内核缓冲区直达网卡，减少 CPU 拷贝。见 [Page Cache 与零拷贝](../05-storage-internals/chapter-02-page-cache.md)。
 - **批量发送**：消息攒批再发，减少网络往返与 TCP 开销。
 - **页缓存**：消息写入操作系统页缓存而非 JVM 堆，读取未落盘消息时直接从内存返回。
 

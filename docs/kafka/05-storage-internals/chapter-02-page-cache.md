@@ -133,7 +133,7 @@ protected MappedByteBuffer mmap;
 | `log.flush.interval.messages=1` | 每条都 `fsync`，磁盘 IOPS 上限直接顶到瓶颈 | 极小 | 单机磁盘可靠性 |
 | `acks=all` + `min.insync.replicas=2` | 内存级同步 | 需要至少两个副本同时丢失才丢数据 | 副本分布与网络 |
 
-结论：Kafka 用副本代替 `fsync`。让内核在合适时机把脏页刷下去，是让消费者读 Page Cache 命中率保持在高位、也让写入不被磁盘 IO 拖住的前提。真需要更强的持久化边界时，走 `acks=all + min.insync.replicas`，见 [ACK 机制与可靠性保证](../05-reliability/chapter-01-acks.md)。
+结论：Kafka 用副本代替 `fsync`。让内核在合适时机把脏页刷下去，是让消费者读 Page Cache 命中率保持在高位、也让写入不被磁盘 IO 拖住的前提。真需要更强的持久化边界时，走 `acks=all + min.insync.replicas`，见 [ACK 机制与可靠性保证](../06-reliability/chapter-01-acks.md)。
 
 ## 6. 因此的工程约束
 
@@ -145,7 +145,7 @@ protected MappedByteBuffer mmap;
 - 文件系统优选 XFS 或 ext4，挂载参数关闭 `atime` 更新（`noatime,nodiratime`）。
 - 关注 SSL 决策：内网 listener 优先明文，只有对外 listener 才启用 SSL；否则整条读路径都会失去 sendfile 的效率优势。
 
-具体的 JVM 参数与 OS 参数模板在 [性能调优](../09-practice/chapter-06-performance-tuning.md) 里给出可复制的配置。
+具体的 JVM 参数与 OS 参数模板在 [性能调优](../11-practice/chapter-06-performance-tuning.md) 里给出可复制的配置。
 
 ## 7. 一句话小结
 

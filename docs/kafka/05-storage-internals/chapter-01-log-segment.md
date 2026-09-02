@@ -207,4 +207,4 @@ Producer → ReplicaManager#appendRecords
 - 索引 mmap 到内存，条目存相对量以省空间，用二分（分热/冷区）加短程顺序扫描定位消息。
 - 段的滚动上限最终由 `OffsetIndex` 的 int32 相对偏移天花板兜底。
 
-清理策略（`delete` / `compact`）见 [数据保留](../05-reliability/chapter-04-data-retention.md)；写入落盘与消费者读取如何借力 Page Cache，见 [Page Cache 与零拷贝](./chapter-02-page-cache.md)。
+清理策略（`delete` / `compact`）见 [数据保留](../06-reliability/chapter-04-data-retention.md)；写入落盘与消费者读取如何借力 Page Cache，见 [Page Cache 与零拷贝](./chapter-02-page-cache.md)。

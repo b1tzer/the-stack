@@ -15,7 +15,7 @@
 | `log.retention.hours` | `168`（7 天） | 按业务保留窗口调整 | 也可用 `log.retention.ms` / `log.retention.bytes` |
 | `log.retention.bytes` | `-1`（不限制） | 与磁盘容量匹配 | 按分区计算 |
 | `log.segment.bytes` | `1073741824`（1 GiB） | 默认足够 | 段过小 → 段文件过多；过大 → 清理粒度粗 |
-| `log.index.interval.bytes` | `4096` | 默认 | 稀疏索引密度，详见 [日志分段与索引](../04-storage-internals/chapter-01-log-segment.md) |
+| `log.index.interval.bytes` | `4096` | 默认 | 稀疏索引密度，详见 [日志分段与索引](../05-storage-internals/chapter-01-log-segment.md) |
 | `message.max.bytes` | `1048588`（≈ 1 MiB） | 显式设置，且与生产者 `max.request.size`、消费者 `fetch.max.bytes` 一致 | 三处不匹配会导致上游能发、下游拿不到 |
 | `replica.lag.time.max.ms` | `30000`（2.5+）／`10000`（2.4 及以前，KIP-537） | 保持默认 | 调小易触发 spurious ISR 收缩 |
 | `num.replica.fetchers` | `1` | `2`–`4`（磁盘/网卡富余时） | 提升 Follower 并行度 |
@@ -47,11 +47,11 @@
 | `heartbeat.interval.ms` | `3000` | `session.timeout.ms / 3` | 心跳线程独立于 poll |
 | `fetch.min.bytes` | `1` | 高吞吐时可上调 | broker 攒够字节再返回 |
 | `fetch.max.wait.ms` | `500` | 默认 | 与 `fetch.min.bytes` 配合 |
-| `isolation.level` | `read_uncommitted` | 事务场景 `read_committed` | 详见 [Exactly Once 语义](../05-reliability/chapter-02-exactly-once.md) |
+| `isolation.level` | `read_uncommitted` | 事务场景 `read_committed` | 详见 [Exactly Once 语义](../06-reliability/chapter-02-exactly-once.md) |
 
 ## JVM 与 OS
 
-Kafka Broker 的堆调优核心是**留足内存给 Page Cache**，详细推理见 [Page Cache 与零拷贝](../04-storage-internals/chapter-02-page-cache.md) §6。
+Kafka Broker 的堆调优核心是**留足内存给 Page Cache**，详细推理见 [Page Cache 与零拷贝](../05-storage-internals/chapter-02-page-cache.md) §6。
 
 ```bash
 # Broker JVM（32 GiB 物理内存示例）
