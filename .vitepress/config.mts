@@ -946,10 +946,10 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
       ],
       '/spring/': [
+        { text: 'Spring 概览', link: '/spring/01-core/chapter-01-spring-overview' },
         {
           text: '核心原理',
           items: [
-            { text: 'Spring 概览', link: '/spring/01-core/chapter-01-spring-overview' },
             { text: 'IoC 容器', link: '/spring/01-core/chapter-02-ioc-container' },
             { text: 'Bean 完整生命周期', link: '/spring/01-core/chapter-03-bean-lifecycle' },
             { text: '依赖注入', link: '/spring/01-core/chapter-04-dependency-injection' },
