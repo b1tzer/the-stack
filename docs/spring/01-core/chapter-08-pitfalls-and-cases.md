@@ -6,8 +6,6 @@
 
 ### 1.1 现象
 
-![自调用失效](/spring/pitfall-self-invocation.svg)
-
 ```java
 @Service
 public class OrderService {

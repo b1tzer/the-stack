@@ -122,8 +122,8 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 
 | 扩展点 | 时机 | 操作对象 | 典型实现 |
 | :-- | :-- | :-- | :-- |
-| `BeanFactoryPostProcessor` | `new` 之前 | `BeanDefinition`（图纸） | `ConfigurationClassPostProcessor`、`PropertySourcesPlaceholderConfigurer` |
-| `BeanPostProcessor` | `new` 之后 | Bean 实例（成品） | AOP 代理生成、`@Autowired` 注入 |
+| `BeanFactoryPostProcessor` | `new` 之前 | `BeanDefinition`（图纸） | `ConfigurationClassPostProcessor`（解析 `@Configuration` / `@Bean` / `@ComponentScan`）、`PropertySourcesPlaceholderConfigurer`（把 `${...}` 占位符替换成配置值） |
+| `BeanPostProcessor` | `new` 之后 | Bean 实例（成品） | AOP 代理生成（`@Transactional`、`@Async` 靠它织入）、`@Autowired` 注入（`AutowiredAnnotationBeanPostProcessor`） |
 
 记住这个区别的锚点是「Factory」一词：`BeanFactoryPostProcessor` 操作的是 `BeanFactory`（即容器、即 `BeanDefinition` 的集合），而 `BeanPostProcessor` 操作的是单个 Bean。
 
