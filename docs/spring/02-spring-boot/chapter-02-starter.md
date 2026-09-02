@@ -1,35 +1,8 @@
 # Starter 机制
 
-## 1. Starter 结构
+> 一个 Starter 是「依赖集合 + 自动配置类」的打包方案：引入一个功能需要哪些 JAR、版本是否兼容，都封装在一个依赖里解决。本章讲清 Starter 的构成、如何注册自动配置类、以及引入多个 Starter 后的依赖治理。
 
-```
-my-starter/
-├── src/main/java/
-│   └── com/example/autoconfigure/
-│       └── MyAutoConfiguration.java
-├── src/main/resources/
-│   └── META-INF/
-│       └── spring/
-│           └── org.springframework.boot.autoconfigure.AutoConfiguration.imports
-└── pom.xml
-```
-
-## 2. 自定义 Starter
-
-```java
-@AutoConfiguration
-@ConditionalOnClass(MyService.class)
-@EnableConfigurationProperties(MyProperties.class)
-public class MyAutoConfiguration {
-    @Bean
-    @ConditionalOnMissingBean
-    public MyService myService(MyProperties properties) {
-        return new MyService(properties);
-    }
-}
-```
-
-## 3. spring.factories vs AutoConfiguration.imports
+## 1. 注册自动配置类：spring.factories vs AutoConfiguration.imports
 
 | 版本 | 方式 |
 |------|------|
@@ -41,53 +14,17 @@ public class MyAutoConfiguration {
 Boot 2.7 起 `spring.factories` 已 deprecated，Boot 3.0 起不再读取 `EnableAutoConfiguration` 条目。升级时务必迁移注册文件。
 :::
 
-## 3.1 Starter 的三个组成部分
-
-一个完整的 Starter 由三部分组成：
+## 2. Starter 的三个组成部分
 
 | 组成部分 | 职责 | 示例 |
-|---------|------|------|
-| **传递依赖（pom.xml）** | 聚合引入功能所需的所有 JAR | `spring-boot-starter-web` 聚合了 Spring MVC + Tomcat + Jackson |
+| :-- | :-- | :-- |
+| **传递依赖（pom.xml）** | 聚合引入功能所需的所有 JAR | `spring-boot-starter-web` 聚合 Spring MVC + Tomcat + Jackson |
 | **自动配置类** | 通过 `@Conditional` 决定是否注册 Bean | `DataSourceAutoConfiguration` |
 | **配置属性类** | 通过 `@ConfigurationProperties` 绑定用户配置 | `DataSourceProperties` |
 
-pom.xml 中必须包含的依赖：
+三者分工：依赖负责「引入什么」，自动配置类负责「注册什么」，属性类负责「值从哪来」。自动配置类的原理见 [自动配置](./chapter-01-autoconfiguration.md)，这里不重复。
 
-```xml
-<dependencies>
-    <!-- 框架核心依赖 -->
-    <dependency>
-        <groupId>com.example</groupId>
-        <artifactId>my-library</artifactId>
-        <version>1.0.0</version>
-    </dependency>
-    <!-- Spring Boot 相关依赖 -->
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-autoconfigure</artifactId>
-    </dependency>
-    <!-- 配置元数据生成（IDE 提示用，不传递给使用者） -->
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-configuration-processor</artifactId>
-        <optional>true</optional>
-    </dependency>
-</dependencies>
-```
-
-常见 Starter 分类：
-
-| Starter | 功能 | 引入的核心依赖 |
-|---------|------|--------------|
-| `spring-boot-starter-web` | Web 应用 | Spring MVC + Tomcat + Jackson |
-| `spring-boot-starter-data-jpa` | JPA 持久化 | Hibernate + Spring Data |
-| `spring-boot-starter-security` | 安全框架 | Spring Security |
-| `spring-boot-starter-test` | 测试 | JUnit + Mockito + AssertJ |
-| `spring-boot-starter-actuator` | 监控端点 | Micrometer + Actuator |
-
-## 4. Starter 实战
-
-### 4.1 自定义 Starter 完整示例（分布式锁）
+## 3. 自定义 Starter 完整实战（分布式锁）
 
 ```java
 // 锁服务接口
@@ -186,7 +123,7 @@ Maven 配置：
 </dependency>
 ```
 
-### 4.2 Starter 的自动配置测试
+## 4. 自动配置的测试
 
 ```java
 @SpringBootTest
@@ -213,23 +150,7 @@ class DistributedLockAutoConfigurationTest {
 }
 ```
 
-### 4.3 spring.factories（Spring Boot 2.x 兼容）
-
-```properties
-# META-INF/spring.factories
-org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-  com.example.autoconfigure.DistributedLockAutoConfiguration
-```
-
-**最佳实践：**
-
-1. **Starter 只做依赖聚合**——不要在 Starter 模块中写代码，逻辑放在 autoconfigure 模块
-2. **`@ConditionalOnMissingBean` 是标配**——让用户可以轻松覆盖默认实现
-3. **提供配置元数据**——`spring-boot-configuration-processor` 自动生成 `spring-configuration-metadata.json`，IDE 可以提示配置项
-4. **测试自动配置**——确保条件注解正确工作，不会误注册 Bean
-5. **命名规范**：官方用 `spring-boot-starter-xxx`，第三方用 `xxx-spring-boot-starter`，不要混淆
-
-## 5. Starter 版本管理与依赖冲突
+## 5. 版本管理与依赖冲突
 
 引入多个 Starter 后，最常见的问题是依赖版本冲突，表现为 `NoSuchMethodError` 或 `ClassNotFoundException`。
 
@@ -296,3 +217,11 @@ mvn dependency:tree -Dverbose
 ::: warning 常见症状
 `NoSuchMethodError` 和 `ClassNotFoundException` 是依赖冲突的典型症状。先用 `mvn dependency:tree -Dverbose` 找到冲突的 jar，再用 `<exclusion>` 或 `<dependencyManagement>` 解决。不要盲目升级版本。
 :::
+
+## 6. 最佳实践
+
+1. **Starter 只做依赖聚合**——不要在 Starter 模块中写代码，逻辑放在 autoconfigure 模块
+2. **`@ConditionalOnMissingBean` 是标配**——让用户可以覆盖默认实现
+3. **提供配置元数据**——`spring-boot-configuration-processor` 自动生成 `spring-configuration-metadata.json`，IDE 可以提示配置项
+4. **测试自动配置**——确保条件注解正确工作，不会误注册 Bean
+5. **命名规范**——官方用 `spring-boot-starter-xxx`，第三方用 `xxx-spring-boot-starter`

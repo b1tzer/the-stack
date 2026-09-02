@@ -2,7 +2,7 @@
 
 > 本章不讲新原理，只做一件事：把社区里被反复讨论、反复踩的真实坑，按「现象 → 排查 → 根因 → 解法 → 关联知识点」拆给你看。每个案例都能追溯到前面某一章的某个小节，读不懂就回去翻。
 
-## 1. 案例 1：@Transactional 不生效——同类方法自调用
+## 1. @Transactional 不生效——同类方法自调用
 
 ### 1.1 现象
 
@@ -46,7 +46,7 @@ Spring AOP 靠代理对象拦截方法调用。`this.processPayment()` 调的是
 
 三种方案本质相同：让调用走代理对象而非 `this`。
 
-## 2. 案例 2：@Transactional 不生效——异常类型不匹配
+## 2. @Transactional 不生效——异常类型不匹配
 
 ### 2.1 现象
 
@@ -99,7 +99,7 @@ Spring Boot 默认已自动开启事务管理，通常不需要写 `@EnableTrans
 
 为什么默认是 `RuntimeException` 而不是 `Exception`？社区围绕这个问题讨论了很多年（[Issue #23473](https://github.com/spring-projects/spring-framework/issues/23473)）。官方没有直接改默认值——那会让存量应用的提交行为静默反转，属于破坏性变更——而是新增 `rollbackOn` 属性，让开发者显式选择。Kotlin 项目（异常不区分受检与否）官方建议直接切到 `ALL_EXCEPTIONS`。
 
-## 3. 案例 3：@Async + 循环依赖——异步变同步
+## 3. @Async + 循环依赖——异步变同步
 
 ### 3.1 现象
 
@@ -153,7 +153,7 @@ public class NotificationService {
 
 **结论：循环依赖 + @Async = 定时炸弹。** 消除循环依赖是治本；`@Lazy` 能保住 `@Async` 生效，是可行的治标手段，但循环依赖仍在。
 
-## 4. 案例 4：@Configuration vs @Component——单例悄悄失效
+## 4. @Configuration vs @Component——单例悄悄失效
 
 ### 4.1 现象
 
@@ -181,7 +181,7 @@ public class DataSourceConfig {
 
 `@Component` 上的 `@Bean` 方法之间是普通的 Java 方法调用，没有代理拦截。`jdbcTemplate()` 里调 `dataSource()`，每次都 `new` 一个新的 `HikariDataSource`，单例语义丢失。
 
-`@Configuration` 会触发 CGLIB 增强（[IoC 容器](./chapter-02-ioc-container.md) §5.1），生成子类重写 `@Bean` 方法，第二次调用直接返回容器里的缓存实例。
+`@Configuration` 会触发 CGLIB 增强（[IoC 容器](./chapter-02-ioc-container.md#config-class-processor)），生成子类重写 `@Bean` 方法，第二次调用直接返回容器里的缓存实例。
 
 ### 4.3 解法
 
@@ -206,7 +206,7 @@ public class DataSourceConfig {
 
 **经验法则：有 `@Bean` 方法互相调用的配置类，必须用 `@Configuration`。**
 
-## 5. 案例 5：@Value 注入 null——配置属性找不到
+## 5. @Value 注入 null——配置属性找不到
 
 ### 5.1 现象
 
@@ -260,7 +260,7 @@ PayService service = new PayService();  // 手动 new
 - 非 Boot 项目加 `@PropertySource("classpath:application.properties")`
 - 测试环境用 `@TestPropertySource` 或 `@SpringBootTest`
 
-## 6. 案例 6：@ConditionalOnBean 不生效——Bean 扫描顺序问题
+## 6. @ConditionalOnBean 不生效——Bean 扫描顺序问题
 
 ### 6.1 现象
 
@@ -287,15 +287,18 @@ Spring 的扫描顺序受 `@ComponentScan` 的 `basePackages`、类的包路径�
 
 ### 6.3 解法
 
-| 方案 | 做法 |
-| :-- | :-- |
-| 用 `@ConditionalOnClass`（推荐） | 检查类路径上有没有某个类，不受扫描顺序影响 |
-| 用 `@AutoConfigureAfter` | Boot 自动配置专用，显式指定加载顺序 |
-| 合并到同一个 `@Configuration` | 让两个 Bean 在同一个类里定义，保证顺序 |
+「有 Bean 才创建」的正确做法取决于真实意图：
 
-**经验法则：`@ConditionalOnBean` 适合「用户已经定义了某个 Bean，框架就退让」的场景（如 `@ConditionalOnMissingBean`），不适合「框架自己定义的 Bean 之间做条件判断」。**
+| 真实意图 | 正确写法 | 说明 |
+| :-- | :-- | :-- |
+| 确实依赖该 Bean，缺了就该报错 | 方法参数直接注入 `redisCacheManager(RedisConnectionFactory factory)` | 最常见场景，Spring 保证注入 |
+| 有则用、无则降级 | `ObjectProvider<RedisConnectionFactory>` + `getIfAvailable()` | 需要可选依赖时 |
+| 是否启用由配置决定 | `@ConditionalOnProperty(name="spring.cache.type", havingValue="redis")` | 用配置开关，不靠扫描顺序 |
+| 可复用框架 / Starter | 做成 `@AutoConfiguration` + `AutoConfiguration.imports`，配合 `@AutoConfigureAfter` | 仅框架场景 |
 
-## 7. 案例 7：prototype Bean 的 @PreDestroy 不触发
+**经验法则：`@ConditionalOnBean` 只能可靠地用在自动配置类上。用户普通 `@Configuration` 里用它判断「另一个 Bean 是否存在」，本质不可靠。**
+
+## 7. prototype Bean 的 @PreDestroy 不触发
 
 ### 7.1 现象
 
@@ -328,7 +331,7 @@ Spring 容器对 prototype Bean 的管理边界是：**创建时管，销毁时�
 - singleton Bean：容器持有引用，关闭时逐一回调 `@PreDestroy`
 - prototype Bean：容器创建后就交出去了，不持有引用，不知道何时销毁，也不回调 `@PreDestroy`
 
-这不是 bug，是作用域的定义（[Bean 生命周期](./chapter-03-bean-lifecycle.md) §9.1）。
+这不是 bug，是作用域的定义（[IoC 容器](./chapter-02-ioc-container.md#singleton-vs-prototype)）。
 
 ### 7.3 解法
 
@@ -340,7 +343,7 @@ Spring 容器对 prototype Bean 的管理边界是：**创建时管，销毁时�
 
 **经验法则：prototype Bean 不能依赖容器销毁。持有资源（连接、文件、锁）的类要么用 singleton，要么自己管生命周期。**
 
-## 8. 案例 8：多线程下 @Transactional 失效
+## 8. 多线程下 @Transactional 失效
 
 ### 8.1 现象
 
@@ -401,8 +404,8 @@ Spring 事务绑定在 `ThreadLocal` 上（[事务管理](../04-data-access/chap
 | 1. @Transactional 自调用失效 | [AOP](./chapter-05-aop.md) §6.1 自调用 |
 | 2. @Transactional 异常类型不匹配 | 事务回滚规则（Checked vs Unchecked） |
 | 3. @Async + 循环依赖变同步 | [循环依赖](./chapter-06-circular-dependency.md) §4、§5 三级缓存与 @Async |
-| 4. @Configuration vs @Component | [IoC 容器](./chapter-02-ioc-container.md) §5.1 CGLIB 增强 |
-| 5. @Value 注入 null | [条件装配](./chapter-07-conditional-profile.md) §4 Environment / PropertySource |
+| 4. @Configuration vs @Component | [IoC 容器](./chapter-02-ioc-container.md#config-class-processor) §6.1 CGLIB 增强 |
+| 5. @Value 注入 null | [条件装配](./chapter-07-conditional-profile.md#environment) §4 属性来源 |
 | 6. @ConditionalOnBean 不生效 | [条件装配](./chapter-07-conditional-profile.md) §1 BeanDefinition 注册阶段 |
-| 7. prototype @PreDestroy 不触发 | [Bean 生命周期](./chapter-03-bean-lifecycle.md) §9.1 作用域 |
+| 7. prototype @PreDestroy 不触发 | [IoC 容器](./chapter-02-ioc-container.md#singleton-vs-prototype) §5.1 作用域 |
 | 8. 多线程事务失效 | [事务管理](../04-data-access/chapter-04-transaction.md) ThreadLocal 绑定 |

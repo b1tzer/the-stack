@@ -140,7 +140,14 @@ public class MyFailureAnalyzer implements FailureAnalyzer {
 }
 ```
 
-通过 `META-INF/spring/org.springframework.boot.diagnostics.FailureAnalyzer` 注册（Spring Boot 3.x 使用 `META-INF/spring/` 目录下的文件，不再使用 `spring.factories`）。返回值是 `null` 时，Spring 会继续尝试下一个 analyzer——这套「谁认得谁处理，否则往下传」的链式机制，是它可扩展的原因。
+通过 `META-INF/spring.factories` 注册：
+
+```properties
+org.springframework.boot.diagnostics.FailureAnalyzer=\
+com.example.MyFailureAnalyzer
+```
+
+返回值是 `null` 时，Spring 会继续尝试下一个 analyzer——这套「谁认得谁处理，否则往下传」的链式机制，是它可扩展的原因。
 
 ## 5. 优雅停机：让发版不掉请求
 

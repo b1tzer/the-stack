@@ -129,6 +129,65 @@ public class DatabaseHealthIndicator implements HealthIndicator {
 `HealthIndicator` 的 `health()` 方法会在每次请求 `/actuator/health` 时调用。如果检查逻辑很重（如远程调用），考虑用 `@Scheduled` 缓存结果，避免每次请求都等待。
 :::
 
-## 3. 指标监控
+## 3. 健康检查分组
+
+K8s 的存活探针（liveness）和就绪探针（readiness）需要不同的健康维度，Actuator 用「健康分组」把多个 Indicator 组合成独立的检查端点：
+
+```yaml
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true          # 启用 liveness / readiness 探针
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db
+          show-details: always
+```
+
+开启后，`/actuator/health/liveness` 和 `/actuator/health/readiness` 各自独立返回。`include` 指定分组包含哪些 Indicator，`show-details` 控制是否显示详情。把「进程活着」和「依赖就绪」分开，正是滚动发布时避免误杀 Pod 的关键。
+
+## 4. 自定义应用信息：InfoContributor
+
+`/actuator/info` 默认只返回空对象，业务信息要靠 `InfoContributor` 补充：
+
+```java
+@Component
+public class BuildInfoContributor implements InfoContributor {
+
+    @Override
+    public void contribute(Info.Builder builder) {
+        builder.withDetail("version", "1.0.0")
+               .withDetail("buildTime", LocalDateTime.now().toString());
+    }
+}
+```
+
+访问 `/actuator/info` 即可拿到这些键值。它与 `HealthIndicator` 是同一套路——实现接口、注册 Bean，Actuator 自动聚合所有 `InfoContributor` 的输出。
+
+## 5. 自定义端点：@Endpoint
+
+内置端点覆盖不了业务指标时，用 `@Endpoint` 自定义：
+
+```java
+@Component
+@Endpoint(id = "orderStats")
+public class OrderStatsEndpoint {
+
+    @ReadOperation
+    public Map<String, Object> stats() {
+        return Map.of(
+            "pendingCount", 12,
+            "todayCount", 356
+        );
+    }
+}
+```
+
+两个要点：自定义端点默认不通过 HTTP 暴露，必须在 `management.endpoints.web.exposure.include` 里显式加上它的 id；`@Endpoint` 同时注册 JMX 和 Web，只想走 Web 用 `@WebEndpoint`，只想走 JMX 用 `@JmxEndpoint`。
+
+## 6. 指标监控
 
 指标的完整内容（Micrometer 核心概念、自定义业务指标、Prometheus + Grafana 集成、PromQL 查询）见 [指标监控](../06-observability/chapter-02-metrics.md)，本文只保留端点层面的概览。

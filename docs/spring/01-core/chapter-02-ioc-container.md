@@ -114,9 +114,47 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 | 编程注册 | `registry.registerBeanDefinition(...)` |
 | 条件注册 | `@Conditional` `@ConditionalOnClass` |
 
-`BeanDefinition` 是「图纸」，图纸不是死的——容器在 `new` 出 Bean 之前和之后，各预留了一个扩展窗口，详见 [Bean 完整生命周期](./chapter-03-bean-lifecycle.md) §4。
+`BeanDefinition` 是「图纸」，图纸不是死的——容器在 `new` 出 Bean 之前和之后，各预留了一个扩展窗口，详见本章 §6。
 
-## 5. 两个 PostProcessor：改定义与改实例
+## 5. Bean 作用域
+
+`BeanDefinition` 上还有一个字段决定 Bean 的复用策略：`scope`。默认所有 Bean 都是单例（singleton），容器里只存一份实例。Spring 支持六种作用域：
+
+| 作用域 | 生命周期 | 使用场景 |
+| :-- | :-- | :-- |
+| `singleton` | 容器启动到关闭，全局一份 | 默认，绝大多数业务 Bean |
+| `prototype` | 每次 `getBean` 都创建新实例 | 有状态对象、非线程安全的工具类 |
+| `request` | 一次 HTTP 请求内有效 | Web，请求级缓存 |
+| `session` | 一个 HTTP Session 内有效 | Web，用户级会话数据 |
+| `application` | 一个 `ServletContext` 内有效 | Web，应用级共享 |
+| `websocket` | 一个 WebSocket 会话内有效 | Web，实时通信场景 |
+
+### 5.1 singleton vs prototype 的关键区别 {#singleton-vs-prototype}
+
+```java
+@Component
+@Scope("prototype")
+public class ReportGenerator {
+    private int progress;  // 有状态，每次需要独立实例
+}
+```
+
+两个作用域在生命周期上有本质差异：
+
+| 维度 | singleton | prototype |
+| :-- | :-- | :-- |
+| 实例化时机 | 容器启动时预创建 | 首次 `getBean` 时创建 |
+| 容器管理完整生命周期 | ✅ 是 | ❌ 只负责创建，不负责销毁 |
+| `@PreDestroy` 生效 | ✅ | ❌ 容器不管销毁 |
+| 三级缓存参与 | ✅ | ❌ 不参与循环依赖解析 |
+
+prototype 的 `@PreDestroy` 不生效是常见坑——容器不持有 prototype Bean 的引用，无法在关闭时回调它。如果 prototype Bean 持有需要释放的资源（如数据库连接），必须自己管理：要么让调用方负责关闭，要么用 `@PreDestroy` 之外的方式（如 `DisposableBean` 接口配合手动调用）。
+
+### 5.2 Web 作用域的前置条件
+
+`request`、`session`、`application`、`websocket` 四种作用域只在 Web 环境有效。Spring Boot 自动配置了 `RequestContextListener`，不需要手动注册。非 Web 环境（如纯后端服务）使用这些作用域会抛 `IllegalStateException`。
+
+## 6. 两个 PostProcessor：改定义与改实例
 
 `BeanDefinition` 是「图纸」，但图纸不是死的。容器在真正 `new` 出 Bean 之前和之后，各预留了一个扩展窗口：一批钩子在图纸上做手脚（改定义），另一批在成品上做拦截（改实例）。两个窗口对应两个名字只差一个词的接口：
 
@@ -127,9 +165,57 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 
 记住这个区别的锚点是「Factory」一词：`BeanFactoryPostProcessor` 操作的是 `BeanFactory`（即容器、即 `BeanDefinition` 的集合），而 `BeanPostProcessor` 操作的是单个 Bean。
 
-两个 `PostProcessor` 的典型实现和源码级分析，详见 [Bean 完整生命周期](./chapter-03-bean-lifecycle.md) §4、§5。
+### 6.1 ConfigurationClassPostProcessor：@Bean 方法为什么只执行一次 {#config-class-processor}
 
-## 6. 容器启动做了什么
+写一个最常见的配置类：
+
+```java
+@Configuration
+public class AppConfig {
+    @Bean
+    public DataSource dataSource() {
+        return new HikariDataSource();   // 这个方法真的只执行一次吗？
+    }
+
+    @Bean
+    public OrderRepository orderRepository() {
+        return new JdbcOrderRepository(dataSource());  // 直接调用 dataSource()
+    }
+}
+```
+
+按 Java 直觉，`orderRepository()` 里每次调用 `dataSource()`，都会 `new` 一个新的 `HikariDataSource`，那「单例」不就失效了吗？但实际 Spring 里 `dataSource()` 只执行一次。
+
+答案是 `ConfigurationClassPostProcessor` 干的。它在 `BeanFactoryPostProcessor` 阶段扫描所有 `@Configuration` 类，发现某个类标了 `@Configuration`，就用 **CGLIB 动态生成它的一个子类**，并重写每个 `@Bean` 方法。重写后的逻辑是：
+
+```java
+// CGLIB 生成的子类（简化示意）
+public class AppConfig$$EnhancerByCGLIB extends AppConfig {
+    @Override
+    public DataSource dataSource() {
+        if (容器里已经有 dataSource) {
+            return 容器里的那个;      // 有就直接返回，不再 new
+        }
+        return super.dataSource();      // 没有才走父类方法真正创建
+    }
+}
+```
+
+所以第二次调用 `dataSource()` 命中的是容器里已存在的单例，而不是再 `new` 一个。**单例语义不是靠「方法只执行一次」实现的，而是靠「代理拦截 + 容器缓存」实现的**——这个代理正是在 `BeanFactoryPostProcessor` 阶段生成的。
+
+去掉 `@Configuration`、只留 `@Component` 会怎样？`@Component` 不触发 CGLIB 增强，`orderRepository()` 里对 `dataSource()` 的调用就是普通的 Java 方法调用，每调一次 `new` 一次，单例失效。这正是规范里「配置类用 `@Configuration`，别用 `@Component` 代替」的底层原因。
+
+### 6.2 PropertySourcesPlaceholderConfigurer：@Value 占位符的解析
+
+§4 里 `ReportGenerator` 的 `${report.template.dir}` 还是占位符，谁来换成真实值？`PropertySourcesPlaceholderConfigurer`。
+
+它同样是 `BeanFactoryPostProcessor`：遍历所有 `BeanDefinition`，把 `propertyValues` 里的 `${...}` 占位符，替换成 `Environment` 里的真实值（来自 `application.properties`、环境变量、命令行参数等）。替换发生在 `new` 之前，所以 Bean 拿到的字段值已经是解析好的字符串，而不是占位符本身。
+
+### 6.3 BeanPostProcessor 的职责范围
+
+`BeanPostProcessor` 贯穿单个 Bean 的初始化前后，是 AOP 代理生成、`@Autowired` 依赖注入、`@PostConstruct` 反射调用的共同挂载点。它的时机与调用顺序属于「单个 Bean 生命周期」的一部分，详见 [Bean 完整生命周期](./chapter-03-bean-lifecycle.md) §4、§5。
+
+## 7. 容器启动做了什么
 
 `ApplicationContext` 启动的核心逻辑集中在 `AbstractApplicationContext#refresh()`，它把启动拆成 12 步：
 
@@ -169,8 +255,8 @@ public void refresh() {
 | 主线 | 第 2、5、6、11 步 | 配置 → 改定义 → 拦创建 → 实例化 |
 | 脚手架 | 第 1、3、4、7、8、9、10、12 步 | 环境、类加载器、国际化、事件广播与监听 |
 
-主线 4 步里，第 2 步读 `BeanDefinition`（本章 §4）、第 5 步的 `BeanFactoryPostProcessor` 和第 6 步的 `BeanPostProcessor`（本章 §5）、第 11 步实例化单例（[Bean 完整生命周期](./chapter-03-bean-lifecycle.md)）都有下文展开。
+主线 4 步里，第 2 步读 `BeanDefinition`（本章 §4）、第 5 步的 `BeanFactoryPostProcessor` 和第 6 步的 `BeanPostProcessor`（本章 §6）、第 11 步实例化单例（[Bean 完整生命周期](./chapter-03-bean-lifecycle.md)）都有下文展开。
 
-## 7. 小结
+## 8. 小结
 
 IoC 要解决的只有一件事：把「创建依赖」从业务代码里拿出来，交给容器。容器做两件事——启动时读配置、按需创建并注入 Bean。记住 `BeanFactory` 是底座、`ApplicationContext` 是加满企业级能力的完整版，再看 `refresh()` 十二步，就能看懂一个 Bean 从定义到就绪的完整路径。

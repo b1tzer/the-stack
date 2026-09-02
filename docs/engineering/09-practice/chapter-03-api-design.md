@@ -1,6 +1,6 @@
 # API 设计
 
-> 本章关注「怎么设计一个好的 API」，不绑定具体框架。Spring 实现细节参见 [Spring MVC](/spring/03-web/chapter-01-spring-mvc) 和 [API 文档](/spring/02-spring-boot/chapter-06-api-doc)。
+> 本章关注「怎么设计一个好的 API」，不绑定具体框架。Spring 实现细节参见 [Spring MVC](/spring/03-web/chapter-01-spring-mvc) 和 [API 文档](/spring/03-web/chapter-10-api-doc)。
 
 ## 1. RESTful 核心思想
 
@@ -224,6 +224,6 @@ HATEOAS 在响应中包含相关操作的链接，客户端通过链接发现功
 | API Blueprint | Markdown 语法，轻量 |
 | RAML | YAML 语法，设计优先 |
 
-Spring 项目用 springdoc-openapi 自动生成 OpenAPI 3.0 文档，参见 [API 文档](/spring/02-spring-boot/chapter-06-api-doc)。
+Spring 项目用 springdoc-openapi 自动生成 OpenAPI 3.0 文档，参见 [API 文档](/spring/03-web/chapter-10-api-doc)。
 
 > **API 设计的核心**：好的 API 应该是自解释的、一致的、向后兼容的。API 是你和其他开发者的契约，设计时要站在调用者的角度思考。

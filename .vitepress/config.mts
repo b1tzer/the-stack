@@ -983,10 +983,10 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '自动配置原理', link: '/spring/02-spring-boot/chapter-01-autoconfiguration' },
             { text: 'Starter 机制', link: '/spring/02-spring-boot/chapter-02-starter' },
             { text: '外部化配置', link: '/spring/02-spring-boot/chapter-03-configuration' },
-            { text: 'Actuator 监控', link: '/spring/02-spring-boot/chapter-04-actuator' },
-            { text: 'DevTools 热部署', link: '/spring/02-spring-boot/chapter-05-devtools' },
-            { text: 'API 文档', link: '/spring/02-spring-boot/chapter-06-api-doc' },
-            { text: '启动流程与启动参数', link: '/spring/02-spring-boot/chapter-07-startup' },
+            { text: '内嵌容器', link: '/spring/02-spring-boot/chapter-04-embedded-server' },
+            { text: '启动流程与启动参数', link: '/spring/02-spring-boot/chapter-05-startup' },
+            { text: 'Actuator 监控', link: '/spring/02-spring-boot/chapter-06-actuator' },
+            { text: 'DevTools 热部署', link: '/spring/02-spring-boot/chapter-07-devtools' },
           ],
         },
         {
@@ -1001,6 +1001,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: 'WebSocket 实时通信', link: '/spring/03-web/chapter-07-websocket' },
             { text: 'Server-Sent Events', link: '/spring/03-web/chapter-08-sse' },
             { text: '文件上传与下载', link: '/spring/03-web/chapter-09-file-upload-download' },
+            { text: 'API 文档', link: '/spring/03-web/chapter-10-api-doc' },
           ],
         },
         {
@@ -1079,6 +1080,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '构建与部署', link: '/spring/11-practice/chapter-01-build-deploy' },
             { text: '第一个 Spring Boot 应用', link: '/spring/11-practice/chapter-02-first-app' },
             { text: '首次生产部署', link: '/spring/11-practice/chapter-03-first-production' },
+            { text: 'AOP 实战：切点表达式与自定义注解', link: '/spring/11-practice/chapter-04-aop-in-action' },
           ],
         },
         {

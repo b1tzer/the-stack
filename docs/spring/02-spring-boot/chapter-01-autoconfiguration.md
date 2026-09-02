@@ -1,6 +1,6 @@
-# Spring Boot
+# Spring Boot 与自动配置
 
-> Spring Boot 的诞生回答了一个核心问题：**如何让 Spring 应用从"能跑"到"开箱即用"？** 本章将剖析 Spring Boot 如何通过自动配置、Starter 机制和统一配置体系，将开发者从繁琐的 XML 配置和依赖管理中解放出来，真正实现"约定优于配置"的理念。
+> Spring Boot 的诞生回答了一个核心问题：**如何让 Spring 应用从"能跑"到"开箱即用"？** 自动配置是回答这个问题的核心机制。本章先讲清为什么需要 Spring Boot，再拆解自动配置的实现原理。Starter、配置体系、内嵌容器、启动流程等其余能力，分别见后续章节。
 
 ## 1. 为什么需要 Spring Boot
 
@@ -142,27 +142,30 @@ Spring Boot 2.7+ 使用新的加载机制，整个流程如下：
     └── 条件不满足 → 跳过，不注册
 ```
 
+这段流程背后的执行者是 `AutoConfigurationImportSelector`。它实现了 `DeferredImportSelector`，在 `selectImports` 中调用 `getAutoConfigurationEntry()`，后者完成两件事：从 `AutoConfiguration.imports` 读出全部候选类名，再逐个套用 `@Conditional` 过滤。过滤不是一次性完成的——每个候选类先按 `@AutoConfigureOrder`、`@AutoConfigureBefore`、`@AutoConfigureAfter` 排好序，再进入条件评估，这样「先注册的 Bean」能成为「后注册 Bean」条件判断的依据。
+
 以 `DataSourceAutoConfiguration` 为例，看看条件注解如何工作：
 
 ```java
-@AutoConfiguration(before = SqlSessionFactoryAutoConfiguration.class)
-@ConditionalOnClass(DataSource.class)              // classpath 有 DataSource 类才生效
-@ConditionalOnSingleCandidate(DataSource.class)    // 容器中只有一个 DataSource 才生效
+@AutoConfiguration(before = SqlInitializationAutoConfiguration.class)
+@ConditionalOnClass({ DataSource.class, EmbeddedDatabaseType.class })   // classpath 上有 DataSource 与嵌入式数据库枚举才生效
+@ConditionalOnMissingBean(type = "io.r2dbc.spi.ConnectionFactory")      // 未启用 R2DBC 才生效（避免与 R2DBC 冲突）
 @EnableConfigurationProperties(DataSourceProperties.class)
 public class DataSourceAutoConfiguration {
 
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnMissingBean(DataSource.class)    // 容器中没有 DataSource 才创建
+    @Conditional(EmbeddedDatabaseCondition.class)                       // 未显式配置连接池，且 classpath 存在 H2/HSQL/Derby
+    @ConditionalOnMissingBean({ DataSource.class, XADataSource.class }) // 用户没有自定义 DataSource / XADataSource
+    @Import(EmbeddedDataSourceConfiguration.class)
     protected static class EmbeddedDatabaseConfiguration {
-        // 自动配置内嵌数据库（H2/Derby）
+        // 自动配置嵌入式数据库（H2/HSQL/Derby）
     }
 
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnMissingBean(DataSource.class)    // 容器中没有 DataSource 才创建
-    @ConditionalOnProperty(prefix = "spring.datasource",
-                           name = "url")           // 配置了 url 属性才生效
+    @Conditional(PooledDataSourceCondition.class)                       // 显式配置了 spring.datasource.type，或 classpath 上有 Hikari 等连接池
+    @ConditionalOnMissingBean({ DataSource.class, XADataSource.class })
     protected static class PooledDataSourceConfiguration {
-        // 自动配置连接池（HikariCP）
+        // 自动配置连接池（默认 HikariCP）
     }
 }
 ```
@@ -182,410 +185,29 @@ Spring Boot 提供了一整套 `@Conditional` 注解，构成自动配置的"开
 
 ### 2.5 自动配置的核心流程图
 
-![springboot-startup](/spring/springboot-startup.svg)
+![Spring Boot 自动配置的核心流程](/spring/autoconfiguration-flow.svg)
 
 关键理解：**自动配置是"兜底"而非"强制"**。当开发者自己注册了同类型的 Bean 时，`@ConditionalOnMissingBean` 确保自动配置会"让路"。这就是"用户定义优先"原则。
 
-## 3. Starter 机制
+## 3. 自动配置类的排序
 
-### 3.1 什么是 Starter
+自动配置类不是随便注册的，它们之间常有先后依赖。比如 `DataSourceAutoConfiguration` 必须在 MyBatis 的 `SqlSessionFactoryAutoConfiguration` 之前装配，否则 `SqlSessionFactory` 创建时拿不到 `DataSource`。Spring Boot 用三个注解表达这种顺序：
 
-一个 Starter 是 **"依赖集合 + 自动配置类"** 的打包方案。它解决的核心问题是：**引入一个功能需要哪些 JAR？它们的版本是否兼容？**
+| 注解 | 作用 | 示例 |
+| :-- | :-- | :-- |
+| `@AutoConfigureOrder` | 显式指定一个整数值，值越小越先装配 | `@AutoConfigureOrder(Ordered.HIGHEST_PRECEDENCE)` |
+| `@AutoConfigureBefore` | 声明本类必须在某类之前装配 | `@AutoConfiguration(before = XxxAutoConfiguration.class)` |
+| `@AutoConfigureAfter` | 声明本类必须在某类之后装配 | `@AutoConfiguration(after = DataSourceAutoConfiguration.class)` |
 
-| Starter | 引入的核心依赖 | 自动配置的内容 |
-|---------|---------------|---------------|
-| `spring-boot-starter-web` | Spring MVC + 内嵌 Tomcat + Jackson | DispatcherServlet、JSON 序列化、错误页面 |
-| `spring-boot-starter-data-redis` | Spring Data Redis + Lettuce | RedisTemplate、连接池 |
-| `spring-boot-starter-security` | Spring Security | 认证过滤器链、默认登录页 |
-| `spring-boot-starter-actuator` | Micrometer + Metrics | 健康检查、指标采集端点 |
-| `spring-boot-starter-test` | JUnit 5 + Mockito + AssertJ | 测试上下文、Mock 支持 |
+`@AutoConfiguration` 注解本身带 `before` / `after` 属性，等价于独立的 `@AutoConfigureBefore` / `@AutoConfigureAfter`。排序发生在条件评估之前——顺序确定后，条件才逐个判断，这保证了「前一个自动配置是否生效」这个事实，能被后一个自动配置的条件感知到。
 
-### 3.2 spring-boot-starter-web 拆解
+## 4. 本章知识地图
 
-让我们看看最常用的 `spring-boot-starter-web` 到底引入了什么：
+自动配置是 Spring Boot 的发动机，但不是孤立的。围绕它还有六个话题，各成一章：
 
-```xml
-<!-- spring-boot-starter-web 的 pom.xml 简化版 -->
-<dependencies>
-    <!-- Spring MVC -->
-    <dependency>
-        <groupId>org.springframework</groupId>
-        <artifactId>spring-webmvc</artifactId>
-    </dependency>
-    <!-- 内嵌 Tomcat -->
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-tomcat</artifactId>
-    </dependency>
-    <!-- Jackson JSON 处理 -->
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-json</artifactId>
-    </dependency>
-    <!-- 核心启动器 -->
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter</artifactId>
-    </dependency>
-</dependencies>
-```
-
-只需在 `pom.xml` 中添加一个依赖：
-
-```xml
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-web</artifactId>
-</dependency>
-```
-
-Spring Boot 就会自动：
-1. 配置 `DispatcherServlet` 并映射到 `/`
-2. 内嵌 Tomcat 并监听 8080 端口
-3. 配置 Jackson 进行 JSON 序列化/反序列化
-4. 注册 `HttpMessageConverter`、`ExceptionHandler` 等基础设施
-
-### 3.3 Starter 的类型
-
-```text
-spring-boot-starter-*
-│
-├── 官方 Starter（由 Spring 团队维护）
-│   ├── spring-boot-starter-web
-│   ├── spring-boot-starter-data-jpa
-│   ├── spring-boot-starter-security
-│   └── spring-boot-starter-actuator
-│
-├── 第三方 Starter（由社区维护）
-│   ├── mybatis-spring-boot-starter
-│   ├── druid-spring-boot-starter
-│   └── knife4j-openapi3-spring-boot-starter
-│
-└── 自定义 Starter（开发者自己创建）
-    └── 企业内部组件封装
-```
-
-**命名约定**：
-- 官方 Starter：`spring-boot-starter-{功能名}`
-- 第三方 Starter：`{框架名}-spring-boot-starter`
-
-### 3.4 自定义 Starter 的结构
-
-创建一个自定义 Starter 需要两个模块：
-
-```text
-my-spring-boot-starter（Starter 模块 - 纯依赖聚合）
-└── pom.xml
-        └── 引入 my-spring-boot-autoconfigure
-
-my-spring-boot-autoconfigure（自动配置模块 - 核心逻辑）
-├── pom.xml
-├── src/main/java/
-│   └── com/example/autoconfigure/
-│       ├── MyService.java                 // 自动注册的 Bean
-│       └── MyServiceAutoConfiguration.java // 自动配置类
-└── src/main/resources/
-    └── META-INF/spring/
-        └── org.springframework.boot.autoconfigure.AutoConfiguration.imports
-```
-
-自动配置类示例：
-
-```java
-@AutoConfiguration
-@ConditionalOnClass(MyService.class)              // 有 MyService 类才生效
-@EnableConfigurationProperties(MyServiceProperties.class)
-public class MyServiceAutoConfiguration {
-
-    @Bean
-    @ConditionalOnMissingBean                      // 用户没自定义才用默认的
-    public MyService myService(MyServiceProperties properties) {
-        MyService service = new MyService();
-        service.setTimeout(properties.getTimeout());
-        service.setRetries(properties.getRetries());
-        return service;
-    }
-}
-```
-
-注册到 `AutoConfiguration.imports`：
-
-```text
-# META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
-com.example.autoconfigure.MyServiceAutoConfiguration
-```
-
-使用时只需一行依赖：
-
-```xml
-<dependency>
-    <groupId>com.example</groupId>
-    <artifactId>my-spring-boot-starter</artifactId>
-    <version>1.0.0</version>
-</dependency>
-```
-
-## 4. 配置体系
-
-### 4.1 配置文件的加载顺序
-
-Spring Boot 支持多种配置源，按优先级从高到低排列：
-
-```text
-优先级（高 → 低）
-│
-├── 1. 命令行参数        --server.port=9090
-├── 2. 系统环境变量       SERVER_PORT=9090
-├── 3. application-{profile}.yml  （激活的 profile）
-├── 4. application.yml           （主配置文件）
-├── 5. @PropertySource 注解
-└── 6. 默认值
-```
-
-高优先级的配置会覆盖低优先级的同名配置，这使得不同环境的差异配置变得简单。
-
-### 4.2 application.yml 最佳实践
-
-```yaml
-# application.yml - 所有环境共享的配置
-server:
-  port: 8080
-  servlet:
-    context-path: /api
-
-spring:
-  application:
-    name: user-service
-  jackson:
-    date-format: yyyy-MM-dd HH:mm:ss
-    time-zone: Asia/Shanghai
-
-# 自定义业务配置
-myapp:
-  jwt:
-    secret: ${JWT_SECRET:defaultSecretForDev}
-    expiration: 86400000
-  upload:
-    max-size: 10MB
-    allowed-types: jpg,png,pdf
-```
-
-### 4.3 @ConfigurationProperties 类型安全绑定
-
-相比 `@Value("${myapp.jwt.secret}")`，`@ConfigurationProperties` 提供了类型安全的绑定方式：
-
-```java
-@ConfigurationProperties(prefix = "myapp.jwt")
-public class JwtProperties {
-
-    /**
-     * JWT 签名密钥
-     */
-    private String secret = "defaultSecret";
-
-    /**
-     * Token 过期时间（毫秒）
-     */
-    private long expiration = 86400000L;
-
-    // getter/setter 省略
-}
-```
-
-在配置类中启用：
-
-```java
-@Configuration
-@EnableConfigurationProperties(JwtProperties.class)
-public class AppConfig {
-    // JwtProperties 会自动绑定 myapp.jwt.* 前缀的配置
-}
-```
-
-**@Value 与 @ConfigurationProperties 对比**：
-
-| 特性 | @Value | @ConfigurationProperties |
-|------|--------|-------------------------|
-| 松散绑定 | ❌ 仅精确匹配 | ✅ 支持 kebab-case / camelCase |
-| SpEL 表达式 | ✅ 支持 `#{}` | ❌ 不支持 |
-| 类型安全 | ❌ 运行时转换 | ✅ 编译期检查 |
-| JSR-303 校验 | ❌ 不支持 | ✅ 支持 `@Validated` |
-| 复杂类型 | ❌ 不适合嵌套对象 | ✅ 支持 List/Map/嵌套对象 |
-| IDE 提示 | ❌ 无 | ✅ 配置元数据自动生成提示 |
-
-复杂类型的绑定示例：
-
-```java
-@ConfigurationProperties(prefix = "myapp")
-@Validated
-public class MyAppProperties {
-
-    @NotBlank
-    private String appName;
-
-    @Min(1)
-    @Max(100)
-    private int maxRetries = 3;
-
-    private List<String> allowedOrigins = new ArrayList<>();
-
-    private Map<String, DataSourceConfig> datasources = new HashMap<>();
-
-    // 内部类
-    public static class DataSourceConfig {
-        private String url;
-        private String username;
-        private String password;
-        // getter/setter
-    }
-    // getter/setter
-}
-```
-
-对应的 YAML 配置：
-
-```yaml
-myapp:
-  app-name: user-service
-  max-retries: 5
-  allowed-origins:
-    - https://www.example.com
-    - https://admin.example.com
-  datasources:
-    master:
-      url: jdbc:mysql://master:3306/mydb
-      username: root
-      password: master123
-    slave:
-      url: jdbc:mysql://slave:3306/mydb
-      username: readonly
-      password: slave123
-```
-
-### 4.4 Profile 多环境配置
-
-Profile 是 Spring Boot 实现多环境隔离的核心机制：
-
-```text
-src/main/resources/
-├── application.yml              # 公共配置
-├── application-dev.yml          # 开发环境
-├── application-test.yml         # 测试环境
-└── application-prod.yml         # 生产环境
-```
-
-**激活方式**（按优先级）：
-
-```bash
-# 方式1：命令行参数（最高优先级）
-java -jar app.jar --spring.profiles.active=prod
-
-# 方式2：环境变量
-export SPRING_PROFILES_ACTIVE=prod
-
-# 方式3：配置文件内指定
-# application.yml
-spring:
-  profiles:
-    active: dev
-```
-
-**Profile 专属配置示例**：
-
-```yaml
-# application-dev.yml
-spring:
-  datasource:
-    url: jdbc:mysql://localhost:3306/dev_db
-    username: dev
-    password: dev123
-  jpa:
-    show-sql: true
-    hibernate:
-      ddl-auto: update
-
-logging:
-  level:
-    root: DEBUG
-    com.example: DEBUG
-```
-
-```yaml
-# application-prod.yml
-spring:
-  datasource:
-    url: jdbc:mysql://prod-db:3306/prod_db
-    username: ${DB_USER}
-    password: ${DB_PASSWORD}
-  jpa:
-    show-sql: false
-    hibernate:
-      ddl-auto: validate
-
-logging:
-  level:
-    root: WARN
-    com.example: INFO
-```
-
-**Profile 条件 Bean**：
-
-```java
-@Configuration
-public class DataSourceConfig {
-
-    @Bean
-    @Profile("dev")
-    public DataSource devDataSource() {
-        // 开发环境使用 H2 内存数据库
-        return new EmbeddedDatabaseBuilder()
-            .setType(EmbeddedDatabaseType.H2)
-            .addScript("schema.sql")
-            .build();
-    }
-
-    @Bean
-    @Profile("prod")
-    public DataSource prodDataSource() {
-        // 生产环境使用 HikariCP 连接池
-        HikariDataSource ds = new HikariDataSource();
-        ds.setJdbcUrl(env.getProperty("spring.datasource.url"));
-        ds.setUsername(env.getProperty("spring.datasource.username"));
-        ds.setPassword(env.getProperty("spring.datasource.password"));
-        ds.setMaximumPoolSize(20);
-        return ds;
-    }
-}
-```
-
-### 4.5 配置体系全景图
-
-```text
-┌─────────────────────────────────────────────────────────┐
-│                    Spring Boot 配置体系                    │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  ┌──────────────┐   ┌──────────────┐   ┌────────────┐  │
-│  │  命令行参数    │   │  环境变量     │   │  配置文件   │  │
-│  │  --key=value │   │  KEY=VALUE   │   │  .yml/.xml  │  │
-│  └──────┬───────┘   └──────┬───────┘   └─────┬──────┘  │
-│         │                  │                  │         │
-│         └──────────┬───────┴──────────────────┘         │
-│                    ▼                                    │
-│         ┌─────────────────────┐                         │
-│         │  Environment 对象    │                         │
-│         │  (统一配置源)        │                         │
-│         └─────────┬───────────┘                         │
-│                   │                                     │
-│         ┌─────────┴──────────┐                          │
-│         ▼                    ▼                          │
-│  ┌──────────────┐   ┌──────────────────────┐           │
-│  │   @Value     │   │ @ConfigurationProperties │        │
-│  │  逐个注入    │   │  批量绑定 + 类型安全      │       │
-│  └──────────────┘   └──────────────────────┘           │
-│                                                         │
-│  Profile 过滤：application-{profile}.yml 只在激活时加载   │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
-```
-
+- [Starter 机制](./chapter-02-starter.md)：自动配置的打包与依赖聚合方案
+- [外部化配置](./chapter-03-configuration.md)：`@ConfigurationProperties` 与配置优先级
+- [内嵌容器](./chapter-04-embedded-server.md)：自动配置的一个典型落点
+- [启动流程与启动参数](./chapter-05-startup.md)：自动配置在 `refresh()` 中的执行时机
+- [Actuator 监控](./chapter-06-actuator.md)：暴露自动配置的评估结果
+- [DevTools 热部署](./chapter-07-devtools.md)：开发期的自动重启

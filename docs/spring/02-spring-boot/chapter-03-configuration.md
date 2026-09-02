@@ -1,10 +1,24 @@
 # 外部化配置
 
-## 1. 配置优先级
+## 1. 配置来源
+
+### 1.1 配置优先级
 
 命令行参数 > 系统环境变量 > application-{profile}.yml > application.yml > @PropertySource
 
-## 2. 多环境 Profile
+这条优先级链的底层是 Spring 的 `Environment` 抽象：
+
+- `Environment`（`org.springframework.core.env.Environment`）是配置的统一入口，通过 `getProperty(key)` 读取任意配置项。
+- `PropertySource`（`org.springframework.core.env.PropertySource`）表示一个配置源。命令行参数、系统环境变量、每个 yml 文件，各对应一个 `PropertySource`。
+- 这些 `PropertySource` 组成一个有序的 `PropertySources` 列表，`getProperty` 从头到尾依次查找，先找到的就返回。
+
+所以上面那张优先级表，本质就是 `PropertySources` 列表的排列顺序：排在前面的 `PropertySource` 先被查询，先到先得。
+
+子接口 `ConfigurableEnvironment` 允许增删 `PropertySource`，§3.2 的自定义配置源正是通过它把新配置源挂进这个列表。
+
+### 1.2 多环境 Profile
+
+同一份代码部署到开发、测试、生产环境时，只有少数配置不同（端口、数据库地址、日志级别）。Profile 用 `application-{profile}.yml` 按环境拆分配置，运行时用 `spring.profiles.active` 指定激活哪一份：
 
 ```yaml
 # application.yml
@@ -21,19 +35,57 @@ server:
   port: 80
 ```
 
-## 3. 配置加密
+`spring.profiles.active=dev` 时，Spring 同时加载 `application.yml`（公共配置）和 `application-dev.yml`（dev 专属配置），后者覆盖前者同名项。
+
+### 1.3 @PropertySource：引入外部配置文件
+
+`@PropertySource` 的职责很窄：把一个外部 `.properties` 文件读进 `Environment`，让 `@Value` 和 `@ConfigurationProperties` 能取到里面的值。它只负责"把这个文件挂到配置链上"，不负责绑定。
+
+#### 1.3.1 基本用法
 
 ```java
 @Configuration
-public class EncryptConfig {
-    @Bean
-    public EnvironmentPostProcessor environmentPostProcessor() {
-        return new EncryptEnvironmentPostProcessor();
-    }
+@PropertySource("classpath:custom.properties")
+public class AppConfig {
+    @Value("${custom.timeout}")
+    private int timeout;
 }
 ```
 
-## 4. 配置绑定
+`custom.properties` 里的 `custom.timeout=30` 会被读进 `Environment`，`@Value` 取到 `30`。
+
+#### 1.3.2 它在配置链上的位置
+
+回顾 §1.1 的优先级：`@PropertySource` 引入的文件排在 `application.yml` 之后、默认值之前。同名配置下，`application.yml` 会覆盖 `custom.properties`。想让它的优先级更高，默认机制做不到。
+
+#### 1.3.3 两个容易踩的坑
+
+- **Spring Boot 不需要 `@PropertySource` 加载 `application.properties`**——Boot 会自动加载它，`@PropertySource` 只用来引入额外的、非默认命名的文件。这是它和原生 Spring 的最大区别。
+- **`@PropertySource` 默认只支持 `.properties`，不支持 YAML**。要加载 `.yml`，得自定义 `PropertySourceFactory`，或者直接用 `spring.config.import` 代替。
+
+#### 1.3.4 选型：`@PropertySource` 还是 `spring.config.import`
+
+`spring.config.import`（见 §1.4）是 Boot 2.4 之后的推荐方式，功能更强：支持 YAML、`optional:` 前缀、多文件导入。`@PropertySource` 的适用场景收窄到两点——非 Boot 环境，或者需要把某个配置文件与特定 `@Configuration` 类绑在一起。Boot 项目里，优先 `spring.config.import`。
+
+### 1.4 spring.config.import 配置导入
+
+`spring.config.import`（Boot 2.4+）把额外的配置文件合并进当前配置，是 `@PropertySource` 的推荐替代（见 §1.3.4）。它支持 `classpath:` 与 `file:` 两种位置，`optional:` 前缀表示文件缺失时不报错：
+
+```yaml
+# application.yml
+spring:
+  config:
+    import:
+      - classpath:common-datasource.yml
+      - optional:classpath:local-config.yml  # optional 表示文件不存在也不报错
+      - file:./external-config.yml           # 外部文件
+```
+
+## 2. 配置绑定
+
+### 2.1 @ConfigurationProperties 绑定
+
+`@ConfigurationProperties` 把一组 `app.*` 前缀的配置项批量绑定到一个 POJO 上，比逐个写 `@Value("${app.name}")` 省事。它通过 setter 注入值，因此 POJO 需要 getter/setter：
 
 ```java
 @ConfigurationProperties(prefix = "app")
@@ -44,7 +96,9 @@ public class AppProperties {
 }
 ```
 
-## 5. @ConfigurationProperties 校验
+绑定后，`app.name`、`app.servers[0]` 这类配置项会自动映射到对应字段。与 `@Value` 的对比见 §2.4。
+
+### 2.2 校验
 
 `@ConfigurationProperties` 支持 JSR-303 校验注解，在绑定时自动验证配置值：
 
@@ -71,7 +125,32 @@ public class MyAppProperties {
 
 启动时如果配置值不满足校验规则，会抛出 `BindException`，应用无法启动——这比运行时空指针好得多。
 
-`@ConfigurationProperties` vs `@Value`：
+### 2.3 配置绑定到 Record
+
+Java 16+ 可以用 `Record` 承接配置绑定。与 POJO 不同，`Record` 走构造器绑定，字段不可变、无需 setter：
+
+```java
+// Java 16+ Record 类型安全绑定
+@ConfigurationProperties(prefix = "app.cache")
+public record CacheProperties(
+    int maxSize,
+    Duration ttl,
+    boolean enabled,
+    List<String> excludedKeys
+) {}
+
+// 使用
+@Component
+public class CacheManager {
+    private final CacheProperties props;
+
+    public CacheManager(CacheProperties props) {
+        this.props = props;
+    }
+}
+```
+
+### 2.4 @ConfigurationProperties vs @Value
 
 | 特性 | @ConfigurationProperties | @Value |
 |------|:-----------------------:|:-----:|
@@ -85,39 +164,9 @@ public class MyAppProperties {
 `@ConfigurationProperties` 的 setter 方法是必须的——Spring 通过 setter 注入值，不是通过字段反射。如果你的 POJO 没有 setter，绑定不会生效。
 :::
 
-## 6. @PropertySource：引入外部配置文件
+## 3. 配置的安全与扩展
 
-`@PropertySource` 的职责很窄：把一个外部 `.properties` 文件读进 `Environment`，让 `@Value` 和 `@ConfigurationProperties` 能取到里面的值。它只负责"把这个文件挂到配置链上"，不负责绑定。
-
-### 6.1 基本用法
-
-```java
-@Configuration
-@PropertySource("classpath:custom.properties")
-public class AppConfig {
-    @Value("${custom.timeout}")
-    private int timeout;
-}
-```
-
-`custom.properties` 里的 `custom.timeout=30` 会被读进 `Environment`，`@Value` 取到 `30`。
-
-### 6.2 它在配置链上的位置
-
-回顾 §1 的优先级：`@PropertySource` 引入的文件排在 `application.yml` 之后、默认值之前。同名配置下，`application.yml` 会覆盖 `custom.properties`。想让它的优先级更高，默认机制做不到。
-
-### 6.3 两个容易踩的坑
-
-- **Spring Boot 不需要 `@PropertySource` 加载 `application.properties`**——Boot 会自动加载它，`@PropertySource` 只用来引入额外的、非默认命名的文件。这是它和原生 Spring 的最大区别。
-- **`@PropertySource` 默认只支持 `.properties`，不支持 YAML**。要加载 `.yml`，得自定义 `PropertySourceFactory`，或者直接用 `spring.config.import` 代替。
-
-### 6.4 选型：`@PropertySource` 还是 `spring.config.import`
-
-`spring.config.import`（见 §6.3）是 Boot 2.4 之后的推荐方式，功能更强：支持 YAML、`optional:` 前缀、多文件导入。`@PropertySource` 的适用场景收窄到两点——非 Boot 环境，或者需要把某个配置文件与特定 `@Configuration` 类绑在一起。Boot 项目里，优先 `spring.config.import`。
-
-## 7. 配置高级场景
-
-### 7.1 配置加密（Jasypt）
+### 3.1 配置加密（Jasypt）
 
 ```xml
 <dependency>
@@ -141,7 +190,6 @@ spring:
     # java -cp jasypt-1.9.3.jar org.jasypt.intf.cli.JasyptPBEStringEncryptionCLI \n
 #     input="yourPassword" password="secretKey" algorithm=PBEWithMD5AndDES
 ```
-
 
 ```java
 // 生成加密密文
@@ -171,36 +219,10 @@ public class JasyptTest {
 ::: warning 主密钥安全
 不要把 Jasypt 的主密钥也写在 `application.yml` 里——这就等于把保险箱钥匙放在保险箱上面。主密钥必须通过环境变量或启动参数注入。
 :::
-### 7.2 配置继承与覆盖
 
-```text
-配置加载顺序（高优先级覆盖低优先级）：
-1. 命令行参数        --server.port=9090
-2. 系统环境变量       SERVER_PORT=9090
-3. application-{profile}.yml
-4. application.yml
-5. @PropertySource
-6. 默认值
+### 3.2 自定义配置源
 
-实际应用：
-application.yml        → 公共配置（端口、应用名）
-application-dev.yml    → 开发环境（H2 数据库、DEBUG 日志）
-application-prod.yml   → 生产环境（MySQL、WARN 日志）
-```
-
-### 7.3 配置导入
-
-```yaml
-# application.yml
-spring:
-  config:
-    import:
-      - classpath:common-datasource.yml
-      - optional:classpath:local-config.yml  # optional 表示文件不存在也不报错
-      - file:./external-config.yml           # 外部文件
-```
-
-### 7.4 自定义配置源
+当配置不在文件里、而在数据库中时，可以自定义 `PropertySource` 从数据库读取。它承接 §1.1 的抽象：自定义一个 `PropertySource` 子类，再通过 `EnvironmentPostProcessor` 把它挂进 `ConfigurableEnvironment` 的 `PropertySources` 列表：
 
 ```java
 public class DatabasePropertySource extends PropertySource<DataSource> {
@@ -236,29 +258,6 @@ public class DatabaseEnvironmentPostProcessor implements EnvironmentPostProcesso
         DataSource ds = createDataSource();
         environment.getPropertySources()
             .addLast(new DatabasePropertySource(ds));
-    }
-}
-```
-
-### 7.5 配置绑定到 Record
-
-```java
-// Java 16+ Record 类型安全绑定
-@ConfigurationProperties(prefix = "app.cache")
-public record CacheProperties(
-    int maxSize,
-    Duration ttl,
-    boolean enabled,
-    List<String> excludedKeys
-) {}
-
-// 使用
-@Component
-public class CacheManager {
-    private final CacheProperties props;
-
-    public CacheManager(CacheProperties props) {
-        this.props = props;
     }
 }
 ```

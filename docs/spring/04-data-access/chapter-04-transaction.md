@@ -87,7 +87,7 @@ AOP 代理（JDK / CGLIB）
 目标 Bean 的业务方法
 ```
 
-代理机制（JDK 动态代理 vs CGLIB、为什么自调用会失效）已在 [AOP 章节](../01-core/chapter-05-aop.md) §4 与 §9.3 讲透，这里不再重复。
+代理机制（JDK 动态代理 vs CGLIB、为什么自调用会失效）已在 [AOP 章节](../01-core/chapter-05-aop.md) §4 与 §7.3 讲透，这里不再重复。
 
 ## 2. 传播行为
 
