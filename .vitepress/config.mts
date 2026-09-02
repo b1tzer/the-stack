@@ -1092,7 +1092,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
     },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/b1tzer/b1tzer.github.io' }
+      { icon: 'github', link: 'https://github.com/b1tzer/the-stack' }
     ],
     
     footer: {
