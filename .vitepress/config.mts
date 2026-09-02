@@ -990,10 +990,9 @@ export default withOpenInEditor(withMermaid(defineConfig({
           ],
         },
         {
-          text: '开发',
+          text: 'Web 开发',
           items: [
             { text: 'Spring MVC', link: '/spring/03-web/chapter-01-spring-mvc' },
-            { text: 'RESTful API 设计', link: '/spring/03-web/chapter-02-rest-design' },
             { text: '全局异常处理', link: '/spring/03-web/chapter-03-global-exception' },
             { text: '参数校验与数据绑定', link: '/spring/03-web/chapter-04-validation-binding' },
             { text: '拦截器与过滤器', link: '/spring/03-web/chapter-05-interceptor-filter' },

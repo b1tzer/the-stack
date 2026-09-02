@@ -44,7 +44,7 @@ public class SseController {
 
 实际项目中，SSE 通常用 `SseEmitter` 配合服务类实现消息推送：
 
-### 3.1 SseEmitter
+### 2.1 SseEmitter
 
 `SseEmitter` 是 Spring MVC 提供的 SSE 抽象，允许在同步 Servlet 容器中异步推送事件。
 
@@ -70,7 +70,7 @@ public class NotificationController {
 }
 ```
 
-### 3.2 消息推送服务
+### 2.2 消息推送服务
 
 ```java
 @Service
@@ -117,7 +117,7 @@ public class NotificationService {
 }
 ```
 
-### 3.3 带重连 ID 的实现
+### 2.3 带重连 ID 的实现
 
 SSE 协议支持 `id` 字段。浏览器断线重连时，自动在请求头中带上 `Last-Event-ID`，服务端可以从断点处补推消息：
 
@@ -183,7 +183,7 @@ public class ReactiveSseController {
 
 ## 4. 前端对接
 
-### 5.1 EventSource（不需要认证时）
+### 4.1 EventSource（不需要认证时）
 
 `EventSource` API 简单，自动重连，但**不支持自定义 Header**（浏览器安全规范故意限制，防止通过 SSE 绕过 CORS 预检）。
 
@@ -214,7 +214,7 @@ source.onerror = () => {
 source.close();
 ```
 
-### 5.2 fetch + ReadableStream（需要认证时）
+### 4.2 fetch + ReadableStream（需要认证时）
 
 `EventSource` 不支持自定义 Header，无法携带 Token。需要用 `fetch` 手动读取 SSE 流：
 

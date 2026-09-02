@@ -51,7 +51,7 @@ public class NotificationService {
 
 ## 2. @Async 失效场景
 
-**最常见的 4 个失效场景**：
+**最常见的 5 个失效场景**：
 
 ```java
 @Service
@@ -103,6 +103,9 @@ public void riskyMethod() {
 | 非 public | CGLIB/JDK 代理限制 | 改为 public |
 | 未开启 | 缺 `@EnableAsync` | 加注解 |
 | 异常被吞 | 默认只打日志 | 配置 ExceptionHandler |
+| 循环依赖 | `AsyncAnnotationBeanPostProcessor` 未提前代理 | 消除循环依赖 / 加 `@Lazy` |
+
+第五个场景单独说：`@Async` 与循环依赖叠加时，`OrderService` 和 `NotificationService` 互相注入，Spring Boot 2.6 之前（或显式开启 `allow-circular-references`）启动不报错，但 `@Async` 静默失效、异步变同步——因为 `AsyncAnnotationBeanPostProcessor` 没有重写 `getEarlyBeanReference`，提前暴露的是裸对象。三级缓存的原理与这个坑的完整链路见 [循环依赖与三级缓存](../01-core/chapter-06-circular-dependency.md) §5。
 
 > **经验法则**：自调用是 @Async（以及 @Transactional、@Cacheable）失效的头号杀手。记住——凡是走 AOP 代理的注解，自调用都会失效。
 

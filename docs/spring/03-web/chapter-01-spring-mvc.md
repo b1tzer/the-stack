@@ -55,7 +55,21 @@ Spring MVC 的核心设计思想是**前端控制器（Front Controller）模式
 
 ![spring-front-controller](/spring/spring-front-controller.svg)
 
-### 1.3 DispatcherServlet 的初始化
+### 1.3 组织层次：Tomcat 是容器，Spring MVC 挂在 DispatcherServlet 里
+
+前面把 Servlet 规范和前端控制器分开讲，容易让人误以为 Tomcat 和 Spring MVC 是两个平级的框架。实际上它们是**包含关系**，而且 Tomcat 对 Spring 一无所知。
+
+![spring-mvc-architecture](/spring/spring-mvc-architecture.svg)
+
+分三层看：
+
+1. **Tomcat（Servlet 容器）** 只负责两件事：接收网络连接、按 Servlet 规范调用 Servlet 的 `service()`。它不认识 `@Controller`、`HandlerMapping` 这些概念，对它来说，`DispatcherServlet` 就是一个普通的 `HttpServlet`。
+2. **DispatcherServlet** 是 Spring MVC 接入 Tomcat 的**唯一一个 Servlet**，也是整个 Spring MVC 在容器里的入口。请求进入 Tomcat 后，最终都落到它的 `service()` 上。
+3. **HandlerMapping、HandlerAdapter、ViewResolver、HandlerExceptionResolver** 是 `DispatcherServlet` 持有的**私有组件**。它们不是 Servlet，只是普通的 Java 对象（Bean），Tomcat 完全不知道它们的存在，只有 `DispatcherServlet` 在 `doDispatch()` 里调用它们。
+
+一句话总结层次：**Tomcat 管「网络和 Servlet 生命周期」，DispatcherServlet 管「把请求转交给 Spring MVC」，MVC 组件管「找到、调用、返回」**。Spring 借用的只是 Servlet 规范里「Servlet」这一个口子，把整条 MVC 链路接了进去。
+
+### 1.4 DispatcherServlet 的初始化
 
 ```java
 // Spring Boot 自动配置
@@ -345,222 +359,17 @@ HandlerExceptionResolver 链（按 order 排序）
         └── 4. 兜底处理 → 500 Internal Server Error
 ```
 
-### 4.2 @ExceptionHandler
+### 4.2 三个核心注解
 
-在 Controller 内部定义异常处理方法：
+`@ExceptionHandler`、`@ControllerAdvice`、`@ResponseStatus` 分工如下：
 
-```java
-@RestController
-@RequestMapping("/api/users")
-public class UserController {
+| 注解 | 作用域 | 职责 |
+| :-- | :-- | :-- |
+| `@ExceptionHandler` | 单个 Controller 或 `@ControllerAdvice` 内 | 声明处理某个异常类型的方法 |
+| `@ControllerAdvice` / `@RestControllerAdvice` | 全局 | 把异常处理逻辑抽取到一处，避免每个 Controller 重复 |
+| `@ResponseStatus` | 异常类上 | 直接映射 HTTP 状态码 |
 
-    @GetMapping("/{id}")
-    public User getUser(@PathVariable Long id) {
-        return userService.findById(id)
-            .orElseThrow(() -> new UserNotFoundException(id));
-    }
-
-    // 处理本 Controller 内的 UserNotFoundException
-    @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNotFound(UserNotFoundException ex) {
-        ErrorResponse error = new ErrorResponse(
-            "USER_NOT_FOUND",
-            "用户不存在: " + ex.getUserId(),
-            LocalDateTime.now()
-        );
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
-    }
-
-    // 处理参数校验异常
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
-        List<String> errors = ex.getBindingResult().getFieldErrors().stream()
-            .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
-            .collect(Collectors.toList());
-        return ResponseEntity.badRequest()
-            .body(new ErrorResponse("VALIDATION_ERROR", String.join("; ", errors)));
-    }
-}
-```
-
-### 4.3 @ControllerAdvice
-
-`@ControllerAdvice` 将异常处理逻辑抽取到全局，避免每个 Controller 重复编写：
-
-```java
-@ControllerAdvice
-public class GlobalExceptionHandler {
-
-    // 全局异常处理
-    @ExceptionHandler(Exception.class)
-    @ResponseBody
-    public ResponseEntity<ErrorResponse> handleException(Exception ex) {
-        log.error("未处理的异常", ex);
-        ErrorResponse error = new ErrorResponse(
-            "INTERNAL_ERROR",
-            "服务器内部错误",
-            LocalDateTime.now()
-        );
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
-    }
-
-    // 业务异常处理
-    @ExceptionHandler(BusinessException.class)
-    @ResponseBody
-    public ResponseEntity<ErrorResponse> handleBusiness(BusinessException ex) {
-        ErrorResponse error = new ErrorResponse(
-            ex.getCode(),
-            ex.getMessage(),
-            LocalDateTime.now()
-        );
-        return ResponseEntity.status(ex.getHttpStatus()).body(error);
-    }
-
-    // 自定义参数校验响应
-    @ExceptionHandler(ConstraintViolationException.class)
-    @ResponseBody
-    public ResponseEntity<ErrorResponse> handleConstraint(ConstraintViolationException ex) {
-        String message = ex.getConstraintViolations().stream()
-            .map(v -> v.getPropertyPath() + ": " + v.getMessage())
-            .collect(Collectors.joining("; "));
-        return ResponseEntity.badRequest()
-            .body(new ErrorResponse("CONSTRAINT_VIOLATION", message));
-    }
-}
-```
-
-### 4.4 @ResponseStatus
-
-对于简单的异常场景，可以用 `@ResponseStatus` 直接指定 HTTP 状态码：
-
-```java
-// 当这个异常被抛出时，响应状态码为 404
-@ResponseStatus(code = HttpStatus.NOT_FOUND, reason = "资源不存在")
-public class ResourceNotFoundException extends RuntimeException {
-    public ResourceNotFoundException(String message) {
-        super(message);
-    }
-}
-```
-
-### 4.5 统一错误响应的最佳实践
-
-在企业项目中，建议定义统一的错误响应结构：
-
-```java
-// 统一错误响应
-public class ErrorResponse {
-    private String code;          // 业务错误码
-    private String message;       // 错误描述
-    private LocalDateTime timestamp;
-    private String path;          // 请求路径
-    private List<FieldError> details;  // 字段级错误（校验场景）
-
-    @Data
-    public static class FieldError {
-        private String field;
-        private String message;
-        private Object rejectedValue;
-    }
-}
-
-// 全局异常处理（统一风格）
-@RestControllerAdvice
-public class GlobalExceptionHandler {
-
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNotFound(
-            ResourceNotFoundException ex, HttpServletRequest request) {
-        ErrorResponse error = ErrorResponse.builder()
-            .code("NOT_FOUND")
-            .message(ex.getMessage())
-            .path(request.getRequestURI())
-            .timestamp(LocalDateTime.now())
-            .build();
-        return ResponseEntity.status(404).body(error);
-    }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidation(
-            MethodArgumentNotValidException ex, HttpServletRequest request) {
-        List<ErrorResponse.FieldError> fieldErrors = ex.getBindingResult()
-            .getFieldErrors().stream()
-            .map(fe -> new ErrorResponse.FieldError(
-                fe.getField(), fe.getDefaultMessage(), fe.getRejectedValue()))
-            .collect(Collectors.toList());
-
-        ErrorResponse error = ErrorResponse.builder()
-            .code("VALIDATION_ERROR")
-            .message("参数校验失败")
-            .path(request.getRequestURI())
-            .timestamp(LocalDateTime.now())
-            .details(fieldErrors)
-            .build();
-        return ResponseEntity.badRequest().body(error);
-    }
-}
-```
-
-### 4.6 异常处理的执行顺序
-
-当异常发生时，Spring MVC 按以下顺序查找处理器：
-
-```text
-1. Controller 内的 @ExceptionHandler
-   ↓ 未找到
-2. @ControllerAdvice 中的 @ExceptionHandler
-   ↓ 未找到
-3. @ResponseStatus 注解（直接映射状态码）
-   ↓ 未找到
-4. DefaultHandlerExceptionResolver（Spring 内置异常映射）
-   ↓ 未找到
-5. 容器默认错误页（Tomcat 的 /error）
-```
-
-**注意：** Controller 内的 `@ExceptionHandler` 优先级高于 `@ControllerAdvice`。如果需要覆盖某个 Controller 的异常处理，可以在该 Controller 内定义同类型的 `@ExceptionHandler`。
-
-### 4.7 异常处理与 Filter 的边界
-
-Spring MVC 的异常处理机制只在 DispatcherServlet 内部生效。对于 Filter 中抛出的异常，需要通过 Servlet 容器的错误页面机制处理：
-
-```text
-请求进入
-  │
-  ▼
-Filter 链  ← 异常不会被 @ExceptionHandler 捕获
-  │
-  ▼
-DispatcherServlet
-  │
-  ├── HandlerMapping
-  ├── HandlerAdapter
-  │     └── Controller 方法抛出异常
-  │           └── ✅ @ExceptionHandler 捕获
-  └── ...
-```
-
-对于 Filter 中的异常，可以使用 Spring Boot 的 `ErrorController` 或自定义 Filter 来处理：
-
-```java
-@Component
-public class ExceptionHandlerFilter extends OncePerRequestFilter {
-
-    @Override
-    protected void doFilterInternal(HttpServletRequest request,
-            HttpServletResponse response, FilterChain chain)
-            throws ServletException, IOException {
-        try {
-            chain.doFilter(request, response);
-        } catch (Exception ex) {
-            // 在 Filter 层捕获异常，返回统一错误响应
-            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            response.setContentType("application/json");
-            response.getWriter().write("{\"code\":\"FILTER_ERROR\",\"message\":\"" +
-                ex.getMessage() + "\"}");
-        }
-    }
-}
-```
+统一错误响应体、三种校验异常、执行顺序、Filter 边界、traceId 串联等完整实战，见 [全局异常处理](/spring/03-web/chapter-03-global-exception)。
 
 > 从 Servlet 到 DispatcherServlet，请求处理链路已经清楚了。但配置一个 Spring MVC 项目要写一堆 XML——web.xml、spring-mvc.xml、applicationContext.xml。Spring Boot 把这些全干掉了。下一章看它是怎么做到"开箱即用"的。
 >
