@@ -141,9 +141,3 @@ try {
 | 配置 | `enable.idempotence=true` | `transactional.id` + `enable.idempotence=true` |
 | 适用 | 简单去重 | 消费-生产 Exactly Once |
 
-## 8. 最佳实践
-
-1. **每个实例使用唯一的 transactional.id**：如 `app-name-partition-0`，避免 Producer Fenced。
-2. **不要在事务中发送大量消息**：长事务会阻塞消费者（read_committed），增加延迟。
-3. **合理设置 transaction.timeout.ms**：太短会导致长事务被误回滚，太长会延迟消费者可见性。
-4. **监控 transaction-abort-rate**：频繁回滚说明系统存在问题。

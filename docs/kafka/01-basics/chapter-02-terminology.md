@@ -130,9 +130,3 @@ Kafka 0.11+ 使用 Record Batch 格式：
 
 Record Batch 的设计价值：批量处理多条消息、共享公共字段（压缩、时间戳、Producer ID）、减少存储开销。
 
-## 7. 最佳实践
-
-1. **理解 Offset 的含义**：Offset 是分区内消息的唯一标识，从 0 递增。它是消费进度管理的基础。
-2. **关注 ISR 动态变化**：ISR 收缩意味着可靠性下降，监控 `shrink.rate` 和 `expand.rate`。
-3. **合理使用 Key**：Key 用于分区路由和日志压缩（Log Compaction）场景下标识消息身份。
-4. **区分 Leader 和 Follower**：客户端只与 Leader 交互，Follower 只负责同步。

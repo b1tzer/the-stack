@@ -146,9 +146,3 @@ Coordinator 识别为同一个成员，恢复原有分区分配
 | 高吞吐、减少迁移 | CooperativeSticky |
 | 生产环境 | CooperativeSticky + 静态成员 |
 
-## 8. 最佳实践
-
-1. **生产环境使用 CooperativeSticky 策略**：减少 Rebalance 期间的消费中断。
-2. **使用静态成员 ID**：部署时为每个实例分配固定的 `group.instance.id`。
-3. **合理设置超时参数**：`session.timeout.ms` = 10s~30s，`heartbeat.interval.ms` = session.timeout / 3。
-4. **监控 Rebalance 频率**：JMX 指标 `rebalance-rate-per-hour`，频繁 Rebalance 说明配置有问题。

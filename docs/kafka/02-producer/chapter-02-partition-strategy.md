@@ -124,9 +124,3 @@ kafka-topics.sh --alter --topic my-topic --partitions 6 --bootstrap-server local
 
 > 分区扩展前必须评估 Key 路由变化的影响。如果业务依赖 Key 的顺序性，扩展分区会导致顺序破坏。
 
-## 6. 最佳实践
-
-1. **有 Key 的消息**：确保同一业务实体的消息在同一分区，保证局部有序。
-2. **初始分区数**：设为消费者实例数的 2~3 倍，预留扩展空间。
-3. **避免过多分区**：超过 1000 个分区时 Controller 压力大。
-4. **监控数据倾斜**：`kafka-log-dirs.sh` 检查各分区数据量是否均衡。

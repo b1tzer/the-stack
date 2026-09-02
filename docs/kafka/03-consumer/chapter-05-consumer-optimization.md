@@ -134,9 +134,3 @@ props.put("max.poll.records", 500);                // 控制单次处理记录�
 | records-consumed-rate | 消费速率 | 根据业务设定 |
 | commit-rate | 提交频率 | 根据业务设定 |
 
-## 10. 最佳实践
-
-1. **单消费者单线程 + 多线程处理**：消费者单线程 poll，消息分发到线程池处理，处理完后手动提交。
-2. **使用异步提交**：`commitAsync()` 性能优于 `commitSync()`，但需要处理提交失败的情况。
-3. **避免在 poll 循环中做重逻辑**：如果处理时间超过 `max.poll.interval.ms`，会触发 Rebalance。
-4. **监控消费者 Lag**：Lag 持续增长是系统瓶颈的信号，需要增加消费者或优化处理逻辑。

@@ -155,9 +155,3 @@ public class StreamsQueryController {
 }
 ```
 
-## 8. 最佳实践
-
-1. **为状态存储指定有意义的名称**：便于调试和交互式查询。
-2. **合理使用缓存**：`withCachingEnabled()` 可以减少 Changelog Topic 的写入频率。
-3. **监控状态存储大小**：使用 JMX 指标 `store-size-bytes` 监控存储占用。
-4. **使用 Standby Replica 加速恢复**：配置 `num.standby.replicas=1`，让其他实例也维护状态副本。

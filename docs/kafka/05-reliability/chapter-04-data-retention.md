@@ -105,10 +105,3 @@ producer.send(new ProducerRecord<>("topic", key, null));
   = 2.52 TB
 ```
 
-## 6. 最佳实践
-
-1. **日志场景用 Delete 策略**：按时间保留，7~30 天。
-2. **CDC 场景用 Compact 策略**：保留每个 Key 的最新状态。
-3. **监控磁盘使用率**：`kafka-log-dirs.sh --describe` 检查各 Broker 存储。
-4. **合理规划保留时间**：保留越长，磁盘成本越高。
-5. **log.retention.bytes 做兜底**：防止单分区数据无限增长。

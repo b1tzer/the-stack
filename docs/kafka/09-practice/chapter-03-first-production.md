@@ -56,7 +56,7 @@ replica.fetch.wait.max.ms=500
 
 - `listeners` 与 `advertised.listeners`：前者是 Broker 实际监听的地址（本机 `0.0.0.0`），后者是返回给客户端的地址（客户端可解析的 `broker1`）。两者为什么分离，见 [安装部署](./chapter-01-installation.md) §2。
 - `log.dirs` 多个目录：多块盘并列，Kafka 把分区分散到不同盘上并行读写，等于用 JBOD 叠加磁盘带宽。
-- `min.insync.replicas=2` + `acks=all`：可靠性核心。`acks=all` 要求所有 ISR 副本确认，`min.insync.replicas=2` 保证 ISR 至少 2 个副本才接受写入。两者叠加的效果是——每条消息至少落在 2 个副本上，任一副本宕机都不丢。若 ISR 只剩 1 个，Broker 拒绝写入（`NotEnoughReplicasException`），宁可不写也不在可靠性不足时写。完整推理见 [ACK 机制与可靠性保证](../05-reliability/chapter-01-acks-机制.md)。
+- `min.insync.replicas=2` + `acks=all`：可靠性核心。`acks=all` 要求所有 ISR 副本确认，`min.insync.replicas=2` 保证 ISR 至少 2 个副本才接受写入。两者叠加的效果是——每条消息至少落在 2 个副本上，任一副本宕机都不丢。若 ISR 只剩 1 个，Broker 拒绝写入（`NotEnoughReplicasException`），宁可不写也不在可靠性不足时写。完整推理见 [ACK 机制与可靠性保证](../05-reliability/chapter-01-acks.md)。
 - `unclean.leader.election.enable=false`：Leader 宕机时只允许从 ISR 里选新 Leader，禁止从落后副本（OSR）里选。牺牲一点可用性换取「绝不丢数据」——选 OSR 里的落后副本当 Leader，会直接丢失它没追上的那部分消息。
 - `num.partitions=6`：新 Topic 的默认分区数。分区数决定并发上限，规划方法见 [性能调优](./chapter-06-performance-tuning.md) §6。
 

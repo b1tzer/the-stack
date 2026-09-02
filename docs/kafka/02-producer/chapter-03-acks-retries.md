@@ -4,13 +4,7 @@
 
 ## 1. 三种 ACK 模式
 
-| acks | 可靠性 | 吞吐量 | 适用场景 |
-| :-- | :-- | :-- | :-- |
-| 0 | 最低（可能丢消息） | 最高 | 日志收集、监控指标 |
-| 1 | 中（Leader 宕机可能丢） | 中 | 一般业务 |
-| all | 最高 | 最低 | 金融、订单等不可丢数据 |
-
-三种模式各自的丢数据推理、`min.insync.replicas` 的配合、Unclean Leader 选举，见 [ACK 机制与可靠性保证](../05-reliability/chapter-01-acks-机制.md) §2~§4。本章只保留与生产者相关的重试与幂等配置。
+`acks=0 / 1 / all` 三种模式的语义、丢数据推理、与 `min.insync.replicas` 的配合、Unclean Leader 选举，见 [ACK 机制与可靠性保证](../05-reliability/chapter-01-acks.md) §2~§4。本章只保留与生产者相关的重试与幂等配置。
 
 ## 2. 幂等生产者
 
@@ -129,10 +123,3 @@ producer.send(record, (metadata, exception) -> {
 });
 ```
 
-## 7. 最佳实践
-
-1. **生产环境必须开启幂等**：`enable.idempotence=true`，几乎无性能损耗。
-2. **不要设置 retries=0**：网络抖动是常态，重试是必要的。
-3. **acks=all + min.insync.replicas=2**：生产标配。
-4. **设置合理的 delivery.timeout.ms**：避免消息长时间阻塞。
-5. **监控 failed-send-rate**：持续 > 0 说明有消息发送失败。

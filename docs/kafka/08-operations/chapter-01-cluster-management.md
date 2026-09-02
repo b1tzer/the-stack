@@ -154,9 +154,3 @@ kafka-consumer-groups.sh --list --bootstrap-server $BOOTSTRAP | while read group
 done
 ```
 
-## 9. 最佳实践
-
-1. **定期执行健康检查**：使用脚本自动化检查集群状态，及时发现问题。
-2. **避免在线高峰期进行重分配**：分区重分配会占用大量网络和磁盘 I/O。
-3. **使用 --throttle 限制重分配速度**：避免影响正常业务。
-4. **备份元数据**：定期备份 ZooKeeper 或 KRaft 元数据。

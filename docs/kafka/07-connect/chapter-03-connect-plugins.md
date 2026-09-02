@@ -207,11 +207,5 @@ public class MySourceConnector extends SourceConnector {
 }
 ```
 
-这段骨架揭示了 Connect 的分工：`Connector` 不搬运数据，只负责生成配置；真正干活的是 `Task`。`taskConfigs(maxTasks)` 按 `tasks.max` 返回 N 份配置副本，Worker 据此启动 N 个并行的 `MySourceTask` 实例。所以并行度不是在 Connector 里写死的，而是由 `tasks.max` 决定的——这也解释了 §1 里「`tasks.max` 决定并行度」的落地方式。
+这段骨架揭示了 Connect 的分工：`Connector` 不搬运数据，只负责生成配置；真正执行数据搬运的是 `Task`。`taskConfigs(maxTasks)` 按 `tasks.max` 返回 N 份配置副本，Worker 据此启动 N 个并行的 `MySourceTask` 实例。所以并行度不是在 Connector 里写死的，而是由 `tasks.max` 决定的——这也解释了 §1 里「`tasks.max` 决定并行度」的落地方式。
 
-## 8. 最佳实践
-
-1. **优先使用成熟的连接器**：Confluent Hub 上有大量经过验证的连接器，避免重复造轮子。
-2. **使用 Debezium 进行 CDC**：比轮询方式更实时、更高效，对源数据库压力更小。
-3. **配置数据格式转换**：使用 SMT 或自定义转换器，确保数据格式符合目标系统要求。
-4. **测试连接器性能**：在生产环境部署前，进行压力测试，确保吞吐量满足需求。

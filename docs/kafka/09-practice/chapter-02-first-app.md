@@ -33,7 +33,7 @@ spring:
 
 两个值需要重点解释，它们决定了消息可靠性：
 
-- `acks: all`：消息写入所有 ISR 副本后才确认，避免 Leader 宕机丢数据。三种 ACK 的取舍见 [ACK 机制与可靠性保证](../05-reliability/chapter-01-acks-机制.md)。
+- `acks: all`：消息写入所有 ISR 副本后才确认，避免 Leader 宕机丢数据。三种 ACK 的取舍见 [ACK 机制与可靠性保证](../05-reliability/chapter-01-acks.md)。
 - `enable-auto-commit: false`：关闭自动提交 Offset。这一项和 §4 消费者里的 `Acknowledgment` 是一对联动配置，缺了任意一个，另一边的行为都会改变，下面 §4 单独讲。
 
 ## 3. 生产者

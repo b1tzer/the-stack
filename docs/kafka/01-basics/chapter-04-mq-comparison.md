@@ -31,7 +31,7 @@
 ```text
 Kafka（Pull）：
   Consumer → Broker：给我 Partition 0 从 offset 100 开始的消息
-  消费者控制速率，不会被打爆
+消费者控制速率，不会因推送风暴而不可用
 
 RabbitMQ（Push）：
   Broker → Consumer：这是新消息，你处理吧
@@ -98,9 +98,3 @@ Push 模型的优势：实时性更好（消息到达即推送）、消费者实
 
 > 不要为了「统一技术栈」而强行用一个消息队列解决所有问题。Kafka 擅长大数据量、高吞吐；RabbitMQ 擅长业务消息、灵活路由。各取所长。
 
-## 7. 最佳实践
-
-1. **不要盲目追求 Kafka**：消息量不大时 RabbitMQ 更轻量。
-2. **评估运维能力**：Kafka 集群运维需要较多经验，小团队可考虑托管服务（Confluent Cloud）。
-3. **先跑 Benchmark**：选型前用实际业务数据做压测，不要只看文档数据。
-4. **考虑生态**：Kafka 的 Connect/Streams/ksqlDB 生态是其核心竞争力。

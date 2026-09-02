@@ -113,10 +113,3 @@ producer.close();
 producer.close(Duration.ofSeconds(30));
 ```
 
-## 8. 最佳实践
-
-1. **生产者是线程安全的**：多个线程可以共享同一个 KafkaProducer 实例，无需为每个线程创建独立实例。
-2. **务必调用 close()**：不关闭生产者会导致资源泄漏，未发送的消息丢失。
-3. **异步回调优于同步发送**：使用回调方式发送，避免阻塞业务线程。
-4. **监控 buffer-available-bytes**：如果缓冲区持续满，说明生产者发送速度超过 Broker 处理能力。
-5. **使用 try-with-resources**：`try (KafkaProducer<> producer = new KafkaProducer<>(props)) { ... }` 确保异常时也能关闭。

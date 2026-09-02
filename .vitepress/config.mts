@@ -472,7 +472,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         {
           text: '可靠性',
           items: [
-            { text: 'ACK 机制', link: '/kafka/05-reliability/chapter-01-acks-机制' },
+            { text: 'ACK 机制', link: '/kafka/05-reliability/chapter-01-acks' },
             { text: 'Exactly Once', link: '/kafka/05-reliability/chapter-02-exactly-once' },
             { text: '消息顺序', link: '/kafka/05-reliability/chapter-03-message-ordering' },
             { text: '数据保留', link: '/kafka/05-reliability/chapter-04-data-retention' },
@@ -503,8 +503,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '集群管理', link: '/kafka/08-operations/chapter-01-cluster-management' },
             { text: '监控', link: '/kafka/08-operations/chapter-02-monitoring' },
             { text: '安全', link: '/kafka/08-operations/chapter-03-security' },
-            { text: '跨集群镜像', link: '/kafka/08-operations/chapter-04-mirror' },
-            { text: '常见问题', link: '/kafka/08-operations/chapter-05-troubleshooting' },
+            { text: '常见问题', link: '/kafka/08-operations/chapter-04-troubleshooting' },
           ],
         },
         {
@@ -516,6 +515,25 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: 'Spring 集成', link: '/kafka/09-practice/chapter-04-spring-integration' },
             { text: '常见场景', link: '/kafka/09-practice/chapter-05-common-patterns' },
             { text: '性能调优', link: '/kafka/09-practice/chapter-06-performance-tuning' },
+            { text: 'AdminClient 编程', link: '/kafka/09-practice/chapter-07-admin-client' },
+          ],
+        },
+        {
+          text: 'Schema 与序列化',
+          items: [
+            { text: 'Schema 概览', link: '/kafka/10-schema/chapter-01-schema-overview' },
+            { text: '序列化格式对比', link: '/kafka/10-schema/chapter-02-serializers' },
+            { text: 'Schema Registry', link: '/kafka/10-schema/chapter-03-schema-registry' },
+            { text: 'Schema 演进', link: '/kafka/10-schema/chapter-04-schema-evolution' },
+          ],
+        },
+        {
+          text: '多集群',
+          items: [
+            { text: '拓扑与场景', link: '/kafka/11-multi-cluster/chapter-01-scenarios' },
+            { text: 'MirrorMaker 2', link: '/kafka/11-multi-cluster/chapter-02-mirrormaker2' },
+            { text: 'Offset 翻译', link: '/kafka/11-multi-cluster/chapter-03-offset-translation' },
+            { text: '灾备演练', link: '/kafka/11-multi-cluster/chapter-04-dr-drill' },
           ],
         },
         {

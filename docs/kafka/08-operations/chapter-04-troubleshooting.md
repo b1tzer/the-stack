@@ -154,9 +154,3 @@ kafka-run-class.sh kafka.tools.JmxTool \
 grep -E "ERROR|WARN|FATAL" /var/kafka-logs/server.log | tail -20
 ```
 
-## 11. 最佳实践
-
-1. **建立排查手册**：将常见问题和解决方案整理成手册，提高排查效率。
-2. **使用监控系统**：Prometheus + Grafana 可以提前发现潜在问题。
-3. **定期进行故障演练**：模拟 Broker 宕机、网络分区等场景，验证系统韧性。
-4. **保持日志级别适当**：生产环境使用 INFO 级别，排查问题时临时调整为 DEBUG。

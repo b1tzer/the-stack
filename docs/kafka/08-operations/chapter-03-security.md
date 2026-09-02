@@ -157,9 +157,3 @@ props.put("ssl.truststore.location", "/etc/kafka/ssl/kafka.client.truststore.jks
 props.put("ssl.truststore.password", "***");
 ```
 
-## 9. 最佳实践
-
-1. **生产环境使用 SASL_SSL**：同时启用认证和加密，保护数据安全。
-2. **使用 SCRAM-SHA-256**：比 PLAIN 更安全，支持动态用户管理。
-3. **启用 ACL**：最小权限原则，只授予必要的访问权限。
-4. **定期轮换证书**：证书有效期设为 1 年，建立证书轮换流程。

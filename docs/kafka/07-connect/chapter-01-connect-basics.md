@@ -124,9 +124,3 @@ curl -X POST http://localhost:8083/connectors \
     -d '{"name": "my-connector", "config": {...}}'
 ```
 
-## 9. 最佳实践
-
-1. **生产环境使用 Distributed 模式**：支持高可用、负载均衡、动态扩展。
-2. **合理设置 tasks.max**：通常等于源/目标系统的分区数或表数。
-3. **配置死信队列**：处理失败的消息不会阻塞 Connector，而是发送到死信队列。
-4. **监控 Connector 状态**：使用 REST API 或 JMX 监控 Connector 和 Task 的运行状态。

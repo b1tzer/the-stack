@@ -116,10 +116,3 @@ enable.auto.commit=false
 isolation.level=read_committed  # 事务场景
 ```
 
-## 7. 最佳实践
-
-1. **acks=all + min.insync.replicas=2**：生产标配。
-2. **禁用 Unclean Leader 选举**：宁可短暂不可用也不丢数据。
-3. **手动提交 Offset**：处理完再提交，避免丢失。
-4. **副本因子设为 3**：兼顾可靠性和存储开销。
-5. **监控 UnderReplicatedPartitions**：该指标 > 0 说明有副本同步异常。

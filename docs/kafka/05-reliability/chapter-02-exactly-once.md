@@ -114,9 +114,3 @@ while (true) {
 
 > 大多数场景用 At Least Once + 幂等消费就够了。只有 Kafka → Kafka 的流处理场景才需要完整的 Exactly Once。
 
-## 6. 最佳实践
-
-1. **生产环境开启幂等**：`enable.idempotence=true`，几乎无性能损耗。
-2. **事务场景用 read_committed**：避免读到未提交的消息。
-3. **消费端做幂等**：数据库唯一键、Redis SETNX 去重。
-4. **Kafka → Kafka 用事务**：原子提交 Offset + 输出消息。

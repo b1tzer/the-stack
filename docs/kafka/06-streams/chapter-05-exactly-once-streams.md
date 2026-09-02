@@ -104,9 +104,3 @@ stream.foreach((key, value) -> {
 });
 ```
 
-## 10. 最佳实践
-
-1. **金融/计费场景使用 exactly_once_v2**：数据一致性是首要考虑。
-2. **监控事务提交延迟**：如果延迟过高，考虑减小批次大小或增加 Stream Thread 数。
-3. **使用适当的重试策略**：`retries` 和 `retry.backoff.ms` 配置合理的重试行为。
-4. **测试 Exactly Once 语义**：在测试环境中模拟 Broker 故障，验证数据一致性。

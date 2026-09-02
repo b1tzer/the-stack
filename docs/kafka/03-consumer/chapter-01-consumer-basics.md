@@ -128,9 +128,3 @@ try {
 }
 ```
 
-## 8. 最佳实践
-
-1. **消费者不是线程安全的**：每个线程一个消费者实例，或者使用 KafkaConsumer 的包装器。
-2. **poll() 间隔不能太长**：超过 `max.poll.interval.ms`（默认 5 分钟）会触发 Rebalance。
-3. **使用 wakeup() 优雅关闭**：不要直接 kill 进程，会导致 Offset 未提交。
-4. **监控 fetch-latency-avg**：如果延迟过高，可能是网络问题或 Broker 负载过高。

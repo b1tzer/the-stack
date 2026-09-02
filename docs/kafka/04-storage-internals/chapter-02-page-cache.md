@@ -1,162 +1,155 @@
 # Page Cache 与零拷贝
 
-> Kafka 的高吞吐有两大利器：Page Cache 让读写接近内存速度，零拷贝让网络传输跳过用户态。本章拆解这两个机制的原理与生产调优。
+> Kafka 不在 JVM 堆里管消息，读写路径直接落到内核 Page Cache；把消息发出去时，Broker 让内核把 Page Cache 中的字节直接推到网卡。本章从 `FileRecords#writeTo` 出发，追到 `TransportLayer` 两种实现，讲清「什么时候零拷贝真的成立，什么时候它默默失效」。
 
-## 1. Page Cache 机制
+## 1. Kafka 为什么不用堆内存管消息
 
-Kafka 不在 JVM 堆内管理消息数据，而是依赖操作系统的 Page Cache：
+Broker 处理消息的整个路径上都不出现「把消息拷进 JVM 堆」这一步。写入时消息经 `MemoryRecords` 直接落到 `FileRecords` 对应的文件通道；读取时消息也不进入 Java 对象，直接以 `FileRecords` 分片形式交给网络层。这不是"性能优化"，而是 Kafka 的核心设计选择：
 
-```text
-写入流程：
-Producer → Broker → Page Cache（内存）→ 异步刷盘 → 磁盘
-                            │
-                            ▼
-                      立即返回 ACK
-
-读取流程：
-Consumer → Broker → 检查 Page Cache
-                        │
-                        ├── 命中 → 直接返回（极快，内存速度）
-                        │
-                        └── 未命中 → 磁盘读取 → 加载到 Page Cache → 返回
-```
-
-### 1.1 为什么不用 JVM 堆内存
-
-| 维度 | JVM 堆内存 | Page Cache |
+| 维度 | JVM 堆 | Page Cache |
 | :-- | :-- | :-- |
-| GC 压力 | 大量对象导致频繁 GC | 不在堆内，无 GC 影响 |
-| 进程重启 | 数据丢失 | 文件缓存，重启后仍可用 |
-| 内存管理 | 需要手动管理 | 操作系统自动管理 |
-| 内存大小 | 受 JVM 堆限制 | 使用全部空闲物理内存 |
+| GC | 大量长生命周期对象 → 频繁 Full GC | 不在堆内 → 与 GC 无关 |
+| 重启 | 进程崩溃即失效 | 内核托管 → 进程重启后仍在 |
+| 冷热识别 | 靠应用层策略 | 内核 LRU 自动淘汰 |
+| 与磁盘同步 | 需要写盘一次 + 拷入堆一次 | 内核以脏页方式回写 |
+| 内存上限 | 受 `-Xmx` 限制 | 空闲物理内存全部可用 |
 
-> Kafka 的 JVM 堆只需要 6GB 左右，剩余内存全部留给操作系统做 Page Cache。这是 Kafka 内存配置的核心原则。
+这也是 Kafka 官方建议把堆保持在几 GB 以内、把剩余内存全部留给 OS 的直接原因。堆调得越大，能被 Page Cache 使用的空间就越少；同时 GC 停顿越明显，Broker 越容易触发副本追不上、consumer session 超时等次生故障。
 
-### 1.2 Page Cache 命中率
+来源：[Kafka 官方文档 §Efficiency](https://kafka.apache.org/documentation/#maximizingefficiency)、[Kafka 官方文档 §OS/Filesystem](https://kafka.apache.org/documentation/#os)
 
-Page Cache 命中率决定了读取性能：
+## 2. 命中率的两条线索
 
-| 场景 | 命中率 | 说明 |
-| :-- | :-- | :-- |
-| 生产者刚写入、消费者立即读 | 极高 | 数据还在 Page Cache 中 |
-| 消费者回溯读取旧数据 | 低 | 数据已被刷盘，需要磁盘读取 |
-| 多个消费者读同一 Partition | 高 | 第一个消费者加载到 Page Cache，后续命中 |
+Page Cache 命中率决定读放大。Kafka 里两类典型负载对 Page Cache 的利用完全不同：
 
-> 消费者 Lag 越小，Page Cache 命中率越高。如果消费者严重落后（Lag 很大），读取会退化为磁盘随机读，性能急剧下降。
+- **实时消费**：Producer 刚把批次写进 Page Cache，Consumer 紧接着来取，几乎全命中，读路径不落盘。
+- **回溯消费 / 消费者滞后**：目标 offset 对应的段早已被内核淘汰出 Page Cache，读到 `FileRecords#slice` 时触发缺页 → 走磁盘 → 加载回 Page Cache。若滞后严重且并发大，会把热数据的页也挤出去，形成雪崩。
 
-## 2. 零拷贝（Zero Copy）
+监控层面盯 `MaxLag`、`RecordsLagMax`、`UnderReplicatedPartitions`，OS 层面看 `/proc/meminfo` 的 `Cached` 与 `iostat` 的 `%util`——两侧同时恶化就是 Page Cache 击穿。
 
-### 2.1 传统方式 vs 零拷贝
+## 3. `FileRecords#writeTo`：零拷贝的真正入口
 
-传统方式读取磁盘数据发送到网络：
-
-```text
-1. 磁盘 → 内核缓冲区     （DMA 拷贝）
-2. 内核缓冲区 → 用户缓冲区 （CPU 拷贝）← 多余
-3. 用户缓冲区 → Socket 缓冲区（CPU 拷贝）← 多余
-4. Socket 缓冲区 → 网卡    （DMA 拷贝）
-
-4 次拷贝 + 4 次上下文切换
-```
-
-Kafka 使用 `sendfile()` 系统调用：
-
-```text
-1. 磁盘 → 内核缓冲区  （DMA 拷贝）
-2. 内核缓冲区 → 网卡  （DMA 拷贝，通过 scatter-gather）
-
-2 次拷贝 + 2 次上下文切换
-```
-
-### 2.2 sendfile() 原理
-
-```c
-// Linux 系统调用
-ssize_t sendfile(int out_fd, int in_fd, off_t *offset, size_t count);
-
-// 内核直接在内核缓冲区和网卡之间传输数据
-// 不经过用户态，不占用 CPU
-```
-
-Kafka 内部使用 Java NIO 的 `FileChannel.transferTo()` 实现：
+Broker 向 Consumer/Follower 发送日志时，进入 `FileRecords#writeTo`。这是判定零拷贝是否成立的分叉点：
 
 ```java
-// Kafka 源码中读取日志发送给消费者的底层实现
-FileChannel fileChannel = new FileInputStream(logFile).getChannel();
-fileChannel.transferTo(position, count, socketChannel);
+// clients/src/main/java/org/apache/kafka/common/record/FileRecords.java
+@Override
+public long writeTo(TransferableChannel destChannel, long offset, int length) throws IOException {
+    long newSize = Math.min(channel.size(), end) - start;
+    int oldSize = sizeInBytes();
+    if (newSize < oldSize)
+        throw new KafkaException(...);
+
+    long position = start + offset;
+    int count = Math.min(length, oldSize);
+    return destChannel.transferFrom(channel, position, count);
+}
 ```
 
-### 2.3 零拷贝的效果
+`TransferableChannel` 是 Kafka 自己定义的接口，`TransportLayer` 是它最重要的实现。是否零拷贝完全取决于目标 channel 的 `transferFrom` 走哪条路。
 
-| 维度 | 传统方式 | 零拷贝 |
-| :-- | :-- | :-- |
-| 数据拷贝次数 | 4 次 | 2 次 |
-| 上下文切换 | 4 次 | 2 次 |
-| CPU 占用 | 高（CPU 参与拷贝） | 低（DMA 完成） |
-| 吞吐量提升 | 基准 | 2~3 倍 |
+来源：[FileRecords.java](https://github.com/apache/kafka/blob/trunk/clients/src/main/java/org/apache/kafka/common/record/FileRecords.java)
 
-## 3. 刷盘策略
+### 3.1 明文通道：sendfile 生效
 
-Kafka 的消息先写入 Page Cache，再异步刷盘：
-
-```properties
-# 刷盘策略（不推荐频繁刷盘）
-log.flush.interval.messages=10000   # 每 10000 条刷盘
-log.flush.interval.ms=1000          # 每 1 秒刷盘
+```java
+// clients/src/main/java/org/apache/kafka/common/network/PlaintextTransportLayer.java
+@Override
+public long transferFrom(FileChannel fileChannel, long position, long count) throws IOException {
+    return fileChannel.transferTo(position, count, socketChannel);
+}
 ```
 
-**为什么推荐副本而非频繁刷盘？**
-
-| 方式 | 可靠性 | 性能 |
-| :-- | :-- | :-- |
-| `flush.interval.messages=1` | 高（每条都刷盘） | 极差（每次刷盘都阻塞） |
-| `acks=all` + ISR 副本 | 高（多副本同步） | 好（内存级别同步） |
-
-刷盘会触发 `fsync`，严重降低写入性能。Kafka 推荐用副本机制（`acks=all` + `min.insync.replicas=2`）保证可靠性，而不是依赖频繁刷盘。
-
-## 4. JVM 内存配置
-
-```bash
-# 推荐配置
-export KAFKA_HEAP_OPTS="-Xmx6g -Xms6g"
-export KAFKA_JVM_PERFORMANCE_OPTS="-XX:+UseG1GC -XX:MaxGCPauseMillis=20"
-```
-
-内存分配原则：
+`FileChannel.transferTo` 在 Linux 上最终走 `sendfile(2)` 系统调用；配合支持 scatter-gather DMA 的网卡，数据始终在内核空间：
 
 ```text
-物理内存 32GB 的 Broker：
-  JVM 堆 = 6GB
-  Page Cache = 32GB - 6GB = 26GB（留给操作系统）
+磁盘 ──DMA──▶ Page Cache ──DMA(scatter-gather)──▶ NIC
+                     │
+                     └── 全程不经过用户态，不经过 JVM 堆
 ```
 
-| 配置 | 建议 | 说明 |
-| :-- | :-- | :-- |
-| JVM 堆 | ≤ 6GB | Kafka 主要依赖 Page Cache，不需要大堆 |
-| 剩余内存 | 全部给 Page Cache | 越多越好 |
-| GC 策略 | G1GC | 低延迟 GC，避免长时间停顿 |
-| swap | 关闭 | `vm.swappiness=1`，避免 Page Cache 被交换 |
+上下文切换从 4 次降到 2 次，CPU 拷贝从 2 次降到 0 次。这是 Kafka「消费者读接近线速」的机制来源，前提是 **`sendfile` 走得通**。
 
-> 堆内存过大（如 32GB）会导致长时间 GC 停顿，而且挤占了 Page Cache 的空间——得不偿失。
+### 3.2 SSL 通道：零拷贝失效
 
-## 5. 文件系统选择
+一旦启用 SSL/TLS，`transferFrom` 走另一条实现：
 
-| 文件系统 | 优势 | 推荐 |
-| :-- | :-- | :-- |
-| XFS | 大量小文件性能好，inode 管理高效 | ✅ 推荐 |
-| ext4 | 通用，稳定性好 | 可以 |
-| ZFS | 压缩、快照 | 不推荐（与 Kafka 的 IO 模式不匹配） |
-
-```bash
-# XFS 挂载选项（推荐）
-mkfs.xfs -f /dev/sdb1
-mount -o noatime,nodiratime,nobarrier /dev/sdb1 /kafka
+```java
+// clients/src/main/java/org/apache/kafka/common/network/SslTransportLayer.java
+@Override
+public long transferFrom(FileChannel fileChannel, long position, long count) throws IOException {
+    // 概括流程：
+    // 1) fileChannel.read(fileChannelBuffer, position) —— 从 Page Cache 读到 JVM 堆外 buffer
+    // 2) sslEngine.wrap(src, netWriteBuffer)            —— 用户态加密
+    // 3) socketChannel.write(netWriteBuffer)           —— 写回内核态
+    ...
+}
 ```
 
-## 6. 最佳实践
+加密必须在用户态完成，数据必须从内核拷入 JVM，`sendfile` 直接失效。KAFKA-13799 明确指出：
 
-1. **留足内存给 Page Cache**：Broker 内存 = JVM 堆（6GB）+ Page Cache（剩余全部）。
-2. **不要频繁刷盘**：依赖副本机制，不要 `flush.interval.messages=1`。
-3. **使用 XFS 文件系统**：大量小文件场景下 XFS 性能更好。
-4. **禁用 swap**：`vm.swappiness=1`，避免 Page Cache 被交换到磁盘。
-5. **监控 Page Cache 命中率**：消费者 Lag 大时命中率低，性能下降。
+> PlaintextTransportLayer and SslTransportLayer both use pagecache, but SslTransportLayer does not implement zero-copy.
+
+启用 SSL 后典型影响：Broker 的 CPU 占用从个位数百分比涨到 30–50%，端到端 p99 延迟增加，同网卡下极限吞吐明显下降。这个成本不是"SSL 开销"这么泛，而是「零拷贝路径消失」这个具体机制。评估是否上 SSL、以及在哪些 listener 上启用 SSL 时必须把这一条纳入决策。
+
+来源：[KAFKA-13799 Improve documentation for Kafka zero-copy](https://issues.apache.org/jira/browse/KAFKA-13799)、[SslTransportLayer.java](https://github.com/apache/kafka/blob/trunk/clients/src/main/java/org/apache/kafka/common/network/SslTransportLayer.java)
+
+### 3.3 其他会让 `transferTo` 失效的情形
+
+除了 SSL，`FileChannel.transferTo` 本身也有边界：
+
+- 目标 channel 不是 `SocketChannel`/`FileChannel` 的子类：JVM 会退化为 read/write 循环。
+- 操作系统不支持 `sendfile`（老版 Windows、部分嵌入式内核）：同上退化。
+- 目标 socket 缓冲区已满：`transferTo` 返回值小于 `count`，Kafka 由 `Sender`/网络层负责下次继续，逻辑无损但吞吐受影响。
+- 数据要在传输前修改（压缩转换、down-conversion）：这类路径不走 `transferTo`。例如低版本客户端订阅高版本消息格式时，Broker 需 down-convert，本身就要过用户态，零拷贝也不成立。
+
+## 4. 索引文件用 mmap，不用 sendfile
+
+写路径与索引查找采用另一种「零拷贝」——mmap。`AbstractIndex` 把 `.index` / `.timeindex` 通过 `MappedByteBuffer` 映射到进程虚拟地址空间：
+
+```java
+// storage/src/main/java/org/apache/kafka/storage/internals/log/AbstractIndex.java
+protected MappedByteBuffer mmap;
+```
+
+- 索引小（默认单文件上限 10 MiB）→ 冷启动首次访问触发少量缺页后即整体驻留 Page Cache。
+- 后续读写不再走系统调用，直接按虚地址访问 → 二分查找几乎是纯内存操作。
+
+详细的索引二分与热/冷区优化见 [日志分段与索引](./chapter-01-log-segment.md) §4。sendfile 与 mmap 在 Kafka 里分工明确：**面向消费者/副本的批量传输走 sendfile；索引与元数据这类需要频繁小粒度访问的走 mmap**。
+
+## 5. 刷盘：Kafka 为什么把这个交给内核
+
+写路径在 `LogSegment#append` 内只是把字节交给 `FileRecords`，不主动 `fsync`。刷盘由内核按脏页机制回写：
+
+```properties
+# Broker 默认建议：不主动干预
+# log.flush.interval.messages 与 log.flush.interval.ms 都不设
+```
+
+为什么不追刷盘？把它和副本机制对比一次就清楚了：
+
+| 手段 | 单条延迟 | 数据丢失窗口 | 依赖 |
+| :-- | :-- | :-- | :-- |
+| `log.flush.interval.messages=1` | 每条都 `fsync`，磁盘 IOPS 上限直接顶到瓶颈 | 极小 | 单机磁盘可靠性 |
+| `acks=all` + `min.insync.replicas=2` | 内存级同步 | 需要至少两个副本同时丢失才丢数据 | 副本分布与网络 |
+
+结论：Kafka 用副本代替 `fsync`。让内核在合适时机把脏页刷下去，是让消费者读 Page Cache 命中率保持在高位、也让写入不被磁盘 IO 拖住的前提。真需要更强的持久化边界时，走 `acks=all + min.insync.replicas`，见 [ACK 机制与可靠性保证](../05-reliability/chapter-01-acks.md)。
+
+## 6. 因此的工程约束
+
+以上机制推导出的 Broker 内存与文件系统配置约束：
+
+- 堆保持在几 GB 量级，剩余物理内存全部留给 Page Cache。`KAFKA_HEAP_OPTS` 里 Xmx 与 Xms 相等，避免动态扩堆。
+- GC 使用 G1，`MaxGCPauseMillis` 保守设 20 ms 左右。堆越大越难满足这个目标。
+- 关闭或最小化 swap：`vm.swappiness=1`。一旦 Page Cache 被换出去，Consumer 读的每次「命中」都会变成一次磁盘 IO。
+- 文件系统优选 XFS 或 ext4，挂载参数关闭 `atime` 更新（`noatime,nodiratime`）。
+- 关注 SSL 决策：内网 listener 优先明文，只有对外 listener 才启用 SSL；否则整条读路径都会失去 sendfile 的效率优势。
+
+具体的 JVM 参数与 OS 参数模板在 [性能调优](../09-practice/chapter-06-performance-tuning.md) 里给出可复制的配置。
+
+## 7. 一句话小结
+
+- Kafka 把消息生命周期钉在 Page Cache 上，堆只做协议解析与调度。
+- `FileRecords#writeTo → TransportLayer#transferFrom` 是零拷贝的判定点：明文走 `sendfile`；SSL 走 `read + wrap + write`，零拷贝失效。
+- 索引不用 sendfile，用 mmap；两种"零拷贝"分工不同。
+- 刷盘交给内核脏页机制，可靠性交给副本——`fsync` 与 `acks=all` 二选一，Kafka 选后者。

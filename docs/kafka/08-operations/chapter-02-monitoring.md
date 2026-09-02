@@ -150,9 +150,3 @@ tail -f /var/log/kafka/server.log | grep -E "ERROR|WARN|FATAL"
 # [Log Cleaner] Compaction completed for topic → 日志压缩完成
 ```
 
-## 9. 最佳实践
-
-1. **部署完整的监控栈**：JMX Exporter + Prometheus + Grafana + AlertManager。
-2. **设置关键告警**：UnderReplicatedPartitions、OfflinePartitionsCount、ConsumerLag。
-3. **监控系统资源**：CPU、内存、磁盘 I/O、网络带宽，这些直接影响 Kafka 性能。
-4. **建立监控基线**：记录正常情况下的指标值，便于快速发现异常。

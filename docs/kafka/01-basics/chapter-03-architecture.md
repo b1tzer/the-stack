@@ -152,10 +152,3 @@ KRaft Controller（3~5 个节点的 Raft 集群）
 
 KRaft 的优势：去掉外部依赖、Controller 多节点冗余、支持百万级分区、启动更快。
 
-## 7. 最佳实践
-
-1. **避免单点 Controller**：ZooKeeper 模式下监控 Controller 状态，KRaft 模式天然多 Controller。
-2. **合理规划 Broker 数量**：Broker ≥ 副本因子，推荐 3 个以上。
-3. **使用 Rack Awareness**：配置 `broker.rack` 让副本分布在不同机架。
-4. **监控 ISR 收缩**：ISR 收缩意味着可靠性下降，及时排查慢副本。
-5. **新项目用 KRaft**：避免 ZooKeeper 的运维复杂度。
