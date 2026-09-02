@@ -643,7 +643,6 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: 'MySQL 概览', link: '/mysql/01-basics/chapter-01-overview' },
             { text: '整体架构', link: '/mysql/01-basics/chapter-02-architecture' },
             { text: '字符集与排序规则', link: '/mysql/01-basics/chapter-03-charset-collation' },
-            { text: 'SQL 规范与最佳实践', link: '/mysql/01-basics/chapter-04-sql-best-practices' },
           ],
         },
         {
@@ -658,12 +657,17 @@ export default withOpenInEditor(withMermaid(defineConfig({
           ],
         },
         {
-          text: '索引',
+          text: '索引与查询优化',
           items: [
             { text: 'B+ 树索引', link: '/mysql/03-index/chapter-01-btree-index' },
             { text: '索引设计', link: '/mysql/03-index/chapter-02-index-design' },
-            { text: '索引使用', link: '/mysql/03-index/chapter-03-index-usage' },
-            { text: '索引优化', link: '/mysql/03-index/chapter-04-index-optimization' },
+            { text: '索引失效', link: '/mysql/03-index/chapter-03-index-usage' },
+            { text: '索引优化与治理', link: '/mysql/03-index/chapter-04-index-optimization' },
+            { text: '全文索引', link: '/mysql/03-index/chapter-05-fulltext-index' },
+            { text: '查询执行流程与 EXPLAIN', link: '/mysql/05-query-optimization/chapter-01-execution-plan' },
+            { text: 'SQL 优化', link: '/mysql/05-query-optimization/chapter-02-sql-optimization' },
+            { text: '连接优化', link: '/mysql/05-query-optimization/chapter-03-join-optimization' },
+            { text: '子查询优化', link: '/mysql/05-query-optimization/chapter-04-subquery-optimization' },
           ],
         },
         {
@@ -676,24 +680,14 @@ export default withOpenInEditor(withMermaid(defineConfig({
           ],
         },
         {
-          text: '查询优化',
-          items: [
-            { text: '查询执行流程与 EXPLAIN', link: '/mysql/05-query-optimization/chapter-01-execution-plan' },
-            { text: 'SQL 优化', link: '/mysql/05-query-optimization/chapter-02-sql-optimization' },
-            { text: '连接优化', link: '/mysql/05-query-optimization/chapter-03-join-optimization' },
-            { text: '子查询优化', link: '/mysql/05-query-optimization/chapter-04-subquery-optimization' },
-          ],
-        },
-        {
-          text: '高级特性',
+          text: 'SQL 高级特性',
           items: [
             { text: '窗口函数', link: '/mysql/06-advanced-features/chapter-01-window-function' },
             { text: 'CTE', link: '/mysql/06-advanced-features/chapter-02-cte' },
             { text: 'JSON', link: '/mysql/06-advanced-features/chapter-03-json' },
             { text: '生成列', link: '/mysql/06-advanced-features/chapter-04-generated-column' },
             { text: '分区表', link: '/mysql/06-advanced-features/chapter-05-partition' },
-            { text: '全文索引', link: '/mysql/06-advanced-features/chapter-06-fulltext-index' },
-            { text: '存储过程与触发器', link: '/mysql/06-advanced-features/chapter-07-stored-procedure' },
+            { text: '存储过程与触发器', link: '/mysql/06-advanced-features/chapter-06-stored-procedure' },
           ],
         },
         {
@@ -704,6 +698,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '组复制', link: '/mysql/07-replication-ha/chapter-03-group-replication' },
             { text: '读写分离', link: '/mysql/07-replication-ha/chapter-04-read-write-split' },
             { text: '高可用方案', link: '/mysql/07-replication-ha/chapter-05-ha-solution' },
+            { text: '分库分表', link: '/mysql/07-replication-ha/chapter-06-sharding' },
           ],
         },
         {
@@ -714,15 +709,8 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '安全与用户管理', link: '/mysql/08-operations/chapter-03-security' },
             { text: '日常维护', link: '/mysql/08-operations/chapter-04-maintenance' },
             { text: '连接管理', link: '/mysql/08-operations/chapter-05-connection-mgmt' },
-          ],
-        },
-        {
-          text: '扩展架构',
-          items: [
-            { text: '分库分表', link: '/mysql/09-scaling/chapter-01-sharding' },
-            { text: '在线 DDL', link: '/mysql/09-scaling/chapter-02-online-ddl' },
-            { text: '数据迁移', link: '/mysql/09-scaling/chapter-03-data-migration' },
-            { text: 'NewSQL', link: '/mysql/09-scaling/chapter-04-newsql' },
+            { text: '在线 DDL', link: '/mysql/08-operations/chapter-06-online-ddl' },
+            { text: '数据迁移', link: '/mysql/08-operations/chapter-07-data-migration' },
           ],
         },
         {
@@ -733,6 +721,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: 'Spring 集成', link: '/mysql/10-practice/chapter-03-spring-integration' },
             { text: '常见问题', link: '/mysql/10-practice/chapter-04-common-issues' },
             { text: '性能调优', link: '/mysql/10-practice/chapter-05-performance-tuning' },
+            { text: 'SQL 规范与最佳实践', link: '/mysql/10-practice/chapter-06-sql-best-practices' },
           ],
         },
         {
