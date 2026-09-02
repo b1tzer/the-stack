@@ -8,7 +8,9 @@
 
 回顾 [B+ 树索引 §1](./chapter-01-btree-index.md)：InnoDB 的索引是一棵 B+ 树，叶子节点按索引列的值有序排列，查找时先沿树定位到目标区间，再顺着双向链表顺序读取。因此索引只擅长两件事——等值定位（`=`）和范围定位（`>`、`BETWEEN`、`LIKE 'x%'`）。下面每个失效场景，本质都是破坏这两件事之一：要么条件无法翻译成有序区间，要么翻译出的区间太大、回表代价超过全表扫描。
 
-### 1.2 函数操作：索引存的是原始值
+### 1.2 条件无法翻译成有序区间
+
+#### 1.2.1 函数操作：索引存的是原始值
 
 二级索引的叶子节点存的是**列的原始值**，并按原始值排序。`WHERE YEAR(created_at) = 2024` 里，索引中只有 `created_at` 的原始时间戳，没有 `YEAR(created_at)` 这个值。B+ 树想定位「`YEAR(created_at) = 2024`」的区间，就必须对每一行现算 `YEAR()`，无法沿树定位，只能全表扫描。
 
@@ -22,7 +24,7 @@ SELECT * FROM users WHERE created_at >= '2024-01-01' AND created_at < '2025-01-0
 
 判断要点：**函数在等号的哪一侧。** 函数作用在索引列上就失效，作用在常量上不影响。
 
-### 1.3 隐式类型转换：本质是「对列做了函数」
+#### 1.2.2 隐式类型转换：本质是「对列做了函数」
 
 这是函数操作的特殊形态——MySQL 替你往列上加了函数。
 
@@ -46,7 +48,7 @@ EXPLAIN FORMAT=TREE SELECT * FROM users WHERE phone = 13800138000;
 -- 输出里出现 cast(users.phone as double)，证明列被转换
 ```
 
-### 1.4 LIKE 左模糊：无法确定前缀区间
+#### 1.2.3 LIKE 左模糊：无法确定前缀区间
 
 字符串索引按字典序排序，`LIKE` 走索引的前提是**能确定一个前缀**。`LIKE '张%'` 能定位到以「张」开头的连续区间；`LIKE '%张'` 开头是通配符，MySQL 不知道从哪个字符开始，区间无法确定，只能全表扫描。
 
@@ -58,7 +60,7 @@ SELECT * FROM users WHERE name LIKE '%张';
 SELECT * FROM users WHERE name LIKE '张%';
 ```
 
-### 1.5 范围查询之后的列：最左前缀的延续
+#### 1.2.4 范围查询之后的列：最左前缀的延续
 
 这是 [索引设计 §1.2](./chapter-02-index-design.md) 最左前缀原则的具体表现，此处不重复推导，只给结论：
 
@@ -71,7 +73,23 @@ SELECT * FROM t WHERE a = 1 AND b > 10 AND c = 20;
 CREATE INDEX idx_a_c_b ON t(a, c, b);
 ```
 
-### 1.6 否定条件（!= / NOT IN）：命中太多行，优化器主动放弃
+#### 1.2.5 OR 条件：多个区间无法合并定位
+
+索引一次定位只能确定**一个**区间，`OR` 要求「多个区间取并集」。当 `OR` 两侧只有一侧有索引时，另一侧仍需全表扫描，优化器索性整体全表扫描。两侧都有索引时，MySQL 可能用 `index_merge` 分别扫两个索引再合并。
+
+```sql
+-- ❌ b 无索引，OR 的另一侧需全表扫描，整体放弃索引
+SELECT * FROM t WHERE a = 1 OR b = 2;
+
+-- ✅ 拆成两条，分别走各自的索引
+SELECT * FROM t WHERE a = 1
+UNION
+SELECT * FROM t WHERE b = 2;
+```
+
+### 1.3 优化器主动放弃
+
+#### 1.3.1 否定条件（!= / NOT IN）：命中太多行，优化器主动放弃
 
 `!=`、`<>`、`NOT IN` 不走索引，不是 B+ 树不支持，而是**语义决定的成本问题**。
 
@@ -88,7 +106,7 @@ SELECT * FROM users WHERE status IN ('active', 'pending', 'completed');
 -- 用 EXPLAIN 验证，数据分布决定执行计划，不要凭经验猜测
 ```
 
-### 1.7 IS NULL / IS NOT NULL：NULL 也是有序区间里的一段
+#### 1.3.2 IS NULL / IS NOT NULL：NULL 也是有序区间里的一段
 
 `NULL` 值被 B+ 树排在最前或最后（取决于 `ASC`/`DESC`），因此 `IS NULL` 本质是「定位 NULL 值区间」，等价于一次等值查找，能走索引。MySQL 官方文档明确：
 
@@ -106,33 +124,19 @@ SELECT * FROM users WHERE email IS NOT NULL;
 -- 若 email 声明为 NOT NULL，IS NULL 恒为假，优化器直接跳过该条件
 ```
 
-### 1.8 OR 条件：多个区间无法合并定位
+### 1.4 失效场景小结
 
-索引一次定位只能确定**一个**区间，`OR` 要求「多个区间取并集」。当 `OR` 两侧只有一侧有索引时，另一侧仍需全表扫描，优化器索性整体全表扫描。两侧都有索引时，MySQL 可能用 `index_merge` 分别扫两个索引再合并。
+| 场景 | 失效类别 | 失效的根因 |
+| :-- | :-- | :-- |
+| 函数操作 | 无法形成条件范围 | 索引存原始值，函数结果对不上 |
+| 隐式转换 | 无法形成条件范围 | 等价于对列做 `CAST` |
+| `LIKE '%x'` | 无法形成条件范围 | 无法确定前缀区间 |
+| 范围后的列 | 无法形成条件范围 | 最左前缀中断，后续列乱序 |
+| `OR` | 无法形成条件范围 | 多个区间无法合并定位 |
+| `!=` / `NOT IN` | 成本太高放弃索引 | 命中太多行，优化器成本判断 |
+| `IS NOT NULL` | 成本太高放弃索引 | 同上，取决于 NULL 占比 |
 
-```sql
--- ❌ b 无索引，OR 的另一侧需全表扫描，整体放弃索引
-SELECT * FROM t WHERE a = 1 OR b = 2;
-
--- ✅ 拆成两条，分别走各自的索引
-SELECT * FROM t WHERE a = 1
-UNION
-SELECT * FROM t WHERE b = 2;
-```
-
-### 1.9 失效场景小结
-
-| 场景 | 失效的根因 |
-| :-- | :-- |
-| 函数操作 | 索引存原始值，函数结果对不上 |
-| 隐式转换 | 等价于对列做 `CAST` |
-| `LIKE '%x'` | 无法确定前缀区间 |
-| 范围后的列 | 最左前缀中断，后续列乱序 |
-| `!=` / `NOT IN` | 命中太多行，优化器成本判断 |
-| `IS NOT NULL` | 同上，取决于 NULL 占比 |
-| `OR` | 多个区间无法合并定位 |
-
-## 2. 索引失效判断方法
+### 1.5 EXPLAIN 判断失效原因
 
 ```sql
 EXPLAIN SELECT * FROM users WHERE name = '张三';
@@ -156,22 +160,39 @@ EXPLAIN FORMAT=JSON SELECT * FROM users WHERE YEAR(created_at) = 2024;
 EXPLAIN ANALYZE SELECT * FROM users WHERE name = '张三';
 ```
 
-## 3. 索引控制与最佳实践
+## 2. 索引控制与最佳实践
 
-### 3.1 强制使用/忽略索引
+### 2.1 索引提示（Index Hint）
+
+优化器基于统计信息和成本估算自动选择索引，绝大多数场景可靠，但统计信息过期、数据分布倾斜时会选择错误。索引提示让开发者干预这一选择，明确指定「用哪个、不用哪个」。官方文档给出的适用时机只有一条：`EXPLAIN` 显示优化器从候选索引中选错了。（[Index Hints](https://dev.mysql.com/doc/refman/8.0/en/index-hints.html)）
+
+三种提示的强度依次递增：
 
 ```sql
--- 强制使用指定索引
+-- 建议：仅从列出的索引中选择，优化器仍可能不采纳
+SELECT * FROM users USE INDEX(idx_name) WHERE name = '张三';
+
+-- 强制：同 USE，但额外假定表扫描代价极高，尽量使用指定索引
 SELECT * FROM users FORCE INDEX(idx_name) WHERE name = '张三';
 
--- 忽略指定索引
+-- 忽略：明确排除指定索引
 SELECT * FROM users IGNORE INDEX(idx_age) WHERE age > 25;
-
--- 建议使用索引（优化器可能不采纳）
-SELECT * FROM users USE INDEX(idx_name) WHERE name = '张三';
 ```
 
-### 3.2 最佳实践
+| 提示 | 作用 | 优化器可否不遵守 |
+| :-- | :-- | :-- |
+| `USE INDEX` | 仅从列出的索引中选择 | 可以，只是建议 |
+| `FORCE INDEX` | 同 `USE`，并假定表扫描代价极高 | 基本遵守，但非绝对强制 |
+| `IGNORE INDEX` | 排除指定索引 | 遵守，不再使用 |
+
+三种提示本质是**硬编码索引名**，属于最后手段，不应作为常态：
+
+- 索引改名或删除后，语句直接报错（`Error 1176`）。
+- 数据分布变化后，被指定的索引可能已非最优，反而更慢。
+
+正确的处理顺序是：先 `ANALYZE TABLE` 更新统计信息，或改写 SQL 让优化器自然选中正确索引；确实无效时才用索引提示临时纠正，并用 `EXPLAIN` 验证。
+
+### 2.2 最佳实践
 
 1. **避免在索引列上使用函数** — 改用范围查询或函数索引
 2. **保持数据类型一致** — 避免隐式类型转换

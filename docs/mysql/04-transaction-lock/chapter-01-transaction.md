@@ -103,6 +103,10 @@ MVCC（Multi-Version Concurrency Control，多版本并发控制）的核心思�
 
 代价是：历史版本要占用额外空间，且需要后台线程（Purge）在合适的时机把它们清理掉。
 
+::: info 术语锚点：快照读
+上面这种「不加锁、从版本链里挑一个当时可见版本」的普通 `SELECT`，正式名称叫**快照读**（一致性非锁定读，Consistent Non-Locking Read）。它与**当前读**（锁定读）相对，后者读最新版本并加锁，见 [§4.1](#current-read-snapshot-read)。
+:::
+
 理解 MVCC，就是理解三件事：**一行数据里藏了什么**、**旧版本怎么串成链**、**Read View 怎么判定一个版本可不可见**。下面依次展开。
 
 ### 2.2 一行数据里藏了什么：三个隐藏列 {#hidden-columns}
@@ -111,11 +115,11 @@ InnoDB 的聚簇索引里，每一行记录除了你定义的列，还额外带�
 
 ```text
 ┌─────────────┬──────────────────────────────────────┐
-│ 用户列       │  id, balance, ...                     │
+│ 用户列       │  id, balance, ...                    │
 ├─────────────┼──────────────────────────────────────┤
-│ DB_ROW_ID   │  6 字节，行 ID。表有主键时用主键代替   │
-│ DB_TRX_ID   │  6 字节，最后修改这行的事务 ID         │
-│ DB_ROLL_PTR │  7 字节，回滚指针，指向旧版本          │
+│ DB_ROW_ID   │  6 字节，行 ID。表有主键时用主键代替      │
+│ DB_TRX_ID   │  6 字节，最后修改这行的事务 ID           │
+│ DB_ROLL_PTR │  7 字节，回滚指针，指向旧版本            │
 └─────────────┴──────────────────────────────────────┘
 ```
 
@@ -137,24 +141,7 @@ InnoDB 的聚簇索引里，每一行记录除了你定义的列，还额外带�
 
 于是这行数据变成了：
 
-```text
-当前记录（在聚簇索引上）
-  balance     = 1000
-  DB_TRX_ID   = 102          ← 事务 B
-  DB_ROLL_PTR ──────┐
-                    ▼
-Undo 记录（旧版本）
-  balance     = 500
-  DB_TRX_ID   = 101          ← 最初插入时的事务
-  DB_ROLL_PTR = 空
-```
-
-每发生一次修改，Undo Log 就多一节，`DB_ROLL_PTR` 继续往前指。多次修改后，形成一条从当前版本一直通到最老版本的链：
-
-```text
-当前记录 → Undo v3 → Undo v2 → Undo v1
-(trx=105)  (trx=104) (trx=102) (trx=101)
-```
+![版本链：表里的当前行与 Undo Log 历史版本的关联](/mysql/04-transaction-lock-chapter-01-transaction-version-chain.svg)
 
 这条链就叫**版本链**。它完整记录了这行数据「从老到新」的每一次变化。Undo Log 的存储细节与 Purge 清理机制见 [Undo Log](../02-innodb-internals/chapter-05-undo-log.md)，这里只需记住：**版本链是 MVCC 的数据基础，DB_ROLL_PTR 是串起这条链的线。**
 
@@ -180,6 +167,8 @@ Read View 是一份「快照读可见性判定」的上下文。每次快照读�
 ::: info 📖 源码术语对照
 `min_trx_id` 在 InnoDB 源码里叫 `m_up_limit_id`（低水位），`max_trx_id` 叫 `m_low_limit_id`（高水位）。含义是：ID 低于低水位的事务一定已提交，ID 不低于高水位的事务一定还没开始。阅读源码或八股文时遇到这两个名字，对应到这里即可。
 :::
+
+![Read View 的内存结构、字段来源与可见性判定](/mysql/04-transaction-lock-chapter-01-transaction-read-view.svg)
 
 ### 3.2 可见性判断：一条记录怎么决定「看不看得见」 {#visibility-judgment}
 
@@ -257,12 +246,12 @@ Read View（T2 创建，事务 A 复用）：
 
 ## 4. 当前读、幻读与长事务
 
-### 4.1 当前读 vs 快照读：MVCC 管不了的写
+### 4.1 当前读 vs 快照读：MVCC 管不了的写 {#current-read-snapshot-read}
 
 MVCC 只管「读」，而且是「不加锁的普通读」。但并非所有读都走 MVCC：
 
 ```sql
--- 快照读（一致性非锁定读）：普通 SELECT，走 MVCC，不加锁
+-- 快照读：普通 SELECT，走 MVCC（定义见 §2.1）
 SELECT * FROM accounts WHERE id = 1;
 
 -- 当前读（锁定读）：读「最新已提交版本」并加锁，不走 MVCC 的可见性判定
@@ -300,11 +289,14 @@ SELECT * FROM accounts WHERE id > 0 FOR UPDATE;  -- 当前读：读到 2 行，�
 
 版本链上的旧版本不能无限保留，Purge 线程会在「不再被任何 Read View 需要」时清理它们。判断标准是：**只要还存在一个 Read View，其 `min_trx_id` 小于等于某旧版本的 `trx_id`，这个版本就可能还被某个事务看见，不能删。**
 
-因此，一个长时间不提交的事务，等于长期持有一个「很早创建的 Read View」：
+因此，一个做过快照读、又长期不提交的事务，会长期持有那个「很早创建的 Read View」。注意：Read View 在事务第一次快照读时才创建，`BEGIN` 本身并不创建；一个从没做过 `SELECT` 的空闲事务不持有任何 Read View。
 
-- 它的 `min_trx_id` 停在很久以前，导致它之后产生的**所有** Undo 旧版本都无法被 Purge；
+它的危害是全局性的：
+
+- 它的 `min_trx_id` 停在很久以前，把 Purge 能推进到的低水位压住，导致**全局**所有在其之后提交的更新 Undo 都无法被清理；
 - Undo Log 持续膨胀，占用磁盘；
-- 版本链越来越长，快照读要沿链走更多步才能找到可见版本，查询变慢；
+- 大量陈旧 Undo 页面残留在 Buffer Pool，挤占热数据，整体读写变慢；
+- 同一行若被反复修改，版本链会越来越长，快照读沿链回溯的步数增加；
 - 若事务还持有行锁，会进一步阻塞其他事务。
 
 排查长事务：
