@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <defs>
+    <marker id="arrRollback" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#e65100"/>
+    </marker>
+    <marker id="arrVersion" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#1565c0"/>
+    </marker>
+  </defs>
+
+  <!-- 标题 -->
+  <text x="480" y="26" text-anchor="middle" font-size="14" font-weight="bold" fill="#333333">Undo Log：逆向操作日志 + MVCC 版本链载体</text>
+
+  <!-- ============ 左栏：回滚（作用①） ============ -->
+  <rect x="24" y="48" width="290" height="270" rx="6" fill="#fff8e1" stroke="#e65100" stroke-width="1.4"/>
+  <text x="36" y="70" fill="#bf360c" font-weight="bold" font-size="12">作用① 回滚：逆向操作</text>
+
+  <rect x="36" y="86" width="266" height="54" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="48" y="106" fill="#1b5e20" font-size="10" font-weight="bold">当前行（已修改）</text>
+  <text x="48" y="124" fill="#555555" font-size="10">balance = 400（原 500）</text>
+
+  <rect x="36" y="206" width="266" height="70" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="48" y="226" fill="#bf360c" font-size="10" font-weight="bold">undo 记录（逆向操作）</text>
+  <text x="48" y="244" fill="#6d4c41" font-size="10">把 balance 加 100</text>
+  <text x="48" y="262" fill="#6d4c41" font-size="10">改回旧值 500</text>
+
+  <line x1="169" y1="206" x2="169" y2="140" stroke="#e65100" stroke-width="1.6" marker-end="url(#arrRollback)"/>
+  <text x="186" y="178" fill="#e65100" font-size="10" font-weight="bold">ROLLBACK</text>
+
+  <text x="36" y="296" fill="#888888" font-size="9">记「如何改回去」，而非整行快照</text>
+
+  <!-- ============ 中栏：版本链（作用②） ============ -->
+  <rect x="330" y="48" width="380" height="270" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="342" y="70" fill="#0d47a1" font-weight="bold" font-size="12">作用② MVCC：版本链</text>
+
+  <rect x="342" y="84" width="356" height="44" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="354" y="103" fill="#1b5e20" font-size="10" font-weight="bold">当前记录</text>
+  <text x="560" y="103" text-anchor="end" fill="#555555" font-size="9">balance=400</text>
+  <text x="354" y="119" fill="#555555" font-size="9">DB_ROLL_PTR →</text>
+  <text x="560" y="119" text-anchor="end" fill="#555555" font-size="9">trx_id=105</text>
+
+  <line x1="520" y1="128" x2="520" y2="140" stroke="#1565c0" stroke-width="1.4" marker-end="url(#arrVersion)"/>
+
+  <rect x="342" y="140" width="356" height="36" rx="3" fill="#bbdefb" stroke="#1565c0" stroke-width="1"/>
+  <text x="354" y="162" fill="#0d47a1" font-size="10">undo v3</text>
+  <text x="520" y="162" text-anchor="middle" fill="#555555" font-size="9">balance=350</text>
+  <text x="686" y="162" text-anchor="end" fill="#555555" font-size="9">trx_id=104</text>
+
+  <line x1="520" y1="176" x2="520" y2="188" stroke="#1565c0" stroke-width="1.4" marker-end="url(#arrVersion)"/>
+
+  <rect x="342" y="188" width="356" height="36" rx="3" fill="#bbdefb" stroke="#1565c0" stroke-width="1"/>
+  <text x="354" y="210" fill="#0d47a1" font-size="10">undo v2</text>
+  <text x="520" y="210" text-anchor="middle" fill="#555555" font-size="9">balance=420</text>
+  <text x="686" y="210" text-anchor="end" fill="#555555" font-size="9">trx_id=102</text>
+
+  <line x1="520" y1="224" x2="520" y2="236" stroke="#1565c0" stroke-width="1.4" marker-end="url(#arrVersion)"/>
+
+  <rect x="342" y="236" width="356" height="36" rx="3" fill="#bbdefb" stroke="#1565c0" stroke-width="1"/>
+  <text x="354" y="258" fill="#0d47a1" font-size="10">undo v1</text>
+  <text x="520" y="258" text-anchor="middle" fill="#555555" font-size="9">balance=500</text>
+  <text x="686" y="258" text-anchor="end" fill="#555555" font-size="9">trx_id=101</text>
+
+  <text x="342" y="296" fill="#888888" font-size="9">同一行多次修改，用 DB_ROLL_PTR 串成跨事务版本链</text>
+
+  <!-- ============ 右栏：特点 ============ -->
+  <rect x="726" y="48" width="210" height="270" rx="6" fill="#f3e5f5" stroke="#8e24aa" stroke-width="1.4"/>
+  <text x="738" y="70" fill="#6a1b9a" font-weight="bold" font-size="12">特点</text>
+
+  <text x="738" y="96" fill="#6a1b9a" font-size="10" font-weight="bold">逻辑日志</text>
+  <text x="738" y="112" fill="#555555" font-size="9">记逆向操作，不复制整行</text>
+
+  <text x="738" y="140" fill="#6a1b9a" font-size="10" font-weight="bold">两类记录</text>
+  <text x="738" y="156" fill="#555555" font-size="9">insert undo：提交即删</text>
+  <text x="738" y="172" fill="#555555" font-size="9">update undo：Purge 延迟清</text>
+
+  <text x="738" y="200" fill="#6a1b9a" font-size="10" font-weight="bold">存于回滚段</text>
+  <text x="738" y="216" fill="#555555" font-size="9">独立 Undo 表空间</text>
+
+  <text x="738" y="244" fill="#6a1b9a" font-size="10" font-weight="bold">双引用</text>
+  <text x="738" y="260" fill="#555555" font-size="9">回滚事务 + Read View</text>
+  <text x="738" y="276" fill="#555555" font-size="9">都消失才可 Purge</text>
+
+  <!-- ============ 底部：一条 undo 记录结构 ============ -->
+  <rect x="24" y="336" width="912" height="130" rx="6" fill="#f1f8e9" stroke="#2e7d32" stroke-width="1.4"/>
+  <text x="36" y="358" fill="#1b5e20" font-weight="bold" font-size="12">一条 Undo 记录的结构（简化）</text>
+
+  <rect x="36" y="368" width="168" height="60" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="120" y="388" text-anchor="middle" fill="#1b5e20" font-size="10" font-weight="bold">undo_no</text>
+  <text x="120" y="406" text-anchor="middle" fill="#555555" font-size="9">事务内操作序号</text>
+  <text x="120" y="420" text-anchor="middle" fill="#888888" font-size="8">第几次修改</text>
+
+  <rect x="212" y="368" width="168" height="60" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="296" y="388" text-anchor="middle" fill="#1b5e20" font-size="10" font-weight="bold">trx_id</text>
+  <text x="296" y="406" text-anchor="middle" fill="#555555" font-size="9">产生此版本的事务</text>
+  <text x="296" y="420" text-anchor="middle" fill="#888888" font-size="8">可见性判定依据</text>
+
+  <rect x="388" y="368" width="168" height="60" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="472" y="388" text-anchor="middle" fill="#1b5e20" font-size="10" font-weight="bold">表 ID / 主键</text>
+  <text x="472" y="406" text-anchor="middle" fill="#555555" font-size="9">定位到哪一行</text>
+  <text x="472" y="420" text-anchor="middle" fill="#888888" font-size="8">行定位信息</text>
+
+  <rect x="564" y="368" width="168" height="60" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1"/>
+  <text x="648" y="388" text-anchor="middle" fill="#bf360c" font-size="10" font-weight="bold">旧值</text>
+  <text x="648" y="406" text-anchor="middle" fill="#555555" font-size="9">被修改列的旧值</text>
+  <text x="648" y="420" text-anchor="middle" fill="#888888" font-size="8">balance 旧值 500</text>
+
+  <rect x="740" y="368" width="184" height="60" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="832" y="388" text-anchor="middle" fill="#1b5e20" font-size="10" font-weight="bold">roll_ptr</text>
+  <text x="832" y="406" text-anchor="middle" fill="#555555" font-size="9">指向前一条 undo</text>
+  <text x="832" y="420" text-anchor="middle" fill="#888888" font-size="8">串成 undo 链</text>
+
+  <text x="36" y="452" fill="#888888" font-size="9">同一事务多次修改用 roll_ptr 串成事务内 undo 链；跨事务用行上的 DB_ROLL_PTR 串成版本链</text>
+
+  <!-- ============ 总结 ============ -->
+  <text x="480" y="492" text-anchor="middle" fill="#757575" font-size="11">Redo 保证「改过的不会丢」，Undo 保证「改错的能改回」，并顺手提供 MVCC 所需的历史版本</text>
+</svg>

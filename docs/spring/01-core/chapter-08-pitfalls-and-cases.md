@@ -377,9 +377,9 @@ public class BatchService {
 
 ### 8.2 根因
 
-Spring 事务绑定在 `ThreadLocal` 上（[事务管理](../03-data-access/chapter-04-transaction.md)），每个线程有自己的事务上下文。子线程拿不到主线程的事务，各自独立提交，不受主线程回滚影响。
+Spring 事务绑定在 `ThreadLocal` 上（[事务管理](../04-data-access/chapter-04-transaction.md)），每个线程有自己的事务上下文。子线程拿不到主线程的事务，各自独立提交，不受主线程回滚影响。
 
-```
+```txt
 主线程事务 ──────────────────────────────────── 回滚 ✅
   ├─ 子线程1: 独立事务 ──── 已提交 ❌ 不回滚
   ├─ 子线程2: 独立事务 ──── 已提交 ❌ 不回滚
@@ -407,4 +407,4 @@ Spring 事务绑定在 `ThreadLocal` 上（[事务管理](../03-data-access/chap
 | 5. @Value 注入 null | [条件装配](./chapter-07-conditional-profile.md) §4 Environment / PropertySource |
 | 6. @ConditionalOnBean 不生效 | [条件装配](./chapter-07-conditional-profile.md) §1 BeanDefinition 注册阶段 |
 | 7. prototype @PreDestroy 不触发 | [Bean 生命周期](./chapter-03-bean-lifecycle.md) §9.1 作用域 |
-| 8. 多线程事务失效 | [事务管理](../03-data-access/chapter-04-transaction.md) ThreadLocal 绑定 |
+| 8. 多线程事务失效 | [事务管理](../04-data-access/chapter-04-transaction.md) ThreadLocal 绑定 |

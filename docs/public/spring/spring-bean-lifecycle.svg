@@ -1,33 +1,33 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 700" width="800" height="700" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="12">
   <style>
     text { text-anchor: middle; dominant-baseline: central; }
-    .title { font-size: 15px; font-weight: bold; fill: var(--diagram-text-1); }
-    .footnote { font-size: 10px; fill: var(--diagram-text-3); }
+    .title { font-size: 15px; font-weight: bold; fill: #333333; }
+    .footnote { font-size: 10px; fill: #999999; }
     .stage { font-size: 13px; font-weight: bold; }
-    .card-label { font-size: 12px; font-weight: bold; fill: var(--diagram-text-1); }
-    .card-label-emph { font-size: 12px; font-weight: bold; fill: var(--diagram-accent-text-4); }
-    .card-note { font-size: 11px; fill: var(--diagram-text-2); }
-    .arrow { stroke: var(--diagram-arrow); stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+    .card-label { font-size: 12px; font-weight: bold; fill: #333333; }
+    .card-label-emph { font-size: 12px; font-weight: bold; fill: #7b1fa2; }
+    .card-note { font-size: 11px; fill: #666666; }
+    .arrow { stroke: #7b1fa2; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
     .box { rx: 8; ry: 8; stroke-width: 1.5; }
-    .marker-arrow { fill: var(--diagram-arrow); }
-    .stage-instantiate { fill: var(--diagram-accent-bg-1); stroke: var(--diagram-accent-1); }
-    .stage-populate { fill: var(--diagram-accent-bg-2); stroke: var(--diagram-accent-2); }
-    .stage-init { fill: var(--diagram-accent-bg-3); stroke: var(--diagram-accent-3); }
-    .stage-ready { fill: var(--diagram-surface-2); stroke: var(--diagram-stroke-1); }
-    .stage-destroy { fill: var(--diagram-accent-bg-5); stroke: var(--diagram-accent-5); }
-    .stage-text-instantiate { fill: var(--diagram-accent-text-1); }
-    .stage-text-populate { fill: var(--diagram-accent-text-2); }
-    .stage-text-init { fill: var(--diagram-accent-text-3); }
-    .stage-text-ready { fill: var(--diagram-text-2); }
-    .stage-text-destroy { fill: var(--diagram-accent-text-5); }
-    .card-instantiate { fill: var(--diagram-accent-bg-1); stroke: var(--diagram-accent-1); }
-    .card-populate { fill: var(--diagram-accent-bg-2); stroke: var(--diagram-accent-2); }
-    .card-aware { fill: var(--diagram-accent-bg-3); stroke: var(--diagram-accent-3); }
-    .card-before { fill: var(--diagram-accent-bg-3); stroke: var(--diagram-accent-3); }
-    .card-init { fill: var(--diagram-accent-bg-3); stroke: var(--diagram-accent-3); }
-    .card-after { fill: var(--diagram-accent-bg-4); stroke: var(--diagram-accent-4); }
-    .card-ready { fill: var(--diagram-surface-2); stroke: var(--diagram-stroke-1); }
-    .card-destroy { fill: var(--diagram-accent-bg-5); stroke: var(--diagram-accent-5); }
+    .marker-arrow { fill: #7b1fa2; }
+    .stage-instantiate { fill: #e3f2fd; stroke: #1565c0; }
+    .stage-populate { fill: #e0f2f1; stroke: #00796b; }
+    .stage-init { fill: #ede7f6; stroke: #6a1b9a; }
+    .stage-ready { fill: #eceff1; stroke: #666666; }
+    .stage-destroy { fill: #fff3e0; stroke: #e65100; }
+    .stage-text-instantiate { fill: #1565c0; }
+    .stage-text-populate { fill: #00796b; }
+    .stage-text-init { fill: #6a1b9a; }
+    .stage-text-ready { fill: #555555; }
+    .stage-text-destroy { fill: #e65100; }
+    .card-instantiate { fill: #e3f2fd; stroke: #1565c0; }
+    .card-populate { fill: #e0f2f1; stroke: #00796b; }
+    .card-aware { fill: #ede7f6; stroke: #6a1b9a; }
+    .card-before { fill: #ede7f6; stroke: #6a1b9a; }
+    .card-init { fill: #ede7f6; stroke: #6a1b9a; }
+    .card-after { fill: #e1bee7; stroke: #7b1fa2; }
+    .card-ready { fill: #eceff1; stroke: #666666; }
+    .card-destroy { fill: #fff3e0; stroke: #e65100; }
   </style>
   <defs>
     <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">

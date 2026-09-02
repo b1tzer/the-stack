@@ -472,10 +472,3 @@ if (deadlockedThreads != null) {
 5. **中断是协作式的通知机制**，不是强制终止
 
 > **与 Project Loom 的关系**：本章介绍的 1:1 线程模型和线程状态机是理解传统 Java 并发的基础。Virtual Thread 改变了线程的调度方式（由 JVM 而非 OS 调度），但 JMM 的规则（第 4 章）、线程安全的编程范式（第 5-9 章）依然完全适用。无论底层是平台线程还是虚拟线程，happens-before 规则不变，`volatile` 和 `synchronized` 的语义不变。
-
-> **纵横联系**
->
-> - **向前（[第1章](./chapter-01-why-concurrency)）**：第 1 章解释了"为什么需要并发"，本章回答了"并发的执行单元是什么"
-> - **向后（[第4章](./chapter-04-jmm)）**：JMM 解释了多线程共享数据时的可见性和有序性问题，是理解 `volatile`、`synchronized`、`happens-before` 的理论基础
-> - **向后（[第10章](./chapter-10-thread-pool)）**：线程池是对线程生命周期的管理抽象，理解本章的线程开销是理解线程池必要性的前提
-> - **第二卷《JVM Runtime》**：HotSpot 的线程实现、栈帧结构、线程本地分配缓冲区（TLAB）等内容，与本章的 1:1 模型直接相关

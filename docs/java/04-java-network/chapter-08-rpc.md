@@ -229,10 +229,3 @@ Consumer 启动 → 拉取 `user-service` 的所有实例 → 本地缓存 → �
 | RoundRobin | 轮询 | 实例性能相同 |
 | LeastActive | 选当前负载最轻的 | 请求耗时差异大 |
 | ConsistentHash | 相同参数 → 同一实例 | 有状态服务、本地缓存 |
-
-> **纵横联系**
->
-> - **[第3章](./chapter-03-socket) Socket** 的 `connect()`、`write()`、`read()` 是 Dubbo 底层 `NettyChannel` 调用的 OS 操作。accept 队列溢出导致客户端超时（§8.1.2）本质是 TCP 全连接队列满。
-> - **[第4章](./chapter-04-nio) NIO** 的 Selector + Channel 是 Dubbo/Netty 网络层的基石。Dubbo Provider 线程池满 → 新请求在 Netty 的 IO 线程上排队 → 延迟飙升。
-> - **[第5章](./chapter-05-netty) Netty** 是 Dubbo 默认的传输实现。Consumer 和 Provider 之间的字节流收发、心跳、重连全部基于 Netty 的 Pipeline 和 EventLoop。
-> - **[第6章](./chapter-06-http) HTTP** 的 gRPC 基于 HTTP/2。Triple 协议（Dubbo 3.x）也是 HTTP/2 → 可以直接用 curl 调 Dubbo，也可以和 gRPC 互通。

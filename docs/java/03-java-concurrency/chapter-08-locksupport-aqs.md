@@ -560,9 +560,3 @@ try {
 | 多种等待条件混在一个 Monitor 里 | `_WaitSet` 只有一个 | `Condition` 每个一条独立队列 |
 | 读多写少下写线程饥饿 | `ReadWriteLock` 允许无限读并发 | `StampedLock` 的乐观读 |
 | `Lock` 忘解锁导致永久阻塞 | 无编译器保底 | `unlock` 强制放 `finally` |
-
-> **纵横联系**
->
-> - **向前依赖**：§8.2 的 `park/unpark` 建立在第 2 章线程状态机（`WAITING` / `TIMED_WAITING`）之上；`compareAndSetState` 是第 7 章 CAS 的直接应用；§8.3 与第 6 章 `synchronized` 的 Monitor 共同构成 Java 两条锁实现路径。
-> - **向后使用**：第 9 章的 `BlockingQueue` / `ConcurrentHashMap` 的桶级锁大量使用 `ReentrantLock` 与 `Condition`；第 10 章的 `ThreadPoolExecutor` 的 `mainLock` 与 `termination` 直接建立在本章之上；第 12 章虚拟线程遇到 `synchronized` 会 pinning，而 `ReentrantLock` 不会——原因就是这里。
-> - **跨卷关系**：第五卷 HikariCP 连接池对空闲连接的等待与唤醒使用 `LockSupport`；第七卷分布式锁的语义与本章的公平/非公平、可中断/超时选择直接对应。

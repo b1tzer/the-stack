@@ -1,6 +1,8 @@
 # 监控
 
-## 1. Performance Schema
+## 1. 内置监控工具
+
+### 1.1 Performance Schema
 
 ```sql
 -- 查看连接
@@ -14,7 +16,7 @@ SELECT * FROM performance_schema.events_statements_summary_by_digest
 ORDER BY sum_timer_wait DESC LIMIT 10;
 ```
 
-## 2. sys Schema
+### 1.2 sys Schema
 
 ```sql
 -- 最慢查询
@@ -27,7 +29,7 @@ SELECT * FROM sys.schema_unused_indexes;
 SELECT * FROM sys.schema_redundant_indexes;
 ```
 
-## 3. 慢查询日志
+### 1.3 慢查询日志
 
 ```ini
 slow_query_log = 1
@@ -40,7 +42,9 @@ long_query_log_time = 1
 mysqldumpslow -s t -t 10 /var/log/mysql/slow.log
 ```
 
-## 4. 关键监控指标
+## 2. 指标与可视化监控
+
+### 2.1 关键监控指标
 
 ```sql
 -- 连接相关
@@ -70,7 +74,7 @@ SHOW GLOBAL STATUS LIKE 'Created_tmp%';
 -- Created_tmp_tables: 内存临时表
 ```
 
-## 5. Grafana + Prometheus 监控
+### 2.2 Grafana + Prometheus 监控
 
 ```yaml
 # mysqld_exporter 配置
@@ -100,7 +104,7 @@ scrape_configs:
 - MySQL InnoDB Metrics (ID: 7365)
 - MySQL Replication (ID: 7371)
 
-## 6. 告警规则
+### 2.3 告警规则
 
 ```yaml
 # Prometheus 告警规则
@@ -140,7 +144,7 @@ groups:
           summary: "连接数超过 80%"
 ```
 
-## 7. 最佳实践
+## 3. 最佳实践
 
 1. **部署 Prometheus + Grafana** — 成熟的监控方案
 2. **关键指标必须告警** — 连接数、慢查询、复制延迟、磁盘空间
@@ -148,4 +152,3 @@ groups:
 4. **监控 Buffer Pool 命中率** — 低于 99% 需要调整
 5. **监控磁盘空间** — Binlog 和数据文件增长
 6. **保留历史监控数据** — 便于趋势分析和容量规划
-

@@ -1,105 +1,125 @@
-# ACK 机制
+# ACK 机制与可靠性保证
 
-## 1. acks 配置
+> ACK 机制是 Kafka 可靠性的基石。它控制消息写入多少副本后才算成功，直接决定了消息丢失的概率。本章从生产者、Broker、消费者三个维度讲清 Kafka 的端到端可靠性。
 
-| acks | 说明 | 可靠性 | 吞吐量 |
-|------|------|--------|--------|
-| 0 | 不等待确认 | 低 | 高 |
-| 1 | Leader 确认 | 中 | 中 |
-| all | ISR 全部确认 | 高 | 低 |
+## 1. 端到端可靠性
 
-## 2. 数据丢失场景
+消息从生产者到消费者，经过三个环节，每个环节都有可靠性配置：
 
-```properties
-# acks=1 时
-Leader 写入成功 → 返回确认 → Leader 宕机 → Follower 未同步 → 数据丢失
-
-# 解决：acks=all + min.insync.replicas=2
+```text
+Producer → Broker → Consumer
+   │          │          │
+   ▼          ▼          ▼
+  acks    副本机制    Offset 提交
 ```
 
-## 3. 配置建议
+| 环节 | 配置 | 作用 |
+| :-- | :-- | :-- |
+| 生产者 | `acks=all` | 消息写入所有 ISR 副本后才确认 |
+| Broker | `min.insync.replicas=2` | ISR 至少 2 个副本，否则拒绝写入 |
+| Broker | `unclean.leader.election.enable=false` | 禁止非 ISR 选举 |
+| 消费者 | 手动提交 Offset | 处理完再提交，避免丢失 |
+
+## 2. 三种 ACK 模式详解
+
+### 2.1 acks=0
+
+```text
+Producer → Broker：发完即返回，不等待任何确认
+```
+
+| 维度 | 说明 |
+| :-- | :-- |
+| 可靠性 | 最低，消息可能丢失 |
+| 吞吐量 | 最高 |
+| 适用场景 | 日志收集、监控指标（允许丢失） |
+
+### 2.2 acks=1
+
+```text
+Producer → Leader：写入本地日志
+Leader → Producer：返回 ACK
+（之后 Leader 宕机，Follower 未同步 → 数据丢失）
+```
+
+| 维度 | 说明 |
+| :-- | :-- |
+| 可靠性 | 中等，Leader 宕机可能丢数据 |
+| 吞吐量 | 中等 |
+| 适用场景 | 一般业务（可容忍极小概率丢失） |
+
+### 2.3 acks=all
+
+```text
+Producer → Leader：写入本地日志
+Leader → Follower1：Fetch 同步
+Leader → Follower2：Fetch 同步
+（所有 ISR 确认后）
+Leader → Producer：返回 ACK
+```
+
+| 维度 | 说明 |
+| :-- | :-- |
+| 可靠性 | 最高（配合 min.insync.replicas） |
+| 吞吐量 | 最低 |
+| 适用场景 | 金融、订单等不能丢数据的场景 |
+
+## 3. min.insync.replicas
 
 ```properties
-# 高可靠配置
-acks=all
 min.insync.replicas=2
-retries=Integer.MAX_VALUE
-enable.idempotence=true
 ```
 
-## 4. ACK 机制工作原理
+配合 `acks=all` 使用：如果 ISR 中的副本数 < `min.insync.replicas`，Broker 拒绝写入，返回 `NotEnoughReplicasException`。
 
-```
-acks=0:
-Producer → 发送 → Broker（不等待确认）→ 完成
-风险：消息可能丢失（网络故障、Broker 宕机）
-
-acks=1:
-Producer → 发送 → Leader 写入 → 返回 ACK → 完成
-风险：Leader 宕机后，未同步到 Follower 的消息丢失
-
-acks=all:
-Producer → 发送 → Leader 写入 → ISR 全部同步 → 返回 ACK → 完成
-保障：只要 ISR 中有 1 个存活，消息就不会丢失
+```text
+ISR = {Leader, F1, F2}（3 个）→ 正常写入
+ISR = {Leader, F1}（2 个）→ 正常写入（刚好满足）
+ISR = {Leader}（1 个）→ 拒绝写入（< min.insync.replicas）
 ```
 
-## 5. min.insync.replicas 详解
+> `min.insync.replicas=2` 保证至少有 2 个副本同步成功。即使 Leader 宕机，至少还有一个 Follower 有完整数据。
+
+## 4. Unclean Leader 选举
+
+当 ISR 为空时（所有副本都落后），是否从 OSR 中选举新 Leader？
 
 ```properties
-# 场景：3 个 Broker，副本因子 3，min.insync.replicas=2
-
-# 正常情况：ISR = [Broker1, Broker2, Broker3]
-# acks=all → 3 个副本都同步成功 → 返回 ACK
-
-# Broker3 宕机：ISR = [Broker1, Broker2]
-# acks=all → 2 个副本同步成功 → 返回 ACK（仍然可用）
-
-# Broker2 也宕机：ISR = [Broker1]
-# ISR 数量 < min.insync.replicas → 拒绝写入！
-# 抛出 NotEnoughReplicasException
+unclean.leader.election.enable=false   # 推荐：禁止
 ```
 
-## 6. 数据丢失场景与解决方案
+| 策略 | 优势 | 风险 |
+| :-- | :-- | :-- |
+| 禁止 | 不丢数据 | 服务不可用直到 ISR 恢复 |
+| 允许 | 服务可用 | OSR 副本可能丢数据 |
 
-| 场景 | 原因 | 解决方案 |
-|------|------|----------|
-| Leader 宕机丢数据 | acks=1，Follower 未同步 | acks=all + min.insync.replicas=2 |
-| 消费者丢数据 | 自动提交，处理前崩溃 | 手动提交 Offset |
-| Unclean Leader 选举 | 非 ISR 成为 Leader | unclean.leader.election.enable=false |
-| 网络分区 | ISR 收缩到 0 | 监控 ISR，设置合理的超时 |
+## 5. 消费者端可靠性
 
-## 7. 完整的高可靠配置
+自动提交与手动提交的差异、自动提交丢消息的风险，见 [Offset 管理](../03-consumer/chapter-03-offset-management.md)。
+
+## 6. 端到端可靠性配置
 
 ```properties
 # 生产者
 acks=all
-retries=Integer.MAX_VALUE
 enable.idempotence=true
-max.in.flight.requests.per.connection=5
+retries=Integer.MAX_VALUE
+min.insync.replicas=2
 
 # Broker
-min.insync.replicas=2
 unclean.leader.election.enable=false
-replication.factor=3
 default.replication.factor=3
+min.insync.replicas=2
 
 # 消费者
 enable.auto.commit=false
-isolation.level=read_committed
+isolation.level=read_committed  # 事务场景
 ```
 
-## 8. 可靠性 vs 性能权衡
+## 7. 最佳实践
 
-| 配置 | 可靠性 | 吞吐量 | 延迟 |
-|------|--------|--------|------|
-| acks=0 | 最低 | 最高 | 最低 |
-| acks=1 | 中 | 中 | 中 |
-| acks=all + min.insync.replicas=1 | 高 | 中 | 中 |
-| acks=all + min.insync.replicas=2 | 最高 | 较低 | 较高 |
-
-## 9. 最佳实践
-
-1. **生产环境使用 acks=all + min.insync.replicas=2**：这是平衡可靠性和性能的最佳配置。
-2. **禁用 Unclean Leader 选举**：宁可服务不可用，也不要数据丢失。
-3. **监控 NotEnoughReplicasException**：频繁出现说明集群容量不足。
-4. **定期检查副本分布**：使用 `kafka-reassign-partitions.sh` 确保副本均匀分布。
+1. **acks=all + min.insync.replicas=2**：生产标配。
+2. **禁用 Unclean Leader 选举**：宁可短暂不可用也不丢数据。
+3. **手动提交 Offset**：处理完再提交，避免丢失。
+4. **副本因子设为 3**：兼顾可靠性和存储开销。
+5. **监控 UnderReplicatedPartitions**：该指标 > 0 说明有副本同步异常。

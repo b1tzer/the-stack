@@ -21,7 +21,9 @@ title: MVCC 多版本并发控制
 
 ### 2.1 隐藏字段：xmin / xmax
 
-PG 不会显式地给每行打上"版本号"，而是通过两个**隐藏字段**来追踪行的生命周期：
+PG 不会显式地给每行打上"版本号"，而是通过两个**隐藏字段**来追踪行的生命周期。
+
+> **事务 ID（XID）**：PG 给每个写事务分配的 32 位递增编号，MVCC 靠比较它的大小判断可见性。它不会无限增长，到达上限会回卷（见 [§6](#xid-wraparound)）。
 
 | 隐藏字段 | 含义 | 类比 |
 |---------|------|------|
@@ -159,7 +161,7 @@ LIMIT 5;
 3. **及时终止**：发现长事务立即 `pg_terminate_backend(pid)`
 4. **监控告警**：对超过 10 分钟的活跃事务告警
 
-## 6. 事务 ID 回卷（XID Wraparound）
+## 6. 事务 ID 回卷（XID Wraparound） {#xid-wraparound}
 
 > **致命问题**：这是 PG 最严重的生产事故之一。处理不当会导致数据库自动关机保护，极端情况下可能丢数据。
 
@@ -211,30 +213,3 @@ vacuumdb --freeze --all
 postgres --single -D /var/lib/postgresql/16/main your_db
 > VACUUM;
 ```
-
-### 6.5 预防措施
-
-1. **确保 autovacuum 正常运行**——不要关闭！
-2. **监控事务 ID 年龄**——Prometheus 告警阈值设为 5 亿
-3. **避免长事务**——设置 `idle_in_transaction_session_timeout`
-4. **定期手动 VACUUM FREEZE**——对大表，不要等 autovacuum
-
-> **真实案例**：某电商关闭了 autovacuum 以"提升性能"，半年后事务 ID 回卷，数据库强制关闭，业务停摆 4 小时。
-
-## 7. 常见问题
-
-**Q：PG 的 MVCC 和 MySQL 的 MVCC 有什么区别？**
-
-> PG 将旧版本行存储在堆表中，读操作无需回溯 Undo Log，读性能更稳定，但需要 VACUUM 定期清理，有表膨胀风险；MySQL 使用 Undo Log 存储旧版本，事务提交后自动回收，无表膨胀问题，但长事务下需要回溯较长的 Undo Log 链。
-
-**Q：什么是表膨胀？如何避免？**
-
-> PG 的 MVCC 机制在 UPDATE/DELETE 时不删除旧版本行，而是标记为 Dead Tuple。如果不及时清理，Dead Tuple 持续堆积，表文件持续增大，这就是表膨胀。避免方法：确保 autovacuum 开启；对高频更新的表降低 `autovacuum_vacuum_scale_factor`；避免长事务；定期监控 `n_dead_tup`。
-
-**Q：MVCC 和锁有什么关系？**
-
-> MVCC 让读操作不需要加锁，但写操作之间仍然需要锁（行级排他锁）。两个事务同时更新同一行时，后到的事务会等待先到的事务提交。MVCC 解决的是**读写冲突**，锁解决的是**写写冲突**。
-
-**Q：为什么不把旧版本也存到 Undo Log 里（像 MySQL 那样）？**
-
-> 这是设计取舍。PG 选择把旧版本留在堆表中，好处是读操作不需要"回溯"到 Undo Log 找旧版本，读性能更稳定。坏处是需要 VACUUM 清理。MySQL 的做法反过来：读操作需要回溯 Undo Log 链，但不需要手动清理。两种方案各有优劣，没有绝对的好坏。

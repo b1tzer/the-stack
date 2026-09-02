@@ -1,8 +1,9 @@
 import { defineConfig } from 'vitepress'
 import { svgEditorPlugin, svgDiagramMarkdownPlugin } from 'vitepress-plugin-svg-editor'
 import { withOpenInEditor } from 'vitepress-plugin-open-in-editor'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 
-export default withOpenInEditor(defineConfig({
+export default withOpenInEditor(withMermaid(defineConfig({
   title: 'The Stack',
   description: '系统化的 Java 后端技术分析',
   lang: 'zh-CN',
@@ -15,6 +16,9 @@ export default withOpenInEditor(defineConfig({
         storage: 'vitepress',
       }),
     ],
+    optimizeDeps: {
+      include: ['fastdom', 'fastdom/extensions/fastdom-promised.js'],
+    },
   },
   markdown: {
     config(md) {
@@ -23,26 +27,44 @@ export default withOpenInEditor(defineConfig({
   },
   
   themeConfig: {
-    logo: '/assets/logo.svg',
+    logo: '/logo.svg',
+    outline: {
+      level: [2, 3],
+    },
     
     editLink: {
       text: '在编辑器中打开源文件',
     },
     
     nav: [
-      { text: '首页', link: '/' },
-      { text: 'Java', link: '/java/01-java-language/chapter-01-type-system' },
-      { text: 'Spring', link: '/spring/01-core/chapter-01-spring-overview' },
-      { text: 'Redis', link: '/redis/01-data-model/chapter-01-overview' },
-      { text: '更多', items: [
-        { text: 'PostgreSQL', link: '/postgresql/01-pg-unique/chapter-01-pg-overview' },
-        { text: 'MySQL', link: '/mysql/01-basics/chapter-01-overview' },
-        { text: 'Kafka', link: '/kafka/01-basics/chapter-01-overview' },
-        { text: 'Elasticsearch', link: '/elasticsearch/01-basics/chapter-01-overview' },
-        { text: '设计模式', link: '/design-pattern/00-intro/chapter-01-why-patterns' },
-        { text: '软件工程', link: '/engineering/01-principles/chapter-01-overview' },
-        { text: 'AI 工程', link: '/ai/01-LLM接口与提示词工程' },
-      ]
+      { text: 'Java', link: '/java/01-java-language/chapter-01-type-system', activeMatch: '^/java/' },
+      { text: 'Spring', link: '/spring/01-core/chapter-01-spring-overview', activeMatch: '^/spring/' },
+      { text: 'Redis', link: '/redis/01-data-model/chapter-01-overview', activeMatch: '^/redis/' },
+      {
+        text: '数据库',
+        activeMatch: '^/(mysql|postgresql)/',
+        items: [
+          { text: 'MySQL', link: '/mysql/01-basics/chapter-01-overview' },
+          { text: 'PostgreSQL', link: '/postgresql/01-pg-unique/chapter-01-pg-overview' },
+        ],
+      },
+      {
+        text: '消息队列',
+        activeMatch: '^/(kafka|rabbitmq)/',
+        items: [
+          { text: 'Kafka', link: '/kafka/01-basics/chapter-01-overview' },
+          { text: 'RabbitMQ', link: '/rabbitmq/01-basics/chapter-01-overview' },
+        ],
+      },
+      { text: 'Elasticsearch', link: '/elasticsearch/01-basics/chapter-01-overview', activeMatch: '^/elasticsearch/' },
+      {
+        text: '工程',
+        activeMatch: '^/(design-pattern|engineering|ai)/',
+        items: [
+          { text: '设计模式', link: '/design-pattern/00-intro/chapter-01-why-patterns' },
+          { text: '软件工程', link: '/engineering/01-principles/chapter-01-overview' },
+          { text: 'AI 工程', link: '/ai/01-LLM接口与提示词工程' },
+        ],
       },
     ],
 
@@ -108,10 +130,18 @@ export default withOpenInEditor(defineConfig({
         {
           text: '实战',
           items: [
-            { text: 'Spring 中的模式', link: '/design-pattern/04-practice/chapter-01-spring-patterns' },
-            { text: 'JDK 中的模式', link: '/design-pattern/04-practice/chapter-02-jdk-patterns' },
-            { text: '重构到模式', link: '/design-pattern/04-practice/chapter-03-refactoring-to-patterns' },
-            { text: '反模式', link: '/design-pattern/04-practice/chapter-04-anti-patterns' },
+            { text: '设计模式入门', link: '/design-pattern/04-practice/chapter-01-getting-started' },
+            { text: 'Spring 中的模式', link: '/design-pattern/04-practice/chapter-02-spring-patterns' },
+            { text: 'JDK 中的模式', link: '/design-pattern/04-practice/chapter-03-jdk-patterns' },
+            { text: '重构到模式', link: '/design-pattern/04-practice/chapter-04-refactoring-to-patterns' },
+            { text: '反模式', link: '/design-pattern/04-practice/chapter-05-anti-patterns' },
+          ],
+        },
+        {
+          text: '参考手册',
+          items: [
+            { text: '模式速查表', link: '/design-pattern/reference/pattern-cheatsheet' },
+            { text: 'UML 类图速查', link: '/design-pattern/reference/uml-cheatsheet' },
           ],
         },
       ],
@@ -119,8 +149,8 @@ export default withOpenInEditor(defineConfig({
         {
           text: '基础入门',
           items: [
+            { text: 'ES 引入', link: '/elasticsearch/01-basics/chapter-00-intro' },
             { text: 'ES 概览', link: '/elasticsearch/01-basics/chapter-01-overview' },
-            { text: '安装部署', link: '/elasticsearch/01-basics/chapter-02-install-config' },
             { text: '核心概念', link: '/elasticsearch/01-basics/chapter-03-core-concepts' },
             { text: 'REST API', link: '/elasticsearch/01-basics/chapter-04-rest-api' },
           ],
@@ -208,12 +238,22 @@ export default withOpenInEditor(defineConfig({
           ],
         },
         {
-          text: '实战场景',
+          text: '实战',
           items: [
-            { text: 'Spring 集成', link: '/elasticsearch/10-practice/chapter-01-spring-integration' },
-            { text: '日志分析', link: '/elasticsearch/10-practice/chapter-02-log-analysis' },
-            { text: '搜索引擎', link: '/elasticsearch/10-practice/chapter-03-search-engine' },
-            { text: '数据同步', link: '/elasticsearch/10-practice/chapter-04-data-sync' },
+            { text: '安装部署与环境配置', link: '/elasticsearch/10-practice/chapter-01-installation' },
+            { text: '第一个 ES 应用', link: '/elasticsearch/10-practice/chapter-02-first-app' },
+            { text: '首次生产部署', link: '/elasticsearch/10-practice/chapter-03-first-production' },
+            { text: 'Spring 集成', link: '/elasticsearch/10-practice/chapter-04-spring-integration' },
+            { text: '日志分析', link: '/elasticsearch/10-practice/chapter-05-log-analysis' },
+            { text: '搜索引擎', link: '/elasticsearch/10-practice/chapter-06-search-engine' },
+            { text: '数据同步', link: '/elasticsearch/10-practice/chapter-07-data-sync' },
+          ],
+        },
+        {
+          text: '参考手册',
+          items: [
+            { text: '参数速查', link: '/elasticsearch/reference/parameters' },
+            { text: 'API 速查', link: '/elasticsearch/reference/api' },
           ],
         },
       ],
@@ -272,7 +312,6 @@ export default withOpenInEditor(defineConfig({
         {
           text: '工程实践',
           items: [
-            { text: 'Git 工作流', link: '/engineering/06-engineering-practices/chapter-01-git-workflow' },
             { text: 'Code Review', link: '/engineering/06-engineering-practices/chapter-02-code-review' },
             { text: '测试', link: '/engineering/06-engineering-practices/chapter-03-testing' },
             { text: 'CI/CD', link: '/engineering/06-engineering-practices/chapter-04-cicd' },
@@ -300,12 +339,22 @@ export default withOpenInEditor(defineConfig({
           ],
         },
         {
-          text: '实战场景',
+          text: '实战',
           items: [
-            { text: 'API 设计', link: '/engineering/09-practice/chapter-01-api-design' },
-            { text: '数据建模', link: '/engineering/09-practice/chapter-02-data-modeling' },
-            { text: '性能调优', link: '/engineering/09-practice/chapter-03-performance-tuning' },
-            { text: '案例分析', link: '/engineering/09-practice/chapter-04-case-studies' },
+            { text: '软件工程入门', link: '/engineering/09-practice/chapter-01-getting-started' },
+            { text: 'Git 工作流', link: '/engineering/09-practice/chapter-02-git-workflow' },
+            { text: 'API 设计', link: '/engineering/09-practice/chapter-03-api-design' },
+            { text: '数据建模', link: '/engineering/09-practice/chapter-04-data-modeling' },
+            { text: '性能调优', link: '/engineering/09-practice/chapter-05-performance-tuning' },
+            { text: '案例分析', link: '/engineering/09-practice/chapter-06-case-studies' },
+          ],
+        },
+        {
+          text: '参考手册',
+          items: [
+            { text: '设计原则速查', link: '/engineering/reference/principles' },
+            { text: '工具链速查', link: '/engineering/reference/toolchain' },
+            { text: 'Code Review 速查', link: '/engineering/reference/code-review-checklist' },
           ],
         },
       ],
@@ -350,7 +399,7 @@ export default withOpenInEditor(defineConfig({
             { text: '异步编程', link: '/java/03-java-concurrency/chapter-11-async-model' },
             { text: '虚拟线程与结构化并发', link: '/java/03-java-concurrency/chapter-12-virtual-thread' },
             { text: '诊断与优化', link: '/java/03-java-concurrency/chapter-13-diagnostics' },
-            { text: '案例集：死锁、线程池与虚拟线程', link: '/java/03-java-concurrency/chapter-13-diagnostics-cases' },
+            { text: '案例集：死锁、线程池与虚拟线程', link: '/java/03-java-concurrency/chapter-14-diagnostics-cases' },
           ],
         },
         {
@@ -375,23 +424,8 @@ export default withOpenInEditor(defineConfig({
             { text: 'JDBC', link: '/java/05-java-data-access/chapter-02-jdbc' },
             { text: 'MyBatis', link: '/java/05-java-data-access/chapter-03-mybatis' },
             { text: 'ORM 深入', link: '/java/05-java-data-access/chapter-04-orm-deep' },
-            { text: '数据库核心原理', link: '/java/05-java-data-access/chapter-05-db-principles' },
-            { text: 'Spring 事务', link: '/java/05-java-data-access/chapter-06-spring-transaction' },
-            { text: '性能优化', link: '/java/05-java-data-access/chapter-07-performance' },
-          ],
-        },
-        {
-          text: '企业架构',
-          items: [
-            { text: '企业系统部署', link: '/java/06-java-enterprise/chapter-08-security-deploy' },
-            { text: '可观测性', link: '/java/06-java-enterprise/chapter-09-observability' },
-          ],
-        },
-        {
-          text: '性能与架构',
-          items: [
-            { text: '性能工程', link: '/java/07-performance-architecture/chapter-08-performance' },
-            { text: '架构案例', link: '/java/07-performance-architecture/chapter-09-case-studies' },
+            { text: '性能优化', link: '/java/05-java-data-access/chapter-05-performance' },
+            { text: 'Druid 连接池', link: '/java/05-java-data-access/chapter-06-druid' },
           ],
         },
       ],
@@ -474,11 +508,131 @@ export default withOpenInEditor(defineConfig({
           ],
         },
         {
-          text: '实战场景',
+          text: '实战',
           items: [
-            { text: 'Spring 集成', link: '/kafka/09-practice/chapter-01-spring-integration' },
-            { text: '常见场景', link: '/kafka/09-practice/chapter-02-common-patterns' },
-            { text: '性能调优', link: '/kafka/09-practice/chapter-03-performance-tuning' },
+            { text: '安装部署与环境配置', link: '/kafka/09-practice/chapter-01-installation' },
+            { text: '第一个 Kafka 应用', link: '/kafka/09-practice/chapter-02-first-app' },
+            { text: '首次生产部署', link: '/kafka/09-practice/chapter-03-first-production' },
+            { text: 'Spring 集成', link: '/kafka/09-practice/chapter-04-spring-integration' },
+            { text: '常见场景', link: '/kafka/09-practice/chapter-05-common-patterns' },
+            { text: '性能调优', link: '/kafka/09-practice/chapter-06-performance-tuning' },
+          ],
+        },
+        {
+          text: '参考手册',
+          items: [
+            { text: '参数速查', link: '/kafka/reference/parameters' },
+            { text: '命令速查', link: '/kafka/reference/commands' },
+          ],
+        },
+      ],
+      '/rabbitmq/': [
+        {
+          text: '基础入门',
+          items: [
+            { text: 'RabbitMQ 概览', link: '/rabbitmq/01-basics/chapter-01-overview' },
+            { text: '整体架构', link: '/rabbitmq/01-basics/chapter-02-architecture' },
+            { text: 'AMQP 协议', link: '/rabbitmq/01-basics/chapter-03-amqp-protocol' },
+            { text: '安装部署', link: '/rabbitmq/01-basics/chapter-04-install-config' },
+            { text: '消息队列选型', link: '/rabbitmq/01-basics/chapter-05-mq-comparison' },
+          ],
+        },
+        {
+          text: 'Exchange',
+          items: [
+            { text: 'Exchange 基础', link: '/rabbitmq/02-exchange/chapter-01-exchange-basics' },
+            { text: 'Direct Exchange', link: '/rabbitmq/02-exchange/chapter-02-direct-exchange' },
+            { text: 'Topic Exchange', link: '/rabbitmq/02-exchange/chapter-03-topic-exchange' },
+            { text: 'Fanout Exchange', link: '/rabbitmq/02-exchange/chapter-04-fanout-exchange' },
+            { text: 'Headers Exchange', link: '/rabbitmq/02-exchange/chapter-05-headers-exchange' },
+            { text: 'Alternate Exchange', link: '/rabbitmq/02-exchange/chapter-06-alternate-exchange' },
+          ],
+        },
+        {
+          text: 'Queue',
+          items: [
+            { text: 'Queue 基础', link: '/rabbitmq/03-queue/chapter-01-queue-basics' },
+            { text: 'Classic Queue', link: '/rabbitmq/03-queue/chapter-02-classic-queue' },
+            { text: 'Quorum Queue', link: '/rabbitmq/03-queue/chapter-03-quorum-queue' },
+            { text: 'Stream Queue', link: '/rabbitmq/03-queue/chapter-04-stream-queue' },
+            { text: '队列参数', link: '/rabbitmq/03-queue/chapter-05-queue-arguments' },
+            { text: '死信队列', link: '/rabbitmq/03-queue/chapter-06-dead-letter' },
+          ],
+        },
+        {
+          text: '生产者',
+          items: [
+            { text: '生产者基础', link: '/rabbitmq/04-producer/chapter-01-producer-basics' },
+            { text: 'Publisher Confirm', link: '/rabbitmq/04-producer/chapter-02-publisher-confirm' },
+            { text: 'Mandatory 与 Return', link: '/rabbitmq/04-producer/chapter-03-mandatory-return' },
+            { text: '批量发送', link: '/rabbitmq/04-producer/chapter-04-batch-send' },
+          ],
+        },
+        {
+          text: '消费者',
+          items: [
+            { text: '消费者基础', link: '/rabbitmq/05-consumer/chapter-01-consumer-basics' },
+            { text: 'ACK 机制', link: '/rabbitmq/05-consumer/chapter-02-ack-mechanism' },
+            { text: 'Prefetch 与背压', link: '/rabbitmq/05-consumer/chapter-03-prefetch' },
+            { text: '消息 TTL', link: '/rabbitmq/05-consumer/chapter-04-message-ttl' },
+            { text: '优先级队列', link: '/rabbitmq/05-consumer/chapter-05-priority-queue' },
+          ],
+        },
+        {
+          text: '消息模式',
+          items: [
+            { text: 'RPC 模式', link: '/rabbitmq/06-message-patterns/chapter-01-rpc-pattern' },
+            { text: '竞争消费者', link: '/rabbitmq/06-message-patterns/chapter-02-competing-consumers' },
+            { text: '发布/订阅', link: '/rabbitmq/06-message-patterns/chapter-03-pub-sub' },
+            { text: '消息去重', link: '/rabbitmq/06-message-patterns/chapter-04-deduplication' },
+            { text: '幂等性设计', link: '/rabbitmq/06-message-patterns/chapter-05-idempotency' },
+          ],
+        },
+        {
+          text: '集群',
+          items: [
+            { text: '集群基础', link: '/rabbitmq/07-clustering/chapter-01-cluster-basics' },
+            { text: '镜像队列', link: '/rabbitmq/07-clustering/chapter-02-mirrored-queue' },
+            { text: 'Quorum 与 Raft', link: '/rabbitmq/07-clustering/chapter-03-quorum-raft' },
+            { text: '网络分区', link: '/rabbitmq/07-clustering/chapter-04-network-partition' },
+            { text: 'Federation 与 Shovel', link: '/rabbitmq/07-clustering/chapter-05-federation' },
+          ],
+        },
+        {
+          text: '运维管理',
+          items: [
+            { text: '管理与监控', link: '/rabbitmq/08-operations/chapter-01-management' },
+            { text: '安全配置', link: '/rabbitmq/08-operations/chapter-02-security' },
+            { text: '常见问题', link: '/rabbitmq/08-operations/chapter-03-troubleshooting' },
+            { text: '性能调优', link: '/rabbitmq/08-operations/chapter-04-performance-tuning' },
+          ],
+        },
+        {
+          text: 'Spring 集成',
+          items: [
+            { text: 'Spring AMQP', link: '/rabbitmq/09-spring-integration/chapter-01-spring-amqp' },
+            { text: 'Spring Boot 配置', link: '/rabbitmq/09-spring-integration/chapter-02-spring-boot-config' },
+            { text: '错误处理与重试', link: '/rabbitmq/09-spring-integration/chapter-03-error-handling' },
+            { text: '测试策略', link: '/rabbitmq/09-spring-integration/chapter-04-testing' },
+          ],
+        },
+        {
+          text: '实战',
+          items: [
+            { text: '安装部署与环境配置', link: '/rabbitmq/10-practice/chapter-01-installation' },
+            { text: '第一个 RabbitMQ 应用', link: '/rabbitmq/10-practice/chapter-02-first-app' },
+            { text: '首次生产部署', link: '/rabbitmq/10-practice/chapter-03-first-production' },
+            { text: '电商订单系统', link: '/rabbitmq/10-practice/chapter-04-order-system' },
+            { text: '事件驱动架构', link: '/rabbitmq/10-practice/chapter-05-event-driven' },
+            { text: '可靠性模式', link: '/rabbitmq/10-practice/chapter-06-reliability-patterns' },
+            { text: '性能基准', link: '/rabbitmq/10-practice/chapter-07-performance-benchmark' },
+          ],
+        },
+        {
+          text: '参考手册',
+          items: [
+            { text: '参数速查', link: '/rabbitmq/reference/parameters' },
+            { text: '命令速查', link: '/rabbitmq/reference/commands' },
           ],
         },
       ],
@@ -487,21 +641,20 @@ export default withOpenInEditor(defineConfig({
           text: '基础入门',
           items: [
             { text: 'MySQL 概览', link: '/mysql/01-basics/chapter-01-overview' },
-            { text: '安装部署', link: '/mysql/01-basics/chapter-02-install-config' },
-            { text: 'SQL 基础', link: '/mysql/01-basics/chapter-03-sql-basics' },
-            { text: '整体架构', link: '/mysql/01-basics/chapter-04-architecture' },
-            { text: '字符集与排序规则', link: '/mysql/01-basics/chapter-05-charset-collation' },
-            { text: 'SQL 规范与最佳实践', link: '/mysql/01-basics/chapter-06-sql-best-practices' },
+            { text: '整体架构', link: '/mysql/01-basics/chapter-02-architecture' },
+            { text: '字符集与排序规则', link: '/mysql/01-basics/chapter-03-charset-collation' },
+            { text: 'SQL 规范与最佳实践', link: '/mysql/01-basics/chapter-04-sql-best-practices' },
           ],
         },
         {
           text: 'InnoDB 内核',
           items: [
-            { text: 'Buffer Pool', link: '/mysql/02-innodb-internals/chapter-01-buffer-pool' },
-            { text: '数据页与行格式', link: '/mysql/02-innodb-internals/chapter-02-data-page' },
+            { text: '数据页与行格式', link: '/mysql/02-innodb-internals/chapter-01-data-page' },
+            { text: 'Buffer Pool', link: '/mysql/02-innodb-internals/chapter-02-buffer-pool' },
             { text: '表空间', link: '/mysql/02-innodb-internals/chapter-03-tablespace' },
             { text: 'Redo Log', link: '/mysql/02-innodb-internals/chapter-04-redo-log' },
             { text: 'Undo Log', link: '/mysql/02-innodb-internals/chapter-05-undo-log' },
+            { text: 'Binlog', link: '/mysql/02-innodb-internals/chapter-06-binlog' },
           ],
         },
         {
@@ -519,18 +672,16 @@ export default withOpenInEditor(defineConfig({
             { text: '事务与 MVCC', link: '/mysql/04-transaction-lock/chapter-01-transaction' },
             { text: '锁机制', link: '/mysql/04-transaction-lock/chapter-02-lock' },
             { text: '死锁', link: '/mysql/04-transaction-lock/chapter-03-deadlock' },
-            { text: '乐观锁', link: '/mysql/04-transaction-lock/chapter-04-optimistic-lock' },
-            { text: '锁选型：悲观锁 vs 乐观锁', link: '/mysql/04-transaction-lock/chapter-05-lock-selection' },
+            { text: '锁选型：悲观锁 vs 乐观锁', link: '/mysql/04-transaction-lock/chapter-04-lock-selection' },
           ],
         },
         {
           text: '查询优化',
           items: [
-            { text: '查询执行流程', link: '/mysql/05-query-optimization/chapter-01-execution-plan' },
-            { text: 'EXPLAIN', link: '/mysql/05-query-optimization/chapter-02-explain' },
-            { text: 'SQL 优化', link: '/mysql/05-query-optimization/chapter-03-sql-optimization' },
-            { text: '连接优化', link: '/mysql/05-query-optimization/chapter-04-join-optimization' },
-            { text: '子查询优化', link: '/mysql/05-query-optimization/chapter-05-subquery-optimization' },
+            { text: '查询执行流程与 EXPLAIN', link: '/mysql/05-query-optimization/chapter-01-execution-plan' },
+            { text: 'SQL 优化', link: '/mysql/05-query-optimization/chapter-02-sql-optimization' },
+            { text: '连接优化', link: '/mysql/05-query-optimization/chapter-03-join-optimization' },
+            { text: '子查询优化', link: '/mysql/05-query-optimization/chapter-04-subquery-optimization' },
           ],
         },
         {
@@ -538,8 +689,8 @@ export default withOpenInEditor(defineConfig({
           items: [
             { text: '窗口函数', link: '/mysql/06-advanced-features/chapter-01-window-function' },
             { text: 'CTE', link: '/mysql/06-advanced-features/chapter-02-cte' },
-            { text: '生成列', link: '/mysql/06-advanced-features/chapter-03-generated-column' },
-            { text: 'JSON', link: '/mysql/06-advanced-features/chapter-04-json' },
+            { text: 'JSON', link: '/mysql/06-advanced-features/chapter-03-json' },
+            { text: '生成列', link: '/mysql/06-advanced-features/chapter-04-generated-column' },
             { text: '分区表', link: '/mysql/06-advanced-features/chapter-05-partition' },
             { text: '全文索引', link: '/mysql/06-advanced-features/chapter-06-fulltext-index' },
             { text: '存储过程与触发器', link: '/mysql/06-advanced-features/chapter-07-stored-procedure' },
@@ -548,7 +699,6 @@ export default withOpenInEditor(defineConfig({
         {
           text: '复制与高可用',
           items: [
-            { text: 'Binlog', link: '/mysql/07-replication-ha/chapter-00-binlog' },
             { text: '异步复制', link: '/mysql/07-replication-ha/chapter-01-binlog-replication' },
             { text: 'GTID', link: '/mysql/07-replication-ha/chapter-02-gtid' },
             { text: '组复制', link: '/mysql/07-replication-ha/chapter-03-group-replication' },
@@ -561,10 +711,9 @@ export default withOpenInEditor(defineConfig({
           items: [
             { text: '备份恢复', link: '/mysql/08-operations/chapter-01-backup-restore' },
             { text: '监控', link: '/mysql/08-operations/chapter-02-monitoring' },
-            { text: '安全', link: '/mysql/08-operations/chapter-03-security' },
-            { text: '用户管理', link: '/mysql/08-operations/chapter-04-user-management' },
-            { text: '日常维护', link: '/mysql/08-operations/chapter-05-maintenance' },
-            { text: '连接管理', link: '/mysql/08-operations/chapter-06-connection-mgmt' },
+            { text: '安全与用户管理', link: '/mysql/08-operations/chapter-03-security' },
+            { text: '日常维护', link: '/mysql/08-operations/chapter-04-maintenance' },
+            { text: '连接管理', link: '/mysql/08-operations/chapter-05-connection-mgmt' },
           ],
         },
         {
@@ -577,11 +726,22 @@ export default withOpenInEditor(defineConfig({
           ],
         },
         {
-          text: '实战场景',
+          text: '实战',
           items: [
-            { text: 'Spring 集成', link: '/mysql/10-practice/chapter-01-spring-integration' },
-            { text: '常见问题', link: '/mysql/10-practice/chapter-02-common-issues' },
-            { text: '性能调优', link: '/mysql/10-practice/chapter-03-performance-tuning' },
+            { text: '安装部署与环境配置', link: '/mysql/10-practice/chapter-01-installation' },
+            { text: '首次生产部署', link: '/mysql/10-practice/chapter-02-first-production' },
+            { text: 'Spring 集成', link: '/mysql/10-practice/chapter-03-spring-integration' },
+            { text: '常见问题', link: '/mysql/10-practice/chapter-04-common-issues' },
+            { text: '性能调优', link: '/mysql/10-practice/chapter-05-performance-tuning' },
+          ],
+        },
+        {
+          text: '参考手册',
+          items: [
+            { text: '参数速查', link: '/mysql/reference/parameters' },
+            { text: '数据类型速查', link: '/mysql/reference/types' },
+            { text: '函数速查', link: '/mysql/reference/functions' },
+            { text: '错误码速查', link: '/mysql/reference/errors' },
           ],
         },
       ],
@@ -599,87 +759,87 @@ export default withOpenInEditor(defineConfig({
           text: '内部架构',
           items: [
             { text: '进程与内存架构', link: '/postgresql/02-architecture/chapter-01-process-memory' },
-            { text: '数据页与存储结构', link: '/postgresql/02-architecture/chapter-02-data-page' },
-            { text: 'WAL 日志与崩溃恢复', link: '/postgresql/02-architecture/chapter-03-wal' },
+            { text: 'WAL 日志与崩溃恢复', link: '/postgresql/02-architecture/chapter-02-wal' },
+            { text: '数据页与存储结构', link: '/postgresql/02-architecture/chapter-03-data-page' },
             { text: 'Checkpoint 与脏页刷新', link: '/postgresql/02-architecture/chapter-04-checkpoint' },
           ],
         },
         {
           text: 'SQL 能力',
           items: [
-            { text: '窗口函数', link: '/postgresql/02-sql-power/chapter-01-window-function' },
-            { text: 'CTE 与递归', link: '/postgresql/02-sql-power/chapter-02-cte-recursive' },
-            { text: 'JSONB', link: '/postgresql/02-sql-power/chapter-03-jsonb' },
-            { text: '全文搜索', link: '/postgresql/02-sql-power/chapter-04-full-text-search' },
-            { text: 'PG 独有的 DML', link: '/postgresql/02-sql-power/chapter-05-returning-dml' },
+            { text: '窗口函数', link: '/postgresql/03-sql-power/chapter-01-window-function' },
+            { text: 'CTE 与递归', link: '/postgresql/03-sql-power/chapter-02-cte-recursive' },
+            { text: 'JSONB', link: '/postgresql/03-sql-power/chapter-03-jsonb' },
+            { text: '全文搜索', link: '/postgresql/03-sql-power/chapter-04-full-text-search' },
+            { text: 'PG 独有的 DML', link: '/postgresql/03-sql-power/chapter-05-returning-dml' },
           ],
         },
         {
           text: '索引深入',
           items: [
-            { text: '索引类型', link: '/postgresql/03-indexing/chapter-01-index-types' },
-            { text: '索引设计', link: '/postgresql/03-indexing/chapter-02-index-design' },
-            { text: 'EXPLAIN 深入', link: '/postgresql/03-indexing/chapter-03-explain' },
-            { text: '表分区', link: '/postgresql/03-indexing/chapter-04-partitioning' },
+            { text: '索引类型', link: '/postgresql/04-indexing/chapter-01-index-types' },
+            { text: '索引设计', link: '/postgresql/04-indexing/chapter-02-index-design' },
+            { text: 'EXPLAIN 深入', link: '/postgresql/04-indexing/chapter-03-explain' },
+            { text: '表分区', link: '/postgresql/04-indexing/chapter-04-partitioning' },
           ],
         },
         {
           text: '事务与并发',
           items: [
-            { text: '隔离级别', link: '/postgresql/04-transactions/chapter-01-isolation-levels' },
-            { text: '锁机制', link: '/postgresql/04-transactions/chapter-02-locking' },
-            { text: '咨询锁', link: '/postgresql/04-transactions/chapter-03-advisory-lock' },
-            { text: '并发实战', link: '/postgresql/04-transactions/chapter-04-concurrency-patterns' },
+            { text: '隔离级别', link: '/postgresql/05-transactions/chapter-01-isolation-levels' },
+            { text: '锁机制', link: '/postgresql/05-transactions/chapter-02-locking' },
+            { text: '咨询锁', link: '/postgresql/05-transactions/chapter-03-advisory-lock' },
+            { text: '并发实战', link: '/postgresql/05-transactions/chapter-04-concurrency-patterns' },
           ],
         },
         {
           text: '存储过程与触发器',
           items: [
-            { text: 'PL/pgSQL 基础', link: '/postgresql/05-plpgsql/chapter-01-plpgsql-basics' },
-            { text: '触发器', link: '/postgresql/05-plpgsql/chapter-02-triggers' },
-            { text: '什么时候用存储过程', link: '/postgresql/05-plpgsql/chapter-03-when-to-use' },
+            { text: 'PL/pgSQL 基础', link: '/postgresql/06-plpgsql/chapter-01-plpgsql-basics' },
+            { text: '触发器', link: '/postgresql/06-plpgsql/chapter-02-triggers' },
+            { text: '什么时候用存储过程', link: '/postgresql/06-plpgsql/chapter-03-when-to-use' },
           ],
         },
         {
           text: '性能优化',
           items: [
-            { text: '配置调优', link: '/postgresql/06-performance/chapter-01-config-tuning' },
-            { text: '查询优化', link: '/postgresql/06-performance/chapter-02-query-optimization' },
-            { text: '扩展策略', link: '/postgresql/06-performance/chapter-04-scaling' },
+            { text: '配置调优', link: '/postgresql/07-performance/chapter-01-config-tuning' },
+            { text: '查询优化', link: '/postgresql/07-performance/chapter-02-query-optimization' },
+            { text: '扩展策略', link: '/postgresql/07-performance/chapter-03-scaling' },
           ],
         },
         {
           text: '监控体系',
           items: [
-            { text: '系统视图监控', link: '/postgresql/11-monitoring/chapter-01-pg-stat-views' },
-            { text: 'pg_stat_statements', link: '/postgresql/11-monitoring/chapter-02-pg-stat-statements' },
-            { text: 'Prometheus + Grafana', link: '/postgresql/11-monitoring/chapter-03-prometheus-grafana' },
-            { text: '日志分析与审计', link: '/postgresql/11-monitoring/chapter-04-log-analysis' },
+            { text: '系统视图监控', link: '/postgresql/08-monitoring/chapter-01-pg-stat-views' },
+            { text: 'pg_stat_statements', link: '/postgresql/08-monitoring/chapter-02-pg-stat-statements' },
+            { text: 'Prometheus + Grafana', link: '/postgresql/08-monitoring/chapter-03-prometheus-grafana' },
+            { text: '日志分析与审计', link: '/postgresql/08-monitoring/chapter-04-log-analysis' },
           ],
         },
         {
           text: '高可用与复制',
           items: [
-            { text: '流复制', link: '/postgresql/07-ha/chapter-01-streaming-replication' },
-            { text: '逻辑复制', link: '/postgresql/07-ha/chapter-02-logical-replication' },
-            { text: '高可用方案', link: '/postgresql/07-ha/chapter-03-ha-solutions' },
-            { text: '备份恢复', link: '/postgresql/07-ha/chapter-04-backup-restore' },
+            { text: '流复制', link: '/postgresql/09-ha/chapter-01-streaming-replication' },
+            { text: '逻辑复制', link: '/postgresql/09-ha/chapter-02-logical-replication' },
+            { text: '高可用方案', link: '/postgresql/09-ha/chapter-03-ha-solutions' },
+            { text: '备份恢复', link: '/postgresql/09-ha/chapter-04-backup-restore' },
           ],
         },
         {
           text: '扩展与生态',
           items: [
-            { text: '扩展机制', link: '/postgresql/08-ecosystem/chapter-01-extension-system' },
-            { text: 'FDW 外部数据', link: '/postgresql/08-ecosystem/chapter-02-fdw' },
-            { text: '专业扩展（PostGIS/TimescaleDB/pgvector）', link: '/postgresql/08-ecosystem/chapter-03-specialized' },
+            { text: '扩展机制', link: '/postgresql/10-ecosystem/chapter-01-extension-system' },
+            { text: 'FDW 外部数据', link: '/postgresql/10-ecosystem/chapter-02-fdw' },
+            { text: '专业扩展（PostGIS/TimescaleDB/pgvector）', link: '/postgresql/10-ecosystem/chapter-03-specialized' },
           ],
         },
         {
           text: '安全与运维',
           items: [
-            { text: '用户与安全', link: '/postgresql/09-ops/chapter-01-user-security' },
-            { text: '日常维护', link: '/postgresql/09-ops/chapter-02-maintenance' },
-            { text: '数据迁移', link: '/postgresql/09-ops/chapter-03-migration' },
+            { text: '用户与安全', link: '/postgresql/11-ops/chapter-01-user-security' },
+            { text: '日常维护', link: '/postgresql/11-ops/chapter-02-maintenance' },
+            { text: '数据迁移', link: '/postgresql/11-ops/chapter-03-migration' },
           ],
         },
         {
@@ -727,6 +887,7 @@ export default withOpenInEditor(defineConfig({
             { text: '高级类型', link: '/redis/01-data-model/chapter-03-advanced-types' },
             { text: '数据结构', link: '/redis/01-data-model/chapter-04-data-structures' },
             { text: '对象编码', link: '/redis/01-data-model/chapter-05-object-encoding' },
+            { text: '线上问题案例集', link: '/redis/01-data-model/chapter-06-production-cases' },
           ],
         },
         {
@@ -734,20 +895,20 @@ export default withOpenInEditor(defineConfig({
           items: [
             { text: '线程模型', link: '/redis/02-standalone-core/chapter-01-thread-model' },
             { text: '命令与 RESP', link: '/redis/02-standalone-core/chapter-02-command-resp' },
-            { text: 'RDB', link: '/redis/02-standalone-core/chapter-03-rdb' },
-            { text: 'AOF', link: '/redis/02-standalone-core/chapter-04-aof' },
-            { text: '过期策略', link: '/redis/02-standalone-core/chapter-05-expiration' },
-            { text: '淘汰策略', link: '/redis/02-standalone-core/chapter-06-eviction' },
+            { text: '事务与 Lua', link: '/redis/02-standalone-core/chapter-03-transaction-lua' },
+            { text: 'Pipeline 与 Pub/Sub', link: '/redis/02-standalone-core/chapter-04-pipeline-pubsub' },
+            { text: '持久化 RDB 与 AOF', link: '/redis/02-standalone-core/chapter-05-persistence' },
+            { text: '过期与淘汰', link: '/redis/02-standalone-core/chapter-06-expiration-eviction' },
+            { text: '线上问题案例集', link: '/redis/02-standalone-core/chapter-07-production-cases' },
           ],
         },
         {
           text: '缓存工程',
           items: [
-            { text: '穿透', link: '/redis/03-cache-engineering/chapter-01-penetration' },
-            { text: '击穿', link: '/redis/03-cache-engineering/chapter-02-breakdown' },
-            { text: '雪崩', link: '/redis/03-cache-engineering/chapter-03-avalanche' },
-            { text: '一致性', link: '/redis/03-cache-engineering/chapter-04-consistency' },
-            { text: '大 Key 与热 Key', link: '/redis/03-cache-engineering/chapter-05-big-hot-key' },
+            { text: '缓存失效：穿透·击穿·雪崩', link: '/redis/03-cache-engineering/chapter-01-cache-invalidation' },
+            { text: '缓存写路径：四种模式与一致性', link: '/redis/03-cache-engineering/chapter-02-cache-write-patterns' },
+            { text: '多级缓存与纵深防御', link: '/redis/03-cache-engineering/chapter-03-multi-level-defense' },
+            { text: '大 Key 与热 Key', link: '/redis/03-cache-engineering/chapter-04-big-hot-key' },
           ],
         },
         {
@@ -756,9 +917,16 @@ export default withOpenInEditor(defineConfig({
             { text: '主从复制', link: '/redis/04-high-availability/chapter-01-replication' },
             { text: '哨兵', link: '/redis/04-high-availability/chapter-02-sentinel' },
             { text: '集群', link: '/redis/04-high-availability/chapter-03-cluster' },
-            { text: '分布式锁', link: '/redis/04-high-availability/chapter-04-distributed-lock' },
-            { text: '事务与 Lua', link: '/redis/04-high-availability/chapter-05-transaction-lua' },
-            { text: 'Pipeline 与 Pub/Sub', link: '/redis/04-high-availability/chapter-06-pipeline-pubsub' },
+            { text: '线上问题案例集', link: '/redis/04-high-availability/chapter-04-production-cases' },
+          ],
+        },
+        {
+          text: '场景与模式',
+          items: [
+            { text: '分布式锁', link: '/redis/06-patterns/chapter-01-distributed-lock' },
+            { text: '限流器', link: '/redis/06-patterns/chapter-02-rate-limiter' },
+            { text: '延迟队列', link: '/redis/06-patterns/chapter-03-delay-queue' },
+            { text: '排行榜', link: '/redis/06-patterns/chapter-04-leaderboard' },
           ],
         },
         {
@@ -768,7 +936,23 @@ export default withOpenInEditor(defineConfig({
             { text: '排障', link: '/redis/05-operations/chapter-02-troubleshooting' },
             { text: '监控', link: '/redis/05-operations/chapter-03-monitoring' },
             { text: '踩坑', link: '/redis/05-operations/chapter-04-pitfalls' },
-            { text: '实战项目', link: '/redis/05-operations/chapter-05-hands-on-project' },
+          ],
+        },
+        {
+          text: '实战',
+          items: [
+            { text: '安装部署与环境配置', link: '/redis/10-practice/chapter-01-installation' },
+            { text: '第一个 Redis 应用', link: '/redis/10-practice/chapter-02-first-app' },
+            { text: '首次生产部署', link: '/redis/10-practice/chapter-03-first-production' },
+            { text: '实战项目', link: '/redis/10-practice/chapter-04-hands-on-project' },
+          ],
+        },
+        {
+          text: '参考手册',
+          items: [
+            { text: '参数速查', link: '/redis/reference/parameters' },
+            { text: '命令速查', link: '/redis/reference/commands' },
+            { text: '错误码速查', link: '/redis/reference/errors' },
           ],
         },
       ],
@@ -787,41 +971,42 @@ export default withOpenInEditor(defineConfig({
           ],
         },
         {
+          text: 'Spring Boot',
+          items: [
+            { text: '自动配置原理', link: '/spring/02-spring-boot/chapter-01-autoconfiguration' },
+            { text: 'Starter 机制', link: '/spring/02-spring-boot/chapter-02-starter' },
+            { text: '外部化配置', link: '/spring/02-spring-boot/chapter-03-configuration' },
+            { text: 'Actuator 监控', link: '/spring/02-spring-boot/chapter-04-actuator' },
+            { text: 'DevTools 热部署', link: '/spring/02-spring-boot/chapter-05-devtools' },
+            { text: 'API 文档', link: '/spring/02-spring-boot/chapter-06-api-doc' },
+            { text: '启动流程与启动参数', link: '/spring/02-spring-boot/chapter-07-startup' },
+          ],
+        },
+        {
           text: '开发',
           items: [
-            { text: 'Spring MVC', link: '/spring/02-web/chapter-01-spring-mvc' },
-            { text: '参数校验与数据绑定', link: '/spring/02-web/chapter-03-validation-binding' },
-            { text: '拦截器与过滤器', link: '/spring/02-web/chapter-04-interceptor-filter' },
-            { text: 'WebFlux 响应式编程', link: '/spring/02-web/chapter-05-webflux' },
-            { text: 'WebSocket 实时通信', link: '/spring/02-web/chapter-06-websocket' },
-            { text: 'Server-Sent Events', link: '/spring/02-web/chapter-07-sse' },
-            { text: '文件上传与下载', link: '/spring/02-web/chapter-08-file-upload-download' },
+            { text: 'Spring MVC', link: '/spring/03-web/chapter-01-spring-mvc' },
+            { text: 'RESTful API 设计', link: '/spring/03-web/chapter-02-rest-design' },
+            { text: '全局异常处理', link: '/spring/03-web/chapter-03-global-exception' },
+            { text: '参数校验与数据绑定', link: '/spring/03-web/chapter-04-validation-binding' },
+            { text: '拦截器与过滤器', link: '/spring/03-web/chapter-05-interceptor-filter' },
+            { text: 'WebFlux 响应式编程', link: '/spring/03-web/chapter-06-webflux' },
+            { text: 'WebSocket 实时通信', link: '/spring/03-web/chapter-07-websocket' },
+            { text: 'Server-Sent Events', link: '/spring/03-web/chapter-08-sse' },
+            { text: '文件上传与下载', link: '/spring/03-web/chapter-09-file-upload-download' },
           ],
         },
         {
           text: '数据访问',
           items: [
-            { text: 'JdbcTemplate', link: '/spring/03-data-access/chapter-01-jdbc-template' },
-            { text: 'MyBatis 集成', link: '/spring/03-data-access/chapter-02-mybatis-integration' },
-            { text: 'Spring Data JPA', link: '/spring/03-data-access/chapter-03-jpa' },
-            { text: '事务管理', link: '/spring/03-data-access/chapter-04-transaction' },
-            { text: '多数据源', link: '/spring/03-data-access/chapter-05-multi-datasource' },
-            { text: '数据库迁移', link: '/spring/03-data-access/chapter-06-flyway-liquibase' },
-            { text: '响应式数据访问', link: '/spring/03-data-access/chapter-07-r2dbc' },
-          ],
-        },
-        {
-          text: 'Spring Boot',
-          items: [
-            { text: '自动配置原理', link: '/spring/04-spring-boot/chapter-01-autoconfiguration' },
-            { text: 'Starter 机制', link: '/spring/04-spring-boot/chapter-02-starter' },
-            { text: '外部化配置', link: '/spring/04-spring-boot/chapter-03-configuration' },
-            { text: 'Actuator 监控', link: '/spring/04-spring-boot/chapter-04-actuator' },
-            { text: 'DevTools 热部署', link: '/spring/04-spring-boot/chapter-05-devtools' },
-            { text: 'API 文档', link: '/spring/04-spring-boot/chapter-06-api-doc' },
-            { text: '启动流程与启动参数', link: '/spring/04-spring-boot/chapter-07-startup' },
-            { text: '生产化配置', link: '/spring/04-spring-boot/chapter-08-production-tuning' },
-            { text: '构建与部署', link: '/spring/04-spring-boot/chapter-09-build-deploy' },
+            { text: 'JdbcTemplate', link: '/spring/04-data-access/chapter-01-jdbc-template' },
+            { text: 'MyBatis 集成', link: '/spring/04-data-access/chapter-02-mybatis-integration' },
+            { text: 'Spring Data JPA', link: '/spring/04-data-access/chapter-03-jpa' },
+            { text: '事务管理', link: '/spring/04-data-access/chapter-04-transaction' },
+            { text: 'MyBatis vs JPA 选型', link: '/spring/04-data-access/chapter-05-mybatis-vs-jpa' },
+            { text: '多数据源', link: '/spring/04-data-access/chapter-06-multi-datasource' },
+            { text: '数据库迁移', link: '/spring/04-data-access/chapter-07-flyway-liquibase' },
+            { text: '响应式数据访问', link: '/spring/04-data-access/chapter-08-r2dbc' },
           ],
         },
         {
@@ -834,30 +1019,22 @@ export default withOpenInEditor(defineConfig({
           ],
         },
         {
-          text: '高级特性',
+          text: '可观测性',
           items: [
-            { text: '事件机制', link: '/spring/06-advanced/chapter-01-event' },
-            { text: '异步处理', link: '/spring/06-advanced/chapter-02-async' },
-            { text: '定时任务', link: '/spring/06-advanced/chapter-03-scheduling' },
-            { text: '缓存抽象', link: '/spring/06-advanced/chapter-04-caching' },
-            { text: '消息集成', link: '/spring/06-advanced/chapter-05-messaging' },
-            { text: '国际化', link: '/spring/06-advanced/chapter-06-internationalization' },
-            { text: '分布式锁', link: '/spring/06-advanced/chapter-07-distributed-lock' },
-            { text: '动态定时任务', link: '/spring/06-advanced/chapter-08-quartz' },
-            { text: '邮件发送', link: '/spring/06-advanced/chapter-09-mail' },
-            { text: 'Spring Batch 批处理', link: '/spring/06-advanced/chapter-10-spring-batch' },
+            { text: '日志体系', link: '/spring/06-observability/chapter-01-logging' },
+            { text: '指标监控', link: '/spring/06-observability/chapter-02-metrics' },
+            { text: '链路追踪', link: '/spring/06-observability/chapter-03-tracing' },
+            { text: '生产问题排查', link: '/spring/06-observability/chapter-04-production-debug' },
           ],
         },
         {
-          text: '微服务',
+          text: '异步与消息',
           items: [
-            { text: '微服务架构模式', link: '/spring/07-microservices/chapter-01-microservice-pattern' },
-            { text: '服务注册与发现', link: '/spring/07-microservices/chapter-02-service-discovery' },
-            { text: 'API 网关', link: '/spring/07-microservices/chapter-03-api-gateway' },
-            { text: '负载均衡', link: '/spring/07-microservices/chapter-04-load-balancing' },
-            { text: '熔断降级', link: '/spring/07-microservices/chapter-05-circuit-breaker' },
-            { text: '配置中心', link: '/spring/07-microservices/chapter-06-config-center' },
-            { text: '分布式事务', link: '/spring/07-microservices/chapter-07-distributed-transaction' },
+            { text: '事件机制', link: '/spring/07-async-and-messaging/chapter-01-event' },
+            { text: '异步处理', link: '/spring/07-async-and-messaging/chapter-02-async' },
+            { text: '定时任务', link: '/spring/07-async-and-messaging/chapter-03-scheduling' },
+            { text: '缓存抽象', link: '/spring/07-async-and-messaging/chapter-04-caching' },
+            { text: '消息集成', link: '/spring/07-async-and-messaging/chapter-05-messaging' },
           ],
         },
         {
@@ -865,7 +1042,43 @@ export default withOpenInEditor(defineConfig({
           items: [
             { text: '单元测试', link: '/spring/08-testing/chapter-01-unit-test' },
             { text: '集成测试', link: '/spring/08-testing/chapter-02-integration-test' },
-            { text: 'Testcontainers', link: '/spring/08-testing/chapter-03-testcontainers' },
+            { text: 'Testcontainers 与数据库测试', link: '/spring/08-testing/chapter-03-testcontainers' },
+            { text: 'API 测试与契约测试', link: '/spring/08-testing/chapter-04-api-test' },
+          ],
+        },
+        {
+          text: '分布式系统',
+          items: [
+            { text: '分布式锁', link: '/spring/09-distributed/chapter-01-distributed-lock' },
+            { text: '分布式事务', link: '/spring/09-distributed/chapter-02-distributed-transaction' },
+            { text: '服务调用', link: '/spring/09-distributed/chapter-03-service-call' },
+            { text: '服务容错', link: '/spring/09-distributed/chapter-04-circuit-breaker' },
+            { text: '配置中心', link: '/spring/09-distributed/chapter-05-config-center' },
+            { text: 'API 网关', link: '/spring/09-distributed/chapter-06-api-gateway' },
+          ],
+        },
+        {
+          text: '生产化',
+          items: [
+            { text: '连接池与容器调优', link: '/spring/10-production/chapter-01-pool-tuning' },
+            { text: '容器化部署', link: '/spring/10-production/chapter-02-containerization' },
+            { text: 'GraalVM 原生镜像', link: '/spring/10-production/chapter-03-graalvm' },
+            { text: 'CI/CD 流水线', link: '/spring/10-production/chapter-04-cicd' },
+          ],
+        },
+        {
+          text: '实战',
+          items: [
+            { text: '构建与部署', link: '/spring/11-practice/chapter-01-build-deploy' },
+            { text: '第一个 Spring Boot 应用', link: '/spring/11-practice/chapter-02-first-app' },
+            { text: '首次生产部署', link: '/spring/11-practice/chapter-03-first-production' },
+          ],
+        },
+        {
+          text: '参考手册',
+          items: [
+            { text: '注解速查', link: '/spring/reference/annotations' },
+            { text: 'Starter 速查', link: '/spring/reference/starters' },
           ],
         },
       ],
@@ -884,4 +1097,4 @@ export default withOpenInEditor(defineConfig({
       provider: 'local'
     }
   }
-}))
+})))

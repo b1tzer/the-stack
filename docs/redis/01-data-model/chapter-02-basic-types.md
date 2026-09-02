@@ -2,7 +2,7 @@
 
 > Redis 对外暴露五种基础数据类型：String、Hash、List、Set、ZSet。它们是 Redis 一切能力的起点——每种类型对应一套独立的命令集，也对应一类典型的使用场景。本章逐一拆解每种类型的语义、命令与适用场景。
 
-## 1. String：单值存储与原子操作
+## 1. String：单值存储与原子操作 {#string}
 
 String 是 Redis 最基础的类型，一个 key 对应一个 value，value 可以是字符串、整数或二进制数据。
 
@@ -34,7 +34,7 @@ SETNX key value                    # 不存在才设置（分布式锁基础）
 
 > 不要用 String 存整个 JSON 对象来模拟对象存储——更新时需要全量覆盖，并发场景下会互相覆盖。应该用 Hash 存储对象字段（见 2.2 节）。
 
-底层编码：`int`（整数）、`embstr`（短字符串 ≤ 44 字节）、`raw`（长字符串），详见第 5 章。
+底层编码：`int`（整数）、`embstr`（短字符串 ≤ 44 字节）、`raw`（长字符串），详见 [对象编码](./chapter-05-object-encoding.md)。
 
 ## 2. Hash：对象的字段集合
 
@@ -189,76 +189,3 @@ ZINCRBY rank 50 "张三"             # 增加 score
 
 > String 存单值，Hash 存对象，List 做队列，Set 做去重，ZSet 做排行榜。
 
-## 7. 实操演示：五种类型各写一个真实场景
-
-下面五个场景，打开 `redis-cli` 逐个敲一遍。命令后带 `#` 的注释是「你预期会看到的返回」，边敲边对照，比只看概念记得牢。
-
-### 7.1 场景一：文章阅读量（String + INCR）
-
-```bash
-SET article:1001:views 0        # OK
-INCR article:1001:views         # (integer) 1
-INCR article:1001:views         # (integer) 2
-INCRBY article:1001:views 10    # (integer) 12  一次加 10
-GET article:1001:views          # "12"
-```
-
-> 单线程保证 `INCR` 原子，100 个请求同时点进来也不会算错，这是计数器首选 Redis 的原因。
-
-### 7.2 场景二：购物车（Hash）
-
-```bash
-HSET cart:u001 p001 2 p002 1    # (integer) 2  加入两件商品
-HINCRBY cart:u001 p001 1        # (integer) 3  p001 数量 +1
-HGET cart:u001 p001             # "3"
-HGETALL cart:u001               # 1) "p001" 2) "3" 3) "p002" 4) "1"
-HDEL cart:u001 p002             # (integer) 1  删除商品
-```
-
-### 7.3 场景三：消息队列（List 阻塞弹出）
-
-两个终端配合：终端 A 作为消费者阻塞等待，终端 B 作为生产者入队。
-
-```bash
-# 终端 A（消费者）：阻塞等待，最多等 30 秒
-BLPOP task:queue 30
-```
-
-```bash
-# 终端 B（生产者）：入队一条任务
-RPUSH task:queue "send_email:user123"   # (integer) 1
-```
-
-终端 A 立即弹出结果：
-
-```bash
-1) "task:queue"
-2) "send_email:user123"
-(12.03s)
-```
-
-> `BLPOP` 的妙处：队列为空时消费者不会空转轮询，而是挂起等待，省 CPU。这正是 List 做简单任务队列的经典用法。
-
-### 7.4 场景四：共同好友（Set 集合运算）
-
-```bash
-SADD friend:u1 u2 u3 u4      # (integer) 3
-SADD friend:u2 u1 u3 u5      # (integer) 3
-SINTER friend:u1 friend:u2   # 1) "u3"  共同好友
-SDIFF friend:u1 friend:u2    # 1) "u4"  我关注了但对方没有（可做推荐）
-SISMEMBER friend:u1 u2       # (integer) 1  判断是否已关注
-```
-
-### 7.5 场景五：积分排行榜（ZSet）
-
-```bash
-ZADD rank 100 "alice" 150 "bob" 120 "carol"   # (integer) 3
-ZREVRANGE rank 0 -1 WITHSCORES                # 按分数从高到低
-# 1) "bob"   2) "150"
-# 3) "carol" 4) "120"
-# 5) "alice" 6) "100"
-ZINCRBY rank 50 "alice"                        # (integer) 170  给 alice 加分
-ZRANK rank "alice"                             # (integer) 0  变成第 1 名（从 0 起）
-```
-
-> 排行榜是最能体现 ZSet 价值的场景：`ZADD` 写分、`ZINCRBY` 改分、`ZREVRANGE` 取 TopN，一条命令搞定排序 + 范围查询。

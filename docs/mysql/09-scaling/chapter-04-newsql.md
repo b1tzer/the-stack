@@ -1,6 +1,8 @@
 # NewSQL
 
-## 1. TiDB
+## 1. 产品概览
+
+### 1.1 TiDB
 
 - 兼容 MySQL 协议
 - 分布式事务
@@ -12,13 +14,15 @@ tiup cluster deploy mydb v7.5.0 topology.yaml
 tiup cluster start mydb
 ```
 
-## 2. CockroachDB
+### 1.2 CockroachDB
 
 - 兼容 PostgreSQL 协议
 - 强一致性
 - 自动分片
 
-## 3. 适用场景
+## 2. 选型与迁移
+
+### 2.1 适用场景
 
 | 场景 | MySQL | NewSQL |
 |------|-------|--------|
@@ -27,13 +31,15 @@ tiup cluster start mydb
 | 亿级数据 | 分库分表 | ✅ |
 | 强一致分布式 | ❌ | ✅ |
 
-## 4. 迁移注意
+### 2.2 迁移注意
 
 - TiDB 不支持外键（6.6 前）
 - 事务大小限制
 - 自增 ID 行为不同
 
-## 5. TiDB 架构详解
+## 3. 架构与兼容性
+
+### 3.1 TiDB 架构详解
 
 ```
 ┌─────────────────────────────────────────┐
@@ -76,7 +82,7 @@ tiup cluster display mydb
 mysql -h 192.168.1.100 -P 4000 -u root
 ```
 
-## 6. TiDB vs MySQL 兼容性
+### 3.2 TiDB vs MySQL 兼容性
 
 | 特性 | MySQL | TiDB | 说明 |
 |------|-------|------|------|
@@ -90,7 +96,7 @@ mysql -h 192.168.1.100 -P 4000 -u root
 | 窗口函数 | 8.0+ | 支持 | 完全兼容 |
 | 分区表 | 支持 | 不需要 | TiDB 自动分片 |
 
-## 7. CockroachDB 简介
+### 3.3 CockroachDB 简介
 
 ```bash
 # CockroachDB 部署
@@ -118,7 +124,7 @@ cockroach sql --insecure --host=localhost:26257
 - 地理位置感知的数据放置
 - 适合全球分布式部署
 
-## 8. NewSQL 迁移注意事项
+### 3.4 NewSQL 迁移注意事项
 
 | 注意项 | 说明 |
 |--------|------|
@@ -129,7 +135,7 @@ cockroach sql --insecure --host=localhost:26257
 | 存储过程 | 尽量迁移到应用层 |
 | 全局唯一约束 | 性能开销大，慎用 |
 
-## 9. 最佳实践
+## 4. 最佳实践
 
 1. **单机能解决就不要分布式** — NewSQL 有额外的复杂度和开销
 2. **评估迁移成本** — 存储过程、触发器等需要重写
@@ -137,4 +143,3 @@ cockroach sql --insecure --host=localhost:26257
 4. **数据量超过单机能力时考虑** — 通常在 TB 级别以上
 5. **使用 AUTO_RANDOM 替代 AUTO_INCREMENT** — 避免热点写入
 6. **监控 Region 分布** — 确保数据均匀分布
-

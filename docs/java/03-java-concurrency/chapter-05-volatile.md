@@ -480,10 +480,3 @@ public class TokenBucket {
 | `volatile List` 内部不安全 | 只保护引用变量本身 | 用并发容器 |
 | 32 位平台 `long` 撕裂 | 普通 `long` 非原子 | `volatile long` 或 `AtomicLong` |
 | 高频写变量竞争严重 | `StoreLoad` 屏障成本高 | 分散写热点（`LongAdder`）或缩窄临界区 |
-
-> **纵横联系**
->
-> - **向前依赖**：本章所有的读写语义建立在第 4 章 JMM 的 happens-before 与内存屏障之上；§5.5.3 安全发布用到第 4 章 §4.5 的 `final` 初始化保证。
-> - **向后使用**：第 6 章 `synchronized` 的临界区内存语义与本章的 volatile 语义构成互补；第 7 章 `AtomicInteger` / `LongAdder` 内部大量使用 `volatile` 承担可见性；第 8 章 AQS 的 `state` 就是 `volatile int`。
-> - **跨卷关系**：第二卷 JIT 章节讨论"何时能把变量提升到寄存器"，是本章 §5.1.1 那个"停不下来的循环"的编译器视角；第七卷分布式一致性讨论跨节点的可见性，是本章语义在网络场景下的对应问题。
-

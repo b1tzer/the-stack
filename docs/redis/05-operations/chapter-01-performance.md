@@ -1,6 +1,6 @@
 # 性能优化
 
-> Redis 性能优化不是玄学，而是围绕几个核心维度：慢命令、内存、网络、持久化。本章先建立指标体系，再逐维度讲解优化手段。
+> Redis 性能优化不是玄学，而是围绕几个核心维度：慢命令、内存、网络、持久化。本章先建立指标体系，再逐维度讲解优化手段，最后给出生产环境的调优清单。
 
 ## 1. 指标体系
 
@@ -8,14 +8,17 @@
 
 | 指标 | 含义 | 获取方式 |
 | :-- | :-- | :-- |
-| QPS | 每秒处理请求数 | `INFO stats` |
+| QPS | 每秒处理请求数 | `INFO stats` 的 `instantaneous_ops_per_sec` |
 | 延迟 | 单命令响应时间 | `redis-cli --latency` |
 | 内存 | 内存使用与碎片 | `INFO memory` |
-| 命中率 | 缓存命中比例 | 计算 keyspace_hits / (hits+misses) |
+| 命中率 | 缓存命中比例 | `keyspace_hits / (hits+misses)` |
 | 连接数 | 客户端连接数 | `INFO clients` |
+| fork 耗时 | BGSAVE/AOF 重写 fork 耗时 | `INFO stats` 的 `latest_fork_usec` |
+| 复制延迟 | 主从偏移量差 | `INFO replication` |
 
 ```bash
 redis-cli --latency          # 测试延迟
+redis-cli --latency-history  # 延迟历史趋势
 redis-cli --stat             # 实时统计 QPS
 INFO stats                   # 查看累计统计
 INFO memory                  # 查看内存
@@ -31,6 +34,7 @@ INFO memory                  # 查看内存
 
 ```bash
 SLOWLOG GET 10              # 查看最近 10 条慢查询
+SLOWLOG LEN                 # 慢查询总数
 CONFIG SET slowlog-log-slower-than 10000   # 超过 10ms 记为慢查询
 ```
 
@@ -42,45 +46,114 @@ CONFIG SET slowlog-log-slower-than 10000   # 超过 10ms 记为慢查询
 | `HGETALL` 大 Hash | 返回全部字段 | `HSCAN` 分批获取 |
 | `SMEMBERS` 大 Set | 返回全部元素 | `SSCAN` 分批获取 |
 | `DEL` 大 Key | 同步删除阻塞 | `UNLINK` 异步删除 |
-| `FLUSHALL` | 清空全部数据 | 避免在生产环境使用 |
+| `SORT` | 排序开销大 | 业务层排序或用有序集合 |
+| `FLUSHALL` | 清空全部数据 | 生产环境禁用或异步执行 |
 
-> `SCAN` 系列基于游标分批遍历，不会一次性阻塞主线程，是 `KEYS`、`HGETALL` 等全量命令的安全替代。
+### 2.3 SCAN 的用法
+
+```bash
+SCAN 0 MATCH user:* COUNT 100
+# 返回：cursor + 一批匹配的 key
+# 用返回的 cursor 继续扫描，直到 cursor=0
+```
+
+| 参数 | 含义 |
+| :-- | :-- |
+| `cursor` | 游标，0 表示开始 |
+| `MATCH` | 过滤模式 |
+| `COUNT` | 每次返回的元素数（参考值，非精确） |
+
+> SCAN 不保证一次返回所有结果，需要循环调用直到 cursor 归零。COUNT 是「建议数量」，实际返回可能多于或少于 COUNT。
 
 ## 3. 内存优化
 
-内存优化从「选对结构」「控制规模」「合理过期」三方面入手。
+### 3.1 选对结构
 
-| 手段 | 说明 |
-| :-- | :-- |
-| 选对结构 | 对象用 Hash 而非 String 存 JSON（见第一卷） |
-| 控制编码 | 小数据用紧凑编码，避免触发升级 |
-| 设置 TTL | 无过期时间的 key 会永久占内存 |
-| TTL 随机 | 避免同时过期引发雪崩（见第三卷） |
-| 淘汰策略 | 设置 maxmemory + 合适淘汰策略 |
+| 场景 | 错误做法 | 正确做法 |
+| :-- | :-- | :-- |
+| 存对象 | `SET user:1001 "{name:'张三',age:25}"` | `HSET user:1001 name "张三" age 25` |
+| 存集合 | `SET tags "java,python,go"` | `SADD tags java python go` |
+| 存列表 | `LPUSH` 大量元素 | 分多个 key 或用 listpack 节点 |
+
+### 3.2 控制编码
+
+小数据用紧凑编码，避免触发升级：
 
 ```bash
-CONFIG SET maxmemory 4gb
-CONFIG SET maxmemory-policy allkeys-lru
+# 查看 key 的编码
+OBJECT ENCODING key
+
+# 配置编码阈值
+hash-max-listpack-entries 512
+hash-max-listpack-value 64
+set-max-intset-entries 512
+zset-max-listpack-entries 128
+```
+
+### 3.3 设置 TTL
+
+```bash
+# 批量设置 TTL（扫描 + 设置）
+SCAN 0 MATCH cache:* COUNT 1000
+# 对每个 key 执行 EXPIRE
+
+# TTL 随机化防雪崩
+EXPIRE key (300 + random(60))
+```
+
+### 3.4 maxmemory 配置
+
+```bash
+maxmemory 4gb                    # 设为物理内存的 60%~80%
+maxmemory-policy allkeys-lfu     # 淘汰策略
+maxmemory-samples 10             # 采样数
 ```
 
 ## 4. 网络优化
 
-| 手段 | 说明 |
-| :-- | :-- |
-| Pipeline | 批量命令，减少网络往返（见第四卷） |
-| 避免大 Key | 大 Key 占用带宽，拖慢传输 |
-| 连接池 | 复用连接，避免频繁建连/断连 |
-| 长连接 | 避免短连接反复 TCP 握手 |
+| 手段 | 说明 | 适用场景 |
+| :-- | :-- | :-- |
+| Pipeline | 批量命令，减少 RTT | 批量读写 |
+| 连接池 | 复用连接，避免建连开销 | 所有场景 |
+| 长连接 | 避免短连接反复握手 | 所有场景 |
+| 避免大 Key | 大 Key 占带宽 | 所有场景 |
+| Lua 脚本 | 逻辑在服务端执行，减少交互 | 复合操作 |
 
-## 5. 持久化对性能的影响
-
-持久化会消耗 CPU 和磁盘 IO，需要合理配置：
+## 5. 持久化调优
 
 | 配置 | 影响 | 建议 |
 | :-- | :-- | :-- |
-| `appendfsync always` | 每条命令刷盘，性能最差 | 除非强一致，否则不用 |
-| `appendfsync everysec` | 每秒刷盘，性能较好 | 生产推荐 |
-| 频繁 BGSAVE | fork 停顿 | 控制 save 触发频率 |
-| 大内存 fork | fork 耗时增加 | 大内存实例关注 fork 停顿 |
+| `appendfsync always` | 每条命令刷盘 | 除非强一致，否则不用 |
+| `appendfsync everysec` | 每秒刷盘 | 生产推荐 |
+| `save 900 1` | BGSAVE 频率 | 根据数据重要程度调整 |
+| `rdb-save-incremental-fsync` | 增量 fsync | 大 RDB 文件时开启 |
+| `no-appendfsync-on-rewrite` | 重写时不 fsync | 可开启，减少重写期间 IO |
 
-> 持久化的性能影响主要来自两个点：fsync 刷盘的磁盘 IO，以及 fork 子进程的 CPU 与内存开销。性能敏感场景要重点评估这两点。
+## 6. 大 Key 治理
+
+大 Key 是性能问题的常见根因：
+
+```bash
+# 发现大 Key
+redis-cli --bigkeys
+
+# 拆分大 Hash
+HGETALL user:1001:profile  # 100 个 field
+# 拆为：user:1001:basic、user:1001:extra、...
+
+# 异步删除大 Key
+UNLINK bigkey   # 而非 DEL
+```
+
+## 7. 生产调优清单
+
+| 类别 | 检查项 | 建议值 |
+| :-- | :-- | :-- |
+| 内存 | `maxmemory` | 物理内存的 60%~80% |
+| 内存 | `maxmemory-policy` | `allkeys-lfu` |
+| 持久化 | `appendfsync` | `everysec` |
+| 持久化 | 主节点持久化 | 必须开启 |
+| 慢查询 | `slowlog-log-slower-than` | 10000（10ms） |
+| 连接 | 连接池 | 必须使用 |
+| 命令 | 无 KEYS/大 DEL | SCAN/UNLINK 替代 |
+| 监控 | 内存/延迟/命中率 | 已接入告警 |

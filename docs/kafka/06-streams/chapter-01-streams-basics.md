@@ -74,6 +74,20 @@ KTable<String, UserProfile> profiles = builder.table("profiles");
 GlobalKTable<String, Product> products = builder.globalTable("products");
 ```
 
+这三个类型的差异，根源在于它们对「同 Key 多条消息」的处理方式不同。
+
+- **KStream** 把每条消息当作独立事件，同一个 Key 出现 100 次就是 100 条记录，全部保留。
+- **KTable** 把它当作「某个实体的状态变更日志」。同一个 Key 出现 100 次，只有最后一次的值是当前状态，前面的都是历史版本。「变更日志」正是这个含义——它维护每个 Key 的最新值，而不是全部历史。
+- **GlobalKTable** 的数据模型与 KTable 相同（都维护最新值），差别在分布方式：它把**全量数据广播到每个 Stream 实例**。
+
+为什么 GlobalKTable 不需要 Co-partition？先看什么是 Co-partition：KStream 与 KTable 连接时，两个流的 Key 必须路由到相同的分区，这样同一条 Stream Thread 才能在本地拿到对应的表记录，否则就要跨节点查找。GlobalKTable 让每个实例都持有整张表，任何 Key 都能在本地找到，因此跳过了「分区对齐」这个约束。
+
+| 类型 | 同 Key 多条消息 | 数据分布 | 与 KStream 连接 |
+| :-- | :-- | :-- | :-- |
+| KStream | 全部保留 | 按 Key 分区 | 直接连接 |
+| KTable | 只保留最新 | 按 Key 分区 | 需 Co-partition |
+| GlobalKTable | 只保留最新 | 全量广播到每实例 | 无需 Co-partition |
+
 ## 7. Streams 配置详解
 
 ```java

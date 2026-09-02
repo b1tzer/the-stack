@@ -12,6 +12,17 @@ KStream<String, String> filtered = stream.filter((key, value) -> value.length() 
 KStream<String, Integer> mapped = stream.mapValues(value -> value.length());
 ```
 
+`mapValues` 只改 value，Key 不变，因此消息仍留在原分区，不触发重新分区。`map` 可以改 Key：
+
+```java
+// ❌ 改 Key 会触发重新分区，消息需要跨节点搬移
+KStream<String, Integer> remapped = stream.map(
+    (key, value) -> new KeyValue<>(value, value.length())
+);
+```
+
+两者的分水岭在 Key：Key 不变用 `mapValues`（零网络开销）；Key 变了用 `map`（代价是一次 re-partition）。
+
 ## 3. 聚合
 
 ```java
@@ -68,7 +79,14 @@ KGroupedStream<String, String> grouped = stream.groupBy(
 
 // GroupByKey：按原 Key 分组
 KGroupedStream<String, String> groupedByKey = stream.groupByKey();
+```
 
+`groupBy` 与 `groupByKey` 的区别不在语法，在是否触发重新分区：
+
+- `groupByKey` 沿用消息原 Key，Key 没变，同 Key 的消息本就在同一分区，聚合可以原地完成，零网络开销。
+- `groupBy` 用新 Key（这里是 value 的前 3 个字符），新 Key 与原分区不再对应，Kafka Streams 必须把消息按新 Key 重新路由到对应分区，这就是 re-partition。
+
+所以能 `groupByKey` 就不要 `groupBy`：`groupBy` 的 re-partition 会产生一张中间 Topic，并带来一次额外的网络往返。
 // 聚合操作
 KTable<String, Long> count = grouped.count();
 
@@ -120,7 +138,11 @@ KStream<String, String> joined = stream1.join(
     JoinWindows.of(Duration.ofMinutes(5)),  // 5 分钟窗口
     StreamJoined.with(Serdes.String(), Serdes.String(), Serdes.String())
 );
+```
 
+KStream 是无界流，两条流各自无限推进。join 要回答的问题是：`stream1` 的这条消息，该和 `stream2` 的哪条消息配对？没有边界，配对范围就是「从开天辟地到永远」，状态永远无法释放。所以 KStream-KStream 的 join 必须带时间窗口，用它把配对范围框定在「时间戳相差 5 分钟内」这一有限区间——窗口一过，配不上的消息就能丢弃，状态存储才有回收的时机。
+
+KTable 则相反，它是「每个 Key 的最新值」，天然是一个有界的快照，所以 KStream-KTable 连接不需要窗口，也不存在状态无限膨胀的问题。
 // KStream-KTable 连接（不需要窗口）
 KStream<String, String> enriched = stream.join(
     table,

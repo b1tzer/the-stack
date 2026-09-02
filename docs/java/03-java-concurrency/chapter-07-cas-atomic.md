@@ -440,9 +440,3 @@ public class LockFreeStack<T> {
 | CAS vs 锁 | 低竞争单变量用 CAS，复杂逻辑用锁 |
 
 无锁并发覆盖"低竞争 + 单变量"这条主线；一旦跨过这条线，锁与 AQS 仍然是更合适的工具。理解 CAS 的原理与局限，才能在正确的场景做出正确的选择。
-
-> **纵横联系**
->
-> - **向前**：第 4 章 JMM 定义的 happens-before 与 `volatile` 语义，是 CAS 能"看到最新值"的前提；第 5 章的 `volatile` 与 CAS 一起构成"可见性 + 原子性"的最小组合。
-> - **向后**：第 8 章 AQS 的 `state` 字段就是通过 CAS 更新的；第 9 章 `ConcurrentHashMap` 的桶首节点插入、`LongAdder` 内部的 `CounterCell` 数组，都建立在本章的 CAS 与字段更新器之上。
-> - **跨卷**：第二卷 JVM Runtime 讲了 `cmpxchg` 与内存屏障如何被 JIT 生成；第七卷高并发架构中"无锁数据结构"的可行性判断，同样围绕本章的三大问题展开。

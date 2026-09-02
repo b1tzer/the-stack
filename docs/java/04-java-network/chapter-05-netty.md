@@ -167,9 +167,3 @@ bossGroup (accept) → workerGroup (read/decode) → [可选: businessGroup (业
 ```
 
 Netty 的主从 Reactor 模型和 Tomcat 的 Acceptor/Poller/Worker 三线程模型是同一种思想的不同实现。区别在于 Tomcat 是为 HTTP 优化的 Servlet 容器，Netty 是通用网络框架——你可以用它写 HTTP 服务器，也可以写 RPC 框架、消息队列、IM 服务。
-
-> **纵横联系**
->
-> - **[第4章](./chapter-04-nio) NIO** 的 Selector + Channel + Buffer 是 Netty 的地基。你在 Netty 里看到的 `NioEventLoop`、`NioSocketChannel`、`ByteBuf` 都是对 NIO 的装箱。
-> - **[第7章](./chapter-07-servlet-springmvc) Servlet** 的 Tomcat NioEndpoint 和本章 Netty 的主从 Reactor 是同一种模式——Tomcat 用 Java NIO 自建，Netty 做了更通用的封装。
-> - **[第8章](./chapter-08-rpc) RPC** 的 Dubbo 传输层基于 Netty。Dubbo 的 dispatcher/threadpool 配置直接影响 Netty EventLoop 的业务线程分配策略。

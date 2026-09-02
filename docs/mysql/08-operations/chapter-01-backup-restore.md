@@ -1,6 +1,8 @@
 # 备份恢复
 
-## 1. 逻辑备份
+## 1. 备份方式
+
+### 1.1 逻辑备份（mysqldump）
 
 ```bash
 # 全库备份
@@ -19,7 +21,7 @@ mysqldump --single-transaction --routines --triggers --all-databases > all.sql
 mysql -h localhost -u root -p < all.sql
 ```
 
-## 2. 物理备份
+### 1.2 物理备份（xtrabackup）
 
 ```bash
 # xtrabackup
@@ -30,7 +32,9 @@ xtrabackup --prepare --target-dir=/backup/full
 xtrabackup --copy-back --target-dir=/backup/full
 ```
 
-## 3. PITR
+## 2. 增量备份与时间点恢复
+
+### 2.1 PITR
 
 ```bash
 # 基于 Binlog 恢复
@@ -39,7 +43,7 @@ mysqlbinlog --start-datetime="2024-01-01 12:00:00" \
             binlog.000001 | mysql -u root -p
 ```
 
-## 4. xtrabackup 增量备份
+### 2.2 xtrabackup 增量备份
 
 ```bash
 # 全量备份
@@ -68,7 +72,9 @@ xtrabackup --copy-back --target-dir=/backup/full
 chown -R mysql:mysql /var/lib/mysql
 ```
 
-## 5. 备份策略设计
+## 3. 备份策略与归档
+
+### 3.1 备份策略设计
 
 ```
 推荐策略：全量 + 增量 + Binlog
@@ -107,7 +113,7 @@ find $BACKUP_DIR -name "full_*" -mtime +30 -exec rm -rf {} \;
 find $BACKUP_DIR -name "inc_*" -mtime +7 -exec rm -rf {} \;
 ```
 
-## 6. Binlog 备份
+### 3.2 Binlog 备份
 
 ```bash
 # 实时归档 Binlog
@@ -119,7 +125,7 @@ mysqlbinlog --read-from-remote-server --host=192.168.1.100 \
 cp /var/lib/mysql/mysql-bin.* /backup/binlog/
 ```
 
-## 7. 备份验证
+## 4. 备份验证
 
 ```bash
 # 验证 mysqldump 备份
@@ -133,7 +139,7 @@ xtrabackup --prepare --target-dir=/backup/full
 # 检查输出是否有 "completed OK!"
 ```
 
-## 8. 最佳实践
+## 5. 最佳实践
 
 1. **备份必须定期验证** — 备份不验证等于没备份
 2. **使用 xtrabackup 物理备份** — 大数据量下比 mysqldump 快
@@ -142,4 +148,3 @@ xtrabackup --prepare --target-dir=/backup/full
 5. **加密备份数据** — 保护敏感信息
 6. **监控备份任务** — 确保备份成功完成
 7. **保留至少 2 份备份** — 防止备份损坏
-

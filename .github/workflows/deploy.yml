@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - dev
     paths-ignore:
       - ".github/**"
   workflow_dispatch:
@@ -14,8 +15,69 @@ permissions:
   contents: write
   pages: write
   id-token: write
+  pull-requests: write
 
 jobs:
+  sync-dev-to-main:
+    name: Sync dev → main
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch branches
+        run: git fetch origin main dev
+
+      - name: Analyze dev commits
+        id: analyze
+        run: |
+          new_commits=$(git rev-list --count origin/main..origin/dev)
+          echo "dev 领先 main 的提交数：${new_commits}"
+
+          if [ "${new_commits}" -le 0 ]; then
+            echo "dev 分支没有领先 main 的新提交，跳过合入。"
+            echo "should_merge=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          last_commit_ts=$(git log -1 --format=%ct origin/dev)
+          now_ts=$(date +%s)
+          age=$((now_ts - last_commit_ts))
+          echo "dev 最新提交距今：${age} 秒"
+
+          if [ "${age}" -le 3600 ]; then
+            echo "dev 最新提交未超过 1 小时，跳过合入。"
+            echo "should_merge=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "should_merge=true" >> "$GITHUB_OUTPUT"
+
+      - name: Create and merge PR
+        if: steps.analyze.outputs.should_merge == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          existing_pr=$(gh pr list --base main --head dev --state open --json number -q '.[0].number')
+
+          if [ -n "${existing_pr}" ] && [ "${existing_pr}" != "null" ]; then
+            echo "已存在 dev -> main 的 PR（#${existing_pr}），直接合并。"
+            pr_number="${existing_pr}"
+          else
+            echo "创建 dev -> main 的 PR。"
+            gh pr create --base main --head dev \
+              --title "chore: 自动同步 dev → main" \
+              --body "由每日自动部署流程自动创建，合入 dev 分支超过 1 小时的新提交。"
+            pr_number=$(gh pr list --base main --head dev --state open --json number -q '.[0].number')
+          fi
+
+          if ! gh pr merge "${pr_number}" --merge --admin --delete-branch=false; then
+            echo "::warning::PR #${pr_number} 合并失败（可能存在冲突），请手动处理 dev → main 的合并。"
+          fi
+
   build-and-deploy:
     name: Build & Deploy
     runs-on: ubuntu-latest
@@ -55,7 +117,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
           publish_dir: ./site
-          commit_message: "deploy: ${{ github.event.head_commit.message }}"
+          commit_message: "deploy: ${{ github.event_name == 'push' && github.event.head_commit.message || 'auto-sync build' }}"
           force_orphan: true
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'

@@ -1,10 +1,12 @@
 # 组复制 (MGR)
 
-## 1. 什么是 MGR
+## 1. 概述与配置
+
+### 1.1 什么是 MGR
 
 MySQL Group Replication，基于 Paxos 协议的多主复制。
 
-## 2. 配置
+### 1.2 配置
 
 ```ini
 # my.cnf
@@ -16,21 +18,44 @@ group_replication_group_seeds = "192.168.1.100:33061,192.168.1.101:33061,192.168
 group_replication_single_primary_mode = ON  # 单主模式
 ```
 
-## 3. 单主 vs 多主
+### 1.3 单主 vs 多主
 
 | 模式 | 说明 |
 |------|------|
 | 单主 | 只有一个可写，其他只读（推荐） |
 | 多主 | 所有节点可写，需处理冲突 |
 
-## 4. 监控
+多主模式的限制：
+
+1. 不支持 `SERIALIZABLE` 隔离级别
+2. 不支持级联约束检查（外键）
+3. 不支持大事务（超过 `group_replication_transaction_size_limit`）
+4. 所有表必须有主键
+
+```sql
+-- 切换到多主模式
+STOP GROUP_REPLICATION;
+SET GLOBAL group_replication_single_primary_mode = OFF;
+SET GLOBAL group_replication_enforce_update_everywhere_checks = ON;
+START GROUP_REPLICATION;
+
+-- 切换回单主模式
+STOP GROUP_REPLICATION;
+SET GLOBAL group_replication_single_primary_mode = ON;
+SET GLOBAL group_replication_enforce_update_everywhere_checks = OFF;
+START GROUP_REPLICATION;
+```
+
+## 2. 部署与运维
+
+### 2.1 监控
 
 ```sql
 SELECT * FROM performance_schema.replication_group_members;
 SELECT * FROM performance_schema.replication_group_member_stats;
 ```
 
-## 5. MGR 部署实战
+### 2.2 MGR 部署实战
 
 ```ini
 # 完整的 MGR 配置（3 节点）
@@ -70,29 +95,7 @@ SELECT * FROM performance_schema.replication_group_members;
 -- MEMBER_STATE: ONLINE / RECOVERING / OFFLINE
 ```
 
-## 6. 单主 vs 多主模式
-
-```sql
--- 切换到多主模式
-STOP GROUP_REPLICATION;
-SET GLOBAL group_replication_single_primary_mode = OFF;
-SET GROUP_REPLICATION_enforce_update_everywhere_checks = ON;
-START GROUP_REPLICATION;
-
--- 多主模式限制：
--- 1. 不支持 SERIALIZABLE 隔离级别
--- 2. 不支持级联约束检查（外键）
--- 3. 不支持大事务（超过 group_replication_transaction_size_limit）
--- 4. 所有表必须有主键
-
--- 切换回单主模式
-STOP GROUP_REPLICATION;
-SET GLOBAL group_replication_single_primary_mode = ON;
-SET GLOBAL group_replication_enforce_update_everywhere_checks = OFF;
-START GROUP_REPLICATION;
-```
-
-## 7. MGR 故障处理
+### 2.3 MGR 故障处理
 
 ```sql
 -- 节点故障自动处理
@@ -114,7 +117,9 @@ SELECT * FROM performance_schema.replication_group_member_stats;
 -- COUNT_TRANSACTIONS_ROWS_VALIDATING: 验证集大小
 ```
 
-## 8. MGR vs 传统主从复制
+## 3. 选型与最佳实践
+
+### 3.1 MGR vs 传统主从复制
 
 | 特性 | 传统主从 | MGR |
 |------|---------|-----|
@@ -125,7 +130,7 @@ SELECT * FROM performance_schema.replication_group_member_stats;
 | 节点数 | 1 主 N 从 | 建议奇数节点（3/5/7） |
 | 适用场景 | 读写分离 | 高可用要求高 |
 
-## 9. 最佳实践
+### 3.2 最佳实践
 
 1. **使用单主模式** — 多主模式限制多，问题排查复杂
 2. **部署奇数节点** — 3 节点容忍 1 个故障，5 节点容忍 2 个
@@ -133,4 +138,3 @@ SELECT * FROM performance_schema.replication_group_member_stats;
 4. **避免大事务** — 超过 `group_replication_transaction_size_limit` 会失败
 5. **所有表必须有主键** — MGR 强制要求
 6. **配合 MySQL Router 实现自动路由**
-

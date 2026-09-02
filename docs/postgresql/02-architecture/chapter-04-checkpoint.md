@@ -7,13 +7,11 @@ title: Checkpoint 与脏页刷新
 
 > **核心问题：** PostgreSQL 的脏页（Dirty Page）何时、如何被刷到磁盘？Checkpoint 对写入性能有什么影响？`full_page_writes` 是做什么的？理解 Checkpoint 机制，是调优写入密集型工作负载的关键。
 
----
-
 ## 1. Checkpoint 是什么
 
 **Checkpoint** 是一个时间点，在这个时间点上，PostgreSQL 保证**所有在该时间点之前产生的脏页都已写入磁盘**。完成 Checkpoint 后，崩溃恢复只需从该 Checkpoint 的 LSN 开始重放 WAL，而不需要从更早的位置开始。
 
-```
+```text
 时间轴:
 ─────────────────────────────────────────────────────►
 
@@ -22,7 +20,7 @@ title: Checkpoint 与脏页刷新
    ▼                                      ▼
    ├──── 脏页范围 ─────────────────────────┤
    │                                      │
-   │  这些脏页必须在 CP2 完成前全部刷盘    │
+   │  这些脏页必须在 CP2 完成前全部刷盘        │
    │                                      │
 
   如果在 CP2 之后崩溃:
@@ -42,8 +40,6 @@ title: Checkpoint 与脏页刷新
 
 > **性能关键点：** 步骤 2 是 Checkpoint 最耗时的操作。大量脏页同时刷盘会造成 **I/O 写尖峰**，导致正常查询的响应时间急剧上升。这就是为什么需要 Background Writer 和 `checkpoint_completion_target` 来平滑 I/O。
 
----
-
 ## 2. Checkpoint 触发条件
 
 PostgreSQL 的 Checkpoint 由以下任一条件触发：
@@ -57,20 +53,20 @@ PostgreSQL 的 Checkpoint 由以下任一条件触发：
 
 ### 参数关系图
 
-```
+```text
 checkpoint_timeout = 5min
          │
          ▼
    ┌─────────────────────────────────────────┐
-   │              Checkpoint 间隔              │
-   │                                          │
-   │   CP1 ──────────────────────── CP2       │
-   │   │                           │          │
-   │   │←── 最长 5 分钟 ──────────→│          │
-   │   │                           │          │
-   │   │←── 除非 WAL 量达到 ──────→│          │
-   │   │    max_wal_size (1GB)     │          │
-   │   │    先触发                  │          │
+   │              Checkpoint 间隔             │
+   │                                         │
+   │   CP1 ──────────────────────── CP2      │
+   │   │                           │         │
+   │   │←── 最长 5 分钟 ──────────→  │        │
+   │   │                           │         │
+   │   │←── 除非 WAL 量达到 ──────→  │         │
+   │   │    max_wal_size (1GB)     │         │
+   │   │    先触发                  │         │
    └─────────────────────────────────────────┘
 
 max_wal_size 越大 → Checkpoint 间隔越长 → 写入性能越好
@@ -96,8 +92,6 @@ SHOW checkpoint_completion_target; -- 0.9
 SELECT * FROM pg_stat_bgwriter;
 ```
 
----
-
 ## 3. checkpoint_completion_target 参数
 
 `checkpoint_completion_target` 控制 Checkpoint 脏页刷盘的**节奏**，是平滑 I/O 的核心参数。
@@ -106,7 +100,7 @@ SELECT * FROM pg_stat_bgwriter;
 
 Checkpoint 不是一次性把所有脏页刷完，而是在**两次 Checkpoint 之间的时间窗口**内，按照 `checkpoint_completion_target` 的比例分散刷盘。
 
-```
+```text
 checkpoint_completion_target = 0.9 (默认)
 
 CP1                                              CP2
@@ -132,15 +126,13 @@ CP1                                              CP2
 
 > **调优建议：** 保持默认值 `0.9` 即可。如果 Checkpoint 期间仍有 I/O 尖峰，应优先增大 `max_wal_size` 来拉长 Checkpoint 间隔，而非调整此参数。
 
----
-
 ## 4. Checkpoint 对性能的影响
 
 ### 写放大效应
 
 Checkpoint 期间的 I/O 问题主要体现在：
 
-```
+```text
 正常运行时:
   写入速率: ─────────────────────── (平稳)
                ↑
@@ -177,8 +169,6 @@ FROM pg_stat_bgwriter;
 | `buffers_backend / buffers_checkpoint` | < 0.1 | Backend 直接写出过多 → 增大 `shared_buffers` 或 `bgwriter` 参数 |
 | `checkpoint_write_time` | 与 `checkpoint_sync_time` 接近 | 写入时间远大于 sync → 磁盘写入瓶颈 |
 
----
-
 ## 5. Background Writer 的作用
 
 Background Writer 是 Checkpoint 的"前置助手"，它的职责是在 Checkpoint 之间**提前将部分脏页刷出**，减轻 Checkpoint 时的 I/O 压力。
@@ -203,7 +193,7 @@ Background Writer 是 Checkpoint 的"前置助手"，它的职责是在 Checkpoi
 
 ### 三层脏页刷出体系
 
-```
+```text
 ┌───────────────────────────────────────────────────────┐
 │                    脏页刷出架构                         │
 │                                                       │
@@ -232,15 +222,13 @@ Background Writer 是 Checkpoint 的"前置助手"，它的职责是在 Checkpoi
 
 > **调优方向：** 如果 `buffers_backend` 占比过高（> 10%），说明 Bg Writer 和 Checkpointer 的刷出速度跟不上写入速度。应增大 `bgwriter_lru_maxpages` 或 `bgwriter_lru_multiplier`，让 Bg Writer 更积极地刷脏页。
 
----
-
 ## 6. full_page_writes 参数
 
 ### 问题背景：部分页写入（Torn Page）
 
 磁盘通常以扇区（512B 或 4KB）为单位写入。如果在写入 8KB 数据页的过程中断电，可能只有前 4KB 被写入，后 4KB 仍是旧数据 — 这就是 **部分页写入（Torn Page）** 问题。
 
-```
+```text
 正常写入 8KB 数据页:
 [═══════════════════════════════════]  ✅ 完整写入
 
@@ -257,7 +245,7 @@ Background Writer 是 Checkpoint 的"前置助手"，它的职责是在 Checkpoi
 
 `full_page_writes = on`（默认）时，每次 Checkpoint 后**第一次修改**某个数据页，会将该页的**完整内容**写入 WAL 记录（Full Page Image），而非仅记录增量变化。
 
-```
+```text
 WAL 记录类型:
 
   普通 WAL 记录: [LSN] [操作类型] [增量数据]  (小)
@@ -293,8 +281,6 @@ SHOW full_page_writes;
 
 > **⚠️ 不要轻易关闭：** 除非你确定存储层支持原子写入（如 ZFS、部分企业存储阵列），否则关闭 `full_page_writes` 可能导致数据损坏。在大多数场景下保持默认值 `on`。
 
----
-
 ## 7. 与 MySQL Redo Log Checkpoint 对比
 
 | 维度 | PostgreSQL | MySQL (InnoDB) |
@@ -312,7 +298,7 @@ SHOW full_page_writes;
 
 ### 架构差异图
 
-```
+```text
 PostgreSQL Checkpoint 模型:
 ┌────────────────────────────────────────────┐
 │  CP1 ───── Bg Writer 预刷 ────── CP2       │
@@ -339,8 +325,6 @@ MySQL InnoDB Checkpoint 模型:
 ```
 
 > **关键区别总结：** PG 的 Checkpoint 是**周期性全量**的，通过 `checkpoint_completion_target` 平滑 I/O；MySQL 是**持续增量**的，通过自适应刷脏算法动态调整。PG 的方式更简单可控，MySQL 的方式理论上 I/O 更平滑，但调优更复杂。
-
----
 
 ## 本章小结
 

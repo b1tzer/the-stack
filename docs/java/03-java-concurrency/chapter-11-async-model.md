@@ -359,9 +359,3 @@ Actor 与前述所有模型的分野在**编程思维**：从"共享内存 + 加
 | 链尾任务从未执行 | 链末端没人 `join` | 保留引用或显式等待 |
 | 异常总是显示成 `CompletionException` | 未 unwrap `getCause()` | 处理异常时取 `ex.getCause()` |
 | 异步超时 | JDK 9 之前没原生 API | `orTimeout` / `completeOnTimeout` |
-
-> **纵横联系**
->
-> - **向前依赖**：`CompletableFuture` 默认执行器是第 10 章讲的 `ForkJoinPool.commonPool`；同一 JVM 内的所有异步 stage 都会争这个池——§11.3.2 的规则建立在第 10 章 §10.7.2 之上。
-> - **向后使用**：第 12 章会用虚拟线程 + `StructuredTaskScope` 重写本章的"扇出 + 合并"模式，代码更短、异常更清晰、生命周期更明确；第 13 章的诊断章会用本章的反模式作为线上问题的对照样本。
-> - **跨卷关系**：第四卷 Netty / NIO 章节展开响应式编程的完整机制；第六卷 Spring `@Async` 底层直接返回 `CompletableFuture`；第七卷分布式与 Actor 模型的一致性讨论承接本章 §11.6.2。

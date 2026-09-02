@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 560" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <title>表空间碎片：空闲页散布与行空洞</title>
+
+  <!-- 标题 -->
+  <text x="380" y="26" text-anchor="middle" font-size="14" font-weight="bold" fill="#333333">表空间碎片：空闲页散布与行空洞</text>
+
+  <!-- ============ ① 区级碎片 ============ -->
+  <rect x="24" y="44" width="712" height="180" rx="6" fill="#fff8e1" stroke="#e65100" stroke-width="1.4"/>
+  <text x="36" y="66" fill="#bf360c" font-weight="bold" font-size="12">① 区级碎片：Extent 内空闲页散布在已用页之间</text>
+  <text x="36" y="82" fill="#6d4c41" font-size="9">删完整页后页被标记为可复用，但不归还文件，空闲页与已用页交错</text>
+
+  <!-- 页网格：8 列 × 2 行 = 16 页（示意 64 页） -->
+  <!-- 行1 -->
+  <rect x="40" y="94" width="78" height="40" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="79" y="118" text-anchor="middle" fill="#1b5e20" font-size="9">已用页</text>
+  <rect x="126" y="94" width="78" height="40" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="165" y="118" text-anchor="middle" fill="#1b5e20" font-size="9">已用页</text>
+  <rect x="212" y="94" width="78" height="40" rx="3" fill="#ffffff" stroke="#bdbdbd" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="251" y="118" text-anchor="middle" fill="#757575" font-size="9">空闲页</text>
+  <rect x="298" y="94" width="78" height="40" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="337" y="118" text-anchor="middle" fill="#1b5e20" font-size="9">已用页</text>
+  <rect x="384" y="94" width="78" height="40" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="423" y="118" text-anchor="middle" fill="#1b5e20" font-size="9">已用页</text>
+  <rect x="470" y="94" width="78" height="40" rx="3" fill="#ffffff" stroke="#bdbdbd" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="509" y="118" text-anchor="middle" fill="#757575" font-size="9">空闲页</text>
+  <rect x="556" y="94" width="78" height="40" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="595" y="118" text-anchor="middle" fill="#1b5e20" font-size="9">已用页</text>
+  <rect x="642" y="94" width="78" height="40" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="681" y="118" text-anchor="middle" fill="#1b5e20" font-size="9">已用页</text>
+
+  <!-- 行2 -->
+  <rect x="40" y="142" width="78" height="40" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="79" y="166" text-anchor="middle" fill="#1b5e20" font-size="9">已用页</text>
+  <rect x="126" y="142" width="78" height="40" rx="3" fill="#ffffff" stroke="#bdbdbd" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="165" y="166" text-anchor="middle" fill="#757575" font-size="9">空闲页</text>
+  <rect x="212" y="142" width="78" height="40" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="251" y="166" text-anchor="middle" fill="#1b5e20" font-size="9">已用页</text>
+  <rect x="298" y="142" width="78" height="40" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="337" y="166" text-anchor="middle" fill="#1b5e20" font-size="9">已用页</text>
+  <rect x="384" y="142" width="78" height="40" rx="3" fill="#ffffff" stroke="#bdbdbd" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="423" y="166" text-anchor="middle" fill="#757575" font-size="9">空闲页</text>
+  <rect x="470" y="142" width="78" height="40" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="509" y="166" text-anchor="middle" fill="#1b5e20" font-size="9">已用页</text>
+  <rect x="556" y="142" width="78" height="40" rx="3" fill="#ffffff" stroke="#bdbdbd" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="595" y="166" text-anchor="middle" fill="#757575" font-size="9">空闲页</text>
+  <rect x="642" y="142" width="78" height="40" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="681" y="166" text-anchor="middle" fill="#1b5e20" font-size="9">已用页</text>
+
+  <text x="36" y="206" fill="#888888" font-size="9">示意 16 页，实际一个区 64 页；空闲页散布即「区级碎片」</text>
+
+  <!-- ============ ② 页级碎片 ============ -->
+  <rect x="24" y="240" width="712" height="200" rx="6" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.4"/>
+  <text x="36" y="262" fill="#1b5e20" font-weight="bold" font-size="12">② 页级碎片：Page 内删除行后留下空洞</text>
+
+  <!-- Page 矩形 -->
+  <rect x="40" y="276" width="380" height="150" rx="3" fill="#f1f8e9" stroke="#1565c0" stroke-width="1.2"/>
+  <text x="52" y="291" fill="#0d47a1" font-weight="bold" font-size="9">Page（16KB）</text>
+
+  <!-- 行记录与空洞 -->
+  <rect x="52" y="298" width="356" height="16" rx="2" fill="#c8e6c9" stroke="#2e7d32" stroke-width="0.7"/>
+  <text x="60" y="310" fill="#1b5e20" font-size="8">记录 A（有效数据）</text>
+
+  <rect x="52" y="320" width="356" height="16" rx="2" fill="#ffffff" stroke="#e0e0e0" stroke-width="0.7" stroke-dasharray="3,2"/>
+  <text x="60" y="332" fill="#9e9e9e" font-size="8">空洞（已删除，可复用）</text>
+
+  <rect x="52" y="342" width="356" height="16" rx="2" fill="#c8e6c9" stroke="#2e7d32" stroke-width="0.7"/>
+  <text x="60" y="354" fill="#1b5e20" font-size="8">记录 B（有效数据）</text>
+
+  <rect x="52" y="364" width="356" height="16" rx="2" fill="#ffffff" stroke="#e0e0e0" stroke-width="0.7" stroke-dasharray="3,2"/>
+  <text x="60" y="376" fill="#9e9e9e" font-size="8">空洞（已删除，可复用）</text>
+
+  <rect x="52" y="386" width="356" height="16" rx="2" fill="#c8e6c9" stroke="#2e7d32" stroke-width="0.7"/>
+  <text x="60" y="398" fill="#1b5e20" font-size="8">记录 C（有效数据）</text>
+
+  <rect x="52" y="408" width="356" height="16" rx="2" fill="#ffffff" stroke="#e0e0e0" stroke-width="0.7" stroke-dasharray="3,2"/>
+  <text x="60" y="420" fill="#9e9e9e" font-size="8">空洞（已删除，可复用）</text>
+
+  <!-- 右侧说明 -->
+  <text x="452" y="292" fill="#1b5e20" font-weight="bold" font-size="10">空洞从哪来</text>
+  <text x="452" y="310" fill="#555555" font-size="9">DELETE 删除行 → 页内留空洞</text>
+  <text x="452" y="326" fill="#555555" font-size="9">页分裂 → 空间利用率下降</text>
+  <text x="452" y="342" fill="#555555" font-size="9">UPDATE 行迁移 → 旧位置留指针</text>
+  <text x="452" y="366" fill="#888888" font-size="9">这些空洞与空闲页就是 data_free</text>
+  <text x="452" y="382" fill="#888888" font-size="9">统计的碎片，均不会缩小 .ibd</text>
+
+  <!-- ============ 图例与总结 ============ -->
+  <rect x="300" y="466" width="16" height="16" rx="2" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="324" y="479" fill="#555555" font-size="10">已使用</text>
+  <rect x="396" y="466" width="16" height="16" rx="2" fill="#ffffff" stroke="#bdbdbd" stroke-width="1" stroke-dasharray="3,2"/>
+  <text x="420" y="479" fill="#555555" font-size="10">空闲 / 空洞（已分配未回收）</text>
+
+  <text x="380" y="520" text-anchor="middle" fill="#757575" font-size="11">碎片 = 已分配空间中的空闲块散布在占用块之间，文件大小不变</text>
+</svg>

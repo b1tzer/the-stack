@@ -1,6 +1,8 @@
 # 高可用方案
 
-## 1. MHA
+## 1. 主流方案
+
+### 1.1 MHA
 
 Master High Availability，自动故障切换。
 
@@ -12,7 +14,7 @@ masterha_check_repl --conf=/etc/mha/app1.cnf
 masterha_manager --conf=/etc/mha/app1.cnf
 ```
 
-## 2. Orchestrator
+### 1.2 Orchestrator
 
 ```bash
 # 安装
@@ -22,7 +24,7 @@ orchestrator --config=/etc/orchestrator.conf.json http
 orchestrator-client -c topology -i mycluster
 ```
 
-## 3. InnoDB Cluster
+### 1.3 InnoDB Cluster
 
 MySQL 官方高可用方案，基于 MGR + MySQL Shell + MySQL Router。
 
@@ -34,15 +36,7 @@ cluster.addInstance('root@192.168.1.101:3306')
 cluster.addInstance('root@192.168.1.102:3306')
 ```
 
-## 4. 对比
-
-| 方案 | 自动切换 | 数据一致性 | 复杂度 |
-|------|---------|-----------|--------|
-| MHA | ✅ | 依赖 GTID | 中 |
-| Orchestrator | ✅ | 依赖 GTID | 中 |
-| InnoDB Cluster | ✅ | 强一致 | 低 |
-
-## 5. Keepalived + VIP
+### 1.4 Keepalived + VIP
 
 ```bash
 # /etc/keepalived/keepalived.conf
@@ -81,7 +75,17 @@ fi
 exit 0
 ```
 
-## 6. 方案选择指南
+## 2. 方案对比与选型
+
+### 2.1 对比
+
+| 方案 | 自动切换 | 数据一致性 | 复杂度 |
+|------|---------|-----------|--------|
+| MHA | ✅ | 依赖 GTID | 中 |
+| Orchestrator | ✅ | 依赖 GTID | 中 |
+| InnoDB Cluster | ✅ | 强一致 | 低 |
+
+### 2.2 方案选择指南
 
 | 方案 | 自动切换 | 数据一致性 | 复杂度 | 适用场景 |
 |------|---------|-----------|--------|----------|
@@ -92,7 +96,7 @@ exit 0
 | ProxySQL + 主从 | ✅ | 最终一致 | 中 | 读写分离场景 |
 | 云 RDS | ✅ | 强一致 | 最低 | 云环境、预算充足 |
 
-## 7. 故障切换流程
+## 3. 故障切换流程
 
 ```
 1. 故障检测
@@ -119,7 +123,7 @@ exit 0
    └── 数据追赶
 ```
 
-## 8. 最佳实践
+## 4. 最佳实践
 
 1. **新项目使用 InnoDB Cluster** — 官方方案，最简单可靠
 2. **已有主从架构使用 Orchestrator** — 强大的拓扑管理
@@ -128,4 +132,3 @@ exit 0
 5. **监控告警** — 复制延迟、节点状态、连接数
 6. **避免脑裂** — 使用仲裁节点或多数派机制
 7. **应用层容错** — 连接重试、超时设置、降级方案
-

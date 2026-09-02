@@ -1,44 +1,25 @@
 # ACK 机制与重试
 
-## 1. ACK 机制
+> ACK 机制控制消息写入多少副本后才算成功，重试机制处理临时故障。两者共同决定了消息的可靠性。本章讲清三种 ACK 模式、幂等生产者原理，以及重试与顺序的关系。
 
-| acks | 说明 | 可靠性 | 吞吐量 |
-|------|------|--------|--------|
-| 0 | 不等待确认 | 低 | 高 |
-| 1 | Leader 确认 | 中 | 中 |
-| all | ISR 全部确认 | 高 | 低 |
+## 1. 三种 ACK 模式
+
+| acks | 可靠性 | 吞吐量 | 适用场景 |
+| :-- | :-- | :-- | :-- |
+| 0 | 最低（可能丢消息） | 最高 | 日志收集、监控指标 |
+| 1 | 中（Leader 宕机可能丢） | 中 | 一般业务 |
+| all | 最高 | 最低 | 金融、订单等不可丢数据 |
+
+三种模式各自的丢数据推理、`min.insync.replicas` 的配合、Unclean Leader 选举，见 [ACK 机制与可靠性保证](../05-reliability/chapter-01-acks-机制.md) §2~§4。本章只保留与生产者相关的重试与幂等配置。
 
 ## 2. 幂等生产者
 
-```java
-props.put("enable.idempotence", true);  // 开启幂等
-props.put("acks", "all");
-props.put("retries", Integer.MAX_VALUE);
-```
+重试可能导致消息重复。幂等生产者通过 PID + Sequence Number 保证「恰好一次」写入。
 
-原理：PID + Sequence Number 去重。
+### 2.1 原理
 
-## 3. 重试机制
-
-```java
-props.put("retries", 3);
-props.put("retry.backoff.ms", 100);
-```
-
-## 4. 消息丢失与重复
-
-| 场景 | 原因 | 解决 |
-|------|------|------|
-| 丢失 | acks=0/1，Leader 宕机 | acks=all |
-| 重试重复 | 网络超时重试 | 幂等生产者 |
-| 消费重复 | Offset 提交失败 | 幂等消费 |
-
-## 5. 幂等生产者原理详解
-
-幂等生产者通过 **Producer ID (PID)** 和 **Sequence Number** 实现去重：
-
-```
-Producer 启动 → InitProducerIdRequest → 分配 PID
+```text
+Producer 启动 → InitProducerIdRequest → Broker 分配 PID
     │
     ▼
 每条消息附带 (PID, Sequence Number)
@@ -51,32 +32,62 @@ Broker 检查：当前 PID 的期望 Sequence 是否匹配
     └── 不匹配 → DuplicateSequenceException，丢弃重复消息
 ```
 
-**关键配置约束**：
-- `acks=all`：必须，否则无法保证幂等性。
-- `max.in.flight.requests.per.connection <= 5`：Kafka 内部通过队列重排序保证最多 5 个在途请求仍可去重。
-- `retries > 0`：必须，否则幂等性无意义。
+### 2.2 配置
 
-## 6. 重试机制详解
+```java
+props.put("enable.idempotence", true);       // 开启幂等
+props.put("acks", "all");                    // 必须
+props.put("retries", Integer.MAX_VALUE);     // 无限重试
+props.put("max.in.flight.requests.per.connection", 5);  // 允许 5 个在途请求
+```
+
+约束条件：
+
+| 配置 | 要求 | 说明 |
+| :-- | :-- | :-- |
+| `acks` | 必须为 `all` | 否则无法保证幂等 |
+| `retries` | > 0 | 否则幂等无意义 |
+| `max.in.flight.requests.per.connection` | ≤ 5 | Kafka 内部重排序保证去重 |
+
+## 3. 重试机制
+
+### 3.1 配置
 
 ```java
 props.put("retries", Integer.MAX_VALUE);
-props.put("retry.backoff.ms", 100);
-props.put("delivery.timeout.ms", 120000); // 总超时 2 分钟
+props.put("retry.backoff.ms", 100);          // 重试间隔
+props.put("delivery.timeout.ms", 120000);    // 总超时 2 分钟
 ```
 
-重试触发条件：
-- `NotEnoughReplicasException`：ISR 副本不足。
-- `NetworkException`：网络异常。
-- `LeaderNotAvailableException`：Leader 选举中。
+### 3.2 可重试异常
 
-**不会重试的情况**：
-- `RecordTooLargeException`：消息过大，直接失败。
-- `InvalidTopicException`：Topic 不存在。
-- `AuthorizationException`：权限不足。
+| 异常 | 说明 |
+| :-- | :-- |
+| `NotEnoughReplicasException` | ISR 副本不足 |
+| `NetworkException` | 网络异常 |
+| `LeaderNotAvailableException` | Leader 选举中 |
+| `NotLeaderOrFollowerException` | 请求发到了非 Leader |
 
-## 7. 重试与顺序保证
+### 3.3 不可重试异常
 
-当 `max.in.flight.requests.per.connection > 1` 时，重试可能导致消息乱序。解决方案：
+| 异常 | 说明 |
+| :-- | :-- |
+| `RecordTooLargeException` | 消息过大 |
+| `InvalidTopicException` | Topic 不存在 |
+| `AuthorizationException` | 权限不足 |
+
+## 4. 重试与顺序保证
+
+当 `max.in.flight.requests.per.connection > 1` 时，重试可能导致消息乱序：
+
+```text
+发送 msg1 → 失败（重试中）
+发送 msg2 → 成功
+msg1 重试成功
+结果：msg2 在 msg1 之前（乱序）
+```
+
+解决方案：
 
 ```java
 // 方案1：关闭在途请求（性能差）
@@ -87,32 +98,41 @@ props.put("enable.idempotence", true);
 // 内部通过 Sequence Number 重排序，允许最多 5 个在途请求
 ```
 
-## 8. 回调中的异常处理
+## 5. 消息丢失与重复场景
+
+| 场景 | 原因 | 解决方案 |
+| :-- | :-- | :-- |
+| 消息丢失 | acks=0/1，Leader 宕机 | acks=all + min.insync.replicas=2 |
+| 重试重复 | 网络超时重试 | 幂等生产者 |
+| 消费重复 | Offset 提交失败 | 幂等消费（业务去重） |
+
+## 6. 回调中的异常处理
 
 ```java
 producer.send(record, (metadata, exception) -> {
     if (exception != null) {
         if (exception instanceof RetriableException) {
-            // 可重试异常，Kafka 客户端会自动重试
-            logger.warn("Retriable error: {}", exception.getMessage());
+            // 可重试异常，客户端会自动重试
+            logger.warn("Retriable: {}", exception.getMessage());
         } else if (exception instanceof ProducerFencedException) {
-            // 事务被其他实例抢占，必须关闭 Producer
-            logger.error("Producer fenced, shutting down");
+            // 事务被抢占，必须关闭
+            logger.error("Producer fenced");
             System.exit(1);
         } else {
-            // 不可重试异常（如消息过大）
-            logger.error("Non-retriable error: {}", exception.getMessage());
+            // 不可重试异常
+            logger.error("Failed: {}", exception.getMessage());
         }
     } else {
-        logger.info("Sent to partition={}, offset={}", 
+        logger.info("Sent: partition={}, offset={}",
             metadata.partition(), metadata.offset());
     }
 });
 ```
 
-## 9. 最佳实践
+## 7. 最佳实践
 
-1. **生产环境必须开启幂等性**：`enable.idempotence=true`，几乎没有性能损耗，但能避免重复消息。
-2. **不要设置 retries=0**：除非你明确知道后果。网络抖动是常态，重试是必要的。
-3. **设置合理的 delivery.timeout.ms**：避免消息长时间阻塞在缓冲区。默认 2 分钟，可根据业务调整。
-4. **监控 failed-send-rate**：如果该指标持续大于 0，说明有消息发送失败。
+1. **生产环境必须开启幂等**：`enable.idempotence=true`，几乎无性能损耗。
+2. **不要设置 retries=0**：网络抖动是常态，重试是必要的。
+3. **acks=all + min.insync.replicas=2**：生产标配。
+4. **设置合理的 delivery.timeout.ms**：避免消息长时间阻塞。
+5. **监控 failed-send-rate**：持续 > 0 说明有消息发送失败。

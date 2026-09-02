@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 464" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <defs>
+    <marker id="arrRepl" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#1565c0"/>
+    </marker>
+    <marker id="arrAppend" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#e65100"/>
+    </marker>
+  </defs>
+
+  <text x="480" y="26" text-anchor="middle" font-size="14" font-weight="bold" fill="#333333">Binlog：Server 层逻辑日志 — 是什么 / 怎么做到 / 干什么</text>
+
+  <!-- ① 是什么 -->
+  <rect x="24" y="48" width="280" height="330" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="36" y="72" fill="#0d47a1" font-weight="bold" font-size="12">① 是什么</text>
+
+  <text x="36" y="98" fill="#0d47a1" font-size="10" font-weight="bold">产生于 Server 层</text>
+  <text x="36" y="116" fill="#555555" font-size="9">与存储引擎无关</text>
+  <text x="36" y="132" fill="#555555" font-size="9">任何引擎的变更都被记录</text>
+
+  <text x="36" y="164" fill="#0d47a1" font-size="10" font-weight="bold">记录内容</text>
+  <text x="36" y="182" fill="#555555" font-size="9">数据库「做了哪些变更」的逻辑日志</text>
+  <text x="36" y="198" fill="#555555" font-size="9">一条事务对应一串事件（Event）</text>
+
+  <text x="36" y="230" fill="#0d47a1" font-size="10" font-weight="bold">写入方式</text>
+  <text x="36" y="248" fill="#555555" font-size="9">append-only：只追加、不覆盖</text>
+  <text x="36" y="264" fill="#888888" font-size="9">对比 Redo 是循环写、固定大小</text>
+
+  <rect x="36" y="286" width="256" height="72" rx="4" fill="#bbdefb" stroke="#1565c0" stroke-width="0.9"/>
+  <text x="164" y="310" text-anchor="middle" fill="#0d47a1" font-size="10" font-weight="bold">一句话定位</text>
+  <text x="164" y="328" text-anchor="middle" fill="#555555" font-size="9">Redo = InnoDB 私有账本（崩溃恢复）</text>
+  <text x="164" y="344" text-anchor="middle" fill="#555555" font-size="9">Binlog = Server 公共账本（复制与恢复）</text>
+
+  <!-- ② 怎么做到 -->
+  <rect x="320" y="48" width="380" height="330" rx="6" fill="#f1f8e9" stroke="#2e7d32" stroke-width="1.4"/>
+  <text x="332" y="72" fill="#1b5e20" font-weight="bold" font-size="12">② 怎么做到</text>
+
+  <text x="332" y="92" fill="#1b5e20" font-size="10" font-weight="bold">三种记录格式</text>
+
+  <rect x="332" y="100" width="116" height="74" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="390" y="116" text-anchor="middle" fill="#1b5e20" font-size="9" font-weight="bold">STATEMENT</text>
+  <text x="390" y="132" text-anchor="middle" fill="#555555" font-size="8">记录 SQL 语句</text>
+  <text x="390" y="146" text-anchor="middle" fill="#888888" font-size="7">日志量小</text>
+  <text x="390" y="160" text-anchor="middle" fill="#c62828" font-size="7">NOW()/LIMIT 有风险</text>
+
+  <rect x="456" y="100" width="116" height="74" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.4"/>
+  <text x="514" y="116" text-anchor="middle" fill="#1b5e20" font-size="9" font-weight="bold">ROW（默认）</text>
+  <text x="514" y="132" text-anchor="middle" fill="#555555" font-size="8">记录行前后值</text>
+  <text x="514" y="146" text-anchor="middle" fill="#1b5e20" font-size="7">一致性最强</text>
+  <text x="514" y="160" text-anchor="middle" fill="#888888" font-size="7">批量时日志量大</text>
+
+  <rect x="580" y="100" width="108" height="74" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="634" y="116" text-anchor="middle" fill="#1b5e20" font-size="9" font-weight="bold">MIXED</text>
+  <text x="634" y="132" text-anchor="middle" fill="#555555" font-size="8">默认语句</text>
+  <text x="634" y="146" text-anchor="middle" fill="#555555" font-size="8">不确定自动切 ROW</text>
+  <text x="634" y="160" text-anchor="middle" fill="#888888" font-size="7">折中</text>
+
+  <text x="332" y="202" fill="#1b5e20" font-size="10" font-weight="bold">一个文件 = 一串事件顺序追加</text>
+
+  <rect x="332" y="210" width="52" height="52" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1"/>
+  <text x="358" y="230" text-anchor="middle" fill="#bf360c" font-size="7" font-weight="bold">Format</text>
+  <text x="358" y="242" text-anchor="middle" fill="#6d4c41" font-size="7">文件头</text>
+
+  <rect x="388" y="210" width="52" height="52" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1"/>
+  <text x="414" y="230" text-anchor="middle" fill="#bf360c" font-size="7" font-weight="bold">Table</text>
+  <text x="414" y="242" text-anchor="middle" fill="#6d4c41" font-size="7">表映射</text>
+
+  <rect x="444" y="210" width="52" height="52" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="470" y="230" text-anchor="middle" fill="#bf360c" font-size="7" font-weight="bold">Write</text>
+  <text x="470" y="242" text-anchor="middle" fill="#6d4c41" font-size="7">插入行</text>
+
+  <rect x="500" y="210" width="52" height="52" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="526" y="230" text-anchor="middle" fill="#bf360c" font-size="7" font-weight="bold">Update</text>
+  <text x="526" y="242" text-anchor="middle" fill="#6d4c41" font-size="7">更新行</text>
+
+  <rect x="556" y="210" width="52" height="52" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="582" y="230" text-anchor="middle" fill="#bf360c" font-size="7" font-weight="bold">Delete</text>
+  <text x="582" y="242" text-anchor="middle" fill="#6d4c41" font-size="7">删除行</text>
+
+  <rect x="612" y="210" width="52" height="52" rx="3" fill="#f3e5f5" stroke="#8e24aa" stroke-width="1.3"/>
+  <text x="638" y="230" text-anchor="middle" fill="#6a1b9a" font-size="7" font-weight="bold">XID</text>
+  <text x="638" y="242" text-anchor="middle" fill="#6a1b9a" font-size="7">提交标记</text>
+
+  <line x1="332" y1="286" x2="664" y2="286" stroke="#e65100" stroke-width="1.4" marker-end="url(#arrAppend)"/>
+  <text x="498" y="302" text-anchor="middle" fill="#e65100" font-size="9" font-weight="bold">按顺序追加到文件尾部</text>
+
+  <rect x="332" y="318" width="356" height="44" rx="3" fill="#f3e5f5" stroke="#8e24aa" stroke-width="0.9"/>
+  <text x="510" y="338" text-anchor="middle" fill="#6a1b9a" font-size="9" font-weight="bold">XID 是两阶段提交的「分水岭」</text>
+  <text x="510" y="354" text-anchor="middle" fill="#555555" font-size="8">Binlog 写成功与否，决定主库崩溃后该提交还是回滚</text>
+
+  <!-- ③ 干什么 -->
+  <rect x="716" y="48" width="220" height="330" rx="6" fill="#fff8e1" stroke="#e65100" stroke-width="1.4"/>
+  <text x="728" y="72" fill="#bf360c" font-weight="bold" font-size="12">③ 干什么</text>
+
+  <text x="728" y="96" fill="#bf360c" font-size="10" font-weight="bold">主从复制</text>
+  <rect x="728" y="104" width="196" height="46" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="826" y="122" text-anchor="middle" fill="#6d4c41" font-size="9" font-weight="bold">主库：事务 → 写 Binlog</text>
+  <text x="826" y="138" text-anchor="middle" fill="#555555" font-size="8">日志持久化到磁盘</text>
+
+  <line x1="826" y1="150" x2="826" y2="164" stroke="#1565c0" stroke-width="1.4" marker-end="url(#arrRepl)"/>
+  <text x="836" y="160" fill="#1565c0" font-size="8">从库拉取</text>
+
+  <rect x="728" y="164" width="196" height="46" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="826" y="182" text-anchor="middle" fill="#6d4c41" font-size="9" font-weight="bold">从库：拉取 → 重放</text>
+  <text x="826" y="198" text-anchor="middle" fill="#555555" font-size="8">保持与主库数据一致</text>
+
+  <text x="728" y="238" fill="#bf360c" font-size="10" font-weight="bold">时间点恢复（PITR）</text>
+  <rect x="728" y="246" width="196" height="88" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="0.9"/>
+  <text x="826" y="266" text-anchor="middle" fill="#555555" font-size="8">全量备份</text>
+  <text x="826" y="282" text-anchor="middle" fill="#6d4c41" font-size="9">+ 重放 Binlog</text>
+  <line x1="742" y1="292" x2="910" y2="292" stroke="#e65100" stroke-width="1.2" marker-end="url(#arrAppend)"/>
+  <text x="826" y="308" text-anchor="middle" fill="#bf360c" font-size="9" font-weight="bold">恢复到任意历史时刻</text>
+  <text x="826" y="324" text-anchor="middle" fill="#888888" font-size="7">误删后可回退到误操作前</text>
+
+  <text x="826" y="358" text-anchor="middle" fill="#888888" font-size="9">见 §2 两阶段提交、§4 PITR</text>
+
+  <text x="480" y="416" text-anchor="middle" fill="#555555" font-size="11" font-weight="bold">Redo 管「不丢」，Binlog 管「复制与恢复」——两者配合两阶段提交，保证主从一致</text>
+
+  <text x="480" y="444" text-anchor="middle" fill="#888888" font-size="9">生产默认 ROW 格式 + sync_binlog=1，日志只追加不覆盖，需设过期时间主动清理</text>
+</svg>

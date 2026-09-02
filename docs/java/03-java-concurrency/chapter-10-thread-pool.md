@@ -486,9 +486,3 @@ try { f.get(); } catch (ExecutionException e) { /* 才能拿到异常 */ }
 | `parallelStream` / `CompletableFuture` 全局卡住 | 阻塞任务塞进 `commonPool` | 阻塞任务用独立线程池 |
 | 线上无法定位是哪个业务的线程 | 默认线程名无区分 | 自定义 `ThreadFactory` 命名 |
 | `submit` 的任务异常静默丢失 | 异常被封在 `Future` 里 | 用 `execute` 或调 `future.get` |
-
-> **纵横联系**
->
-> - **向前依赖**：`workQueue` 就是第 9 章讲的 `BlockingQueue`——`ArrayBlockingQueue` / `LinkedBlockingQueue` / `SynchronousQueue` / `DelayedWorkQueue` 各自的行为决定了线程池的调度语义；`Worker` 的锁基于第 8 章的 AQS；`mainLock`（`ReentrantLock`）与 `termination`（`Condition`）来自第 8 章。
-> - **向后使用**：第 11 章的 `CompletableFuture` 默认走 `ForkJoinPool.commonPool`，本章 §10.7.2 的选型规则会在那里被再次强调；第 12 章的虚拟线程重新评估"线程池参数配置"这一整套经验（对 IO 密集任务不再需要，对 CPU 密集依然需要）。
-> - **跨卷关系**：第五卷 HikariCP 的连接池设计与本章参数配置方法论一脉相承；第六卷 Spring `@Async` 底层就是本章的 `ThreadPoolTaskExecutor`；第七卷高并发架构的"线程池隔离"（舱壁）建立在 §10.8.4。

@@ -9,9 +9,7 @@ props.put("processing.guarantee", "exactly_once_v2");
 
 ## 2. 实现原理
 
-- 幂等生产者
-- 事务
-- 原子性写入
+Streams 的 Exactly Once 建立在幂等生产者与事务之上。幂等与事务的通用原理，见 [Exactly Once 语义](../05-reliability/chapter-02-exactly-once.md) §2~§3。
 
 ## 3. 限制
 

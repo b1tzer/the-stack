@@ -2,7 +2,7 @@
 
 > Redis 为什么快，最常被提到的答案是「单线程」。但这个说法只对了一半——命令执行是单线程，网络 IO 在 6.0 之后却可以多线程。本章拆解 Redis 的线程模型与 IO 多路复用机制，把「为什么快」讲清楚。
 
-## 1. 单线程模型
+## 1. 单线程模型 {#single-thread}
 
 Redis 的核心是单线程执行命令：同一时刻只有一个命令在执行，命令之间天然串行，不存在线程切换、锁竞争、上下文切换的开销。
 
@@ -21,7 +21,7 @@ Redis 的核心是单线程执行命令：同一时刻只有一个命令在执�
 | IO 多路复用 | 一个线程通过 epoll 同时监听成千上万个连接 |
 | 高效数据结构 | SDS、跳表、字典等，多数操作 O(1)/O(log n) |
 
-**单线程的边界**：单线程意味着**慢命令会阻塞所有其他请求**。一个耗时 1 秒的命令，会让整个 Redis 停顿 1 秒。所以 Redis 的优化核心是「避免慢命令」（见第 2 章与第五卷）。
+**单线程的边界**：单线程意味着**慢命令会阻塞所有其他请求**。一个耗时 1 秒的命令，会让整个 Redis 停顿 1 秒。所以 Redis 的优化核心是「避免慢命令」（见 [命令与 RESP](./chapter-02-command-resp.md) 与 [性能](../05-operations/chapter-01-performance.md)）。
 
 > 辅助线程：虽然命令执行是单线程，但 Redis 有多个后台线程处理耗时操作——AOF 刷盘、UNLINK 异步删除大 Key、Lazy Free 惰性释放，这些不阻塞命令执行。
 
@@ -53,6 +53,36 @@ epoll_wait    阻塞等待就绪事件（内核直接返回就绪 fd 列表）
 
 Redis 使用 `epoll`（Linux）/ `kqueue`（macOS）/ `evport`（Solaris）等平台最优的多路复用实现，封装在统一的事件循环里。
 
+### 2.3 ae 事件库
+
+Redis 自己封装了一个轻量级事件库 `ae`，对不同平台的 IO 多路复用做了统一封装：
+
+```c
+// ae.c 核心结构
+typedef struct aeEventLoop {
+    int maxfd;                    // 当前最大 fd
+    aeFileEvent events[AE_SETSIZE]; // 注册的事件表
+    aeFiredEvent fired[AE_SETSIZE]; // 就绪事件表
+    aeTimeEvent *timeEventHead;   // 定时事件链表
+    int stop;
+    void *apidata;               // 平台特定数据（epoll/kqueue）
+} aeEventLoop;
+```
+
+事件循环主函数 `aeMain()`：
+
+```c
+void aeMain(aeEventLoop *eventLoop) {
+    eventLoop->stop = 0;
+    while (!eventLoop->stop) {
+        // 1. 执行定时事件（过期删除、serverCron）
+        aeProcessEvents(eventLoop, AE_ALL_EVENTS);
+        // 2. 调用 aeApiPoll（封装 epoll_wait）等待 IO 事件
+        // 3. 就绪事件分发到对应处理器
+    }
+}
+```
+
 ## 3. Reactor 模式
 
 Redis 的事件处理采用 Reactor 模式——一个事件分发器 + 多个事件处理器。
@@ -74,6 +104,18 @@ Redis 的事件处理采用 Reactor 模式——一个事件分发器 + 多个�
 | 读事件 | 客户端发来命令 | 读取并解析命令 |
 | 写事件 | 响应可写回 | 把结果写回客户端 |
 
+### 3.1 serverCron 定时任务
+
+除了 IO 事件，Redis 还有一个 100ms 执行一次的定时任务 `serverCron`：
+
+| 任务 | 说明 |
+| :-- | :-- |
+| 过期键清理 | 定期删除策略（见 [过期与淘汰](./chapter-06-expiration-eviction.md)） |
+| RDB/AOF 检查 | 触发持久化条件判断 |
+| 统计信息更新 | 内存、命中率、连接数等 |
+| 集群心跳 | 集群模式下的 Gossip 消息 |
+| 哨兵心跳 | 哨兵模式下的健康检查 |
+
 ## 4. 6.0 的多线程网络 IO
 
 Redis 6.0 引入了多线程网络 IO，但**命令执行仍然是单线程**。
@@ -82,7 +124,9 @@ Redis 6.0 引入了多线程网络 IO，但**命令执行仍然是单线程**。
 
 单线程模型下，网络 IO 的读写（`read`/`write`）本身也是 CPU 密集操作。当连接数多、吞吐量大时，解析协议、写回响应会占满单核 CPU，成为瓶颈。
 
-### 4.2 的改进
+> Redis 作者 antirez 在 2019 年公开表示「IO 多线程不会做，因为多数部署瓶颈在网络和内存，而非 CPU」，但随后的实测推翻了这一判断：`read`/`write` 系统调用占用了单核 CPU 的大量时间。这正是 6.0 落地多线程 IO 的直接原因。
+
+### 4.2 改进方案
 
 6.0 起，Redis 把「读请求解析」和「写响应」这两步交给多个 IO 线程并行处理，而命令的真正执行仍在主线程串行：
 
@@ -109,3 +153,37 @@ io-threads-do-reads yes       # 是否开启多线程读
 ```
 
 > 只有当 CPU 核数较多（≥ 4 核）且确实存在网络 IO 瓶颈时才建议开启多线程 IO。核数少或瓶颈在命令执行时，开启多线程反而可能因线程切换降低性能。
+
+## 5. 命令执行时间线
+
+一条命令从发出到返回的完整时间线：
+
+```mermaid
+sequenceDiagram
+    participant C as 客户端
+    participant M as Redis 主线程
+    participant IO as IO 线程
+
+    C->>M: SET key value
+    M->>IO: 分发给 IO 线程
+    IO->>IO: 解析命令
+    IO-->>M: 返回解析结果
+    M->>M: 执行 SET（单线程）
+    M->>M: AOF 追加
+    M->>M: 复制传播
+    M->>IO: 分发给 IO 线程
+    IO->>IO: 写回响应
+    IO-->>M: 写回完成
+    M-->>C: OK
+```
+
+## 6. 小结
+
+| 要点 | 说明 |
+| :-- | :-- |
+| 命令执行 | 单线程，保证原子性，无锁 |
+| 网络 IO | 6.0 起支持多线程，解析和写回并行 |
+| IO 多路复用 | epoll/kqueue，一个线程监听万级连接 |
+| 慢命令 | 阻塞所有请求，是单线程模型的最大风险 |
+| 辅助线程 | AOF 刷盘、UNLINK、Lazy Free 不阻塞主线程 |
+| Reactor 模式 | 事件驱动，serverCron 处理定时任务 |

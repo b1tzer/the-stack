@@ -1,124 +1,119 @@
 # 表空间
 
-## 1. 类型
+> 删掉了表里一半的数据，`data_free` 显示有几百 MB 碎片，磁盘上的 `.ibd` 文件却一点没变小。为什么？因为 InnoDB 从不把释放的空间还给操作系统，它只把页标记为「可复用」。理解表空间，就是理解它管理磁盘空间的这套三级结构。
 
-| 表空间 | 文件 | 说明 |
-|--------|------|------|
-| 系统表空间 | ibdata1 | 数据字典、Undo Log、Change Buffer |
-| 独立表空间 | .ibd | 每个表一个文件 |
-| 通用表空间 | 自定义 | 用户创建的共享表空间 |
-| 临时表空间 | ibtmp1 | 临时表 |
-| Undo 表空间 | undo_001/002 | Undo Log 存储 |
+## 1. 表空间与内部结构
 
-## 2. 配置
+### 1.1 表空间：InnoDB 存放数据的容器
+
+表空间（Tablespace）是 InnoDB 在磁盘上存放数据的容器。MySQL 5.6 之后，InnoDB 把数据分散到几个不同用途的表空间文件里：
+
+| 表空间 | 文件 | 存放内容 |
+| :-- | :-- | :-- |
+| 系统表空间 | `ibdata1` | 数据字典、Change Buffer、Doublewrite Buffer |
+| 独立表空间 | `.ibd` | 每张表一个文件，存该表的数据与索引 |
+| 通用表空间 | 自定义 | 用户创建、多表共享 |
+| 临时表空间 | `ibtmp1` | 临时表、排序中间结果 |
+| Undo 表空间 | `undo_001/002` | Undo Log |
+
+其中**独立表空间**是生产默认，也是最需要理解的一个，由 `innodb_file_per_table` 控制：
 
 ```ini
 # 独立表空间（默认开启）
 innodb_file_per_table = 1
-
-# 系统表空间大小
-innodb_data_file_path = ibdata1:1G:autoextend
 ```
 
-## 3. 段、区、页
+### 1.2 三级结构：段、区、页
 
-```
-表空间
-├── 段 (Segment)
-│   ├── 数据段（叶子节点）
-│   └── 索引段（非叶子节点）
-│       └── 区 (Extent) = 1MB = 64个页
-│           └── 页 (Page) = 16KB
-```
+一个 `.ibd` 文件不是把数据平铺写进去，而是按「段 → 区 → 页」三级组织：
 
-## 4. 表空间文件结构
+![表空间三级结构：段 → 区 → 页](/mysql/02-innodb-internals-chapter-03-tablespace.svg)
 
-**系统表空间 (ibdata1)：**
-```
-ibdata1
-├── 数据字典 (Data Dictionary)
-├── Change Buffer
-├── Doublewrite Buffer
-├── Undo Log (MySQL 5.6 之前)
-└── 用户数据 (innodb_file_per_table=OFF 时)
-```
+三个层级各解决一个问题：
 
-**独立表空间 (.ibd)：**
-```
-users.ibd
-├── FSP Header (表空间头部)
-├── XDES Entry (区描述符)
-├── INDEX Page (B+ 树索引页)
-│   ├── Root Page
-│   ├── Non-leaf Pages
-│   └── Leaf Pages (实际数据)
-└── Free Extents (空闲区)
-```
+- **页（Page）**：16KB，是磁盘 IO 和内存管理的最小单位。Buffer Pool 按页缓存、Redo Log 按页记录、崩溃恢复按页重放。
+- **区（Extent）**：1MB，64 个连续页。**连续**是关键——B+ 树相邻的页尽量落在磁盘相邻位置，把随机 IO 变成顺序 IO。
+- **段（Segment）**：按索引划分，一个索引一个段。聚簇索引的叶子节点与非叶子节点分属两个段（数据段与索引段），各自独立增长，互不干扰。
 
-## 5. 表空间管理操作
+为什么要多出「区」这一层？如果只有页，B+ 树每次分裂新页都可能落在磁盘任意位置，叶子节点散落各处，范围扫描会退化成随机读。区强制一次申请 1MB 连续空间，让同一个索引的数据尽量连续。
+
+## 2. 空间分配与碎片
+
+### 2.1 空间如何分配：碎片从哪来
+
+理解了三级结构，才能理解碎片。InnoDB 申请空间以「区」为单位，但**释放空间只精确到「页」**，而且释放后从不把空间还给文件：
+
+- 删除一行，页里多出一点空闲；
+- 删完整页，页被标记为「可复用」，文件大小不变；
+- 只有当整个「区」都空了，区才可能被回收。
+
+这就是开头现象的原因：删了数据，文件不缩小，只是内部出现了大量「已标记但未回收」的空闲空间。
 
 ```sql
--- 查看表空间大小
-SELECT
-    table_name,
-    ROUND(data_length / 1024 / 1024, 2) AS data_mb,
-    ROUND(index_length / 1024 / 1024, 2) AS index_mb,
-    ROUND(data_free / 1024 / 1024, 2) AS free_mb
-FROM information_schema.tables
-WHERE table_schema = 'mydb'
-ORDER BY data_length + index_length DESC;
-
--- 查看表空间文件
-SELECT space, name, size * 16 / 1024 AS size_mb
-FROM information_schema.innodb_tablespaces
-WHERE name LIKE 'mydb/%';
-
--- MySQL 8.0 表空间加密
-ALTER TABLE users ENCRYPTION='Y';
-
--- 查看加密状态
-SELECT space, name, flag,
-    CASE WHEN flag & 8192 THEN 'Encrypted' ELSE 'Not Encrypted' END AS encryption
-FROM information_schema.innodb_tablespaces;
-```
-
-## 6. 碎片与空间回收
-
-**碎片产生原因：**
-- 大量 DELETE 操作后，页面有空闲空间但无法被其他表使用
-- 页分裂导致空间利用率下降
-- UPDATE 操作导致行迁移
-
-```sql
--- 查看碎片大小
+-- data_free 是已分配但未使用的空间，即碎片
 SELECT
     table_name,
     ROUND(data_free / 1024 / 1024, 2) AS fragment_mb
 FROM information_schema.tables
 WHERE table_schema = 'mydb' AND data_free > 0
 ORDER BY data_free DESC;
-
--- 回收碎片（会锁表，大表慎用）
-OPTIMIZE TABLE users;
--- 或者在线方式（MySQL 5.6+）
-ALTER TABLE users ENGINE=InnoDB;  -- 实际上是重建表
 ```
 
-## 7. 独立表空间 vs 系统表空间
+![表空间碎片：空闲页散布与行空洞](/mysql/02-innodb-internals-chapter-03-tablespace-fragmentation.svg)
 
-| 特性 | 独立表空间 | 系统表空间 |
-|------|-----------|----------|
-| 文件数量 | 每表一个 .ibd | 共享 ibdata1 |
-| 空间回收 | DROP TABLE 可回收 | 不可回收，只增不减 |
-| 备份灵活性 | 可单表备份 | 必须整库备份 |
-| 管理复杂度 | 文件多，管理复杂 | 文件少，管理简单 |
-| 推荐 | ✅ 生产环境推荐 | 仅特殊场景 |
+碎片主要有三个来源：
 
-## 8. 最佳实践
+| 来源 | 原因 |
+| :-- | :-- |
+| `DELETE` 留空洞 | 删除只释放页内空间，不缩文件 |
+| 页分裂 | 随机主键（UUID）导致页反复分裂，空间利用率降到约 50% |
+| `UPDATE` 行迁移 | 行长变大、原页放不下，数据迁到新页，旧位置留指针 |
 
-1. **始终开启 `innodb_file_per_table = 1`** — 独立表空间便于管理和回收
-2. **定期检查碎片率** — 超过 30% 考虑 OPTIMIZE
-3. **监控 ibdata1 大小** — 不要让它无限增长
-4. **生产环境使用表空间加密** — 满足数据安全合规要求
-5. **避免使用共享表空间存储用户数据**
+### 2.2 回收碎片：OPTIMIZE 的本质
 
+要真正收回碎片，不能靠 `DELETE`，只能**重建表**：
+
+```sql
+OPTIMIZE TABLE users;
+-- 等价于
+ALTER TABLE users ENGINE=InnoDB;
+```
+
+`OPTIMIZE` 不是「整理」现有数据，而是**新建一张表、把数据一行行拷过去、再原子切换**。所以它等价于重建，代价是：
+
+- 需要一整张表的额外磁盘空间（新表与旧表并存一段时间）；
+- 大表执行时间长，期间写操作可能被阻塞。
+
+因此碎片率不高（低于 30%）时不必执行，频繁 `OPTIMIZE` 反而得不偿失。
+
+## 3. 表空间类型
+
+### 3.1 独立表空间 vs 系统表空间
+
+| 对比项 | 独立表空间 | 系统表空间 |
+| :-- | :-- | :-- |
+| 文件数量 | 每表一个 `.ibd` | 共享 `ibdata1` |
+| 空间回收 | `DROP TABLE` 直接删文件回收 | 只增不减，无法回收 |
+| 备份灵活性 | 可单表备份、单表迁移 | 必须整库处理 |
+| 管理复杂度 | 文件多 | 文件少 |
+| 适用 | 生产默认 | 仅存公共结构 |
+
+这就是为什么**必须开启 `innodb_file_per_table = 1`**：数据一旦放进 `ibdata1`，即使删表，空间也永远占着，`ibdata1` 只会越来越大。
+
+```sql
+-- 查看表空间实际占用
+SELECT space, name, size * 16 / 1024 AS size_mb
+FROM information_schema.innodb_tablespaces
+WHERE name LIKE 'mydb/%';
+
+-- MySQL 8.0 表空间加密
+ALTER TABLE users ENCRYPTION='Y';
+```
+
+## 4. 最佳实践
+
+1. **开启 `innodb_file_per_table = 1`**：删表可回收空间。
+2. **碎片率超 30% 才 `OPTIMIZE`**：低碎片重建不划算。
+3. **监控 `ibdata1`**：它只增不减，膨胀了只能重建整个实例。
+4. **主键用自增**：避免页分裂产生的碎片，见 [B+ 树索引](../03-index/chapter-01-btree-index.md)。
+5. **数据敏感时用表空间加密**：`ALTER TABLE users ENCRYPTION='Y'`。

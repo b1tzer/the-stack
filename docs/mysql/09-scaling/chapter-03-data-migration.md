@@ -1,6 +1,8 @@
 # 数据迁移
 
-## 1. mysqldump
+## 1. 迁移工具
+
+### 1.1 mysqldump
 
 ```bash
 # 从源库导出
@@ -10,7 +12,7 @@ mysqldump -h source -u root -p --single-transaction mydb > mydb.sql
 mysql -h target -u root -p mydb < mydb.sql
 ```
 
-## 2. mydumper
+### 1.2 mydumper
 
 ```bash
 # 并行导出
@@ -20,7 +22,7 @@ mydumper -h source -u root -p secret -B mydb -t 8 -o /backup/
 myloader -h target -u root -p secret -B mydb -t 8 -d /backup/
 ```
 
-## 3. DM (Data Migration)
+### 1.3 DM (Data Migration)
 
 TiDB 生态的迁移工具。
 
@@ -38,7 +40,7 @@ mysql-instances:
     black-white-list: mydb-list
 ```
 
-## 4. MySQL Shell 并行导出导入
+### 1.4 MySQL Shell 并行导出导入
 
 ```bash
 # MySQL Shell 8.0+ 并行导出
@@ -56,7 +58,9 @@ mysqlsh root@192.168.1.101 -- util load-dump /backup/mydb \
 # - 支持 GTID
 ```
 
-## 5. 逻辑复制迁移
+## 2. 迁移场景
+
+### 2.1 逻辑复制迁移
 
 ```sql
 -- 使用 MySQL Shell 的 copyInstance 复制整个实例
@@ -77,7 +81,7 @@ START REPLICA;
 -- 5. 停止复制
 ```
 
-## 6. 跨版本迁移
+### 2.2 跨版本迁移
 
 ```bash
 # MySQL 5.7 → 8.0 迁移
@@ -103,7 +107,7 @@ mysqlsh root@target -- util load-dump /backup --threads=8
 # - 需要检查 SQL 兼容性
 ```
 
-## 7. 上云迁移
+### 2.3 上云迁移
 
 ```bash
 # MySQL → 云 RDS 迁移
@@ -127,7 +131,9 @@ mysqldump --single-transaction --routines --triggers --all-databases > dump.sql
 # 通过 RDS 控制台导入
 ```
 
-## 8. 迁移验证
+## 3. 验证与最佳实践
+
+### 3.1 迁移验证
 
 ```sql
 -- 数据量验证
@@ -148,7 +154,7 @@ SELECT COUNT(*) FROM orders WHERE created_at > '2024-01-01';
 -- 检查关键业务流程
 ```
 
-## 9. 最佳实践
+### 3.2 最佳实践
 
 1. **选择合适的迁移工具** — 小数据量用 mysqldump，大数据量用 mydumper/MySQL Shell
 2. **迁移前充分测试** — 在测试环境验证迁移流程
@@ -157,4 +163,3 @@ SELECT COUNT(*) FROM orders WHERE created_at > '2024-01-01';
 5. **业务低峰期迁移** — 减少对业务影响
 6. **监控迁移进度** — 确保迁移正常完成
 7. **切换前停止写入** — 避免数据不一致
-
