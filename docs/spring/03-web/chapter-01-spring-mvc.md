@@ -53,19 +53,7 @@ public class UserServlet extends HttpServlet {
 
 Spring MVC 的核心设计思想是**前端控制器（Front Controller）模式**——所有请求统一由一个 Servlet 处理，再分发给具体的处理器：
 
-```text
-┌──────────────────────────────────────────────────────────────┐
-│                        Tomcat                                │
-│  ┌─────────┐   ┌─────────────────────────────────────────┐  │
-│  │  Filter  │ → │         DispatcherServlet               │  │
-│  │  链      │   │                                         │  │
-│  └─────────┘   │  HandlerMapping → 找到处理器             │  │
-│                │  HandlerAdapter → 调用处理器              │  │
-│                │  ViewResolver   → 解析视图                │  │
-│                │  ExceptionResolver → 异常处理             │  │
-│                └─────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────┘
-```
+![spring-front-controller](/spring/spring-front-controller.svg)
 
 ### 1.3 DispatcherServlet 的初始化
 
