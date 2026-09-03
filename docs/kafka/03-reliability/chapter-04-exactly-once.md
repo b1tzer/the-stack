@@ -12,7 +12,7 @@
 
 ## 2. 幂等生产者：单分区 Exactly Once
 
-幂等生产者通过 PID + Sequence Number 保证单分区内的去重。详见 [ACK 与幂等](../_core/chapter-05-ack-and-idempotence.md) §4。
+幂等生产者通过 PID + Sequence Number 保证单分区内的去重。详见 [ACK 与幂等](../02-core/chapter-05-ack-and-idempotence.md) §4。
 
 ## 3. 事务：跨分区 Exactly Once
 

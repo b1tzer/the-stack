@@ -90,4 +90,4 @@ props.put("linger.ms", 0);
 props.put("compression.type", "none");
 ```
 
-详见 [吞吐调优](../performance/chapter-02-throughput-tuning.md)。
+详见 [吞吐调优](../04-performance/chapter-02-throughput-tuning.md)。

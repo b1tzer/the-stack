@@ -156,7 +156,7 @@ Kafka 的事务只保证生产端。消费端的去重需要在业务层实现�
 | Redis SETNX | 设置成功才算新消息 | 高频去重 |
 | 版本号 | 比较消息版本和当前版本 | 状态更新 |
 
-详见 [消息去重](../reliability/chapter-02-message-dedup.md)。
+详见 [消息去重](../03-reliability/chapter-02-message-dedup.md)。
 
 ## 7. 配置清单
 

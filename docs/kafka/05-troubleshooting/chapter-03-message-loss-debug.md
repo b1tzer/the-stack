@@ -71,4 +71,4 @@ unclean.leader.election.enable=false
 enable.auto.commit=false
 ```
 
-详见 [消息丢失](../reliability/chapter-01-message-loss.md)。
+详见 [消息丢失](../03-reliability/chapter-01-message-loss.md)。

@@ -103,7 +103,7 @@ Kafka 支持 5 种压缩算法：
 
 压缩是端到端的：生产者压缩 → Broker 存储压缩数据 → 消费者解压。Broker 通常不解压，只做字节转发。所以压缩的 CPU 开销由生产者和消费者分担，Broker 不受影响。
 
-详见 [压缩权衡](../performance/chapter-04-compression-tradeoff.md)。
+详见 [压缩权衡](../04-performance/chapter-04-compression-tradeoff.md)。
 
 ## 6. 异常处理
 

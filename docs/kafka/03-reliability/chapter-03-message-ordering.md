@@ -10,7 +10,7 @@
 | 跨分区 | 无序 |
 | 全局有序 | 不保证（需要特殊处理） |
 
-单分区内有序的原理：每个分区是一条独立的追加日志，消息按写入先后排列。详见 [分区与 Offset](../_core/chapter-01-partition-and-offset.md)。
+单分区内有序的原理：每个分区是一条独立的追加日志，消息按写入先后排列。详见 [分区与 Offset](../02-core/chapter-01-partition-and-offset.md)。
 
 ## 2. 破坏顺序的场景
 

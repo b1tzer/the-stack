@@ -151,7 +151,7 @@ kafka-consumer-groups.sh --describe --group my-group --bootstrap-server localhos
 
 Lag 稳定不增长 → 消费速度跟得上。Lag 持续增长 → 消费者处理能力不足，需要优化或扩容。
 
-Lag 过大的排查见 [消费者 Lag 过大](../troubleshooting/chapter-01-consumer-lag.md)。
+Lag 过大的排查见 [消费者 Lag 过大](../05-troubleshooting/chapter-01-consumer-lag.md)。
 
 ## 10. 一句话总结
 

@@ -179,4 +179,4 @@ Controller → 所有 Broker: 广播变更
 | `IsrShrinksPerSec` | ISR 收缩频率 | 频繁抖动说明参数与实际不匹配 |
 | `UncleanLeaderElectionsPerSec` | Unclean 选举次数 | > 0 意味着真实的数据丢失 |
 
-ISR 频繁收缩的排查见 [ISR 频繁收缩](../troubleshooting/chapter-02-isr-shrink.md)。
+ISR 频繁收缩的排查见 [ISR 频繁收缩](../05-troubleshooting/chapter-02-isr-shrink.md)。

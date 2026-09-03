@@ -1,6 +1,6 @@
 # 消息队列选型
 
-> 选消息队列不是选「最好的」，而是选「最适合的」。本章聚焦 RabbitMQ 的核心优势与适用场景。完整技术对比见 [Kafka · 消息队列选型](/kafka/01-basics/chapter-04-mq-comparison)。
+> 选消息队列不是选「最好的」，而是选「最适合的」。本章聚焦 RabbitMQ 的核心优势与适用场景。完整技术对比见 [Kafka · 消息队列选型](/kafka/01-intro/chapter-03-mq-comparison)。
 
 ## RabbitMQ 的核心优势
 

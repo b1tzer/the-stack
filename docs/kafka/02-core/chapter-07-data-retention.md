@@ -89,4 +89,4 @@ log.cleanup.policy=delete,compact
 1亿 × 1KB × 7 × 3 × 1.2 = 2.52 TB
 ```
 
-磁盘空间不足的排查见 [磁盘空间不足](../troubleshooting/chapter-05-disk-space.md)。
+磁盘空间不足的排查见 [磁盘空间不足](../05-troubleshooting/chapter-05-disk-space.md)。

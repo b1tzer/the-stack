@@ -122,7 +122,7 @@ Kafka 的高吞吐来自四个机制：
 | 批量发送 | 消息攒批再发 | 减少网络往返与 TCP 开销 |
 | 页缓存 | 消息写入操作系统页缓存而非 JVM 堆 | 读取未落盘消息时直接从内存返回 |
 
-深度解析见 [为什么 Kafka 这么快](../performance/chapter-01-why-kafka-is-fast.md)。
+深度解析见 [为什么 Kafka 这么快](../04-performance/chapter-01-why-kafka-is-fast.md)。
 
 ## 5. 性能参考
 
@@ -151,4 +151,4 @@ Benchmark 数据依赖消息大小、压缩、副本因子、硬件与网络，�
 
 - 不确定 Kafka 是否适合你的场景？→ [消息队列选型](./chapter-03-mq-comparison.md)
 - 想系统学习？→ [学习路径](./chapter-02-learning-path.md)
-- 想深入某个主题？→ 从 `_core/` 目录开始，每个文档聚焦一个核心概念
+- 想深入某个主题？→ 从 `02-core/` 目录开始，每个文档聚焦一个核心概念
