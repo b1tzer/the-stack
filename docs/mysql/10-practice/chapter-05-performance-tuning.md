@@ -160,7 +160,7 @@ List<User> findByIdAfter(@Param("lastId") Long lastId, Pageable pageable);
 ## 9. 调优工具箱
 
 | 工具 | 用途 |
-|------|------|
+| :-- | :-- |
 | EXPLAIN | 查看执行计划 |
 | EXPLAIN ANALYZE | 查看实际执行时间 |
 | Optimizer Trace | 分析优化器决策 |
@@ -175,7 +175,7 @@ List<User> findByIdAfter(@Param("lastId") Long lastId, Pageable pageable);
 ## 10. 最佳实践总结
 
 | 层级 | 优化手段 | 效果 |
-|------|---------|------|
+| :-- | :-- | :-- |
 | SQL 层 | EXPLAIN 分析、索引优化、避免全表扫描 | 10-1000 倍 |
 | 索引层 | 覆盖索引、联合索引、清理无用索引 | 10-100 倍 |
 | 参数层 | Buffer Pool、刷盘策略、连接池 | 2-10 倍 |

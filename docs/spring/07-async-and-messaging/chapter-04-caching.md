@@ -49,7 +49,7 @@ public class ProductService {
 ```
 
 | 注解 | 执行方法？ | 读缓存？ | 写缓存？ | 典型场景 |
-|------|-----------|---------|---------|---------|
+| :-- | :-- | :-- | :-- | :-- |
 | `@Cacheable` | 缓存未命中时才执行 | ✅ | 缓存未命中时写入 | 查询 |
 | `@CachePut` | 每次都执行 | ❌ | ✅ 每次都更新 | 更新 |
 | `@CacheEvict` | 每次都执行 | ❌ | ✅ 删除缓存 | 删除/失效 |
@@ -92,7 +92,7 @@ public class CacheConfig {
 序列化方式对比：
 
 | 序列化方式 | 可读性 | 体积 | 跨语言 | 推荐度 |
-|-----------|--------|------|--------|-------|
+| :-- | :-- | :-- | :-- | :-- |
 | `JdkSerializationRedisSerializer` | ❌ 二进制 | 大 | ❌ | 不推荐 |
 | `StringRedisSerializer` | ✅ | 小 | ✅ | Key 推荐 |
 | `GenericJackson2JsonRedisSerializer` | ✅ JSON | 中 | ✅ | Value 推荐 |
@@ -193,7 +193,7 @@ public Product findByIdWithJitter(Long id) {
 ### 3.4 速查表
 
 | 问题 | 原因 | 现象 | 防护方案 |
-|------|------|------|---------|
+| :-- | :-- | :-- | :-- |
 | 穿透 | 查询不存在的数据 | 缓存永远 miss | 缓存空值 / 布隆过滤器 |
 | 击穿 | 热点 Key 过期 | 瞬时高并发打 DB | 互斥锁 / 逻辑过期 |
 | 雪崩 | 大量 Key 同时过期 | DB 瞬间压力暴涨 | 过期时间加随机值 |
@@ -233,7 +233,7 @@ public List<Product> search(String keyword, int page, int size) {
 SpEL 常用变量：
 
 | 变量 | 含义 | 示例 |
-|------|------|------|
+| :-- | :-- | :-- |
 | `#参数名` | 方法参数 | `#id`, `#username` |
 | `#result` | 方法返回值（unless 中可用） | `#result.size() > 0` |
 | `#root.method` | 当前方法 | `#root.method.name` |

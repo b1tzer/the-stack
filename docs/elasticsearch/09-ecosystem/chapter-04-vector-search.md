@@ -25,7 +25,7 @@ PUT /my-index
 ```
 
 | 参数 | 说明 |
-|------|------|
+| :-- | :-- |
 | `dims` | 向量维度（如 768 维） |
 | `index` | 是否建立索引（必须为 true 才能做 kNN 搜索） |
 | `similarity` | 相似度算法：`cosine`、`dot_product`、`l2_norm` |
@@ -56,7 +56,7 @@ GET /my-index/_search
 ```
 
 | 参数 | 说明 |
-|------|------|
+| :-- | :-- |
 | `query_vector` | 查询向量 |
 | `k` | 返回 Top K 个最相似的文档 |
 | `num_candidates` | 每个分片搜索的候选数量（越大越精确，越慢） |
@@ -102,7 +102,7 @@ embedding = model.encode(text).tolist()
 ## 7. 相似度算法
 
 | 算法 | 说明 | 适用场景 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | `cosine` | 余弦相似度 | 文本语义相似度 |
 | `dot_product` | 点积 | 归一化向量 |
 | `l2_norm` | 欧氏距离 | 图像特征 |

@@ -11,14 +11,14 @@
 ```
 
 | 规则 | 说明 |
-|------|------|
+| :-- | :-- |
 | `-Xms` = `-Xmx` | 避免堆内存动态调整 |
 | ≤ 物理内存的 50% | 留给文件系统缓存 |
 | ≤ 32GB | 超过 32GB 压缩指针失效 |
 
 ### 1.2 为什么不超过 32GB
 
-```
+```txt
 < 32GB：使用压缩指针（Compressed Oops），指针占 4 字节
 > 32GB：使用普通指针，指针占 8 字节
 
@@ -56,7 +56,7 @@ GET /_cat/indices?v&s=store.size:desc&h=index,store.size,pri.store.size
 ### 3.1 内存组成
 
 | 组成部分 | 说明 | 建议 |
-|---------|------|------|
+| :-- | :-- | :-- |
 | **JVM 堆** | 索引缓冲、查询缓存等 | 物理内存的 50%，≤ 32GB |
 | **文件系统缓存** | OS 缓存 Segment 文件 | 物理内存的 50% |
 | **Lucene 代码** | 堆外内存 | 自动管理 |
@@ -66,7 +66,7 @@ GET /_cat/indices?v&s=store.size:desc&h=index,store.size,pri.store.size
 
 ### 4.1 堆内存不足
 
-```
+```txt
 症状：频繁 Full GC，查询/写入超时
 原因：分片过多、查询结果集过大、聚合消耗内存
 解决：
@@ -78,7 +78,7 @@ GET /_cat/indices?v&s=store.size:desc&h=index,store.size,pri.store.size
 
 ### 4.2 文件系统缓存不足
 
-```
+```txt
 症状：查询延迟高，IO 等待时间长
 原因：堆内存过大，挤压了文件系统缓存
 解决：

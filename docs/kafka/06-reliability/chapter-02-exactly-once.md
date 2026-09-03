@@ -43,7 +43,7 @@ try {
 
 事务由 Transaction Coordinator 管理：
 
-```text
+```txt
 Producer → Transaction Coordinator：
   InitProducerId：获取 PID + Epoch
   AddPartitionsToTxn：注册事务涉及的分区

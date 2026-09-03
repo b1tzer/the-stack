@@ -9,7 +9,7 @@
 ## 2. 核心概念
 
 | 概念 | 说明 |
-|------|------|
+| :-- | :-- |
 | Connector | 连接器，定义数据源/目标 |
 | Task | 任务，实际执行数据传输 |
 | Worker | 工作节点，运行 Task |
@@ -22,7 +22,7 @@
 
 `tasks.max` 决定并行度的上限，而不是实际并行度：
 
-```text
+```txt
 tasks.max = 一个 Connector 最多能拆出多少个 Task
 
 实际并行度 = min(tasks.max, 数据源可切分的份数)
@@ -33,7 +33,7 @@ tasks.max = 一个 Connector 最多能拆出多少个 Task
 ## 3. Standalone vs Distributed
 
 | 模式 | 说明 | 适用场景 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | Standalone | 单节点 | 开发测试 |
 | Distributed | 多节点 | 生产环境 |
 
@@ -84,7 +84,7 @@ Sink Connector:
 ## 7. 关键配置参数
 
 | 参数 | 说明 | 默认值 |
-|------|------|--------|
+| :-- | :-- | :-- |
 | tasks.max | 最大任务数 | 1 |
 | connector.class | 连接器类名 | - |
 | key.converter | Key 转换器 | StringConverter |

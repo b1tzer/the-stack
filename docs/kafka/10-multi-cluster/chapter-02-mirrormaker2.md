@@ -6,7 +6,7 @@ MirrorMaker 2（简称 MM2）是 Apache Kafka 官方跨集群复制工具，通�
 
 MM1 是一对 consumer + producer 在同一 JVM 里跑：
 
-```text
+```txt
    [source cluster] ──▶ Consumer ──▶ Producer ──▶ [target cluster]
 ```
 
@@ -30,7 +30,7 @@ MM2 本质上是一组 Kafka Connect Connector。启动 `connect-mirror-maker.sh
 
 三者的关系：
 
-```text
+```txt
                        source cluster                              target cluster
                      ┌──────────────────┐                       ┌──────────────────┐
       producer ────▶ │  topic: orders   │ ──── MirrorSource ──▶ │ src.orders       │
@@ -51,7 +51,7 @@ MirrorHeartbeatConnector 是唯一一个**向源集群写**的连接器。它写
 
 MM2 复制 topic 时，默认**给 topic 加上源集群 alias 作为前缀**。这是 `DefaultReplicationPolicy` 的核心行为。
 
-```text
+```txt
 Source cluster alias: us-east
 Source topic:         orders
 

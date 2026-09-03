@@ -6,7 +6,7 @@
 
 Kafka 的默认分区器（`UniformStickyPartitioner`，2.4+）的行为：
 
-```text
+```txt
 1. 指定分区 → 直接发送到该分区
 2. 有 Key → murmur2(key) % 分区数（相同 Key 到相同分区）
 3. 无 Key → 粘性分区（批次内发到同一分区，批次满后切换）
@@ -29,7 +29,7 @@ Kafka 2.4 之前默认使用 RoundRobin 分区器，无 Key 时每条消息轮�
 
 粘性分区的改进：无 Key 的消息在同一个 batch 内发到同一分区，batch 满后切换到下一个分区：
 
-```text
+```txt
 RoundRobin：msg0→P0, msg1→P1, msg2→P2, msg3→P0, ...（每个 batch 只有 1 条）
 Sticky：    msg0→P0, msg1→P0, msg2→P0, ... batch满 → msg3→P1, msg4→P1, ...
 ```
@@ -92,7 +92,7 @@ new ProducerRecord<>("user-events", userId, event);
 
 ### 4.1 经验公式
 
-```text
+```txt
 分区数 = max(生产者并发数, 消费者并发数)
 ```
 

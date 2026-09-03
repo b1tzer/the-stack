@@ -10,7 +10,7 @@ title: MySQL 用户迁移到 PostgreSQL 指南
 ## 1. 语法差异速查
 
 | MySQL | PostgreSQL | 说明 |
-|-------|-----------|------|
+| :-- | :-- | :-- |
 | `AUTO_INCREMENT` | `SERIAL` / `BIGSERIAL` / `GENERATED ALWAYS AS IDENTITY` | PG 推荐用 `IDENTITY` |
 | `IFNULL(a, b)` | `COALESCE(a, b)` | PG 不支持 IFNULL |
 | `GROUP_CONCAT(...)` | `STRING_AGG(...)` | 语法不同 |
@@ -90,7 +90,7 @@ PGPASSWORD=xxx psql -U postgres -h localhost -d mydb
 ## 7. 常见陷阱
 
 | 陷阱 | 说明 |
-|------|------|
+| :-- | :-- |
 | 字符串用单引号 | PG 的标识符用双引号，字符串用单引号，与 MySQL 相同但更严格 |
 | BOOLEAN 值 | PG 用 `true`/`false`，不是 `1`/`0` |
 | 日期格式 | PG 推荐 `ISO 8601`（`2024-01-15`），不支持 MySQL 的自由格式 |

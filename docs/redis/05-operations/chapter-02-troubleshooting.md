@@ -149,7 +149,7 @@ CONFIG GET maxclients
 
 ![排查方法论循环](/redis/05-operations-chapter-02-troubleshooting-2.svg)
 
-```text
+```txt
 观察现象 → 收集指标 → 提出假设 → 验证假设 → 修复 → 监控
 ```
 

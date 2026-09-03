@@ -41,7 +41,7 @@ public class NotificationService {
 ### 1.2 为什么不能用默认 SimpleAsyncTaskExecutor
 
 | 特性 | SimpleAsyncTaskExecutor（默认） | ThreadPoolTaskExecutor（推荐） |
-|------|-------------------------------|-------------------------------|
+| :-- | :-- | :-- |
 | 线程复用 | ❌ 每次新建 | ✅ 线程池复用 |
 | 资源控制 | ❌ 无上限 | ✅ 可控 |
 | 生产可用 | ❌ 会 OOM | ✅ 安全 |
@@ -98,7 +98,7 @@ public void riskyMethod() {
 ```
 
 | 场景 | 原因 | 修复方式 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | 自调用 | Spring AOP 代理不生效 | 注入自身代理 / 拆分 Bean |
 | 非 public | CGLIB/JDK 代理限制 | 改为 public |
 | 未开启 | 缺 `@EnableAsync` | 加注解 |
@@ -231,7 +231,7 @@ public class AsyncFutureService {
 ```
 
 | 方法 | 作用 | 是否改变结果 |
-|------|------|-------------|
+| :-- | :-- | :-- |
 | `exceptionally` | 捕获异常，返回降级值 | ✅ 替换为降级值 |
 | `handle` | 同时处理正常和异常 | ✅ 可返回新值 |
 | `whenComplete` | 执行副作用（日志、监控） | ❌ 保持原结果 |
@@ -342,7 +342,7 @@ public class AsyncTimeoutService {
 ```
 
 | 方式 | 超时行为 | Java 版本 | 适用场景 |
-|------|---------|-----------|----------|
+| :-- | :-- | :-- | :-- |
 | `orTimeout` | 抛 `TimeoutException` | 9+ | 需要感知超时并做特殊处理 |
 | `completeOnTimeout` | 返回默认值 | 9+ | 超时后有合理的降级值 |
 | 自定义封装 | 可自定义 | 8+ | 需要兼容 Java 8 或更细粒度控制 |
@@ -365,7 +365,7 @@ executor.setAwaitTerminationSeconds(30);
 **线程数计算公式**：
 
 | 任务类型 | 公式 | 示例 |
-|---------|------|------|
+| :-- | :-- | :-- |
 | CPU 密集型 | 线程数 = CPU 核心数 + 1 | 8 核 → 9 线程 |
 | IO 密集型 | 线程数 = CPU 核心数 × 2 × (1 + IO 等待时间/CPU 时间) | 8 核、IO 占比 80% → 80 线程 |
 | 混合型 | 按实际压测调整，从 IO 密集型公式开始 | 先设 40，压测后微调 |
@@ -373,7 +373,7 @@ executor.setAwaitTerminationSeconds(30);
 ### 8.2 拒绝策略
 
 | 策略 | 行为 | 适用场景 |
-|------|------|----------|
+| :-- | :-- | :-- |
 | `AbortPolicy`（默认） | 抛出 `RejectedExecutionException` | 需要感知过载 |
 | `CallerRunsPolicy` | 由调用线程执行任务 | 不想丢失任务，可接受降速 |
 | `DiscardPolicy` | 静默丢弃 | 可容忍丢失（如监控上报） |

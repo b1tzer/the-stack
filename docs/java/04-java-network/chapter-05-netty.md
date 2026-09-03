@@ -11,7 +11,7 @@
 ### 1.1 NIO 的三个致命缺陷
 
 | 缺陷 | 后果 |
-|------|------|
+| :-- | :-- |
 | **Buffer 的 flip/clear/compact** | 读写模式手动切，忘记一次 flip → 读到错误数据，且不报错 |
 | **epoll 空轮询 Bug（JDK-6670302）** | `selector.select()` 偶发立即返回 0 → CPU 空转 100% |
 | **缺少编解码、线程模型、连接管理** | 粘包要自己写、半包要自己攒、线程调度要自己管 |
@@ -20,7 +20,7 @@ Netty 把这三个坑全部填平了。
 
 ### 1.2 Netty 填了什么
 
-```text
+```txt
 ┌─────────────────────────────────────┐
 │         业务代码 (你的 Dubbo Consumer)│
 ├─────────────────────────────────────┤
@@ -37,7 +37,7 @@ Netty 把这三个坑全部填平了。
 ```
 
 | NIO 坑 | Netty 对策 |
-|---------|-----------|
+| :-- | :-- |
 | Buffer flip 繁琐 | ByteBuf 读写指针分离，自动扩容，不需要 flip |
 | epoll 空轮询 Bug | 连续 512 次空返回 → 重建 Selector |
 | 缺少协议支持 | 内置 HTTP/WebSocket/SSL 编解码器 |
@@ -54,7 +54,7 @@ Netty 在 Java 生态中是事实标准：Dubbo 的传输层、gRPC 的 Netty Tr
 
 Netty 服务端有两个线程组：
 
-```text
+```txt
 bossGroup (1 个线程)                workerGroup (CPU×2 个线程)
 ┌────────────────┐                 ┌────────────────────┐
 │  NioEventLoop   │                 │  NioEventLoop-1    │
@@ -76,7 +76,7 @@ bossGroup (1 个线程)                workerGroup (CPU×2 个线程)
 Dubbo 在 Netty workerGroup 之上又加了一层业务线程池。控制「谁出谁进」的是 `dispatcher`：
 
 | dispatcher | 行为 | 代价 |
-|---|---|---|
+| :-- | :-- | :-- |
 | `all`（默认） | 所有消息都丢给业务线程池 | 多一次线程切换 |
 | `direct` | 所有消息都留在 I/O 线程上处理 | Handler 里不能有任何阻塞 |
 | `message` | 只有请求进业务线程池，响应留在 I/O 线程 | 折中 |
@@ -109,7 +109,7 @@ ch.pipeline().addLast(new BusinessHandler());  // 跑在 workerGroup 上
 
 Netty 的 ByteBuf 用一个独立指针 `readerIndex` 和一个独立指针 `writerIndex` 替代了 NIO Buffer 的单一 position。不需要 flip，不需要 compact——读就自动移动 `readerIndex`，写就自动移动 `writerIndex`：
 
-```text
+```txt
 +-------------------+------------------+------------------+
 | 已读/可丢弃       |  可读数据         |  可写空间         |
 +-------------------+------------------+------------------+
@@ -118,7 +118,7 @@ Netty 的 ByteBuf 用一个独立指针 `readerIndex` 和一个独立指针 `wri
 
 ByteBuf 默认使用池化的堆外内存（PooledDirectByteBuf）。堆外内存不受 JVM GC 管理，这意味着：你线上堆还有 2GB 空闲，但 Netty 的 PooledDirectByteBuf 已经把堆外内存吃了几百 MB，JVM 发现不了。
 
-```text
+```txt
 java.lang.OutOfMemoryError: Direct buffer memory
 ```
 
@@ -141,7 +141,7 @@ jcmd <pid> VM.native_memory summary | grep -A 5 "Direct"
 TCP 没有消息边界。你发了两条消息，对方可能收到一条「粘在一起」的数据。Netty 内置了三种帧解码器：
 
 | 解码器 | 原理 | 适用协议 |
-|--------|------|---------|
+| :-- | :-- | :-- |
 | `FixedLengthFrameDecoder` | 每条消息固定 N 字节 | 简单私有协议 |
 | `DelimiterBasedFrameDecoder` | 用特殊字符分隔（如 `\r\n`） | 文本协议（Redis） |
 | `LengthFieldBasedFrameDecoder` | 消息头 N 字节 = 消息体长度 | 大多数二进制协议（Dubbo） |
@@ -159,7 +159,7 @@ pipeline.addLast(new LengthFieldBasedFrameDecoder(65535, 0, 4, 0, 4));
 
 把 EventLoop、Pipeline、编解码器串起来，一次请求的完整旅程：
 
-```text
+```txt
 bossGroup (accept) → workerGroup (read/decode) → [可选: businessGroup (业务)]
                                                        ↓
                                                     Pipeline:

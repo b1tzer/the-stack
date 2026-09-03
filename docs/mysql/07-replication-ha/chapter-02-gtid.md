@@ -10,7 +10,7 @@
 
 这个方案在主库正常时没问题，主从切换时立刻失效：
 
-```text
+```txt
 问题 1：位点从哪来？
 主库宕机，无法执行 SHOW MASTER STATUS 拿到最新位点。
 
@@ -29,7 +29,7 @@ B 从库读到 4096，这两个数字无法互相换算。
 
 GTID（Global Transaction Identifier，全局事务标识符）的思路是：不再用物理位置，改为给**每个事务**一个全局唯一编号。
 
-```text
+```txt
 GTID = server_uuid : transaction_id
        3e11fa47-71ca-11e1-9e33-c80aa9429562 : 23
 ```
@@ -62,7 +62,7 @@ SELECT @@global.gtid_purged;
 
 这个机制叫 `SOURCE_AUTO_POSITION=1`（自动定位）。它的价值在故障切换时体现得最明显：
 
-```text
+```txt
 新主库不需要知道「从库读到哪了」，
 从库也不需要知道「新主库写到哪了」，
 两边把 gtid_executed 一对，差集自动补齐。

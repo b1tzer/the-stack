@@ -64,7 +64,7 @@
 ### 1.2 三大痛点的对比
 
 | 痛点 | 传统 Spring | Spring Boot |
-|------|-------------|-------------|
+| :-- | :-- | :-- |
 | **配置方式** | 大量 XML 配置文件 | 零 XML，纯注解 + 自动配置 |
 | **依赖管理** | 手动添加每个 JAR，处理版本冲突 | Starter 一站式引入，版本仲裁 |
 | **Web 容器** | 外部安装 Tomcat，手动部署 WAR | 内嵌 Tomcat/Jetty，直接运行 JAR |
@@ -125,7 +125,7 @@ public @interface SpringBootApplication { ... }
 
 Spring Boot 2.7+ 使用新的加载机制，整个流程如下：
 
-```text
+```txt
 启动 SpringApplication
     │
     ▼
@@ -175,7 +175,7 @@ public class DataSourceAutoConfiguration {
 Spring Boot 提供了一整套 `@Conditional` 注解，构成自动配置的"开关系统"：
 
 | 注解 | 作用 | 典型场景 |
-|------|------|----------|
+| :-- | :-- | :-- |
 | `@ConditionalOnClass` | classpath 存在指定类 | 引入了 Jackson 才配置 JSON 序列化 |
 | `@ConditionalOnMissingBean` | 容器中没有指定 Bean | 用户未自定义数据源才用默认的 |
 | `@ConditionalOnProperty` | 配置文件中存在指定属性 | 配置了 `spring.redis.host` 才启用 Redis |

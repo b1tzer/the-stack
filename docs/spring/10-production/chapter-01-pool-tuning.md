@@ -8,7 +8,7 @@
 
 请求进来后，先由 Tomcat 的工作线程接手，线程再向连接池借一条连接去查数据库：
 
-```text
+```txt
 请求 → Tomcat 工作线程（threads.max 个） → HikariCP 连接池（maximum-pool-size 条） → 数据库
 ```
 
@@ -48,7 +48,7 @@ spring:
 **HikariCP 关键参数速查表：**
 
 | 参数 | 默认值 | 推荐值 | 说明 |
-|------|--------|--------|------|
+| :-- | :-- | :-- | :-- |
 | maximum-pool-size | 10 | 20 | 最大连接数 |
 | minimum-idle | = maximum-pool-size | 5 | 最小空闲连接 |
 | connection-timeout | 30000ms | 3000ms | 获取连接等待超时 |
@@ -81,7 +81,7 @@ maximum-pool-size = (CPU 核心数 * 2) + 有效磁盘数
 
 池耗尽时，线程在 `connection-timeout` 内拿不到连接，抛 `SQLTransientConnectionException`：
 
-```text
+```txt
 HikariPool-1 - Connection is not available, request timed out after 5000ms.
 ```
 
@@ -150,7 +150,7 @@ server:
 ```
 
 | 参数 | 默认值 | 作用 |
-|------|--------|------|
+| :-- | :-- | :-- |
 | `threads.max` | 200 | 最大工作线程数，同时处理请求的上限 |
 | `threads.min-spare` | 10 | 最小空闲线程，避免流量突增时现建线程 |
 | `accept-count` | 100 | 连接队列长度，线程满了先进队列，队列也满才拒绝 |

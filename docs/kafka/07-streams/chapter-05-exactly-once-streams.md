@@ -19,7 +19,7 @@ Streams 的 Exactly Once 建立在幂等生产者与事务之上。幂等与事�
 ## 4. At Least Once vs Exactly Once
 
 | 模式 | 配置 | 说明 |
-|------|------|------|
+| :-- | :-- | :-- |
 | at_least_once | 默认 | 可能重复处理 |
 | exactly_once_v2 | processing.guarantee | 精确一次 |
 
@@ -48,7 +48,7 @@ Kafka Streams Exactly Once 实现：
 ## 6. Exactly Once vs At Least Once
 
 | 特性 | at_least_once | exactly_once_v2 |
-|------|---------------|------------------|
+| :-- | :-- | :-- |
 | 消息重复 | 可能重复 | 不重复 |
 | 状态重复 | 可能重复更新 | 不重复更新 |
 | 性能 | 高 | 中（事务开销） |

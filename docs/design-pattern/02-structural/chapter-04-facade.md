@@ -75,7 +75,7 @@ facade.placeOrder(order); // 一行代码搞定！
 ### 1.4 在 Spring / JDK 中的应用
 
 | 框架/类 | 说明 |
-|--------|------|
+| :-- | :-- |
 | `JdbcTemplate` | 封装了 Connection、Statement、ResultSet 的复杂操作 |
 | `SLF4J` | 日志门面，统一 Log4j、Logback 等日志框架的接口 |
 | `RestTemplate` | 封装了 HTTP 连接、序列化、错误处理等细节 |
@@ -154,7 +154,7 @@ Shape blueCircle = new Circle(3.0, new Blue());
 ### 2.4 在 Spring / JDK 中的应用
 
 | 框架/类 | 说明 |
-|--------|------|
+| :-- | :-- |
 | JDBC `Driver` / `Connection` | 抽象（JDBC API）与实现（各数据库驱动）分离 |
 | `PlatformTransactionManager` | 事务管理抽象与具体实现（JDBC/JPA/JTA）分离 |
 | SLF4J + Logback/Log4j | 日志抽象与日志实现分离 |
@@ -247,7 +247,7 @@ root.print(""); // 统一接口，无需区分文件和目录
 ### 3.4 在 Spring / JDK 中的应用
 
 | 框架/类 | 说明 |
-|--------|------|
+| :-- | :-- |
 | `java.awt.Container` / `Component` | Swing 组件树 |
 | MyBatis `SqlNode` | 动态 SQL 的 `<if>`、`<choose>`、`<foreach>` 组成树形结构 |
 | Spring Security `AccessDecisionVoter` | 投票器组合 |
@@ -320,7 +320,7 @@ System.out.println(black1 == black2); // true，同一个对象！
 ### 4.4 在 Spring / JDK 中的应用
 
 | 框架/类 | 说明 |
-|--------|------|
+| :-- | :-- |
 | `String` 常量池 | 相同字面量的字符串共享同一个对象 |
 | `Integer.valueOf()` | -128~127 范围内的 Integer 对象被缓存复用 |
 | `Boolean.valueOf()` | TRUE 和 FALSE 两个实例被全局共享 |
@@ -344,7 +344,7 @@ System.out.println(c == d); // false —— 超出缓存范围，新对象
 ## 5. 四种模式对比总结
 
 | 模式 | 核心思想 | 解决的问题 | 关键词 |
-|------|---------|-----------|--------|
+| :-- | :-- | :-- | :-- |
 | **外观模式** | 统一入口 | 子系统复杂，客户端调用困难 | 简化、封装、门面 |
 | **桥接模式** | 分离维度 | 多维度变化导致类爆炸 | 抽象与实现分离 |
 | **组合模式** | 统一接口 | 树形结构中叶子和容器处理不一致 | 部分-整体、递归 |

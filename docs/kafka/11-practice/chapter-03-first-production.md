@@ -5,7 +5,7 @@
 ## 1. 硬件规划
 
 | 组件 | 建议 |
-|------|------|
+| :-- | :-- |
 | 内存 | ≥ 32G |
 | 磁盘 | 多块 SSD/HDD，JBOD 或 RAID 10 |
 | CPU | ≥ 8 核 |
@@ -13,7 +13,7 @@
 
 内存这一项最容易配错。Kafka 的消息数据放在操作系统页缓存里，不在 JVM 堆内，所以「内存越大越好」不是指给 JVM，而是给页缓存：
 
-```text
+```txt
 总内存 = JVM 堆（约 6G） + 页缓存（剩余全部）
 ```
 
@@ -77,7 +77,7 @@ export KAFKA_HEAP_OPTS="-Xms6g -Xmx6g -XX:+UseG1GC -XX:MaxGCPauseMillis=20"
 生产上线前先接监控，否则出问题只能事后翻日志。下表是必接的核心指标，完整 Prometheus/Grafana 配置见 [监控](../09-operations/chapter-02-monitoring.md)：
 
 | 指标 | 说明 | 告警阈值 |
-|------|------|----------|
+| :-- | :-- | :-- |
 | UnderReplicatedPartitions | 副本不同步的分区数 | > 0 |
 | ActiveControllerCount | 活跃控制器数 | 必须 = 1 |
 | RequestHandlerAvgIdlePercent | 请求处理线程空闲率 | < 0.3 |

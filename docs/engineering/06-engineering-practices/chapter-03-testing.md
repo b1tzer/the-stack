@@ -4,7 +4,7 @@
 
 ## 1. 测试金字塔
 
-```text
+```txt
         ╱╲
        ╱  ╲         E2E 测试（少量）
       ╱────╲        - 验证完整流程
@@ -37,30 +37,14 @@ void shouldCalculateDiscount() {
 
 ## 3. 集成测试
 
-```java
-@SpringBootTest
-@Testcontainers
-class OrderRepositoryTest {
-    @Container
-    static MySQLContainer<?> mysql = new MySQLContainer<>("mysql:8.0");
+集成测试验证组件协作，通常需要真实依赖（数据库、消息队列、API）。用容器化依赖（如 Testcontainers 启动真实 MySQL）保证测试环境与生产一致。
 
-    @Autowired OrderRepository repository;
-
-    @Test
-    void shouldSaveAndRetrieveOrder() {
-        Order order = new Order("ORD-001", new BigDecimal("99.9"));
-        repository.save(order);
-        
-        Order found = repository.findById("ORD-001").orElseThrow();
-        assertThat(found.getAmount()).isEqual(new BigDecimal("99.9"));
-    }
-}
-```
+> 集成测试的落地代码（Testcontainers、`@SpringBootTest`）见 [Spring 集成测试](../../spring/08-testing/chapter-02-integration-test)。
 
 ## 4. 测试覆盖率
 
 | 覆盖率 | 评价 | 建议 |
-|--------|------|------|
+| :-- | :-- | :-- |
 | < 50% | 差 | 核心逻辑都没有测试 |
 | 50-70% | 一般 | 基本够用 |
 | 70-80% | 好 | 推荐目标 |

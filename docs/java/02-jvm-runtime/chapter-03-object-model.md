@@ -18,7 +18,7 @@ JVM 执行的操作：
 
 HotSpot JVM 中，一个 Java 对象在堆中的结构：
 
-```text
+```txt
 ┌──────────────────┐
 │     对象头        │
 │  ├─ Mark Word     │  8 字节（64 位 JVM）
@@ -50,7 +50,7 @@ Mark Word 不是固定不变的。当对象被同步操作时，Mark Word 的内
 
 64 位 JVM 中 Mark Word 的位布局：
 
-```text
+```txt
 64 位 Mark Word（共 64 bit）:
 ┌───────────────────────────────────────────────────────────────┐
 │  unused:25 │ hash:31 │ age:4 │ biased_lock:1 │ lock:2        │
@@ -68,7 +68,7 @@ hash: 对象的 hashCode (首次调用 hashCode() 时计算并存储)
 不同锁状态下 Mark Word 的内容：
 
 | 锁状态 | Mark Word 内容 | 标志位 |
-|--------|---------------|--------|
+| :-- | :-- | :-- |
 | 无锁 | hashCode + 分代年龄 | 01 |
 | 偏向锁 | ThreadID(54bit) + Epoch(2bit) + 分代年龄 | 01 |
 | 轻量级锁 | 指向栈中锁记录的指针 | 00 |
@@ -77,7 +77,7 @@ hash: 对象的 hashCode (首次调用 hashCode() 时计算并存储)
 
 这是第三卷 `synchronized` 锁升级机制的关键前置知识。锁升级的过程就是 Mark Word 内容不断变化的过程：
 
-```text
+```txt
 无锁 → 偏向锁（同一线程反复获取）
      → 轻量级锁（CAS 竞争失败但自旋可期）
      → 重量级锁（自旋超时，依赖 OS Mutex）
@@ -87,7 +87,7 @@ hash: 对象的 hashCode (首次调用 hashCode() 时计算并存储)
 
 当锁升级到重量级锁时，Mark Word 中存储的是指向 **Monitor** 对象的指针。Monitor 是 JVM 实现互斥同步的底层数据结构，每个 Java 对象都可以关联一个 Monitor：
 
-```text
+```txt
 ┌─────────────────────────────────┐
 │          Object Monitor         │
 │                                 │
@@ -101,6 +101,7 @@ hash: 对象的 hashCode (首次调用 hashCode() 时计算并存储)
 ```
 
 工作流程：
+
 1. **获取锁**（monitorenter）：如果 `_owner` 为空，当前线程成为 `_owner`，`_count` 设为 1。如果已经是 `_owner`，`_count++`（可重入）。
 2. **释放锁**（monitorexit）：`_count--`。当 `_count` 为 0 时，释放 Monitor，`_EntryList` 中的一个线程被唤醒。
 3. **等待/通知**（wait/notify）：线程调用 `wait()` 后进入 `_WaitSet` 并释放 Monitor。`notify()` 从 `_WaitSet` 唤醒一个线程，该线程需重新竞争 Monitor。
@@ -109,7 +110,7 @@ hash: 对象的 hashCode (首次调用 hashCode() 时计算并存储)
 
 很多人觉得 `wait/notify` 就是“等一下”和“醒一醒”。没那么简单。它们是 Monitor 机制的一部分，操作路径比大多数人想的要复杂——线程从 `wait()` 到真正重新执行，中间要经过三个队列的转换。
 
-```text
+```txt
 线程 A 调用 obj.wait():
   1. 线程 A 必须是 obj 的 Monitor 的 _owner（必须持有锁）
   2. 线程 A 释放 Monitor（_owner = null, _count = 0）
@@ -146,7 +147,7 @@ Monitor 是重量级的数据结构，依赖操作系统的 Mutex 实现。这�
 - TLAB 内分配只需要移动指针，**无需 CAS**
 - TLAB 用完才需要同步申请新缓冲区
 
-```text
+```txt
 Eden 区
 ├── TLAB for Thread A  [已用: 3KB / 总共: 8KB]
 ├── TLAB for Thread B  [已用: 1KB / 总共: 8KB]
@@ -158,7 +159,7 @@ Eden 区
 ### 4.1 TLAB 的关键参数
 
 | 参数 | 默认值 | 说明 |
-|------|--------|------|
+| :-- | :-- | :-- |
 | `-XX:+UseTLAB` | 开启 | 是否使用 TLAB |
 | `-XX:TLABSize` | 自适应 | 单个 TLAB 的初始大小 |
 | `-XX:MinTLABSize` | 2KB | TLAB 最小大小 |

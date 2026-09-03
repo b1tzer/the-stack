@@ -21,7 +21,7 @@ new Thread(() -> handle(request)).start();
 
 线程数是"资源的一种"，不该由请求量随手挥霍。真正压死系统的往往不是单条线程的开销，而是**吞吐坍塌的正反馈**：
 
-```text
+```txt
 线程数增加 → 每个线程分到的 CPU 时间片变短 →
 CPU 更多时间用于切换 → 请求 RT 变长 →
 上游超时重试 → 更多请求进来 → 需要更多线程
@@ -307,7 +307,7 @@ scheduler.scheduleAtFixedRate(() -> {
 
 ### 7.1 工作窃取：每个线程一个双端队列
 
-```text
+```txt
 Worker A 队列:  [T1, T2, T3]     ← A 从队头取（LIFO，缓存友好）
 Worker B 队列:  [ ]              ← B 空了！
                                      ↓ 从别人的队尾偷
@@ -363,7 +363,7 @@ CompletableFuture.supplyAsync(() -> httpClient.get(url), ioPool);
 
 Little 定律的推导：
 
-```text
+```txt
 线程数 = CPU 核数 × (1 + 等待时间 / 计算时间)
 
 例：8 核，任务里 60% 时间在等 IO，40% 在算

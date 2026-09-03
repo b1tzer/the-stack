@@ -22,7 +22,7 @@ public boolean add(E e) {
 
 `size++` 在字节码层面是三步（读、加、写）。两线程并发：
 
-```text
+```txt
 线程 A: 读 size=5
 线程 B: 读 size=5          ← A 还没写回
 线程 A: elementData[5]=a, size=6
@@ -37,7 +37,7 @@ JDK 7 的 `HashMap` 有一个上过面试题几百次的 bug：**并发扩容时
 
 根因是 JDK 7 扩容用**头插法**迁移链表：
 
-```text
+```txt
 扩容前旧桶：A → B → null
 
 线程 1 迁移到新桶（头插法）：B → A
@@ -71,7 +71,7 @@ JDK 8 换成**尾插法**——迁移时保持链表原顺序，从根本上消�
 
 思路是**分段加锁**——把整个 Map 切成若干段（Segment），每段有独立的锁，不同段的操作可以并行：
 
-```text
+```txt
 ConcurrentHashMap（JDK 7）
 ├── Segment[0]  (ReentrantLock) → HashEntry[] → 链表
 ├── Segment[1]  (ReentrantLock) → HashEntry[] → 链表
@@ -103,7 +103,7 @@ final Segment<K,V>[] segments;   // 默认 16
 
 JDK 8 抛弃了 Segment，回到**单个 `Node[]` 数组 + bin 级锁**：
 
-```text
+```txt
 ConcurrentHashMap（JDK 8+）
 Node[] table
 ├── [0] → Node → Node → Node（链表）
@@ -194,7 +194,7 @@ public int size() {
 
 ### 3.1 写时复制的工作过程
 
-```text
+```txt
 当前数组：[A, B, C, D]   ← array 引用指向这里
 
 线程 T1 执行 add(E)：
@@ -293,7 +293,7 @@ listeners 变化频率极低（一般只在启动或组件生命周期变化时�
 
 跳表（Skip List）是一种概率平衡的有序数据结构。它通过多层索引加速查找：
 
-```text
+```txt
 Level 3:  head ──────────────────────────► 50 ────────────────► null
 Level 2:  head ─────────► 20 ─────────────► 50 ────► 70 ──────► null
 Level 1:  head ► 10 ────► 20 ────► 30 ────► 50 ────► 70 ► 80 ─► null
@@ -345,7 +345,7 @@ static final class Node<E> {
 
 **入队（`offer`）的两步 CAS**：
 
-```text
+```txt
 初始：  head → dummy ── tail
                 ▲
              (next=null)
@@ -500,7 +500,7 @@ new Thread(() -> {
 
 并发容器的差异，本质是三个维度上的取舍：
 
-```text
+```txt
              安全性
              /    \
             /      \

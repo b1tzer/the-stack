@@ -96,7 +96,7 @@ public class OrderConsumer {
 
 这里的方法是「手动提交」模式，它由 §2 的 `enable-auto-commit: false` 触发：
 
-```text
+```txt
 enable-auto-commit: false
         ↓
 Spring Boot 把监听容器的确认模式切为 MANUAL
@@ -108,7 +108,7 @@ ack.acknowledge() 才会真正提交 Offset
 
 为什么不用默认的自动提交？自动提交按固定时间间隔（`auto.commit.interval.ms`）提交，可能出现在「消息已提交、业务还没处理完」的窗口：
 
-```text
+```txt
 poll() → 返回消息 → 到点自动提交 Offset → 业务处理中宕机
                                            ↓
 重启后从已提交的 Offset 继续 → 这条没处理完的消息被跳过（丢失）

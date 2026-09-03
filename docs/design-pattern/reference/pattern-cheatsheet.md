@@ -3,7 +3,7 @@
 ## 创建型
 
 | 模式 | 意图 | 关键词 |
-|------|------|--------|
+| :-- | :-- | :-- |
 | 工厂方法 | 让子类决定创建什么 | `create()` |
 | 抽象工厂 | 创建一族产品 | `createA()` + `createB()` |
 | 单例 | 全局唯一 | `getInstance()` |
@@ -13,7 +13,7 @@
 ## 结构型
 
 | 模式 | 意图 | 关键词 |
-|------|------|--------|
+| :-- | :-- | :-- |
 | 适配器 | 接口转换 | `Adapter implements Target` |
 | 装饰器 | 动态叠加功能 | `Decorator wraps Component` |
 | 代理 | 控制访问 | `Proxy implements Subject` |
@@ -25,7 +25,7 @@
 ## 行为型
 
 | 模式 | 意图 | 关键词 |
-|------|------|--------|
+| :-- | :-- | :-- |
 | 策略 | 算法可替换 | `context.setStrategy(s)` |
 | 观察者 | 一对多通知 | `subject.notify()` |
 | 模板方法 | 固定流程可变步骤 | `abstract step()` |
@@ -40,7 +40,7 @@
 ## JDK 中的模式
 
 | 模式 | JDK 实现 |
-|------|----------|
+| :-- | :-- |
 | 工厂 | `Calendar.getInstance()` |
 | 单例 | `Runtime.getRuntime()` |
 | 建造者 | `StringBuilder` |
@@ -55,7 +55,7 @@
 ## Spring 中的模式
 
 | 模式 | Spring 实现 |
-|------|-------------|
+| :-- | :-- |
 | 工厂 | `BeanFactory` |
 | 单例 | Bean 默认 Scope |
 | 代理 | AOP（JDK 动态代理 / CGLIB） |

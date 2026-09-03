@@ -18,7 +18,7 @@
 ## 2. 转换器
 
 | 转换器 | 说明 |
-|--------|------|
+| :-- | :-- |
 | StringConverter | 字符串 |
 | JsonConverter | JSON |
 | AvroConverter | Avro（Schema Registry） |

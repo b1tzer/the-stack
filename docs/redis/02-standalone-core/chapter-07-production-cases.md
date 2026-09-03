@@ -98,7 +98,7 @@ AWS 支持排查后给出结论：存在长时运行的 `KEYS` 命令阻塞了�
 
 Cisco CyberVision Center 的 `redis.service` 进入 failed 状态，连带 `marmotd`、`backend` 等服务一起宕机。日志报：
 
-```text
+```txt
 Bad file format reading the append only file: make a backup of your AOF file, then use ./redis-check-aof --fix <filename>
 ```
 

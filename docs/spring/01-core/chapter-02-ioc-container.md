@@ -106,7 +106,7 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 `BeanDefinition` 不只来自注解扫描。同一份配置可以来自不同入口，容器统一归一化：
 
 | 来源 | 示例 |
-|------|------|
+| :-- | :-- |
 | 组件扫描 | `@Service` `@Repository` `@Controller` |
 | 配置类 | `@Configuration` + `@Bean` |
 | 导入 | `@Import({DataSourceConfig.class})` |

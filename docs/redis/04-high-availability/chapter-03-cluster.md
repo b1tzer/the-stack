@@ -8,7 +8,7 @@ Redis Cluster 把整个键空间划分为 **16384 个哈希槽（slot）**，每
 
 ### 1.1 槽的分配
 
-```text
+```txt
 节点 A：slot 0 ~ 5460（5461 个槽）
 节点 B：slot 5461 ~ 10922（5462 个槽）
 节点 C：slot 10923 ~ 16383（5461 个槽）
@@ -16,13 +16,13 @@ Redis Cluster 把整个键空间划分为 **16384 个哈希槽（slot）**，每
 
 ### 1.2 key 到槽的映射
 
-```text
+```txt
 槽号 = CRC16(key) % 16384
 ```
 
 如果 key 包含 `{}`，只对 `{}` 内的内容计算哈希（哈希标签）：
 
-```text
+```txt
 {user:1001}:name  → CRC16("user:1001") % 16384
 {user:1001}:age   → CRC16("user:1001") % 16384
 两者槽号相同
@@ -61,7 +61,7 @@ Gossip 是一种“人人都随口互相通风报信”的分布式通信协议�
 
 Gossip 消息携带的信息：
 
-```text
+```txt
 {
   "sender": "node-a",
   "slots": [0, 1, 2, ..., 5460],     // 负责的槽
@@ -85,7 +85,7 @@ Gossip 是最终一致的：新状态需要几轮传播才能到达所有节点�
 
 客户端请求的 key 不在当前节点时，返回 `MOVED`：
 
-```text
+```txt
 客户端 → 节点A：GET user:1001
 节点A  → 客户端：-MOVED 3999 10.0.0.2:6379
 客户端 → 节点B：GET user:1001（永久改道）
@@ -97,7 +97,7 @@ Gossip 是最终一致的：新状态需要几轮传播才能到达所有节点�
 
 槽迁移期间，key 可能在旧节点也可能在新节点：
 
-```text
+```txt
 客户端 → 节点A：GET user:1001
 节点A  → 客户端：-ASK 3999 10.0.0.2:6379
 客户端 → 节点B：ASKING + GET user:1001（临时访问，不更新映射）
@@ -130,7 +130,7 @@ cluster.mset("{user:1001}:name", "张三", "{user:1001}:age", "25");
 
 ### 4.1 PFAIL → FAIL
 
-```text
+```txt
 节点A → 节点B：PING
 节点B → 节点A：...（超时无响应）
 节点A 标记 B 为 PFAIL（疑似下线）
@@ -151,7 +151,7 @@ cluster.mset("{user:1001}:name", "张三", "{user:1001}:age", "25");
 
 从节点发现自己的主节点 FAIL 后，发起选举：
 
-```text
+```txt
 1. 从节点向所有主节点请求投票
 2. 获得超过半数主节点投票的从节点当选
 3. 新主节点接管原主节点的所有槽
@@ -188,7 +188,7 @@ redis-cli --cluster del-node 10.0.0.1:6379 <node-id>
 
 ### 5.3 槽迁移过程
 
-```text
+```txt
 1. 目标节点：CLUSTER SETSLOT <slot> IMPORTING <source-node-id>（准备接收）
 2. 源节点：CLUSTER SETSLOT <slot> MIGRATING <target-node-id>（准备发送）
 3. 源节点：CLUSTER GETKEYSINSLOT <slot> <count>（获取槽内 key 列表）

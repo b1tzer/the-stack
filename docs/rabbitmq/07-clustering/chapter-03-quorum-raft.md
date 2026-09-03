@@ -6,7 +6,7 @@
 
 Raft 是一种分布式共识算法，保证多个节点对日志顺序达成一致。
 
-```text
+```txt
 Leader ──日志复制──▶ Follower 1
                   ──▶ Follower 2
 
@@ -17,7 +17,7 @@ Leader ──日志复制──▶ Follower 1
 
 ## 2. Quorum Queue 中的 Raft
 
-```text
+```txt
 Producer ──▶ Leader Node ──Raft 日志──▶ Follower 1
                                    ──▶ Follower 2
 
@@ -30,7 +30,7 @@ Consumer ◀── Leader Node（只从 Leader 读取）
 
 ## 3. Leader 选举
 
-```text
+```txt
 Leader 崩溃
   → Follower 发现心跳超时
   → Follower 转为 Candidate，发起投票
@@ -40,7 +40,7 @@ Leader 崩溃
 
 ## 4. 日志复制与持久性
 
-```text
+```txt
 消息写入流程：
   1. Producer 发送消息到 Leader
   2. Leader 追加到 Raft 日志（磁盘）
@@ -62,7 +62,7 @@ Raft 协议天然防止脑裂：
 ## 6. 性能特征
 
 | 维度 | 特征 |
-|------|------|
+| :-- | :-- |
 | 写入延迟 | 1-5ms（需要 Raft 共识） |
 | 读取延迟 | 微秒级（直接从 Leader 读） |
 | 吞吐量 | 2-5 万 msg/s（3 节点） |
@@ -71,7 +71,7 @@ Raft 协议天然防止脑裂：
 ## 7. 集群大小建议
 
 | 节点数 | 容错 | 适用场景 |
-|--------|------|----------|
+| :-- | :-- | :-- |
 | 3 | 容忍 1 节点故障 | 大多数场景 |
 | 5 | 容忍 2 节点故障 | 高可靠性要求 |
 | 7 | 容忍 3 节点故障 | 极高可靠性（少用） |

@@ -3,7 +3,7 @@
 ## 常见错误
 
 | 错误 | 含义 | 原因 | 解决方案 |
-|------|------|------|----------|
+| :-- | :-- | :-- | :-- |
 | `OOM command not allowed` | 内存超限 | 达到 maxmemory 且淘汰策略为 noeviction | 增大 maxmemory 或更换淘汰策略 |
 | `LOADING Redis is loading` | 正在加载数据 | RDB/AOF 恢复中 | 等待加载完成 |
 | `READONLY You can't write` | 只读副本 | 写请求发到了从节点 | 写操作发主节点 |
@@ -18,7 +18,7 @@
 ## 客户端常见问题
 
 | 现象 | 可能原因 | 排查方向 |
-|------|----------|----------|
+| :-- | :-- | :-- |
 | 连接超时 | 网络/防火墙/bind 配置 | 检查 telnet、bind、protected-mode |
 | 连接被拒 | maxclients 超限 | `INFO clients` 查看连接数 |
 | 响应变慢 | 大 key / 阻塞命令 | `SLOWLOG GET` 查看慢日志 |

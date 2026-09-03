@@ -7,7 +7,7 @@
 Filter 和 Interceptor 是请求处理管线上的两个拦截点，职责不同：
 
 | 维度 | Filter | Interceptor |
-|------|--------|-------------|
+| :-- | :-- | :-- |
 | 规范 | Servlet（Java EE） | Spring MVC |
 | 作用范围 | 所有请求（包括静态资源） | 只拦截 Controller 方法 |
 | 能拿到 Handler 信息 | ❌ 不能 | ✅ 能拿到 Controller 类名、方法名 |
@@ -23,7 +23,7 @@ Filter 和 Interceptor 是请求处理管线上的两个拦截点，职责不同
 
 ### 1.1 执行顺序
 
-```text
+```txt
 请求进入
   │
   ▼
@@ -289,7 +289,7 @@ logback 配置中加入 `%X{traceId}`：
 
 效果：
 
-```text
+```txt
 22:00:01.234 [http-nio-8080-exec-1] [a3f8b2c1] INFO  c.e.UserService - 查询用户 id=1
 22:00:01.235 [http-nio-8080-exec-1] [a3f8b2c1] INFO  c.e.OrderService - 查询订单 userId=1
 ```
@@ -299,7 +299,7 @@ logback 配置中加入 `%X{traceId}`：
 ## 5. Filter vs Interceptor 决策指南
 
 | 场景 | 用 Filter | 用 Interceptor | 原因 |
-|------|-----------|----------------|------|
+| :-- | :-- | :-- | :-- |
 | 字符编码 | ✅ | | Servlet 层设置，越早越好 |
 | CORS | ✅ | | 预检请求（OPTIONS）不经过 Interceptor |
 | MDC / traceId | ✅ | | 需要在所有请求（含静态资源）生效 |
@@ -382,7 +382,7 @@ registry.addInterceptor(authInterceptor).order(1);      // 后鉴权
 Filter 和 Interceptor 在异步场景下行为不同：
 
 | 场景 | Filter | Interceptor |
-|------|--------|-------------|
+| :-- | :-- | :-- |
 | `@Async` 返回 `Callable` | `doFilter` 立即返回，异步线程重新执行 Filter | `preHandle` 执行一次，`afterCompletion` 在异步完成后执行 |
 | `DeferredResult` / `SseEmitter` | 同上 | 同上 |
 | `StreamingResponseBody` | 同上 | 同上 |
@@ -414,7 +414,7 @@ public class CorsConfig implements WebMvcConfigurer {
 
 CORS 预检请求流程：
 
-```text
+```txt
 前端发起 PUT /api/users/1 (非简单请求)
   │
   ▼
@@ -432,7 +432,7 @@ CORS 预检请求流程：
 
 CSRF（Cross-Site Request Forgery）攻击原理：
 
-```text
+```txt
 用户登录 bank.com → 浏览器保存 Cookie
 用户访问恶意网站 → 恶意页面发起 <img src="bank.com/transfer?to=attacker&amount=10000">
 浏览器自动携带 bank.com 的 Cookie → 转账成功！

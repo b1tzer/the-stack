@@ -53,7 +53,7 @@ http://localhost:15692/metrics
 ### 关键指标
 
 | 指标 | 说明 | 告警阈值 |
-|------|------|----------|
+| :-- | :-- | :-- |
 | rabbitmq_queue_messages | 队列消息总数 | 持续增长 |
 | rabbitmq_queue_messages_ready | 待消费消息数 | > 10000 |
 | rabbitmq_queue_messages_unacked | 未确认消息数 | > Prefetch × 2 |

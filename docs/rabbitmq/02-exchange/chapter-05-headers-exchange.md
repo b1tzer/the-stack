@@ -4,7 +4,7 @@
 
 ## 1. 路由规则
 
-```text
+```txt
 Producer ──headers: {format=pdf, type=report}──▶ Headers Exchange
                                                       │
                                               ┌───────┼───────┐
@@ -21,7 +21,7 @@ Producer ──headers: {format=pdf, type=report}──▶ Headers Exchange
 ## 2. 匹配模式
 
 | x-match | 含义 |
-|---------|------|
+| :-- | :-- |
 | `all` | 所有 header 键值对都匹配（AND） |
 | `any` | 任一 header 键值对匹配（OR） |
 

@@ -8,14 +8,14 @@
 
 Redis 为设置了 TTL 的键维护一个独立的过期字典（`expires`），专门记录键的过期时间。
 
-```text
+```txt
 主数据库字典（dict）：key → redisObject
 过期字典（expires）：key → 过期时间戳（毫秒）
 ```
 
 两个字典的关系：
 
-```text
+```txt
 dict:     "session:abc" → redisObject{...}
 expires:  "session:abc" → 1712500000000（毫秒时间戳）
 ```
@@ -40,7 +40,7 @@ PERSIST key             # 移除过期时间，永久保留
 
 ![惰性删除流程](/redis/02-standalone-core-chapter-06-expiration-eviction-1.svg)
 
-```text
+```txt
 GET key
   → 查 expires 字典，检查是否过期
     → 已过期：删除 key，返回 nil
@@ -90,7 +90,7 @@ Redis 的定期删除分 fast 与 slow 两种模式，各自独立运行（常�
 
 slow 模式每次执行：
 
-```text
+```txt
 每次执行：
 1. 从 expires 字典随机抽取 20 个键
 2. 删除其中已过期的键
@@ -150,7 +150,7 @@ slow 模式每次执行：
 
 | 问题 | 说明 |
 | :-- | :-- |
-| 大量键同时过期 | 触发定期删除风暴，CPU 飙升。解决方案：TTL 加随机偏移（见 [缓存失效：穿透·击穿·雪崩](../03-cache-engineering/chapter-01-cache-invalidation.md)） |
+| 大量键同时过期 | 触发定期删除风暴，CPU 飙升。解决方案：TTL 加随机偏移（见 [缓存失效：穿透·击穿·雪崩](../../scenarios/01-cache/chapter-01-cache-invalidation.md)） |
 | 过期键不被访问 | 只靠定期删除清理，可能清理不及时。设置合理的 maxmemory 兜底 |
 | EXPIRE 精度 | EXPIRE 精度为毫秒，但实际删除可能有延迟（取决于定期删除的扫描频率） |
 
@@ -179,7 +179,7 @@ maxmemory-policy allkeys-lru
 
 淘汰策略 = 「淘汰范围」×「淘汰算法」的组合。
 
-```text
+```txt
 范围：allkeys（所有键） / volatile（只淘汰设置了 TTL 的键）
 算法：lru / lfu / random / ttl
 ```
@@ -216,7 +216,7 @@ LRU（Least Recently Used）淘汰「最近一次访问时间最早」的键。
 
 Redis 的近似 LRU：
 
-```text
+```txt
 1. 随机抽样 N 个键（N = maxmemory-samples，默认 5）
 2. 比较这 N 个键的「最后一次访问时间」（lru 字段）
 3. 淘汰其中最久未访问的那个
@@ -253,7 +253,7 @@ LFU（Least Frequently Used）淘汰「访问次数最少」的键，解决了 L
 
 Redis 用 `redisObject` 的 `lru` 字段（24 位）同时存储两个信息：
 
-```text
+```txt
 高 16 位：ldt（last decrement time）— 上次衰减时间
 低 8 位：logc（logistic counter）— 访问频率（对数计数器）
 ```
@@ -262,7 +262,7 @@ Redis 用 `redisObject` 的 `lru` 字段（24 位）同时存储两个信息：
 
 访问频率不是简单的计数器，而是对数增长的：
 
-```text
+```txt
 概率 = 1 / (counter * lfu_log_factor + 1)
 
 counter 越大，增长越慢
@@ -275,7 +275,7 @@ lfu_log_factor 默认 10，counter=100 时增长概率约为 1/1001
 
 LFU 的计数器随时间衰减，避免历史热点永远霸占内存：
 
-```text
+```txt
 上次衰减时间（ldt）与当前时间的差值 → 按 lfu-decay-time 计算衰减量
 counter = counter - 衰减量
 ```

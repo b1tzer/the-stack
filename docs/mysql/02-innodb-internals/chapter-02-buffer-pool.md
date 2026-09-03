@@ -50,7 +50,7 @@ Buffer Pool 不是一块无序的内存。InnoDB 用三张链表管理其中的�
 
 InnoDB 的 LRU 链表被切成两段：
 
-```text
+```txt
 ┌─────────────────────────────────────────┐
 │  young 区（约 5/8）  热数据，反复被访问      │  ← 链表头部
 ├─────────────────────────────────────────┤
@@ -92,7 +92,7 @@ SHOW GLOBAL STATUS LIKE 'Innodb_buffer_pool_read%';
 - `Innodb_buffer_pool_read_requests`：逻辑读次数，即「读页」的总请求数；
 - `Innodb_buffer_pool_reads`：物理读次数，即「内存没有、真正从磁盘读」的次数。
 
-```text
+```txt
 命中率 = 1 - reads / read_requests
 ```
 
@@ -134,7 +134,7 @@ Buffer Pool 解决「读」的缓存问题，Change Buffer 解决「写」的一
 
 修改一行数据时，除了改聚簇索引，还要同步维护这条记录上的**二级索引**。如果某个二级索引页恰好不在内存里，朴素的做法是把它从磁盘读进来再改。Change Buffer 提供了另一条路：**先不读，把「对那个索引页的修改」记录在 Change Buffer 里，等这个索引页之后真的被读进内存时，再把攒下的修改一次性合并（merge）上去。**
 
-```text
+```txt
 朴素做法：写 → 读二级索引页 → 改 → 刷盘
 Change Buffer：写 → 记录修改 → 索引页之后被读时再 merge
 ```

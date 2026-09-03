@@ -11,7 +11,7 @@ APM（Application Performance Monitoring）用于监控应用程序的性能，�
 ## 2. APM 组件
 
 | 组件 | 说明 |
-|------|------|
+| :-- | :-- |
 | **APM Agent** | 嵌入应用中的 SDK，自动采集性能数据 |
 | **APM Server** | 接收 Agent 数据，处理后写入 ES |
 | **Elasticsearch** | 存储 APM 数据 |
@@ -85,7 +85,7 @@ def my_function():
 ## 6. APM 数据类型
 
 | 数据类型 | 说明 |
-|---------|------|
+| :-- | :-- |
 | **Transaction** | 请求级别的性能数据（HTTP 请求、消息处理） |
 | **Span** | 事务中的子操作（数据库查询、外部调用） |
 | **Error** | 应用异常和错误 |

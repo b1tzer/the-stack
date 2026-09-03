@@ -23,7 +23,7 @@ rabbitmqctl delete_user guest
 ## 2. 权限模型
 
 | 权限 | 说明 | 正则 |
-|------|------|------|
+| :-- | :-- | :-- |
 | configure | 可以创建/删除 Exchange 和 Queue | `^order\\..*` |
 | write | 可以发布消息 | `^order\\..*` |
 | read | 可以消费消息 | `^order\\..*` |

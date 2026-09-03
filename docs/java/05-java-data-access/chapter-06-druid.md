@@ -29,7 +29,7 @@ Druid 的能力来自三条互相独立的线：
 | `WebStatFilter` | Web Filter | 拦截 HTTP 请求，统计 URI / Session |
 | `StatViewServlet` | Servlet | 提供监控台与 JSON API |
 
-```text
+```txt
    HTTP 请求
       │
       ▼
@@ -102,7 +102,7 @@ spring:
 
 开启 `log-slow-sql` 后，超过阈值的 SQL 会打到应用日志里：
 
-```text
+```txt
 [main] INFO  com.alibaba.druid.filter.stat.StatFilter - slow sql 2341 millis. select * from orders where user_id = 123 and status = 'PAID' order by create_time desc[]
 ```
 
@@ -119,7 +119,7 @@ spring:
       filters: stat,slf4j
 ```
 
-```text
+```txt
 2026-08-31 11:00:00.123 DEBUG 12345 --- [http-nio-8080-exec-1] c.a.druid.filter.logging.Slf4jLogFilter :
 {conn-10001, pstmt-20001} executed. 3.5 millis. select * from users where id = ?
 ```
@@ -146,7 +146,7 @@ spring:
 
 被拦截的 SQL 会抛异常，日志类似：
 
-```text
+```txt
 sql injection violation, comment not allow : select * from users where id = 1 or 1=1
 ```
 
@@ -209,7 +209,7 @@ spring:
 
 SQL 监控列表的形态示意：
 
-```text
+```txt
 +-------------------------------+--------+---------+---------+--------+--------+
 | SQL                           | 执行数 | 总耗时  | 最慢    | 平均   | 错误数 |
 +-------------------------------+--------+---------+---------+--------+--------+
@@ -226,7 +226,7 @@ SQL 监控列表的形态示意：
 
 监控台的数据可通过 JSON API 读取，便于接入自建监控或脚本拉取：
 
-```text
+```txt
 GET /druid/basic.json         # 数据源基本信息
 GET /druid/sql.json           # SQL 统计
 GET /druid/wall.json          # 防火墙拦截统计
@@ -280,7 +280,7 @@ spring:
 
 数据库密码明文写在 `application.yml` 里是安全隐患。Druid 的 `ConfigFilter` 支持密文配置：
 
-```text
+```txt
 # 1. 用 Druid 自带工具生成密文
 java -cp druid-1.2.23.jar com.alibaba.druid.filter.config.ConfigTools 你的明文密码
 # 输出 publicKey / password（密文）

@@ -99,7 +99,7 @@ ALTER TABLE users MODIFY name VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4
 ## 3. 最佳实践
 
 | 场景 | 推荐 |
-|------|------|
+| :-- | :-- |
 | 新项目 | utf8mb4_0900_ai_ci (MySQL 8.0+) |
 | 兼容旧系统 | utf8mb4_unicode_ci |
 | 需要区分大小写 | utf8mb4_bin |

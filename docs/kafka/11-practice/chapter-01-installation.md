@@ -47,7 +47,7 @@ docker-compose up -d
 
 这段 YAML 里最容易被忽略的是 `KAFKA_ADVERTISED_LISTENERS`。Kafka 区分「监听地址」和「广播地址」两个概念：
 
-```text
+```txt
 listeners            → Broker 实际监听的地址（容器内）
 advertised.listeners → 返回给客户端的地址（容器外）
 ```

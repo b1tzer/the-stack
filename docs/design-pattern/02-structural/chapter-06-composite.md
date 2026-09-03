@@ -282,7 +282,7 @@ System.out.println("公司月薪总额: " + company.calculateSalary()); // 75000
 ## 5. 🔧 框架应用
 
 | 框架/类 | 说明 |
-|--------|------|
+| :-- | :-- |
 | `java.awt.Container` / `Component` | Swing 组件树：Container 可以包含 Component（包括其他 Container） |
 | `javax.swing.JMenu` / `JMenuItem` | 菜单树：JMenu 可以包含 JMenuItem 或其他 JMenu |
 | MyBatis `SqlNode` | 动态 SQL 的 `<if>`、`<choose>`、`<foreach>` 组成树形结构 |
@@ -306,7 +306,7 @@ System.out.println("公司月薪总额: " + company.calculateSalary()); // 75000
 ### 6.1 安全组合 vs 透明组合
 
 | 方式 | add/remove 放在哪 | 优点 | 缺点 |
-|------|------------------|------|------|
+| :-- | :-- | :-- | :-- |
 | **透明组合** | 抽象组件中 | 客户端统一处理 | 叶子节点被迫实现无意义方法 |
 | **安全组合** | 只在容器中 | 接口干净 | 客户端需要区分类型 |
 

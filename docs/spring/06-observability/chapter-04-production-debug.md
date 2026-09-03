@@ -71,7 +71,7 @@ watch com.myapp.service.OrderService createOrder '{params, returnObj, throwExp}'
 ### 1.4 常见 CPU 飙高原因
 
 | 原因 | 特征 | 解决方案 |
-|------|------|----------|
+| :-- | :-- | :-- |
 | 死循环 | 堆栈卡在同一行代码 | 修复循环条件 |
 | 正则回溯 | `Pattern.compile` 相关堆栈 | 优化正则表达式 |
 | 频繁 Full GC | CPU 高 + GC 日志有大量 Full GC | 增大堆内存 / 修复内存泄漏 |
@@ -176,7 +176,7 @@ public List<Order> findOrders() {
 ### 2.4 MAT 分析技巧
 
 | MAT 功能 | 用途 |
-|----------|------|
+| :-- | :-- |
 | Leak Suspects Report | 自动分析泄漏嫌疑对象 |
 | Dominator Tree | 按占用内存排序，找大对象 |
 | Histogram | 按类统计实例数 |
@@ -259,7 +259,7 @@ spring:
 ### 3.4 慢查询优化 Checklist
 
 | 检查项 | 方法 | 阈值 |
-|--------|------|------|
+| :-- | :-- | :-- |
 | 是否有索引 | `EXPLAIN SELECT ...` | `type` 不应是 `ALL` |
 | 扫描行数 | `rows` 列 | 应远小于总行数 |
 | 是否有 filesort | `Extra` 列 | 避免 `Using filesort` |

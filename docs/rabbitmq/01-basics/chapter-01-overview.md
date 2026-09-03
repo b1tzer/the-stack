@@ -14,7 +14,7 @@ RabbitMQ 是一个实现了 AMQP 0-9-1 协议的消息代理（Message Broker）
 
 **直接调用**：
 
-```text
+```txt
 服务A ──HTTP──▶ 服务B
            等待响应
            ◀──────
@@ -26,7 +26,7 @@ RabbitMQ 是一个实现了 AMQP 0-9-1 协议的消息代理（Message Broker）
 
 **消息队列**：
 
-```text
+```txt
 服务A ──▶ [Queue] ──▶ 服务B
          消息暂存      异步处理
 ```
@@ -40,7 +40,7 @@ RabbitMQ 是一个实现了 AMQP 0-9-1 协议的消息代理（Message Broker）
 ## 3. RabbitMQ 的核心优势
 
 | 维度 | RabbitMQ 的特点 | 对比 |
-|------|----------------|------|
+| :-- | :-- | :-- |
 | 路由能力 | 4 种 Exchange，支持精确/模糊/广播路由 | Kafka 只支持 Topic 级路由 |
 | 延迟 | 微秒级（Erlang 调度器优势） | Kafka 毫秒级 |
 | 协议支持 | AMQP/MQTT/STOMP | Kafka 只有自定义协议 |
@@ -52,7 +52,7 @@ RabbitMQ 是一个实现了 AMQP 0-9-1 协议的消息代理（Message Broker）
 ## 4. RabbitMQ 不适合什么
 
 | 场景 | 问题 | 替代方案 |
-|------|------|----------|
+| :-- | :-- | :-- |
 | 百万级 QPS | Erlang 单节点吞吐上限 | Kafka / Pulsar |
 | 大量消息堆积 | 堆积后性能下降（内存换页） | Kafka（顺序写磁盘） |
 | 消息回溯 | 不支持按 offset 重新消费 | Kafka |
@@ -63,7 +63,7 @@ RabbitMQ 是一个实现了 AMQP 0-9-1 协议的消息代理（Message Broker）
 
 ## 5. 核心概念速览
 
-```text
+```txt
 Producer ──▶ Exchange ──binding──▶ Queue ──▶ Consumer
              (路由)               (存储)      (消费)
 ```
@@ -79,7 +79,7 @@ Producer ──▶ Exchange ──binding──▶ Queue ──▶ Consumer
 ## 6. Exchange 类型与路由能力
 
 | Exchange 类型 | 路由规则 | 典型场景 |
-|--------------|----------|----------|
+| :-- | :-- | :-- |
 | Direct | routing key 精确匹配 | 点对点、任务分发 |
 | Topic | routing key 通配符匹配（`*` 和 `#`） | 事件订阅、分类路由 |
 | Fanout | 忽略 routing key，广播到所有绑定队列 | 广播通知、实时推送 |
@@ -91,7 +91,7 @@ Producer ──▶ Exchange ──binding──▶ Queue ──▶ Consumer
 
 RabbitMQ 的可靠性不是单一机制，而是多层叠加：
 
-```text
+```txt
 Producer                    Broker                     Consumer
   │                           │                           │
   ├─ Publisher Confirm ──▶    ├─ 持久化（Durable Queue）   ├─ Manual ACK
@@ -106,7 +106,7 @@ Producer                    Broker                     Consumer
 
 ### 8.1 电商订单流程
 
-```text
+```txt
 下单 ──▶ order.exchange ──▶ order.created.queue ──▶ 库存服务（扣库存）
                         ──▶ order.created.queue ──▶ 通知服务（发短信）
                         ──▶ order.created.queue ──▶ 积分服务（加积分）
@@ -116,7 +116,7 @@ Producer                    Broker                     Consumer
 
 ### 8.2 延迟任务
 
-```text
+```txt
 订单创建 ──▶ delay.exchange（延迟30分钟）──▶ order.timeout.queue ──▶ 检查支付状态
 ```
 
@@ -124,7 +124,7 @@ Producer                    Broker                     Consumer
 
 ### 8.3 RPC 调用
 
-```text
+```txt
 Client ──▶ request.queue ──▶ Server
        ◀── reply.queue ◀──
 ```
@@ -134,7 +134,7 @@ RabbitMQ 原生支持 RPC 模式，适用于需要异步调用但又要返回结
 ## 9. 版本选择建议
 
 | 版本 | 特点 | 建议 |
-|------|------|------|
+| :-- | :-- | :-- |
 | 3.13.x | 最新稳定版，Quorum Queue 成熟 | 新项目首选 |
 | 3.12.x | 稳定，社区活跃 | 生产环境可用 |
 | 3.11 及以下 | 镜像队列为主（已废弃） | 不推荐新项目 |

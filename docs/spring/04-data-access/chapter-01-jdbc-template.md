@@ -85,7 +85,7 @@ public class UserService {
 
 `JdbcTemplate` 的每一个查询方法，都是模板方法模式的一次应用：
 
-```text
+```txt
 JdbcTemplate（模板方法，负责不变的流程）
     ├── 从 DataSource 拿连接
     ├── 创建 PreparedStatement
@@ -131,7 +131,7 @@ classpath 上有连接池实现时，自动配置默认用 **HikariCP** 作为 `
 
 JDBC 的 `Connection` 是昂贵资源，JdbcTemplate 从不自己持有它，而是「用完即还」：
 
-```text
+```txt
 queryForObject() 一次调用内部：
     拿连接（从连接池借）
     → 创建 Statement
@@ -147,7 +147,7 @@ queryForObject() 一次调用内部：
 
 JDBC 几乎把所有错误都装进一个 `SQLException`。要区分「SQL 写错」和「违反唯一约束」，得看 `SQLException` 的 `SQLState` 和 `errorCode`——而这两个值每个数据库都不一样：
 
-```text
+```txt
 同样是「SQL 语法错误」：
   MySQL 的 SQLState 是 42000
   其他数据库可能是别的值
@@ -159,7 +159,7 @@ JDBC 几乎把所有错误都装进一个 `SQLException`。要区分「SQL 写�
 
 `JdbcTemplate` 捕获 `SQLException` 后，交给 `SQLExceptionTranslator` 翻译。默认实现 `SQLErrorCodeSQLExceptionTranslator` 根据数据库类型和 `SQLState`/`errorCode`，映射到 `DataAccessException` 层次：
 
-```text
+```txt
 SQLException（SQLState=23000，违反约束）
         │
         ▼

@@ -25,7 +25,7 @@ jstack -l <pid> > thread.dump
 
 排查者的注意力全部集中在 Tomcat 工作线程上：
 
-```text
+```txt
 "http-nio-8080-exec-1" #42 daemon prio=5
    java.lang.Thread.State: WAITING (parking)
     at sun.misc.Unsafe.park(Native Method)
@@ -50,7 +50,7 @@ logging:
 
 日志中出现了反复出现的一条记录：
 
-```text
+```txt
 o.apache.tomcat.util.threads.LimitLatch : Counting up[http-nio-8080-Acceptor-0] latch=10
 o.apache.tomcat.util.threads.LimitLatch : Counting up[http-nio-8080-Acceptor-0] latch=10
 o.apache.tomcat.util.threads.LimitLatch : Counting up[http-nio-8080-Acceptor-0] latch=10
@@ -60,7 +60,7 @@ o.apache.tomcat.util.threads.LimitLatch : Counting up[http-nio-8080-Acceptor-0] 
 
 他立刻回去翻之前的 `jstack` 输出——Acceptor 线程一直都在那里，但被忽略了：
 
-```text
+```txt
 "http-nio-8080-Acceptor-0" #19 daemon prio=5
    java.lang.Thread.State: WAITING (parking)
     at sun.misc.Unsafe.park(Native Method)
@@ -104,7 +104,7 @@ Tomcat NIO 模式下 `max-connections` 默认值是 10000。这里被改成了 1
 
 理解这个问题需要知道 Tomcat 的一条连接是怎么被交给 worker 线程处理的：
 
-```text
+```txt
 客户端 → OS TCP backlog 队列 → Acceptor 线程 accept() → 连接计数 +1
   → Poller 线程注册到 Selector → Poller 检测到可读事件
   → 交给 Worker 线程池处理（http-nio-8080-exec-*）
@@ -136,7 +136,7 @@ server:
 
 三个参数的关系：
 
-```text
+```txt
 操作系统 TCP backlog（由 acceptCount 控制）
   └→ Acceptor 线程 accept() 后进入 maxConnections 计数的连接池
        └→ Poller 检测到可读数据后交给 maxThreads 个 worker 线程处理
@@ -147,7 +147,7 @@ server:
 ### 1.8 总结
 
 | 信号 | 含义 | 工具 |
-|------|------|------|
+| :-- | :-- | :-- |
 | 工作线程全部 `WAITING`，CPU 低 | 没有新请求进来——问题可能在 Acceptor | `jstack` |
 | Acceptor 线程停在 `LimitLatch.countUpOrAwait` | maxConnections 已打满 | `jstack` |
 | `ss -tnp` 显示连接数恰好 = 某整数 | 确认上限值 | `ss` |
@@ -171,7 +171,7 @@ server:
 kubectl describe pod <pod-name>
 ```
 
-```text
+```txt
 State:          Terminated
   Reason:       OOMKilled
   Exit Code:    137
@@ -181,7 +181,7 @@ Exit Code 137 = `128 + 9`（SIGKILL）。这是 Linux OOM Killer 直接杀进程
 
 用 `kubectl top pod` 看 RSS：
 
-```text
+```txt
 NAME                          CPU(cores)   MEMORY(bytes)
 gateway-pod-xxx               450m         7850Mi   ← 接近 8G limit
 ```
@@ -192,7 +192,7 @@ gateway-pod-xxx               450m         7850Mi   ← 接近 8G limit
 jstat -gcutil <pid> 1000 5
 ```
 
-```text
+```txt
   S0     S1     E      O      M     YGC     YGCT    FGC    FGCT     GCT
   0.00  42.15  56.23  38.12  72.11  1234   23.456    2    1.234   24.690
   0.00  38.45  78.34  39.01  72.12  1235   23.489    2    1.234   24.723
@@ -219,7 +219,7 @@ jcmd <pid> VM.native_memory summary
 
 输出：
 
-```text
+```txt
 Native Memory Tracking:
 
 Total: reserved=7245MB, committed=6812MB
@@ -253,7 +253,7 @@ Total: reserved=7245MB, committed=6812MB
 
 几分钟后，日志中出现：
 
-```text
+```txt
 LEAK: ByteBuf.release() was not called before it's garbage-collected.
 See https://netty.io/wiki/reference-counted-objects.html for more information.
 Recent access records:
@@ -355,7 +355,7 @@ public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
 容器内存分配建议：
 
 | 组件 | 占比 | 8G 容器 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | Java Heap | 50~60% | 4G |
 | Direct Memory | 10~15% | 1G |
 | Thread Stacks | 10~15% | 800M |
@@ -365,7 +365,7 @@ public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
 ### 2.9 排查堆外内存问题的工具链
 
 | 层级 | 工具 | 适用场景 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | 进程级 | `kubectl describe pod` / `dmesg` | 确认 OOMKilled，排除 JVM OOM |
 | 堆级 | `jstat -gcutil` / `jmap -histo` | 确认堆内存正常（从而推断问题在堆外） |
 | 堆外总览 | `jcmd VM.native_memory summary` | 按区域看内存分布，定位到 Direct / Thread / Metaspace |
@@ -375,7 +375,7 @@ public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
 ### 2.10 总结
 
 | 信号 | 含义 | 工具 |
-|------|------|------|
+| :-- | :-- | :-- |
 | Pod OOMKilled、堆正常 | 问题不在堆——在堆外内存 | `kubectl describe pod` + `jstat` |
 | NMT 中 `NIO/Direct` 持续增长 | 直接内存泄漏 | `jcmd VM.native_memory summary` |
 | `LEAK: ByteBuf.release() was not called` | Netty 引用计数泄漏 | `-Dio.netty.leakDetectionLevel=paranoid` |

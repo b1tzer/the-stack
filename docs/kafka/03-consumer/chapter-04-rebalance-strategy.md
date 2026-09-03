@@ -15,7 +15,7 @@
 
 按分区编号范围分配：
 
-```text
+```txt
 分区: [0, 1, 2, 3, 4, 5]
 消费者: [C0, C1]
 
@@ -26,7 +26,7 @@ C1: [3, 4, 5]  ← 后半部分
 
 多 Topic 时的问题：
 
-```text
+```txt
 Topic A: [0, 1, 2]
 Topic B: [0, 1, 2]
 消费者: [C0, C1]
@@ -41,7 +41,7 @@ C1: [A-2, B-2]            → 2 个分区（不均衡）
 
 把所有 Topic 的分区放在一起轮询：
 
-```text
+```txt
 分区: [A-0, A-1, A-2, B-0, B-1, B-2]
 消费者: [C0, C1]
 
@@ -56,7 +56,7 @@ RoundRobin 的问题：Rebalance 时可能打乱原有分配，导致大量分�
 
 在 RoundRobin 基础上增加「尽量保持原分配」的约束：
 
-```text
+```txt
 Rebalance 前:
 C0: [P0, P1, P2]
 C1: [P3, P4, P5]
@@ -80,7 +80,7 @@ Sticky 策略减少了不必要的分区迁移，降低 Rebalance 影响。
 
 CooperativeSticky 是逐步迁移：
 
-```text
+```txt
 第 1 轮 Rebalance：
 1. 识别需要迁移的分区
 2. 通知原消费者释放这些分区（停止消费这些分区）
@@ -119,7 +119,7 @@ props.put("group.instance.id", "consumer-" + instanceId);
 
 ### 6.2 静态成员的工作原理
 
-```text
+```txt
 Consumer-1（group.instance.id="consumer-1"）宕机
     │
     ▼

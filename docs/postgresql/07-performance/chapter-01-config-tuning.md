@@ -131,7 +131,7 @@ max_parallel_workers_per_gather = 4
 ## 7. 配置生效方式
 
 | 生效方式 | 适用参数 | 操作 |
-|---------|---------|------|
+| :-- | :-- | :-- |
 | 重启生效 | shared_buffers、max_connections 等 | `systemctl restart postgresql` |
 | reload 生效 | work_mem、log_min_duration_statement 等 | `SELECT pg_reload_conf()` |
 | 会话级生效 | 所有参数 | `SET work_mem = '256MB'` |

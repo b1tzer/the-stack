@@ -6,7 +6,7 @@
 
 String 是 Redis 最基础的类型，一个 key 对应一个 value，value 可以是字符串、整数或二进制数据。
 
-```text
+```txt
 key  →  value（单个值）
 
 "user:123:name"  →  "张三"
@@ -40,7 +40,7 @@ SETNX key value                    # 不存在才设置（分布式锁基础）
 
 Hash 是一个 key 对应一组 field-value，类似 Java 的 `HashMap`，适合存储一个对象的多个属性。
 
-```text
+```txt
 key  →  { field1: value1, field2: value2, ... }
 
 "user:123"  →  {
@@ -77,7 +77,7 @@ HDEL user:123 age                   # 删除字段
 
 List 是一个 key 对应一组有序、可重复的字符串，底层是双向链表结构，支持从两端插入和弹出。
 
-```text
+```txt
 key  →  [ v1, v2, v3, ... ]（有序，可重复）
 
 "news:list"  →  ["文章3", "文章2", "文章1"]   ← 左边是最新
@@ -108,7 +108,7 @@ BLPOP list 10          # 阻塞弹出，等待最多 10 秒（消息队列）
 
 Set 是一个 key 对应一组无序、不重复的字符串，核心特性是自动去重，并支持集合间的交、并、差运算。
 
-```text
+```txt
 key  →  { v1, v2, v3, ... }（无序，不重复）
 
 "user:123:friends" →  {"uid:456", "uid:789", "uid:101"}
@@ -142,7 +142,7 @@ SCARD tags                          # 元素数量
 
 ZSet（Sorted Set）是一个 key 对应一组有序、不重复的成员，每个成员关联一个浮点数 score，Redis 按 score 自动排序。
 
-```text
+```txt
 key  →  { member1: score1, member2: score2, ... }（按 score 自动排序）
 
 "leaderboard"  →  {

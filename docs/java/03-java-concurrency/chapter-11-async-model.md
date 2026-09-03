@@ -124,7 +124,7 @@ String result = pipeline.join();
 
 三步的时间线：
 
-```text
+```txt
 时间 →
 [findUser 100ms] → [findOrders 150ms] → [findTracking 并行 80ms]
                                           ├─ ORD-001 80ms
@@ -229,7 +229,7 @@ future
 
 异常传播路径上，异常会被包装成 `CompletionException`（`get()` 时是 `ExecutionException`）：
 
-```text
+```txt
 supplyAsync ──▶ thenApply ──▶ thenApply ──▶ ...
      │                                       │
      │       抛 IOException                  │

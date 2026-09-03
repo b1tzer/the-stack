@@ -33,7 +33,7 @@ gh-ost \
 ### 1.4 对比
 
 | 工具 | 原理 | 优点 | 缺点 |
-|------|------|------|------|
+| :-- | :-- | :-- | :-- |
 | Online DDL | InnoDB 原生 | 无额外工具 | 大表仍慢 |
 | pt-osc | 触发器复制 | 成熟稳定 | 触发器开销 |
 | gh-ost | Binlog 流 | 无触发器 | 需要 Binlog |
@@ -141,7 +141,7 @@ echo "chunk-size=500" | nc -U /tmp/gh-ost.sock  # 修改参数
 ### 3.1 DDL 操作风险评估
 
 | 操作 | 风险 | 建议方案 |
-|------|------|----------|
+| :-- | :-- | :-- |
 | ADD COLUMN (nullable) | 低 | INSTANT DDL |
 | ADD COLUMN (NOT NULL + DEFAULT) | 低 | INSTANT DDL (8.0+) |
 | ADD INDEX | 中 | Online DDL / pt-osc |

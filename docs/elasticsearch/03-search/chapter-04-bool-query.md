@@ -28,7 +28,7 @@ GET /my-index/_search
 ## 2. 子句说明
 
 | 子句 | 说明 | 影响得分 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | must | 必须匹配 | ✅ |
 | should | 应该匹配 | ✅ |
 | must_not | 必须不匹配 | ❌ |
@@ -39,6 +39,7 @@ GET /my-index/_search
 - 使用 filter 替代 must（可缓存）
 - 避免嵌套过深
 - 使用 constant_score 包装精确查询
+
 ## 4. should 的 minimum_should_match
 
 当 `bool` 查询中只有 `should` 子句时，至少需要匹配一个。当同时存在 `must` 或 `filter` 时，`should` 变为可选（加分项）。

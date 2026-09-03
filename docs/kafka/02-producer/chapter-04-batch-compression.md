@@ -90,7 +90,7 @@ props.put("linger.ms", 20);               // 等待更久收集更多消息
 ## 7. Producer 端 vs Broker 端压缩
 
 | 特性 | Producer 端压缩 | Broker 端压缩 |
-|------|----------------|---------------|
+| :-- | :-- | :-- |
 | 配置位置 | `compression.type` | `compression.type` |
 | 性能影响 | 减少网络传输，增加 Producer CPU | 减少存储空间，增加 Broker CPU |
 | 推荐 | ✅ 生产环境推荐 | 仅用于特殊场景 |

@@ -36,7 +36,7 @@ KeyValueIterator<String, Long> all = store.all();
 
 解决方式是把「状态变更」同时写进 Kafka：每次 `put` 都会追加一条记录到一个 Changelog Topic。当新实例接管分区时，从头消费这个 Changelog Topic，重放全部变更，就能在本地重建出完整状态。
 
-```text
+```txt
 实例 A 处理分区 0：
   put("k1", 1) → Changelog 追加 [k1=1]
   put("k2", 2) → Changelog 追加 [k2=2]
@@ -53,7 +53,7 @@ KeyValueIterator<String, Long> all = store.all();
 ## 4. 状态存储类型
 
 | 类型 | 存储方式 | 适用场景 |
-|------|----------|----------|
+| :-- | :-- | :-- |
 | PersistentKeyValueStore | RocksDB | 大容量键值存储 |
 | InMemoryKeyValueStore | 内存 | 小容量、高性能 |
 | PersistentWindowStore | RocksDB | 窗口聚合 |

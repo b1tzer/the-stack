@@ -43,7 +43,7 @@ Undo Log 是**逻辑日志**，它不复制整行数据，而是记录「如何�
 
 一条 `UPDATE` 产生的 Undo 记录，大致包含这些内容：
 
-```text
+```txt
 Undo 记录（简化）
 ├─ undo_no         本次操作在事务内的序号
 ├─ 表 ID / 主键     定位到哪一行
@@ -97,7 +97,7 @@ MySQL 5.6 之前，Undo Log 存放在系统表空间 `ibdata1` 里，无法独�
 
 一个 Undo 页的内部结构：
 
-```text
+```txt
 ┌──────────────────┐
 │ Undo Page Header │  页元信息（链表指针等）
 ├──────────────────┤
@@ -117,7 +117,7 @@ MySQL 5.6 之前，Undo Log 存放在系统表空间 `ibdata1` 里，无法独�
 
 Undo Log 除了回滚，还支撑 MVCC。 [事务与 MVCC §2.3](../04-transaction-lock/chapter-01-transaction.md#version-chain) 已经详细讲过：每行记录的 `DB_ROLL_PTR` 指向 Undo 中的旧版本，多次修改串成一条从当前版本通到最老版本的链。
 
-```text
+```txt
 当前记录 → Undo v3 → Undo v2 → Undo v1
 (trx=105)  (trx=104) (trx=102) (trx=101)
 ```

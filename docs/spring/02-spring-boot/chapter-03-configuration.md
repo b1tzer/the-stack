@@ -153,7 +153,7 @@ public class CacheManager {
 ### 2.4 @ConfigurationProperties vs @Value
 
 | 特性 | @ConfigurationProperties | @Value |
-|------|:-----------------------:|:-----:|
+| :-- | :-----------------------: | :-----: |
 | 松散绑定 | ✅ `pool-size` → `poolSize` | ❌ |
 | 元数据提示 | ✅ IDE 自动补全 | ❌ |
 | 校验 @Validated | ✅ | ❌ |
@@ -210,7 +210,7 @@ public class JasyptTest {
 方案对比：
 
 | 方案 | 安全性 | 复杂度 | 适用场景 |
-|------|:-----:|:-----:|---------|
+| :-- | :-----: | :-----: | :-- |
 | 环境变量 | ✅ 高 | 低 | Docker / K8s |
 | Jasypt | ✅ 中 | 中 | 传统部署 |
 | Vault（HashiCorp） | ✅ 高 | 高 | 企业级密钥管理 |

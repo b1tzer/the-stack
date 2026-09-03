@@ -22,7 +22,7 @@ public class UserController {
 
 五行代码，但执行时经过了 **7 层抽象**。每一层都可能在某个特定场景下出问题：
 
-```text
+```txt
 @GetMapping("/api/users/1")
 │
 ├─ 第 1 层：Spring MVC 框架         ← 你现在的位置
@@ -77,7 +77,7 @@ protected void doDispatch(HttpServletRequest request,
 }
 ```
 
-```text
+```txt
 HTTP Request (GET /api/users/1)
 │
 ▼ doDispatch()
@@ -112,7 +112,7 @@ HTTP Request (GET /api/users/1)
 
 Spring MVC 用一组 `HandlerMethodArgumentResolver` 串起来处理。每个 Resolver 处理一种特定类型的参数：
 
-```text
+```txt
 @RequestMapping("/{id}")  ← URL 模板
 GET /api/users/1?trace=true   ← 实际请求
 
@@ -127,7 +127,7 @@ Controller 方法参数:
 **每类注解对应一个 Resolver**：
 
 | 注解 | Resolver | 数据来源 |
-|------|----------|---------|
+| :-- | :-- | :-- |
 | `@PathVariable` | `PathVariableMethodArgumentResolver` | URL 模板变量 |
 | `@RequestParam` | `RequestParamMethodArgumentResolver` | Query String 或 Form Data |
 | `@RequestBody` | `RequestResponseBodyMethodProcessor` | 请求体（JSON/XML） |
@@ -149,7 +149,7 @@ Controller 方法执行完毕，返回一个 Java 对象。下一个问题是：
 
 Spring MVC 用 `HandlerMethodReturnValueHandler` 处理返回值，用 `HttpMessageConverter` 执行序列化：
 
-```text
+```txt
 Controller 方法 return User{id:1, name:"张三"}
 │
 ▼ 选 ReturnValueHandler
@@ -238,7 +238,7 @@ public interface Servlet {
 ```
 
 | 阶段 | 触发时机 | 执行线程 | 典型操作 |
-|------|---------|---------|---------|
+| :-- | :-- | :-- | :-- |
 | `init()` | 容器启动或首次请求到达 | 容器主线程 | 加载 Spring 上下文、初始化 DispatcherServlet 策略组件 |
 | `service()` | 每次 HTTP 请求 | Tomcat Worker 线程 | 进入 doDispatch()，执行 Controller 方法 |
 | `destroy()` | 容器关闭 | 容器主线程 | 关闭 Spring 上下文、释放连接池 |
@@ -263,7 +263,7 @@ public class BadServlet extends HttpServlet {
 
 Filter 运行在 Servlet 之前——它比 Spring 的拦截器更底层，在 Tomcat 调用 `Servlet.service()` 之前就已经执行了。每个请求都要穿过 Filter 链才能到达 Servlet：
 
-```text
+```txt
 HTTP Request 到达 Tomcat
 │
 ├─ Filter 1: CharacterEncodingFilter  → 设置请求/响应编码为 UTF-8
@@ -280,7 +280,7 @@ HTTP Request 到达 Tomcat
 ```
 
 | 对比维度 | Filter（Servlet 层） | HandlerInterceptor（Spring MVC 层） |
-|---------|---------------------|-----------------------------------|
+| :-- | :-- | :-- |
 | 作用范围 | 所有请求，包括静态资源 | 只拦截进入 DispatcherServlet 的请求 |
 | 能拦截什么 | 请求/响应的原始字节流 | Controller 方法前后 |
 | 配置方式 | `@WebFilter` 或 `FilterRegistrationBean` | `addInterceptors()` 或 `@Configuration` |
@@ -334,7 +334,7 @@ Filter 和 Servlet 处理的都是 `HttpServletRequest` 对象。这个对象穿
 
 Tomcat 的架构只分两块，职责边界非常清晰：
 
-```text
+```txt
 ┌─────────────────────────────────────────────────────────────┐
 │                      Tomcat                                  │
 │                                                              │
@@ -356,7 +356,7 @@ Connector 只负责"通信"（把字节流变成 Java 对象），Container 只�
 
 Container 按四层嵌套结构，逐级找到该处理这个请求的 Servlet：
 
-```text
+```txt
 Server (Tomcat 进程)
  └── Service (Connector + Container 的绑定)
       ├── Connector
@@ -367,7 +367,7 @@ Server (Tomcat 进程)
 ```
 
 | 层级 | 匹配依据 | 例子 |
-|------|---------|------|
+| :-- | :-- | :-- |
 | Engine | 固定（一个 Service 一个 Engine） | Catalina |
 | Host | HTTP 请求头 `Host` | `api.example.com`、`www.example.com` |
 | Context | URL 路径前缀 | `/myapp`、`/api` |
@@ -393,7 +393,7 @@ Container 处理的都是 `HttpServletRequest`。但这个对象不是凭空生�
 
 做这件事的是 **Connector**。Connector 内部三道工序：
 
-```text
+```txt
 Socket 收到字节流
 │
 ▼
@@ -429,7 +429,7 @@ Socket 收到字节流
 
 Tomcat 8.5 起全面改用 NIO。网络 I/O 的"等待"和业务逻辑的"执行"分离到三个线程角色上：
 
-```text
+```txt
                          ┌──────────────────────┐
                          │   ServerSocketChannel │
                          │   (监听 8080 端口)     │
@@ -471,7 +471,7 @@ Tomcat 8.5 起全面改用 NIO。网络 I/O 的"等待"和业务逻辑的"执行
 ```
 
 | 参数 | 含义 | 线上出问题的表现 | 排查命令 |
-|------|------|----------------|---------|
+| :-- | :-- | :-- | :-- |
 | `maxThreads` | Worker 线程池最大值 | 所有请求卡住不响应 | `jstack <pid> \| grep "catalina-exec" \| wc -l` |
 | `maxConnections` | 可同时处理的连接上限（NIO 默认 10000） | 超出的连接被阻塞在 OS 层 | `ss -ant \| grep 8080 \| wc -l` |
 | `acceptCount` | Worker 满后，允许排队的请求数 | 发起连接时直接 refused | 日志搜 `Too many open files` 或 `accept failed` |
@@ -496,7 +496,7 @@ jstack <pid> | grep -A 2 "BLOCKED" | sort | uniq -c | sort -rn | head -10
 
 Tomcat 7 默认用 BIO。BIO 模型下，**一个连接占一条线程**，不管这条连接上有没有数据传输。1000 个空闲长连接 = 1000 条线程白白挂着（~1GB 栈内存）。NIO 把这个绑定打破了——连接归 Acceptor/Poller 管，只有"有数据可读"的请求才分配 Worker 线程：
 
-```text
+```txt
 BIO (Tomcat 7-):    连接 ←→ 线程  =  1:1  → 10000 连接 = 10000 线程 = 10GB
 NIO (Tomcat 8.5+):  连接 ←→ Worker =  N:1  → 10000 连接，只有活跃的分配线程
 ```
@@ -507,7 +507,7 @@ NIO (Tomcat 8.5+):  连接 ←→ Worker =  N:1  → 10000 连接，只有活跃
 
 把七层抽象串起来，一个请求的完整旅程：
 
-```text
+```txt
 客户端发起 GET /api/users/1
 │
 ├─ OS 层：TCP 三次握手建立连接 → SYN, SYN+ACK, ACK

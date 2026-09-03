@@ -218,7 +218,7 @@ MyBatis 的 Mapper 接口没有任何实现类，`@Autowired UserMapper` 却不�
 
 Mapper 接口没有 `@Component` 注解，Spring 默认不扫描它们。直接注入会报错：
 
-```text
+```txt
 NoSuchBeanDefinitionException: No qualifying bean of type 'UserMapper'
 ```
 
@@ -236,7 +236,7 @@ public class MyApplication {
 }
 ```
 
-```text
+```txt
 @MapperScan("com.example.mapper")
     │
     ▼

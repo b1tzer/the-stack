@@ -4,7 +4,7 @@
 
 ## 1. 消费者组模型
 
-```text
+```txt
 Topic 有 3 个分区
 
 Consumer Group A（2 个消费者）：
@@ -32,7 +32,7 @@ Group A 和 Group B 独立消费，各自维护 Offset
 
 每个消费者组有一个 Group Coordinator（Broker 节点），负责管理组的生命周期：
 
-```text
+```txt
 Consumer → Group Coordinator：
   JoinGroup：加入组
   SyncGroup：获取分配方案
@@ -57,7 +57,7 @@ Coordinator 选择：`hash(group.id) % __consumer_offsets 分区数` → 该分�
 
 ### 3.2 完整流程
 
-```text
+```txt
 1. Consumer 发送 JoinGroup Request → Coordinator
 2. Coordinator 收集所有成员信息
 3. Coordinator 选出 Group Leader（第一个加入的 Consumer）
@@ -95,7 +95,7 @@ props.put("max.poll.interval.ms", 300000);   // 最大 poll 间隔
 
 ## 5. 消费者组状态机
 
-```text
+```txt
 Empty → JoinGroup → PreparingRebalance → SyncGroup → CompletingRebalance → Stable
                     ▲                                                       │
                     └───────────────── Rebalance ──────────────────────────┘

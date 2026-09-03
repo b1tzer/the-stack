@@ -151,7 +151,7 @@ jstack <pid>             # 打印 Thread Dump
 
 关键片段：
 
-```text
+```txt
 Found one Java-level deadlock:
 =============================
 "Thread-1":
@@ -252,7 +252,7 @@ grep "java.lang.Thread.State" threads.dump | sort | uniq -c | sort -rn
 
 `BLOCKED` 线程的栈里都会写明它在等哪把锁：
 
-```text
+```txt
 "pool-1-thread-15" ... BLOCKED
     at com.example.OrderService.createOrder(OrderService.java:42)
     - waiting to lock <0x00000007aab3b020> (a com.example.OrderService)
@@ -270,7 +270,7 @@ grep "java.lang.Thread.State" threads.dump | sort | uniq -c | sort -rn
 
 `WAITING` 状态在栈上的顶部帧固定是 `Unsafe.park`。三种最常见的下文：
 
-```text
+```txt
 # 形态 1：线程池 Worker 等任务
 at java.util.concurrent.LinkedBlockingQueue.take(...)
 at java.util.concurrent.ThreadPoolExecutor.getTask(...)
@@ -291,7 +291,7 @@ at java.util.concurrent.CompletableFuture$Signaller.block(...)
 
 某个线上服务响应突然从 20ms 涨到 3s。Thread Dump 显示：
 
-```text
+```txt
 200 BLOCKED / 20 WAITING / 5 RUNNABLE
 ```
 
@@ -360,7 +360,7 @@ Arthas 是阿里开源的 Java 在线诊断工具，`thread -b` 一条命令直�
 
 大锁拆小锁，把"谁进来都要抢"改成"分区各管各的"。经典案例是 `ConcurrentHashMap` 从 JDK 7 的 Segment 分段锁到 JDK 8 的 bin 级锁的演进：
 
-```text
+```txt
 JDK 7：16 个 Segment，16 把锁                    JDK 8+：每个 bin 一把锁
 ┌─────────┬─────────┬─────────┐                 ┌───┬───┬───┬───┬───┬───┐
 │Segment 0│Segment 1│Segment 2│ ...             │b 0│b 1│b 2│b 3│b 4│...│
@@ -510,7 +510,7 @@ java -Djdk.tracePinnedThreads=full -jar app.jar
 
 输出示例：
 
-```text
+```txt
 Thread[#22,ForkJoinPool-1-worker-3,5,CarrierThreads]
     java.lang.VirtualThread$VThreadContinuation.onPinned(VirtualThread.java:183)
     ...
@@ -538,7 +538,7 @@ jcmd <pid> JFR.start filename=vt.jfr duration=60s \
 
 虚拟线程在 dump 里的表示和平台线程有明显不同：
 
-```text
+```txt
 # 平台线程：有独立编号、状态清晰
 "http-nio-8080-exec-1" #15 daemon prio=5 os_prio=0
    java.lang.Thread.State: RUNNABLE

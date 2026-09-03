@@ -4,7 +4,7 @@
 
 ## 1. 问题场景
 
-```text
+```txt
 Producer ──routing key="order.refunded"──▶ Direct Exchange
                                                │
                                     binding: order.created → Queue A
@@ -34,7 +34,7 @@ channel.queueBind("unrouted.queue", "ae.unrouted", "");
 
 ## 3. 工作流程
 
-```text
+```txt
 Producer ──▶ order.exchange ──routing success──▶ Queue A
                 │
                 └──routing failed──▶ ae.unrouted (Fanout) ──▶ unrouted.queue
@@ -43,7 +43,7 @@ Producer ──▶ order.exchange ──routing success──▶ Queue A
 ## 4. 典型场景
 
 | 场景 | 处理方式 |
-|------|----------|
+| :-- | :-- |
 | 记录未路由消息 | unrouted.queue 的消费者记录日志 |
 | 告警 | 持续有消息进入 unrouted.queue 说明 routing 配置有问题 |
 | 重试/转发 | 消费者分析未路由原因，手动重新投递 |

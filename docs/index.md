@@ -56,4 +56,8 @@ features:
     title: AI 工程
     details: LLM 与提示词、RAG、Function Calling、Spring AI 与 MCP。
     link: /ai/01-LLM接口与提示词工程
+  - icon: 🧭
+    title: 场景实战
+    details: 按业务场景组织的端到端实战：缓存、并发、消息、数据访问与综合案例。
+    link: /scenarios/
 ---

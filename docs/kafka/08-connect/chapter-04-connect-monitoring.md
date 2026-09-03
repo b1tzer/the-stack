@@ -19,7 +19,7 @@ curl -X PUT http://localhost:8083/connectors/my-connector/resume
 ## 2. JMX 指标
 
 | 指标 | 说明 |
-|------|------|
+| :-- | :-- |
 | connector-startup-attempts-total | 启动尝试次数 |
 | connector-failed-tasks | 失败任务数 |
 | task-startup-attempts-total | 任务启动尝试次数 |
@@ -150,7 +150,7 @@ rules:
 ## 8. 常见问题排查
 
 | 问题 | 原因 | 解决方案 |
-|------|------|----------|
+| :-- | :-- | :-- |
 | Connector 状态为 FAILED | 配置错误或依赖缺失 | 检查日志，修复配置 |
 | Task 频繁重启 | 外部系统连接失败 | 检查网络和权限 |
 | 数据延迟高 | 批量大小过大或处理慢 | 调整 batch.size 和 poll 间隔 |

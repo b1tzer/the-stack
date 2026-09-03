@@ -40,6 +40,7 @@ public class OrderService {
 ```
 
 **问题根因**：
+
 1. `OrderService` 与所有通知方强耦合，新增通知方必须修改核心业务代码
 2. 通知逻辑与业务逻辑混在一起，违反单一职责原则
 3. 某个通知失败会影响其他通知的执行
@@ -47,7 +48,7 @@ public class OrderService {
 ### 1.2 工作中的典型应用场景
 
 | 场景 | Spring/JDK 中的例子 |
-|------|-------------------|
+| :-- | :-- |
 | Spring 事件机制 | `ApplicationEvent` + `@EventListener` |
 | GUI 事件处理 | `ActionListener`、`MouseListener` |
 | 消息队列 | Kafka/RabbitMQ 的发布-订阅 |
@@ -278,7 +279,7 @@ flowchart TD
 ### 4.1 观察者模式 vs 发布-订阅模式
 
 | 对比维度 | 观察者模式 | 发布-订阅模式 |
-|---------|----------|------------|
+| :-- | :-- | :-- |
 | **耦合度** | Subject 直接持有 Observer 引用，有一定耦合 | 通过消息中间件完全解耦 |
 | **通信方式** | 同步（直接调用） | 可以异步（消息队列） |
 | **中间层** | 无 | 有（消息中间件/事件总线） |
@@ -287,7 +288,7 @@ flowchart TD
 ### 4.2 在 Spring / JDK 中的应用
 
 | 框架/类 | 说明 |
-|--------|------|
+| :-- | :-- |
 | Spring `ApplicationEvent` | Spring 内置事件机制，`@EventListener` 注册观察者 |
 | JDK `java.util.Observable` | JDK 内置观察者（已废弃，JDK 9+） |
 | Guava `EventBus` | 基于注解的事件总线 |

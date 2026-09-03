@@ -4,7 +4,7 @@
 
 ## 1. 架构全景
 
-```text
+```txt
 ┌─────────────────────────────────────────────────────────┐
 │                    Kafka Cluster                        │
 │                                                         │
@@ -41,7 +41,7 @@
 
 ## 3. 生产者写入链路
 
-```text
+```txt
 Producer.send(record)
     │
     ▼
@@ -89,7 +89,7 @@ ACK 返回给 Producer
 
 ## 4. 消费者读取链路
 
-```text
+```txt
 Consumer.poll(Duration)
     │
     ▼
@@ -133,7 +133,7 @@ ISR 写入流程、LEO/HW 概念、ISR 动态调整，见 [副本机制](../05-s
 
 ### 6.1 ZooKeeper 模式（旧）
 
-```text
+```txt
 ZooKeeper 存储：
   /brokers/ids/{broker_id}         → Broker 注册
   /brokers/topics/{topic}/partitions → 分区分配
@@ -144,7 +144,7 @@ ZooKeeper 存储：
 
 ### 6.2 KRaft 模式（新）
 
-```text
+```txt
 KRaft Controller（3~5 个节点的 Raft 集群）
   └── __cluster_metadata Topic（存储所有元数据）
   └── 通过 Raft 日志复制保证一致性

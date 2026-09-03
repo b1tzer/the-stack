@@ -62,7 +62,7 @@ public long transferFrom(FileChannel fileChannel, long position, long count) thr
 
 `FileChannel.transferTo` 在 Linux 上最终走 `sendfile(2)` 系统调用；配合支持 scatter-gather DMA 的网卡，数据始终在内核空间：
 
-```text
+```txt
 磁盘 ──DMA──▶ Page Cache ──DMA(scatter-gather)──▶ NIC
                      │
                      └── 全程不经过用户态，不经过 JVM 堆

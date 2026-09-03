@@ -25,7 +25,7 @@ Java 21 把虚拟线程从预览特性升级为 GA。它不是一种新语言语
 
 一个典型的后端接口，处理链路是这样的：
 
-```text
+```txt
         接收请求
              │
              ▼
@@ -39,7 +39,7 @@ Java 21 把虚拟线程从预览特性升级为 GA。它不是一种新语言语
 
 95% 的时间线程都在 park 等 IO。假设 QPS = 10 000、平均 RT = 200 ms，按小 Little 定律得到平均并发数：
 
-```text
+```txt
 N = QPS × RT = 10 000 × 0.2s = 2 000
 ```
 
@@ -169,7 +169,7 @@ try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
 
 被钉住时的现场：
 
-```text
+```txt
 虚拟线程 VT1 持有 monitor lock，进入 synchronized 块 → 挂载在 Carrier C1
                                     │
                                     │  发起 HTTP 请求，等待响应
@@ -245,7 +245,7 @@ jcmd <pid> Thread.dump_to_file -format=json /tmp/vt-dump.json
 
 `jdk.tracePinnedThreads=short` 的输出片段示例：
 
-```text
+```txt
 Thread[#42,ForkJoinPool-1-worker-3,5,CarrierThreads]
     java.base/java.net.Socket.connect(Socket.java:...)
     <monitors:>

@@ -57,7 +57,7 @@ JMM 把执行环境抽象为两个概念：
 | **主内存（Main Memory）** | 堆上的实例字段、静态字段、数组元素 | 所有线程共享 |
 | **工作内存（Working Memory）** | CPU 缓存 + 寄存器 + 编译器暂存 | 每条线程私有 |
 
-```text
+```txt
 ┌──────────────┐          ┌──────────────┐
 │   线程 A      │          │   线程 B     │
 │              │          │              │
@@ -168,7 +168,7 @@ public class Singleton {
 
 `instance = new Singleton()` 在字节码层面并非一步，而是三步：
 
-```text
+```txt
 a. 分配内存
 b. 执行构造函数，初始化字段
 c. 把引用赋值给 instance
@@ -268,7 +268,7 @@ private static volatile Singleton instance;
 
 推导过程：
 
-```text
+```txt
 线程 A（首次创建）：
   内存分配 & 字段初始化   ── 程序顺序 hb ──►  instance = new Singleton()（volatile 写）
 
@@ -424,7 +424,7 @@ JMM 讨论底层实现时，通常用四类屏障描述重排边界：
 
 ### 6.3 屏障约束的边界示意
 
-```text
+```txt
 线程中的操作流
 
 读 A ── 读 B ── 写 C ── 写 D

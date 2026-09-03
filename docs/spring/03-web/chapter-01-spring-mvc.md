@@ -8,7 +8,7 @@
 
 Java Web 开发的历史起点是 Servlet 规范。一个 HTTP 请求到达服务器的路径：
 
-```text
+```txt
 浏览器发送 HTTP 请求
         │
         ▼
@@ -94,7 +94,7 @@ public ServletRegistrationBean<DispatcherServlet> dispatcherServletRegistration(
 
 DispatcherServlet 初始化时会创建自己的 `WebApplicationContext`，它是根 `ApplicationContext` 的子容器：
 
-```text
+```txt
 Root WebApplicationContext
   ├── DataSource Bean
   ├── UserService Bean
@@ -173,7 +173,7 @@ Map<RequestMappingInfo, HandlerMethod> handlerMethods;
 HandlerAdapter 解决的是**调用方式适配**问题。不同的处理器有不同的调用方式：
 
 | HandlerAdapter | 处理的 Handler 类型 | 调用方式 |
-|---------------|-------------------|---------|
+| :-- | :-- | :-- |
 | `RequestMappingHandlerAdapter` | `@RequestMapping` 注解的方法 | 反射调用，需参数解析 |
 | `HttpRequestHandlerAdapter` | `HttpRequestHandler` 接口 | 直接调用 `handleRequest()` |
 | `SimpleControllerHandlerAdapter` | `Controller` 接口 | 直接调用 `handleRequest()` |
@@ -203,7 +203,7 @@ public interface HandlerMethodArgumentResolver {
 Spring 内置了大量参数解析器，覆盖各种注解场景：
 
 | 注解 | 解析器 | 作用 |
-|------|--------|------|
+| :-- | :-- | :-- |
 | `@RequestParam` | `RequestParamMethodArgumentResolver` | 解析查询参数 / 表单数据 |
 | `@PathVariable` | `PathVariableMethodArgumentResolver` | 解析 URL 路径变量 |
 | `@RequestBody` | `RequestResponseBodyMethodProcessor` | 读取请求体并反序列化 |
@@ -226,7 +226,7 @@ public List<Product> search(
 
 处理流程：
 
-```text
+```txt
 GET /search?keyword=phone&page=2
      │
      ▼
@@ -255,7 +255,7 @@ public User createUser(@Valid @RequestBody UserDTO userDTO) {
 
 处理流程：
 
-```text
+```txt
 POST /users
 Content-Type: application/json
 Body: {"name":"张三","email":"zhangsan@example.com"}
@@ -306,7 +306,7 @@ public ResponseEntity<User> getUser(@PathVariable Long id) {
 HttpMessageConverter 的常见实现：
 
 | Converter | 支持的媒体类型 | 序列化库 |
-|-----------|---------------|---------|
+| :-- | :-- | :-- |
 | `MappingJackson2HttpMessageConverter` | application/json | Jackson |
 | `MappingJackson2XmlHttpMessageConverter` | application/xml | Jackson XML |
 | `StringHttpMessageConverter` | text/plain | 直接字符串 |
@@ -317,7 +317,7 @@ HttpMessageConverter 的常见实现：
 
 当客户端请求不同格式的数据时，Spring MVC 通过内容协商决定使用哪个 `HttpMessageConverter`：
 
-```text
+```txt
 客户端请求：
   Accept: application/json  →  使用 Jackson 序列化为 JSON
   Accept: application/xml   →  使用 Jackson XML 序列化为 XML
@@ -337,7 +337,7 @@ spring.mvc.contentnegotiation.parameter-name=format
 
 Spring MVC 提供了多层级的异常处理机制：
 
-```text
+```txt
 Controller 方法抛出异常
         │
         ▼
@@ -373,4 +373,4 @@ HandlerExceptionResolver 链（按 order 排序）
 
 > 从 Servlet 到 DispatcherServlet，请求处理链路已经清楚了。但配置一个 Spring MVC 项目要写一堆 XML——web.xml、spring-mvc.xml、applicationContext.xml。Spring Boot 把这些全干掉了。下一章看它是怎么做到"开箱即用"的。
 >
-> 如果你关心的是「怎么设计一个好的 API」而不是「Spring 怎么处理请求」，参见 [API 设计](/engineering/09-practice/chapter-03-api-design)。
+> 如果你关心的是「怎么设计一个好的 API」而不是「Spring 怎么处理请求」，参见 [API 设计](/engineering/03-architecture/chapter-07-api-design)。

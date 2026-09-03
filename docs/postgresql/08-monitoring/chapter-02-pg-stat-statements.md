@@ -46,7 +46,7 @@ SELECT * FROM pg_stat_statements LIMIT 1;
 ### 核心字段说明
 
 | 字段 | 含义 | 分析维度 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | `calls` | 执行次数 | 高频调用 |
 | `total_exec_time` | 总执行时间（毫秒） | 总耗时排名 |
 | `mean_exec_time` | 平均执行时间 | 单次慢查询 |

@@ -30,7 +30,7 @@ PUT /my-index/_settings
 ```
 
 | refresh_interval | 说明 | 适用场景 |
-|-----------------|------|---------|
+| :-- | :-- | :-- |
 | `1s`（默认） | 每秒刷新 | 通用场景 |
 | `5s` | 每 5 秒刷新 | 写入密集型 |
 | `-1` | 不自动刷新 | 批量导入 |
@@ -51,7 +51,7 @@ PUT /my-index/_settings
 ```
 
 | 配置 | 说明 |
-|------|------|
+| :-- | :-- |
 | `durability: request` | 每次写入后 fsync（默认，最安全） |
 | `durability: async` | 定期 fsync（性能高，可能丢少量数据） |
 | `flush_threshold_size` | translog 达到此大小后自动 flush |
@@ -70,7 +70,7 @@ POST /my-index/_flush/synced
 
 ## 5. 写入流程时序
 
-```
+```txt
 t=0    文档写入内存 Buffer + Translog（不可搜索）
 t<1s   文档在内存中，搜索不到
 t=1s   Refresh 触发 → 新 Segment → 文档可搜索
@@ -101,7 +101,7 @@ PUT /my-index/_settings
 每个 Segment 是一个完整的倒排索引，不可变。Refresh 操作创建新的 Segment：
 
 | 操作 | 效果 |
-|------|------|
+| :-- | :-- |
 | 新增文档 | 写入新 Segment |
 | 删除文档 | 在 .del 文件中标记 |
 | 更新文档 | 标记旧文档删除 + 写入新 Segment |

@@ -60,7 +60,7 @@ private void createWebServer() {
 
 ### 2.3 主干上的两个接口
 
-```text
+```txt
 ServletWebServerFactory（工厂接口，一个方法）
     getWebServer(ServletContextInitializer...) : WebServer
 

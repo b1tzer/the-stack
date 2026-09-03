@@ -26,13 +26,13 @@
 
 Leader 侧的 HW 由 `Partition#maybeIncrementLeaderHW` 计算：
 
-```text
+```txt
 Leader HW = min(所有 ISR 成员的 LEO)
 ```
 
 Follower 侧的 HW 由 Fetch 响应带回：
 
-```text
+```txt
 Follower HW = min(本地 LEO, FetchResponse.hw)
 ```
 
@@ -58,7 +58,7 @@ Leader 侧的追加与响应发生在 `ReplicaManager#appendRecords` → `Partit
 
 时序：
 
-```text
+```txt
 Producer            Leader                Follower A         Follower B
   │ ProduceReq acks=all │
   ├────────────────────▶│  appendAsLeader → LEO 前进
@@ -78,7 +78,7 @@ Producer            Leader                Follower A         Follower B
 
 Follower 切换 Leader 时需要把本地日志「回退到与新 Leader 一致的位置」。早期做法是「截断到本地 HW」——听起来合理，但存在 KIP-101 明确指出的数据丢失场景：
 
-```text
+```txt
 时刻 T1: Leader L 写入 offset=100，ISR = {L, F}
         L 已把 HW 推到 100 之前的某个位置（因 F 还没 ack）
 时刻 T2: F 在 fetch 到 100 之前，F 侧记录 HW=99
@@ -93,7 +93,7 @@ KIP-101 引入 **Leader Epoch**：每次 Leader 换届，Controller 分配一个
 
 新的截断协议在 `ReplicaFetcherThread#maybeTruncate` 中：
 
-```text
+```txt
 1. Follower 向新 Leader 发 OffsetForLeaderEpochRequest(followerLastEpoch)
 2. Leader 查自己的 LeaderEpochFileCache，返回:
       - 若 followerLastEpoch 在 Leader 侧存在，返回该 epoch 的 endOffset
@@ -127,7 +127,7 @@ Follower 的 `fetchOffset` 追上 Leader 当前 LEO 后立即被加回 ISR。**�
 
 在 KRaft 与 KIP-497（AlterPartition）之后，ISR 变更的传播路径是：
 
-```text
+```txt
 Leader（发起端）
    │  AlterPartitionRequest（含新 ISR、新 leader epoch）
    ▼

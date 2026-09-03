@@ -5,7 +5,7 @@
 ## 1. JVM 常见故障速查
 
 | 现象 | 首选诊断方向 |
-|------|-------------|
+| :-- | :-- |
 | CPU 100% | `top -Hp <pid>` → 找最忙的线程 → `jstack` 看栈 |
 | 频繁 Full GC | GC 日志 → 内存 dump → MAT 分析大对象 |
 | OOM | `-XX:+HeapDumpOnOutOfMemoryError` → MAT 分析 |
@@ -32,7 +32,7 @@ jstack <pid> | grep -A 30 "<tid in hex>"
 
 **根因一：死循环或正则回溯**
 
-```text
+```txt
 "Thread-1" #12 prio=5 os_prio=0 cpu=985421.23ms
    java.lang.Thread.State: RUNNABLE
     at com.example.Processor.process(Processor.java:45)  ← 死循环位置
@@ -43,7 +43,7 @@ jstack <pid> | grep -A 30 "<tid in hex>"
 
 **根因二：GC 线程占用**
 
-```text
+```txt
 "GC task thread#0 (ParallelGC)" os_prio=0 cpu=892341.56ms
 ```
 
@@ -51,7 +51,7 @@ jstack <pid> | grep -A 30 "<tid in hex>"
 
 **根因三：锁竞争（自旋）**
 
-```text
+```txt
 "Thread-2" #13 prio=5 os_prio=0 cpu=567823.12ms
    java.lang.Thread.State: RUNNABLE
     at com.example.SharedResource.access(SharedResource.java:30)
@@ -62,7 +62,7 @@ jstack <pid> | grep -A 30 "<tid in hex>"
 
 **根因四：JIT 编译**
 
-```text
+```txt
 "CompilerThread0" os_prio=0 cpu=345212.78ms
 ```
 
@@ -102,7 +102,7 @@ heapdump /path/to/heap.hprof
 
 MAT 自动分析后报告：
 
-```text
+```txt
 Problem Suspect 1:
   4,523 instances of "com.example.CacheEntry", loaded by "app classloader"
   occupy 1,892,345,678 bytes (45.2% of heap)
@@ -118,7 +118,7 @@ MAT 告诉你：`CacheEntry` 对象占了堆的 45%，被 `CacheManager` 的 `ca
 
 打开 Dominator Tree，按 Retained Heap 排序：
 
-```text
+```txt
 com.example.CacheManager @ 0x7f8b2c012300
   └─ java.util.HashMap @ 0x7f8b2c012340
        └─ java.util.HashMap$Node[16384] @ 0x7f8b2c020000
@@ -143,7 +143,7 @@ Arthas: thread            # 交互式分析
 ### 4.1 关键线程状态
 
 | 状态 | 含义 | 关注点 |
-|------|------|--------|
+| :-- | :-- | :-- |
 | RUNNABLE | 正在运行或等待 CPU | CPU 热点线程 |
 | BLOCKED | 等待获取锁 | 锁竞争问题 |
 | WAITING | 无限期等待 | `wait()`、`join()`、`park()` |
@@ -153,7 +153,7 @@ Arthas: thread            # 交互式分析
 
 `jstack` 输出末尾会自动检测死锁：
 
-```text
+```txt
 Found one Java-level deadlock:
 =============================
 "Thread-1":
@@ -168,7 +168,7 @@ Found one Java-level deadlock:
 
 比死锁更常见的情况是多个线程 BLOCKED 在同一把锁上：
 
-```text
+```txt
 "http-nio-8080-exec-1" #15 prio=5
    java.lang.Thread.State: BLOCKED
     at com.example.OrderService.createOrder(OrderService.java:30)
@@ -190,7 +190,7 @@ Found one Java-level deadlock:
 
 三个线程都在等同一把锁，持锁线程是 `exec-5`。接下来搜索 `exec-5` 的栈信息：
 
-```text
+```txt
 "http-nio-8080-exec-5" #20 prio=5
    java.lang.Thread.State: RUNNABLE
     at java.net.SocketInputStream.socketRead0(Native Method)
@@ -207,7 +207,7 @@ Found one Java-level deadlock:
 Arthas 是阿里开源的 Java 诊断工具，无需重启即可实时诊断线上问题。
 
 | 命令 | 用途 | 示例 |
-|------|------|------|
+| :-- | :-- | :-- |
 | `dashboard` | 实时看板（线程、内存、GC） | `dashboard` |
 | `thread` | 线程分析 | `thread -n 3`（最忙的 3 个线程） |
 | `thread -b` | 查找阻塞线程 | `thread -b` |
@@ -273,7 +273,7 @@ jcmd <pid> JFR.check
 **JFR 能看到什么：**
 
 | 数据类别 | 内容 |
-|---------|------|
+| :-- | :-- |
 | CPU 热点 | 哪个方法消耗最多 CPU |
 | 内存分配 | 哪个方法分配了最多对象 |
 | 锁竞争 | 哪把锁等待时间最长 |
@@ -298,7 +298,7 @@ JMC 提供自动分析功能，能标记出潜在的性能问题（如"方法编
 
 JMC 打开 `.jfr` 文件后，左侧 "Rule Results" 中自动标记了问题：
 
-```text
+```txt
 ⚠️ Hot Methods:
   com.example.QueryBuilder.buildQuery() — 占用 12.3% CPU
   java.util.regex.Pattern.matches() — 占用 8.7% CPU
@@ -327,7 +327,7 @@ JMC 打开 `.jfr` 文件后，左侧 "Rule Results" 中自动标记了问题：
 遇到问题时，选对工具能事半功倍：
 
 | 问题类型 | 首选工具 | 辅助工具 |
-|---------|---------|---------|
+| :-- | :-- | :-- |
 | CPU 高 | `top -Hp` + `jstack` | Arthas `thread -n 3` |
 | 内存泄漏 / OOM | `-XX:+HeapDumpOnOutOfMemoryError` + MAT | Arthas `heapdump` + `dashboard` |
 | GC 问题 | GC 日志（`-Xlog:gc*`）+ `jstat` | JFR 的 GC 事件 |
@@ -383,7 +383,7 @@ jad com.example.ReportGenerator
 ## 8. JVM 核心参数速查
 
 | 类别 | 参数 | 说明 |
-|------|------|------|
+| :-- | :-- | :-- |
 | 堆内存 | `-Xms4g -Xmx4g` | 初始/最大堆，线上设为一致 |
 | 新生代 | `-Xmn2g` | 新生代大小 |
 | 栈大小 | `-Xss256k` | 每个线程的栈大小 |
@@ -418,6 +418,7 @@ jad com.example.ReportGenerator
 > 第二卷到此结束。从字节码 → 类加载 → 内存模型 → 对象模型 → GC → JIT → 线上排查，读者已经建立起 Java 代码从源码到机器执行的完整心智模型。
 >
 > **与后续卷的连接：**
+>
 > - 第三卷并发：AQS 依赖对象头和 Monitor，synchronized 依赖 Mark Word 锁升级
 > - 第六卷 Spring：反射依赖 Class 元数据，CGLIB 依赖字节码操作
 > - 第七卷性能：GC 调优依赖分代模型和收集器特性的理解

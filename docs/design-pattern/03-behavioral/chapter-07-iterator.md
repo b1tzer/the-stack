@@ -223,7 +223,7 @@ class TreeNode<T> {
 ## 5. 🔧 框架应用
 
 | 框架/类 | 说明 |
-|--------|------|
+| :-- | :-- |
 | `java.util.Iterator` | JDK 标准迭代器接口 |
 | `Iterable` + for-each | 语法糖，编译后使用 Iterator |
 | `java.util.stream.Stream` | Java 8 内部迭代器，支持惰性求值 |
@@ -235,19 +235,21 @@ class TreeNode<T> {
 ## 6. ⚠️ 适用场景
 
 **适合：**
+
 - 需要**统一遍历**不同类型的集合
 - 不想暴露集合的**内部结构**
 - 需要**多种遍历方式**（前序/中序/后序）
 - 需要**延迟加载**（Stream 的惰性求值）
 
 **不适合：**
+
 - 集合结构简单，直接 for 循环即可
 - 需要随机访问（迭代器只能顺序访问）
 
 ## 7. 🔍 迭代器的 fail-fast vs fail-safe
 
 | 类型 | 代表 | 特点 |
-|------|------|------|
+| :-- | :-- | :-- |
 | **fail-fast** | `ArrayList.iterator()` | 遍历中修改集合 → 抛 `ConcurrentModificationException` |
 | **fail-safe** | `CopyOnWriteArrayList.iterator()` | 遍历中修改集合 → 不抛异常（遍历的是快照） |
 

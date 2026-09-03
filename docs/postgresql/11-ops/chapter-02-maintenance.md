@@ -10,7 +10,7 @@ title: 日常维护
 ## 1. 维护检查清单
 
 | 频率 | 任务 | SQL/命令 |
-|------|------|----------|
+| :-- | :-- | :-- |
 | 每日 | 检查慢查询 | `pg_stat_statements` |
 | 每日 | 检查连接数 | `pg_stat_activity` |
 | 每日 | 检查复制延迟 | `pg_stat_replication` |

@@ -15,7 +15,7 @@
 **核心端点一览：**
 
 | 端点 | 路径 | 功能 | 默认暴露 |
-|------|------|------|:-------:|
+| :-- | :-- | :-- | :-------: |
 | 健康检查 | `/actuator/health` | 应用健康状态 | ✅ |
 | 应用信息 | `/actuator/info` | 应用名称、版本 | ✅ |
 | 指标 | `/actuator/metrics` | JVM、HTTP、自定义指标 | ❌ |
@@ -52,7 +52,7 @@ management:
 Spring Boot 自动配置了多个健康指示器：
 
 | 指示器 | 检查内容 | 条件 |
-|--------|---------|------|
+| :-- | :-- | :-- |
 | `DataSourceHealthIndicator` | 数据库连接 | 有 DataSource Bean |
 | `RedisHealthIndicator` | Redis 连接 | 有 RedisConnectionFactory |
 | `DiskSpaceHealthIndicator` | 磁盘空间 | 默认启用 |

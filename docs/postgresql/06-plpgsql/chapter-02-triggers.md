@@ -95,7 +95,7 @@ CREATE TRIGGER trg_order_notify
 ## 5. 触发器变量
 
 | 变量 | 说明 |
-|------|------|
+| :-- | :-- |
 | `NEW` | INSERT/UPDATE 时的新行数据 |
 | `OLD` | UPDATE/DELETE 时的旧行数据 |
 | `TG_OP` | 操作类型：'INSERT'、'UPDATE'、'DELETE' |
@@ -105,7 +105,7 @@ CREATE TRIGGER trg_order_notify
 ## 6. BEFORE vs AFTER 触发器
 
 | 类型 | 时机 | 可修改 NEW | 典型用途 |
-|------|------|-----------|---------|
+| :-- | :-- | :-- | :-- |
 | BEFORE | 在操作执行前 | ✅ 可以 | 数据验证、自动填充字段 |
 | AFTER | 在操作执行后 | ❌ 不可以 | 审计日志、通知、级联操作 |
 

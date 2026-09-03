@@ -71,7 +71,7 @@ ora2pg -t COPY -o data.sql -b /opt/ora2pg/mydb_migration
 ## 4. 数据迁移工具对比
 
 | 工具 | 说明 | 适用场景 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | pgLoader | 从 MySQL/SQL Server/CSV 迁移 | 自动化迁移，支持多种源 |
 | ora2pg | 从 Oracle 迁移 | Oracle 到 PG 的专业工具 |
 | pg_dump/pg_restore | PG 之间迁移 | 版本升级、实例迁移 |
@@ -80,7 +80,7 @@ ora2pg -t COPY -o data.sql -b /opt/ora2pg/mydb_migration
 ## 5. 迁移检查清单
 
 | 检查项 | 说明 | 命令/方法 |
-|--------|------|----------|
+| :-- | :-- | :-- |
 | 数据完整性 | 比较源和目标的行数 | `SELECT count(*) FROM table` |
 | 索引完整性 | 检查索引是否都创建了 | `\d+ table` |
 | 外键约束 | 检查外键是否正确 | `information_schema.table_constraints` |
@@ -92,7 +92,7 @@ ora2pg -t COPY -o data.sql -b /opt/ora2pg/mydb_migration
 ## 6. 迁移最佳实践
 
 | 实践 | 说明 |
-|------|------|
+| :-- | :-- |
 | 先迁移结构再迁移数据 | 表结构、索引、约束先创建好 |
 | 分批迁移大数据表 | 使用 COPY + 分批导入 |
 | 迁移后重建索引 | `REINDEX TABLE CONCURRENTLY` |

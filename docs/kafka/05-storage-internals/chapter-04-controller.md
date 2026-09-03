@@ -21,7 +21,7 @@
 
 在 2.8 之前，Kafka 的元数据存储外挂在 ZooKeeper：
 
-```text
+```txt
 znode 结构：
 /brokers/ids/<id>            ← 每个 Broker 一个临时节点
 /brokers/topics/<topic>      ← Topic 元数据（分区/副本分配）
@@ -80,7 +80,7 @@ KIP-500（2019 提出，Kafka 2.8 预览，3.3 GA，3.5 起 ZK 模式弃用，4.
 
 集群元数据不再存在 ZK 里，而是存在一个特殊的内部 topic：
 
-```text
+```txt
 Topic: __cluster_metadata
 Partitions: 1 （唯一，禁止修改）
 Replicas: 与 Controller Quorum 节点数一致
@@ -88,7 +88,7 @@ Replicas: 与 Controller Quorum 节点数一致
 
 这个 topic 用的是 KRaft 的定制 Raft 实现（不是普通的 Kafka 副本机制），日志内容是有类型的元数据事件（`RegisterBrokerRecord`、`TopicRecord`、`PartitionRecord`、`PartitionChangeRecord`、`ConfigRecord`、`AccessControlEntryRecord` 等）。所有元数据变更都以事件形式追加写入这个 topic：
 
-```text
+```txt
 offset  event
    0    RegisterBrokerRecord(id=1, ...)
    1    RegisterBrokerRecord(id=2, ...)
@@ -106,7 +106,7 @@ offset  event
 
 Broker 现在是这个元数据 topic 的**只读消费者**：
 
-```text
+```txt
 Broker 启动
     │
     ▼
@@ -132,7 +132,7 @@ apply 到本地 MetadataImage（内存中的完整元数据视图）
 
 Leader 决定 ISR 变更时的完整链路：
 
-```text
+```txt
 Leader Broker
    │  AlterPartitionRequest（含新 ISR、期望的 leader epoch）
    ▼

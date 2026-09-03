@@ -23,7 +23,7 @@ pull 模式是最本质的一个改动：Kafka 副本层本来就是 follower �
 
 Raft 的一致性靠"多数派确认"，而不是"全部节点确认"。假设 Quorum 有 3 个 Controller，只要 2 个（多数）落盘一条元数据变更，这条变更就算 committed：
 
-```text
+```txt
 3 个节点，多数派 = 2
 Leader 写入「创建 Topic X」的日志
 Leader 落盘 → 复制到 Follower1 落盘 → Follower2 尚未收到
@@ -37,7 +37,7 @@ Leader 落盘 → 复制到 Follower1 落盘 → Follower2 尚未收到
 
 元数据 topic 在磁盘上和普通 Kafka topic 结构一样，但只有一个分区、且写入被限制为只有 Active Controller。目录布局：
 
-```text
+```txt
 metadata.log.dir/__cluster_metadata-0/
 ├── 00000000000000000000.log              ← 元数据事件日志段
 ├── 00000000000000000000.index            ← 偏移量索引
@@ -182,7 +182,7 @@ bin/kafka-metadata-quorum.sh --bootstrap-server ... add-controller --id 4 ...
 
 在线迁移（KIP-866）从 3.5 起可用，3.6 GA。分四步：
 
-```text
+```txt
 ① 元数据复制阶段
    启动一组 KRaft Controller，让它们连上 ZK，把 ZK 里的元数据复制到 __cluster_metadata
 

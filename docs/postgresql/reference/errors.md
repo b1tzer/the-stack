@@ -8,7 +8,7 @@ title: 错误速查表
 ## 连接错误
 
 | 错误 | 原因 | 解决方案 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | `connection refused` | 服务未启动或端口不对 | 检查 `systemctl status postgresql` |
 | `no pg_hba.conf entry` | 认证配置不允许连接 | 修改 `pg_hba.conf`，添加客户端 IP |
 | `password authentication failed` | 密码错误 | 检查用户名密码 |
@@ -18,7 +18,7 @@ title: 错误速查表
 ## 语法错误
 
 | 错误 | 原因 | 解决方案 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | `syntax error at or near` | SQL 语法错误 | 检查 SQL 语法 |
 | `column does not exist` | 列名不存在 | 检查表结构 `\d table` |
 | `relation does not exist` | 表名不存在 | 检查表名和 schema |
@@ -28,7 +28,7 @@ title: 错误速查表
 ## 约束错误
 
 | 错误 | 原因 | 解决方案 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | `duplicate key value violates unique constraint` | 唯一约束冲突 | 检查数据或使用 `ON CONFLICT` |
 | `violates foreign key constraint` | 外键约束冲突 | 先插入被引用表的数据 |
 | `violates not-null constraint` | NOT NULL 约束冲突 | 提供非空值 |
@@ -38,7 +38,7 @@ title: 错误速查表
 ## 锁相关错误
 
 | 错误 | 原因 | 解决方案 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | `deadlock detected` | 死锁 | 固定加锁顺序，缩短事务 |
 | `canceling statement due to lock timeout` | 锁等待超时 | 增大 `lock_timeout` |
 | `canceling statement due to statement timeout` | 语句超时 | 增大 `statement_timeout` |
@@ -46,7 +46,7 @@ title: 错误速查表
 ## 资源错误
 
 | 错误 | 原因 | 解决方案 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | `out of memory` | 内存不足 | 减小 `work_mem` 或增大服务器内存 |
 | `could not extend file` | 磁盘空间不足 | 清理磁盘空间 |
 | `too many open files` | 文件描述符不足 | 增大 `ulimit -n` |
@@ -54,7 +54,7 @@ title: 错误速查表
 ## 复制错误
 
 | 错误 | 原因 | 解决方案 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | `replication slot is active` | 复制槽被占用 | 检查复制槽状态 |
 | `WAL file not found` | WAL 文件被清理 | 使用复制槽防止 WAL 被清理 |
 | `could not connect to primary` | 无法连接主库 | 检查网络和认证配置 |

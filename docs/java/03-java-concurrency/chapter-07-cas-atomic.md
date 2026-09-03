@@ -16,7 +16,7 @@
 
 对于一个简单的计数器场景，第 1 章已经展示过 `count++` 的数据竞争问题，第 6 章用 `synchronized` 解决了它。但 `count++` 对应的 CPU 指令其实只有三步：
 
-```text
+```txt
 LOAD count → 寄存器
 ADD 1 → 寄存器
 STORE 寄存器 → count
@@ -72,7 +72,7 @@ public class CasCounter {
 
 流程图如下：
 
-```text
+```txt
 Thread A                          Thread B
    |                                 |
    ├── 读取 count = 0                ├── 读取 count = 0
@@ -208,7 +208,7 @@ CAS 并非万能灵药。它有三个已知的经典问题。
 
 ### 4.1 问题一：ABA 问题
 
-```text
+```txt
 线程 A：读取 V = A
 线程 B：将 V 从 A 改为 B，再从 B 改回 A
 线程 A：CAS(V, A, 新值) → 成功 ✗
@@ -299,7 +299,7 @@ CAS 自旋只是基石。真正让业务代码能直接用上的，是建在 CAS
 
 这是理解"从单点 CAS 到分段 CAS"的典型例子。
 
-```text
+```txt
 AtomicLong（单点 CAS）：
 ┌─────────────┐
 │   value=42  │  ← 所有线程竞争同一个变量
@@ -333,7 +333,7 @@ long max = acc.get(); // 20
 
 ### 5.3 性能对比
 
-```text
+```txt
 场景：16 线程并发自增，100 万次
 
 AtomicLong:   ~1200ms   （所有线程竞争同一变量，大量 CAS 失败重试）
@@ -378,7 +378,7 @@ CAS 与锁各有适用边界。选型的核心变量只有两个：**竞争激�
 
 ### 6.1 决策指南
 
-```text
+```txt
 需要更新的变量数量？
 ├── 单个变量
 │   ├── 竞争低 → CAS（AtomicInteger 等）

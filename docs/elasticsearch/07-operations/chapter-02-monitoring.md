@@ -13,7 +13,7 @@ GET /_cat/shards?v
 ## 2. 核心指标
 
 | 指标 | 说明 |
-|------|------|
+| :-- | :-- |
 | cluster_status | Green/Yellow/Red |
 | number_of_nodes | 节点数 |
 | active_shards | 活跃分片数 |
@@ -41,7 +41,7 @@ docker run -d --name es-exporter \
 ## 5. 关键告警指标
 
 | 指标 | 告警阈值 | 说明 |
-|------|---------|------|
+| :-- | :-- | :-- |
 | 集群状态 | != Green | 检查未分配分片 |
 | JVM 堆使用率 | > 80% | 考虑扩容或调优 |
 | GC 暂停时间 | > 5s | 老年代 GC 过于频繁 |
@@ -81,4 +81,3 @@ curl -s "$ES_HOST/_cat/thread_pool/write?v&h=name,active,queue,rejected"
 - 定期检查慢查询日志（`index.search.slowlog.threshold.query.warn`）
 - 使用 Kibana Monitoring 查看集群历史趋势
 - 监控索引增长速度，提前规划容量
-

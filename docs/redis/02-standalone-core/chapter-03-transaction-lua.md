@@ -18,7 +18,7 @@ EXEC               # 一次性执行所有命令
 
 ![事务 MULTI/EXEC 执行流程](/redis/02-standalone-core-chapter-03-transaction-lua-1.svg)
 
-```text
+```txt
 客户端 MULTI → 服务端标记事务开始
 客户端发送命令 → 服务端入队（不执行），返回 QUEUED
 客户端 EXEC → 服务端按顺序执行所有入队命令，一次性返回结果
@@ -78,7 +78,7 @@ EXEC                   # 若 balance 在 WATCH 后被改过，返回 nil（放�
 
 WATCH 实现的是 CAS（Compare-And-Swap）：
 
-```text
+```txt
 WATCH key → 读取值 → 修改 → EXEC
   → key 没被改过：执行成功
   → key 被改过：返回 nil，重试

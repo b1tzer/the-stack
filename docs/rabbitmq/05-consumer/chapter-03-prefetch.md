@@ -4,7 +4,7 @@
 
 ## 1. 问题：没有 Prefetch 会怎样
 
-```text
+```txt
 Broker ──msg1──▶ Consumer（正在处理 msg1）
 Broker ──msg2──▶ Consumer（msg2 在缓冲区等待）
 Broker ──msg3──▶ Consumer（msg3 在缓冲区等待）
@@ -22,14 +22,14 @@ channel.basicQos(10);
 ```
 
 | 值 | 含义 |
-|------|------|
+| :-- | :-- |
 | 0 | 不限制（默认，危险） |
 | 1 | 一次只推 1 条，处理完再推下一条 |
 | N | 最多有 N 条未确认消息 |
 
 ## 3. Prefetch 的工作原理
 
-```text
+```txt
 Prefetch = 5
   当前 unacked 消息数 = 3
   Broker 可以继续推 2 条（5 - 3 = 2）
@@ -42,7 +42,7 @@ Broker 维护一个滑动窗口：`未确认消息数 < Prefetch` 时才推送�
 ## 4. Prefetch 值的选择
 
 | Prefetch | 适用场景 |
-|----------|----------|
+| :-- | :-- |
 | 1 | 消息处理很慢（如调用外部 API）、需要严格公平 |
 | 10-50 | 一般业务处理（数据库操作、简单计算） |
 | 100+ | 消息处理很快（内存操作）、高吞吐场景 |
@@ -66,7 +66,7 @@ channel.basicQos(100, true);  // global = true
 
 当 Consumer 处理速度跟不上 Broker 推送速度时，Prefetch 起到背压作用：
 
-```text
+```txt
 Consumer 处理慢 → unacked 消息数达到 Prefetch → Broker 停止推送
 Consumer ack 一条 → unacked 减 1 → Broker 恢复推送
 ```

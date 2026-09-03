@@ -141,7 +141,7 @@ mysql_upgrade -u root -p  # MySQL 8.0.16+ 自动执行
 ### 4.1 日常维护 Checklist
 
 | 项目 | 频率 | 命令 |
-|------|------|------|
+| :-- | :-- | :-- |
 | 检查磁盘空间 | 每天 | `df -h` |
 | 检查错误日志 | 每天 | `tail /var/log/mysql/error.log` |
 | 检查慢查询 | 每天 | `mysqldumpslow` |

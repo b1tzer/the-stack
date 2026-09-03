@@ -48,7 +48,7 @@ Socket 的价值就在这里：**它把复杂的网络协议栈封装成了一�
 
 很多初学者以为"一个端口只能一个连接"，这是误解。服务端监听 `8080` 端口后，每 `accept()` 一个新连接，内核就创建一个新的 Socket（新的 fd），这个 Socket 的五元组中**目标 IP:端口**相同（都是 `192.168.1.1:8080`），但**源 IP:端口**不同。只要来源不同，就是不同的连接。
 
-```text
+```txt
 Server: listen(:8080)
 
 Client A (10.0.0.5:43210) ──连接──► Server:8080  → accept() → fd=4
@@ -128,7 +128,7 @@ int connFd = accept(fd, NULL, NULL);
 
 `accept()` 从全连接队列中取出**一个已完成三次握手的连接**，为它创建一个新的 fd。原来的监听 fd 继续监听，不受影响。
 
-```text
+```txt
 listen fd (fd=3, port 8080)
   │
   │  accept()
@@ -165,7 +165,7 @@ Socket socket = new Socket("192.168.1.1", 8080);  // 内部调用 socket() + con
 
 连接建立后，数据的读写路径：
 
-```text
+```txt
 发送方:  应用 write(buf) → 用户缓冲区 → 内核发送缓冲区 → TCP 分段 → 网卡发出
 接收方:  网卡收到 → 内核接收缓冲区 → 应用 read(buf) → 用户缓冲区
 ```
@@ -206,7 +206,7 @@ socket.close();  // 内部调用 close(fd)
 
 **完整的系统调用链总结：**
 
-```text
+```txt
 服务端                           客户端
 ──────                           ──────
 socket()  → fd                   socket()  → fd
@@ -227,7 +227,7 @@ close(connFd)  ◄── 四次挥手 ──── close(fd)
 
 每个 TCP Socket 在内核中有两块缓冲区：
 
-```text
+```txt
 ┌────────────────────────────────────────────────┐
 │                   进程用户空间                   │
 │                                                │
@@ -297,7 +297,7 @@ $ netstat -s | grep "listen"
 
 当应用调用 `read()` 但接收缓冲区为空时，线程到底发生了什么？
 
-```text
+```txt
 线程调用 read(fd, buf, len)
       │
       ▼
@@ -335,7 +335,7 @@ $ netstat -s | grep "listen"
 
 **实际瓶颈通常在 fd 和内存：**
 
-```text
+```txt
 一台 16GB 内存的服务器：
   fd 上限设为 65535 → 理论最多 65535 个 Socket
   每个 Socket 内核开销 5KB → 65535 × 5KB ≈ 320MB（可接受）
@@ -507,7 +507,7 @@ public class EchoClient {
 
 上面的 Echo Server 是经典的 BIO 模型：**每个连接占一个线程**。线程大部分时间阻塞在 `read()` 上，不消耗 CPU，但消耗内存和调度资源。
 
-```text
+```txt
 1000 个连接 → 1000 个线程 → ~1GB 栈内存 → 勉强可行
 10000 个连接 → 10000 个线程 → ~10GB 栈内存 → 不可行
 ```

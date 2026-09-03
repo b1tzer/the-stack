@@ -15,7 +15,7 @@ kafka-consumer-groups.sh --describe --group my-group --bootstrap-server localhos
 ## 2. 消息丢失
 
 | 阶段 | 原因 | 解决 |
-|------|------|------|
+| :-- | :-- | :-- |
 | 生产者 | acks=0/1 | acks=all |
 | Broker | 副本不足 | min.insync.replicas=2 |
 | 消费者 | 自动提交 | 手动提交 Offset |
@@ -124,7 +124,7 @@ zookeeper-shell.sh localhost:2181 <<< "get /controller"
 ## 9. 常用排查工具
 
 | 工具 | 用途 |
-|------|------|
+| :-- | :-- |
 | kafka-topics.sh | Topic 管理和状态查看 |
 | kafka-consumer-groups.sh | 消费者组和 Lag 查看 |
 | kafka-reassign-partitions.sh | 分区重分配 |

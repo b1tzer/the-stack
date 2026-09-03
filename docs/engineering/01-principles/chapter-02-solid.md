@@ -35,27 +35,6 @@ class WechatPay implements Payment { /* ... */ }
 
 ## 3. L - 里氏替换原则 (LSP)
 
-子类可以替换父类。
-
-## 4. I - 接口隔离原则 (ISP)
-
-客户端不应依赖不需要的接口。
-
-## 5. D - 依赖倒置原则 (DIP)
-
-依赖抽象，而非具体实现。
-
-```java
-// 依赖注入
-@Service
-class OrderService {
-    private final Payment payment;  // 依赖接口
-    OrderService(Payment payment) { this.payment = payment; }
-}
-```
-
-## 6. LSP - 里氏替换原则详解
-
 子类必须能够替换父类而不影响程序的正确性。
 
 ```java
@@ -101,7 +80,7 @@ class Square2 implements AreaCalculable {
 }
 ```
 
-## 7. ISP - 接口隔离原则详解
+## 4. I - 接口隔离原则 (ISP)
 
 客户端不应被迫依赖它不使用的接口。
 
@@ -134,7 +113,7 @@ class HumanWorker implements Workable, Eatable, Sleepable {
 }
 ```
 
-## 8. DIP - 依赖倒置原则详解
+## 5. D - 依赖倒置原则 (DIP)
 
 高层模块不应依赖低层模块，两者都应依赖抽象。
 
@@ -166,7 +145,6 @@ class RedisOrderRepository implements OrderRepository {
 }
 
 // 高层模块依赖接口，具体实现由外部注入
-@Service
 class OrderService {
     private final OrderRepository repository;
     
@@ -181,10 +159,10 @@ class OrderService {
 }
 ```
 
-## 9. SOLID 原则的权衡与实践
+## 6. SOLID 原则的权衡与实践
 
 | 原则 | 过度使用的风险 | 实践建议 |
-|------|---------------|----------|
+| :-- | :-- | :-- |
 | SRP | 类爆炸，过度拆分 | 只在职责确实不同时才拆分 |
 | OCP | 过度抽象，创建大量接口 | 遵循 Rule of Three：第三次变化时再抽象 |
 | LSP | 设计约束过多 | 明确子类的行为契约 |

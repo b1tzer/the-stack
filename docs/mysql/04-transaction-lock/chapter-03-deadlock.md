@@ -8,7 +8,7 @@
 
 死锁（Deadlock）不是「锁等待」。锁等待是单向的——事务 A 等 B 释放锁，B 迟早会释放，A 就能继续。死锁是**等待关系围成了一个环**：A 等 B，B 等 A，谁也等不到谁，系统永久停滞。
 
-```text
+```txt
 单向等待（正常，可自愈）      死锁（成环，无解）
     A ──等──▶ B                 A  ──等──▶ B
                                 ▲         │
@@ -53,7 +53,7 @@ InnoDB 默认不是「等锁超时后才发现」，而是**主动检测**。检
 
 如果能回到 `trx_a`，说明等待关系成环，死锁成立。InnoDB 随即**回滚其中一个事务**，打破这个环。
 
-```text
+```txt
 加边前：                加边后（A 等 B 这把锁）：
   A      B                A ──等──▶ B
                           │         │
@@ -169,7 +169,7 @@ SET GLOBAL innodb_print_all_deadlocks = ON;  -- 所有死锁写入错误日志
 
 一段典型日志的关键信息：
 
-```text
+```txt
 ---TRANSACTION 12345, ACTIVE 2 sec
 LOCK WAIT 2 lock struct(s), heap size 1136, 1 row lock(s)
 MySQL thread id 10, OS thread handle 140xxx, query id 100

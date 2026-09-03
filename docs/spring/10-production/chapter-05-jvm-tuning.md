@@ -40,7 +40,7 @@ java -jar app.jar \
 ## 2. GC 策略选型
 
 | GC 策略 | 适用场景 | 最大停顿 | 吞吐量 | 内存效率 |
-|---------|---------|---------|--------|---------|
+| :-- | :-- | :-- | :-- | :-- |
 | **G1** | 通用场景（推荐默认） | 可控（~200ms） | 高 | 中等 |
 | **ZGC** | 超低延迟（Java 15+） | <10ms | 中等 | 较低 |
 | **Shenandoah** | 超低延迟（RedHat） | <10ms | 中等 | 较低 |
@@ -58,7 +58,7 @@ java -jar app.jar \
 
 ## 3. GC 日志分析
 
-```text
+```txt
 # 正常 GC 日志示例（G1）
 [gc] GC(42) Pause Young (Concurrent Start) (G1 Evacuation Pause) 1024M->256M(4096M) 45.123ms
 

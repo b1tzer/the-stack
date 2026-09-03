@@ -33,7 +33,7 @@ log.retention.bytes=1073741824   # 每个分区最多保留 1GB
 
 Kafka 删除的是整个日志段（Segment），不是单条消息：
 
-```text
+```txt
 Segment 0 (0~999)   → 已过期 → 整个删除
 Segment 1 (1000~1999) → 已过期 → 整个删除
 Segment 2 (2000~2999) → 未过期 → 保留
@@ -47,7 +47,7 @@ Segment 2 (2000~2999) → 未过期 → 保留
 
 保留每个 Key 的最新值，删除旧版本：
 
-```text
+```txt
 压缩前：                      压缩后：
 Key1: Value1 (offset 0)       Key1: Value3 (offset 4)  ← 最新
 Key2: Value1 (offset 1)       Key2: Value2 (offset 3)  ← 最新
@@ -96,7 +96,7 @@ producer.send(new ProducerRecord<>("topic", key, null));
 
 ## 5. 磁盘容量规划
 
-```text
+```txt
 磁盘容量 = 每日消息量 × 消息大小 × 保留天数 × 副本因子 × 1.2（余量）
 
 示例：

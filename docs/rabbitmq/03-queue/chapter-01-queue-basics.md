@@ -16,7 +16,7 @@ Queue 是一个有序的、先进先出（FIFO）的消息存储。但和普通�
 ## 2. Queue 属性
 
 | 属性 | 说明 | 默认值 |
-|------|------|--------|
+| :-- | :-- | :-- |
 | Name | 队列名称 | 服务端生成（UUID） |
 | Durable | 持久化（Broker 重启后保留 Queue 定义） | false |
 | Exclusive | 仅限当前连接，连接断开自动删除 | false |
@@ -52,7 +52,7 @@ Exclusive Queue 只能被声明它的连接消费，连接断开自动删除。�
 
 ### 2.3 命名规范
 
-```text
+```txt
 业务队列：order.created、payment.processed
 死信队列：dlx.order.created
 延迟队列：delay.order.timeout
@@ -74,7 +74,7 @@ channel.queueDeclare("order.queue", true, false, false, null); // OK
 
 ## 4. 消息生命周期
 
-```text
+```txt
 消息进入 Queue
   │
   ├─ 被消费者消费 → basicAck → 从 Queue 删除
@@ -88,7 +88,7 @@ channel.queueDeclare("order.queue", true, false, false, null); // OK
 
 每个 Queue 是一个独立的 Erlang 进程：
 
-```text
+```txt
 Queue Process
   ├─ ETS 表（小消息 < 4KB，直接存内存）
   ├─ 消息存储引用（大消息 ≥ 4KB，指向磁盘文件）

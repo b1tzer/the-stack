@@ -40,7 +40,7 @@ produces = MediaType.TEXT_EVENT_STREAM_VALUE
 
 响应体是纯 UTF-8 文本。每个事件由若干字段行 + 一个空行组成：
 
-```text
+```txt
 id: 1
 event: heartbeat
 data: ping 1
@@ -413,7 +413,7 @@ server:
 解决方案：
 
 | 方案 | 原理 | 适用场景 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | Sticky Sessions | Nginx 根据 Cookie 将同一用户路由到同一实例 | 简单，但实例重启会丢连接 |
 | Redis Pub/Sub | 所有实例订阅 Redis 频道，消息广播到所有实例 | 可靠，但增加 Redis 依赖 |
 | 消息队列 | Kafka/RabbitMQ 广播事件 | 大规模场景 |

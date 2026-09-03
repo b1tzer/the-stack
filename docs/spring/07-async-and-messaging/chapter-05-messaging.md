@@ -4,14 +4,14 @@
 
 消息从发出到被业务处理，经过四个环节，任一环出问题都会丢消息或重复消费：
 
-```text
+```txt
 生产者 ──确认──► Broker ──持久化──► 存储 ──ACK──► 消费者 ──幂等──► 业务
   ①              ②                    ③              ④
 ```
 
 本文按这四环节组织 Kafka 与 RabbitMQ 的配置与代码。
 
-## 1. Kafka 集成
+## 1. Kafka 集成 {#kafka-integration}
 
 ### 1.1 基础配置
 
@@ -84,7 +84,7 @@ public class OrderConsumer {
 消费者组与分区策略：
 
 | 概念 | 说明 |
-|------|------|
+| :-- | :-- |
 | 消费者组（Group） | 同组内的消费者分摊消费，不同组各自消费全量 |
 | 分区分配 | 一个分区只能被同组内的一个消费者消费 |
 | 分区数 ≥ 消费者数 | 多余的消费者会空闲 |
@@ -168,9 +168,166 @@ public class OrderEventListener {
 
 `topic:partition:offset` 在 Kafka 内全局唯一，且不会像 `key` 那样可能为 null。业务幂等应优先用业务唯一 ID，它对重发、补偿都稳定。
 
-## 2. RabbitMQ 集成
+### 1.6 并发容器工厂与错误处理
 
-### 2.1 基础配置
+默认容器工厂按 Spring Boot 自动配置即可，需要调整并发度或重试策略时再自定义：
+
+```java
+@Configuration
+public class KafkaListenerConfig {
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
+            ConsumerFactory<String, String> consumerFactory) {
+        ConcurrentKafkaListenerContainerFactory<String, String> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(consumerFactory);
+        factory.setConcurrency(3);  // 并发消费者数，通常 ≤ 分区数
+        factory.getContainerProperties().setPollTimeout(3000);
+        // 消费异常重试 3 次，间隔 1 秒；重试耗尽后进入 DefaultErrorHandler 的兜底逻辑
+        factory.setCommonErrorHandler(new DefaultErrorHandler(
+                new FixedBackOff(1000L, 3L)));
+        return factory;
+    }
+}
+```
+
+> `setAckMode` 建议在 `application.yml` 用 `spring.kafka.listener.ack-mode` 统一配置（见 §1.1），不要在编程式工厂里另设，避免同一工厂两处配置不一致。
+
+### 1.7 消息过滤
+
+监听器接收前先用 `RecordFilterStrategy` 过滤，被过滤的消息不会触发业务逻辑：
+
+```java
+@Bean
+public ConcurrentKafkaListenerContainerFactory<String, String> filteredFactory(
+        ConsumerFactory<String, String> consumerFactory) {
+    ConcurrentKafkaListenerContainerFactory<String, String> factory =
+            new ConcurrentKafkaListenerContainerFactory<>();
+    factory.setConsumerFactory(consumerFactory);
+    factory.setRecordFilterStrategy(record ->
+            record.value() == null || record.value().isEmpty());
+    return factory;
+}
+
+@KafkaListener(topics = "filtered-topic", containerFactory = "filteredFactory")
+public void consumeFiltered(String message) {
+    // 只会收到非空消息
+}
+```
+
+### 1.8 测试
+
+用 `@EmbeddedKafka` 启动内嵌 broker 做集成测试，无需依赖外部 Kafka：
+
+```java
+@SpringBootTest
+@EmbeddedKafka(partitions = 1, topics = "test-topic")
+public class KafkaProducerTest {
+
+    @Autowired
+    private KafkaTemplate<String, String> kafkaTemplate;
+
+    @Test
+    public void testSendAndReceive() throws Exception {
+        kafkaTemplate.send("test-topic", "key", "value").get();
+        // ... 用测试 consumer 轮询验证
+    }
+}
+```
+
+## 2. RabbitMQ 集成 {#rabbitmq-integration}
+
+### 2.1 依赖与配置
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-amqp</artifactId>
+</dependency>
+```
+
+```yaml
+spring:
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: admin
+    password: admin
+    virtual-host: /
+    publisher-confirm-type: correlated  # 生产者确认
+    publisher-returns: true
+    listener:
+      simple:
+        acknowledge-mode: manual      # 手动确认
+        prefetch: 10
+        concurrency: 5
+        max-concurrency: 20
+        retry:
+          enabled: true
+          initial-interval: 1000
+          max-attempts: 3
+          multiplier: 2.0
+```
+
+消息转换器（生产环境用 JSON，不用 Java 原生序列化）：
+
+```java
+@Bean
+public MessageConverter messageConverter() {
+    Jackson2JsonMessageConverter converter = new Jackson2JsonMessageConverter();
+    converter.setCreateMessageIds(true);  // 自动创建消息 ID
+    return converter;
+}
+```
+
+### 2.2 发送与消费
+
+```java
+@Service
+public class OrderProducer {
+
+    private final RabbitTemplate rabbitTemplate;
+
+    public OrderProducer(RabbitTemplate rabbitTemplate) {
+        this.rabbitTemplate = rabbitTemplate;
+    }
+
+    public void sendOrderCreated(OrderEvent event) {
+        rabbitTemplate.convertAndSend("order.exchange", "order.created", event);
+    }
+}
+```
+
+发送确认：`publisher-confirm-type: correlated` 开启后，通过回调感知消息是否到达交换机：
+
+```java
+@PostConstruct
+public void initConfirm() {
+    rabbitTemplate.setConfirmCallback((correlationData, ack, cause) -> {
+        if (!ack) {
+            log.error("消息未到达交换机: {}", cause);
+        }
+    });
+    rabbitTemplate.setReturnsCallback(returned ->
+            log.error("消息路由失败: exchange={}, routingKey={}",
+                    returned.getExchange(), returned.getRoutingKey()));
+}
+```
+
+`@RabbitListener` 可用注解直接声明队列、交换机与绑定，无需单独写 `@Bean`：
+
+```java
+@RabbitListener(bindings = @QueueBinding(
+        value = @Queue(value = "order.queue", durable = "true"),
+        exchange = @Exchange(value = "order.exchange", type = ExchangeTypes.TOPIC),
+        key = "order.*"))
+public void handleOrder(OrderEvent event) {
+    // 处理业务
+}
+```
+
+### 2.3 基础配置
 
 ```java
 @Configuration
@@ -193,7 +350,7 @@ public class RabbitConfig {
 }
 ```
 
-### 2.2 死信队列
+### 2.4 死信队列
 
 ```java
 @Configuration
@@ -242,7 +399,7 @@ public class RabbitDlqConfig {
 }
 ```
 
-### 2.3 延迟消息
+### 2.5 延迟消息
 
 延迟消息复用死信机制：消息先进延迟队列，TTL 过期后经死信交换路由到业务队列。完整链路如下：
 
@@ -335,12 +492,90 @@ public class OrderConsumer {
 延迟消息方案对比：
 
 | 方案 | 原理 | 优点 | 缺点 |
-|------|------|------|------|
+| :-- | :-- | :-- | :-- |
 | TTL + 死信队列 | 消息在队列中超时后转入死信 | 原生支持 | 每个延迟时间需建队列 |
 | rabbitmq-delayed-message-exchange 插件 | 交换机级别延迟 | 灵活 | 需安装插件 |
 | 延迟消息表 + 定时扫描 | 数据库存消息，定时捞 | 无额外依赖 | 实时性差 |
 
 > **踩坑提醒**：TTL 有两种设置方式——队列级 `x-message-ttl`（整队列统一过期时间）和消息级 `setExpiration`（每条消息独立过期时间，如上例）。无论哪种，RabbitMQ 都只在队首消息过期时才检查，因此队首消息 TTL=30s、第二条 TTL=5s 时，第二条也要等第一条过期才被路由。`rabbitmq-delayed-message-exchange` 插件没有这个队首阻塞问题。
+
+### 2.6 错误处理与重试
+
+消费失败时先重试，重试耗尽后交给 `MessageRecoverer` 兜底：
+
+```yaml
+spring:
+  rabbitmq:
+    listener:
+      simple:
+        retry:
+          enabled: true
+          initial-interval: 1000    # 首次重试间隔
+          max-attempts: 3           # 最大重试次数
+          multiplier: 2.0           # 间隔倍数（指数退避）
+          max-interval: 10000       # 最大间隔
+```
+
+```java
+@Bean
+public MessageRecoverer messageRecoverer(RabbitTemplate rabbitTemplate) {
+    // 重试耗尽后重新发布到死信交换机
+    return new RepublishMessageRecoverer(rabbitTemplate, "dlx.exchange", "dlx.order");
+}
+```
+
+手动 ACK 模式下，要区分业务异常与系统异常：
+
+```java
+@RabbitListener(queues = "order.queue")
+public void handleOrder(Message message, Channel channel) throws IOException {
+    long deliveryTag = message.getMessageProperties().getDeliveryTag();
+
+    try {
+        processOrder(message);
+        channel.basicAck(deliveryTag, false);
+    } catch (BusinessException e) {
+        // 业务异常：不重试，直接进死信
+        channel.basicNack(deliveryTag, false, false);
+    } catch (Exception e) {
+        // 系统异常：重新入队，等待重试
+        channel.basicNack(deliveryTag, false, true);
+    }
+}
+```
+
+> 业务异常（数据校验失败）重试无意义，应直接进死信；系统异常（下游超时、连接抖动）才值得重试。两者混为一谈会导致死信队列被业务脏数据淹没。
+
+### 2.7 测试
+
+集成测试用 Testcontainers 启动真实 RabbitMQ，避免依赖本地环境：
+
+```java
+@SpringBootTest
+@Testcontainers
+class RabbitMQIntegrationTest {
+
+    @Container
+    static RabbitMQContainer rabbit = new RabbitMQContainer("rabbitmq:3-management");
+
+    @DynamicPropertySource
+    static void configure(DynamicPropertyRegistry registry) {
+        registry.add("spring.rabbitmq.host", rabbit::getHost);
+        registry.add("spring.rabbitmq.port", rabbit::getAmqpPort);
+    }
+
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
+
+    @Test
+    void testSendMessage() {
+        rabbitTemplate.convertAndSend("test.exchange", "test.key", "hello");
+        Message received = rabbitTemplate.receive("test.queue", 5000);
+        assertNotNull(received);
+        assertEquals("hello", new String(received.getBody()));
+    }
+}
+```
 
 ## 3. 消息可靠性保证
 

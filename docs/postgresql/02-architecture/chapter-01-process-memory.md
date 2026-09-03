@@ -11,7 +11,7 @@ title: 进程与内存架构
 
 PostgreSQL 采用经典的 **一连接一进程（process-per-connection）** 模型。每当客户端发起连接，Postmaster 会 fork 出一个独立的 Backend Process 来服务该连接。
 
-```text
+```txt
 ┌───────────────────────────────────────────────────────┐
 │                   PostgreSQL 集群                      │
 │                                                       │
@@ -93,7 +93,7 @@ Checkpoint 触发条件：`checkpoint_timeout`（默认 5min）或 WAL 累积到
 
 前面这些进程——Backend 和后台进程——都要读写同一批数据页和 WAL，于是需要一块大家都能访问的内存。PostgreSQL 启动时分配这块共享内存，所有进程共享。
 
-```text
+```txt
 ┌────────────────────────────────────────────┐
 │              共享内存 (Shared Memory)       │
 │                                            │
@@ -121,7 +121,7 @@ Checkpoint 触发条件：`checkpoint_timeout`（默认 5min）或 WAL 累积到
 ### Shared Buffers 核心机制
 
 | 概念 | 说明 |
-|------|------|
+| :-- | :-- |
 | **Buffer Tag** | 每个缓冲区页的唯一标识（RelFileNode + ForkNumber + BlockNumber） |
 | **Buffer Descriptor** | 描述缓冲区状态：pin count、usage count、dirty flag |
 | **Clock-Sweep 算法** | 缓存替换策略，类似 LRU 的简化版本 |
@@ -135,7 +135,7 @@ Checkpoint 触发条件：`checkpoint_timeout`（默认 5min）或 WAL 累积到
 每个 Backend Process 独立分配的内存区域，连接结束时释放。
 
 | 参数 | 默认值 | 用途 |
-|------|--------|------|
+| :-- | :-- | :-- |
 | **work_mem** | 4MB | 排序（ORDER BY）、哈希连接（Hash Join）、哈希聚合使用的内存。**每个操作**独立分配，复杂查询可能分配多个 |
 | **maintenance_work_mem** | 64MB | VACUUM、CREATE INDEX、ALTER TABLE ADD FK 等维护操作使用 |
 | **temp_buffers** | 8MB | 临时表（TEMP TABLE）的缓冲区 |
@@ -152,7 +152,7 @@ Checkpoint 触发条件：`checkpoint_timeout`（默认 5min）或 WAL 累积到
 ## 5. 进程模型对比：PostgreSQL vs MySQL
 
 | 维度 | PostgreSQL | MySQL (InnoDB) |
-|------|------------|----------------|
+| :-- | :-- | :-- |
 | **并发模型** | 多进程（process-per-connection） | 多线程（thread-per-connection） |
 | **单连接开销** | 较大（fork 进程，独立地址空间） | 较小（创建线程，共享地址空间） |
 | **内存隔离** | 进程级隔离，一个 Backend crash 不影响其他 | 线程共享内存，一个线程 bug 可能影响整个实例 |
@@ -167,7 +167,7 @@ Checkpoint 触发条件：`checkpoint_timeout`（默认 5min）或 WAL 累积到
 
 ## 6. 连接建立流程
 
-```text
+```txt
 客户端                   Postmaster              Backend Process
   │                         │                         │
   │── TCP 三次握手 ────────→ │                         │

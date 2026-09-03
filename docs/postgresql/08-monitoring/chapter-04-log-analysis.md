@@ -46,7 +46,7 @@ log_line_prefix = '%m [%p] %u@%d '  # 日志行前缀
 ### log_line_prefix 常用占位符
 
 | 占位符 | 含义 | 推荐 |
-|--------|------|------|
+| :-- | :-- | :-- |
 | `%t` | 时间戳（无毫秒） | - |
 | `%m` | 时间戳（含毫秒） | ✅ 推荐 |
 | `%p` | 进程 ID | ✅ 推荐 |
@@ -83,7 +83,7 @@ csvlog 是 PostgreSQL 推荐的日志格式，每行一条记录，字段用逗�
 ### csvlog 字段（PG 15 为例，共 23 列）
 
 | 列号 | 字段 | 说明 |
-|------|------|------|
+| :-- | :-- | :-- |
 | 1 | log_time | 日志时间 |
 | 2 | user_name | 用户名 |
 | 3 | database_name | 数据库名 |
@@ -222,7 +222,7 @@ find "$REPORT_DIR" -name "report_*.html" -mtime +30 -delete
 ### pgBadger 报告关键内容
 
 | 模块 | 关注点 |
-|------|--------|
+| :-- | :-- |
 | Overall Statistics | 总查询数、TPS、连接数 |
 | Slowest Queries | 最慢的 SQL Top N |
 | Time Consuming Queries | 总耗时最高的 SQL |
@@ -307,7 +307,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON sensitive_table TO auditor_role;
 ### 配合方式
 
 | 场景 | 指标监控 | 日志分析 | SQL 分析 |
-|------|---------|---------|---------|
+| :-- | :-- | :-- | :-- |
 | 突然变慢 | 发现异常 → | 查看当时日志 → | 定位具体 SQL |
 | 报错率上升 | 发现回滚增加 → | 查看 ERROR 日志 → | 分析报错 SQL |
 | 连接耗尽 | 告警连接数 → | 查看连接建立日志 → | 分析连接来源 |
@@ -318,14 +318,14 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON sensitive_table TO auditor_role;
 ### 日志 IO 影响评估
 
 | log_statement | 日志量 | IO 影响 | 推荐 |
-|--------------|--------|---------|------|
+| :-- | :-- | :-- | :-- |
 | `none` | 最小 | 无 | 开发环境 |
 | `ddl` | 小 | 极低 | 生产环境默认 |
 | `mod` | 中 | 低 | 需要审计 DML |
 | `all` | 极大 | 高 | 仅调试用 |
 
 | log_min_duration_statement | 日志量 | IO 影响 | 推荐 |
-|---------------------------|--------|---------|------|
+| :-- | :-- | :-- | :-- |
 | `-1` (关闭) | 无 | 无 | 不推荐 |
 | `0` (全部) | 极大 | 高 | 仅调试 |
 | `1000` (1秒) | 中 | 低 | 生产推荐 |

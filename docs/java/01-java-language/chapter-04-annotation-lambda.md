@@ -67,7 +67,7 @@ public class UserService { ... }
 `@Component` 不仅存在于源码中，也存在于 `.class` 文件中，JVM 运行时也能读取到。Spring 通过反射读取这个注解，知道"这个类需要被管理为一个 Bean"。
 
 | 阶段 | 存在于源码 | 存在于 class 文件 | 运行时可读 | 典型用途 |
-|------|:---:|:---:|:---:|------|
+| :-- | :---: | :---: | :---: | :-- |
 | SOURCE | ✅ | ❌ | ❌ | 编译期检查（`@Override`） |
 | CLASS | ✅ | ✅ | ❌ | 字节码工具 |
 | RUNTIME | ✅ | ✅ | ✅ | 框架反射读取（`@Component`） |
@@ -93,7 +93,7 @@ public @interface Retryable {
 定义注解时，用**元注解**来指定注解的行为：
 
 | 元注解 | 作用 | 取值 |
-|--------|------|------|
+| :-- | :-- | :-- |
 | `@Target` | 注解可以用在哪里 | `TYPE`（类）、`METHOD`、`FIELD`、`PARAMETER` 等 |
 | `@Retention` | 注解的生命周期 | `SOURCE`、`CLASS`、`RUNTIME` |
 | `@Documented` | 是否出现在 Javadoc 中 | — |
@@ -103,6 +103,7 @@ public @interface Retryable {
 ### 3.2 注解元素的类型限制
 
 注解的元素只能是以下类型：
+
 - 基本类型（`int`、`boolean` 等）
 - `String`
 - `Class`
@@ -138,7 +139,7 @@ if (method.isAnnotationPresent(Retryable.class)) {
 
 RUNTIME 注解（如 Spring 的 `@Component`）在运行时通过反射读取。但还有一类强大的机制——**编译期注解处理（Annotation Processing Tool, APT）**，它在编译阶段就根据注解生成新的源代码。
 
-```text
+```txt
 Java Source → Annotation Processor → 生成新的 Java Source → 编译
 ```
 
@@ -207,7 +208,7 @@ public class OrderService {
 
 Spring 启动时的处理流程：
 
-```text
+```txt
 1. 扫描 classpath 下的所有类
 2. 检查每个类是否有 @Service / @Component / @Repository 等注解
 3. 有？读取注解信息，创建 BeanDefinition
@@ -315,7 +316,7 @@ public interface Comparator<T> {
 Java 8 在 `java.util.function` 包中提供了一套标准函数式接口：
 
 | 接口 | 签名 | 用途 | 示例 |
-|------|------|------|------|
+| :-- | :-- | :-- | :-- |
 | `Function<T,R>` | `R apply(T t)` | 类型转换 | `User → UserDTO` |
 | `Consumer<T>` | `void accept(T t)` | 消费数据 | `打印一个对象` |
 | `Supplier<T>` | `T get()` | 提供数据 | `创建新对象` |
@@ -408,7 +409,7 @@ names.stream().filter(name -> name.length() > 3 && name.startsWith("A")).collect
 Lambda 表达式和匿名内部类看似等价，实际上底层完全不同：
 
 | 维度 | 匿名内部类 | Lambda |
-|------|-----------|--------|
+| :-- | :-- | :-- |
 | `this` 绑定 | 指向匿名类自身 | 指向外部类 |
 | class 文件 | 生成独立 `.class` 文件 | 不生成独立文件 |
 | 调用机制 | `invokevirtual` | `invokedynamic` |
@@ -442,7 +443,7 @@ Lambda 不是匿名内部类的语法糖——它们的编译产物完全不同�
 
 Lambda 表达式编译后，生成的是一条 `invokedynamic` 指令：
 
-```text
+```txt
 源码：x -> x + 1
         ↓
   invokedynamic #0, LambdaMetafactory
@@ -450,7 +451,7 @@ Lambda 表达式编译后，生成的是一条 `invokedynamic` 指令：
 
 ### 10.2 invokedynamic 的工作流程
 
-```text
+```txt
 1. 第一次执行时，JVM 调用 Bootstrap Method（LambdaMetafactory）
 2. LambdaMetafactory 在运行时生成一个实现类
 3. 后续执行直接调用这个实现类
@@ -528,6 +529,7 @@ List<User> result = users.parallelStream()
 ```
 
 但并行 Stream 不是万能的：
+
 - 共享 `ForkJoinPool`，可能影响其他并行任务
 - 不适合 IO 密集型任务（线程会阻塞在 IO 上）
 - 数据量小时，线程调度的开销可能超过并行的收益
@@ -583,10 +585,12 @@ User u = user.orElseThrow(() -> new NotFoundException("User not found"));
 ### 12.3 Optional 的正确使用
 
 **✅ 适合的场景：**
+
 - 方法返回值可能为空
 - Stream 中的 `flatMap` 操作
 
 **❌ 不适合的场景：**
+
 - 不要做字段类型（`private Optional<User> user` ❌）
 - 不要做方法参数（`void process(Optional<User> user)` ❌）
 - 不要对 Optional 做 null 检查（`if (opt != null)` ❌，这说明你根本没理解 Optional）
@@ -604,6 +608,7 @@ Java 是以面向对象为核心，同时吸收函数式思想的**多范式语�
 > 本章完成了 Java 语言层的最后两块拼图。注解让 Java 从"静态代码"走向"元数据驱动"，Lambda 让 Java 从"纯面向对象"走向"多范式"。
 >
 > 至此，第一卷《Java 语言》完整闭环。六次抽象升级：
+>
 > - 类型系统（如何描述数据）
 > - 面向对象（如何组织复杂世界）
 > - 泛型（如何让类型参与抽象）

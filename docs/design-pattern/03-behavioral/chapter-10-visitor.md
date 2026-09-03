@@ -245,7 +245,7 @@ public class Main {
 ## 5. 🔧 框架应用
 
 | 框架/类 | 说明 |
-|--------|------|
+| :-- | :-- |
 | 编译器 AST 遍历 | 对语法树节点执行不同操作（类型检查、代码生成） |
 | Spring `BeanDefinitionVisitor` | 访问并处理 BeanDefinition 中的属性值 |
 | `java.nio.file.FileVisitor` | 遍历文件树时执行不同操作（`visitFile`、`visitDirectory`） |
@@ -298,7 +298,7 @@ shape.accept(visitor);
 ## 7. 🔍 访问者 vs 策略 vs 命令
 
 | 对比维度 | 访问者 | 策略 | 命令 |
-|---------|--------|------|------|
+| :-- | :-- | :-- | :-- |
 | **目的** | 对**多种元素**执行多种操作 | 算法可替换 | 请求参数化 |
 | **元素类型** | 多种（双分派） | 单一 | 单一 |
 | **操作类型** | 多种（每种一个 Visitor） | 多种（每种一个 Strategy） | 多种（每种一个 Command） |

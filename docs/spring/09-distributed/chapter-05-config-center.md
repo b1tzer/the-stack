@@ -6,7 +6,7 @@
 
 Nacos 使用**长轮询（Long Polling）**机制：客户端每隔 30 秒向服务端发起请求，服务端会 hold 住连接直到配置变更或超时。这样既避免了推送的连接维护成本，又比短轮询更及时。
 
-```text
+```txt
 ┌─────────────┐     ①发布配置      ┌─────────────┐
 │  管理控制台   │ ──────────────────▶ │  Nacos Server │
 └─────────────┘                     └──────┬──────┘
@@ -63,7 +63,7 @@ spring:
 
 ### 2.3 Namespace / Group / Data ID 三层结构
 
-```text
+```txt
 Namespace（命名空间）── 通常按环境划分：dev / test / prod
     │
     ├── Group（分组）── 通常按业务域划分：order-group / user-group
@@ -102,7 +102,7 @@ public class ConfigController {
 
 **@RefreshScope 的工作原理**：
 
-```text
+```txt
 配置变更事件
     │
     ▼
@@ -239,7 +239,7 @@ public class GrayConfig {
 ## 7. Apollo vs Nacos 对比
 
 | 特性 | Nacos | Apollo |
-|------|-------|--------|
+| :-- | :-- | :-- |
 | 出品方 | 阿里巴巴 | 携程 |
 | 配置变更推送 | 长轮询（准实时） | 推送 + 长轮询（实时） |
 | 配置回滚 | ✅ | ✅ |

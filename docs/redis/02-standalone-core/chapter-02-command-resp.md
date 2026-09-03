@@ -20,7 +20,7 @@ RESP（REdis Serialization Protocol）是客户端与 Redis 通信的协议。�
 
 客户端把命令编码为「数组 + 批量字符串」的格式发给 Redis：
 
-```text
+```txt
 客户端发送：SET mykey myvalue
 实际字节流：*3\r\n$3\r\nSET\r\n$5\r\nmykey\r\n$7\r\nmyvalue\r\n
              ↑        ↑            ↑              ↑
@@ -93,7 +93,7 @@ redis-cli CLIENT LIST
 
 解析出命令名后，Redis 需要找到对应的命令实现。它维护一个命令表——所有命令的哈希表。
 
-```text
+```txt
 命令表（哈希表，O(1) 查找）
   "SET"   → redisCommand { 实现函数, 参数个数, 属性标志 }
   "GET"   → redisCommand { ... }
@@ -154,7 +154,7 @@ SLOWLOG RESET                   # 清空
 
 慢查询日志输出示例：
 
-```text
+```txt
 1) 1) (integer) 1           # 日志 ID
    2) (integer) 1712500000  # 时间戳
    3) (integer) 15000       # 耗时（微秒）

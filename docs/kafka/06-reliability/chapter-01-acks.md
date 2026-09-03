@@ -6,7 +6,7 @@
 
 消息从生产者到消费者，经过三个环节，每个环节都有可靠性配置：
 
-```text
+```txt
 Producer → Broker → Consumer
    │          │          │
    ▼          ▼          ▼
@@ -24,7 +24,7 @@ Producer → Broker → Consumer
 
 ### 2.1 acks=0
 
-```text
+```txt
 Producer → Broker：发完即返回，不等待任何确认
 ```
 
@@ -36,7 +36,7 @@ Producer → Broker：发完即返回，不等待任何确认
 
 ### 2.2 acks=1
 
-```text
+```txt
 Producer → Leader：写入本地日志
 Leader → Producer：返回 ACK
 （之后 Leader 宕机，Follower 未同步 → 数据丢失）
@@ -50,7 +50,7 @@ Leader → Producer：返回 ACK
 
 ### 2.3 acks=all
 
-```text
+```txt
 Producer → Leader：写入本地日志
 Leader → Follower1：Fetch 同步
 Leader → Follower2：Fetch 同步
@@ -72,7 +72,7 @@ min.insync.replicas=2
 
 配合 `acks=all` 使用：如果 ISR 中的副本数 < `min.insync.replicas`，Broker 拒绝写入，返回 `NotEnoughReplicasException`。
 
-```text
+```txt
 ISR = {Leader, F1, F2}（3 个）→ 正常写入
 ISR = {Leader, F1}（2 个）→ 正常写入（刚好满足）
 ISR = {Leader}（1 个）→ 拒绝写入（< min.insync.replicas）

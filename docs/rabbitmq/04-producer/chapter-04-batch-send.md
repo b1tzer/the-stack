@@ -4,7 +4,7 @@
 
 ## 1. 为什么需要批量发送
 
-```text
+```txt
 逐条发送：
   Producer ──msg1──▶ Broker ──confirm──▶ Producer
   Producer ──msg2──▶ Broker ──confirm──▶ Producer
@@ -91,7 +91,7 @@ for (List<Message> batch : partitions) {
 ## 4. 性能对比
 
 | 方式 | 吞吐量（参考值） | 延迟 |
-|------|-----------------|------|
+| :-- | :-- | :-- |
 | 逐条发送 + 无 Confirm | ~5 万 msg/s | 低 |
 | 逐条发送 + 同步 Confirm | ~1 万 msg/s | 高 |
 | 批量发送 + 批量 Confirm | ~10 万 msg/s | 中 |

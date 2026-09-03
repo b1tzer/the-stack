@@ -157,7 +157,7 @@ PUT /_cluster/settings
 ## 6. 排查工具
 
 | 工具 | 用途 |
-|------|------|
+| :-- | :-- |
 | `_cluster/health` | 集群健康状态 |
 | `_cat/nodes` | 节点信息 |
 | `_cat/indices` | 索引信息 |

@@ -57,7 +57,7 @@ private volatile boolean running = true;
 
 再回顾第 4 章的三层图，`volatile` 处在语言层：
 
-```text
+```txt
 Java 层 ─── volatile / synchronized / final ─── 由程序员显式使用
               │
 JVM 层 ─── 在读写两侧插入合适的内存屏障
@@ -85,7 +85,7 @@ CPU 层 ─── 屏障映射到具体架构的一致性协议行为
 
 `volatile` 写周围插入的屏障：
 
-```text
+```txt
      普通写 1
      普通写 2
    ─────────── StoreStore（前面的写要先完成）
@@ -106,7 +106,7 @@ CPU 层 ─── 屏障映射到具体架构的一致性协议行为
 
 `volatile` 读周围插入的屏障：
 
-```text
+```txt
      前面的读写
    ─────────── （无屏障）
      volatile 读
@@ -122,7 +122,7 @@ CPU 层 ─── 屏障映射到具体架构的一致性协议行为
 
 把两侧屏障串起来看：
 
-```text
+```txt
 线程 A：写侧                       线程 B：读侧
 ─────────                          ─────────
 普通写：data       = 42
@@ -153,7 +153,7 @@ volatile 写：ready = true
 
 `volatile` 写触发的一致性动作：
 
-```text
+```txt
 Core 0（线程 A）                 Core 1（线程 B）
 ────────────────                 ────────────────
 缓存行：Shared                    缓存行：Shared
@@ -187,7 +187,7 @@ JMM 定义 Java 层语义，JVM 用屏障翻译语义，MESI 让屏障在硬件�
 
 一行 `instance = new Singleton()` 在字节码层面有三步：
 
-```text
+```txt
 a. 分配内存空间
 b. 执行构造函数，初始化字段
 c. 把引用赋值给 instance
@@ -195,7 +195,7 @@ c. 把引用赋值给 instance
 
 编译器 / CPU 在**单线程视角**看，b 和 c 之间没有数据依赖（`instance` 的值早已确定，b 只是往新分配的对象上填字段）。as-if-serial 规则允许它们被重排为：
 
-```text
+```txt
 a. 分配内存空间
 c. 把引用赋值给 instance   ← instance 已非 null
 b. 执行构造函数            ← 字段还没写完
@@ -224,7 +224,7 @@ public class Singleton {
 
 失败时序：
 
-```text
+```txt
 时间 →
 线程 A（正在创建）                    线程 B（后来者）
 ──────────────                       ──────────────
@@ -250,7 +250,7 @@ private static volatile Singleton instance;
 
 推导修复后的正确性用 §4.4 的 happens-before：
 
-```text
+```txt
 线程 A（写端）：
   b. 字段初始化   ──程序顺序 hb──►   c. volatile 写 instance
 
@@ -272,7 +272,7 @@ private static volatile Singleton instance;
 
 `count++` 在字节码层面是三步：
 
-```text
+```txt
 getstatic  count      // 1. 读
 iconst_1              // 2. 常量 1
 iadd                  // 3. 加
@@ -281,7 +281,7 @@ putstatic  count      // 4. 写
 
 `volatile` 保证的是**每一步单独的可见性**——不是三步一起的原子性。两条线程并发执行时：
 
-```text
+```txt
 时间 →
 线程 A:  [读 count=0] ───────────────── [算 0+1=1] ─ [写 count=1]
 线程 B:  ─── [读 count=0] ─ [算 0+1=1] ─ [写 count=1] ─────────

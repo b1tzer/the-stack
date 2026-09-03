@@ -9,7 +9,7 @@
 身份认证（Authentication）回答的是"你是谁"的问题。在 Web 应用中，用户首次登录后，后续请求需要某种机制让服务器知道"这个请求来自已认证的用户"。三种主流方案的对比如下：
 
 | 维度 | Session-Cookie | JWT（JSON Web Token） | OAuth 2.0 |
-|------|---------------|----------------------|-----------|
+| :-- | :-- | :-- | :-- |
 | **存储位置** | 服务端（内存/Redis） | 客户端（LocalStorage/Cookie） | 不存储 token，由授权服务器管理 |
 | **状态** | 有状态（服务端需保存 Session） | 无状态（token 自包含信息） | 依赖授权服务器 |
 | **跨域** | 需要额外处理（Cookie 跨域限制） | 天然支持（放在 Header 中） | 天然支持 |
@@ -22,7 +22,7 @@
 
 JWT 是目前微服务架构中最常用的身份认证方案，它由三部分组成：
 
-```text
+```txt
 eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOjEwMDg2LCJyb2xlIjoiYWRtaW4iLCJleHAiOjE3MDUzMDAwMDB9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
 │       Header（算法）          │              Payload（声明）                    │            Signature（签名）               │
 ```
@@ -73,7 +73,7 @@ public class JwtUtil {
 OAuth 2.0 是一个授权框架，定义了四种授权模式：
 
 | 模式 | 流程 | 适用场景 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | **授权码模式** | 用户→授权页→授权码→后端换 Token | 第三方登录（微信、GitHub） |
 | **隐式模式** | 用户→授权页→直接返回 Token（前端） | 已不推荐，安全隐患大 |
 | **密码模式** | 用户名+密码直接换 Token | 自家 App、高度信任的第一方应用 |
@@ -81,7 +81,7 @@ OAuth 2.0 是一个授权框架，定义了四种授权模式：
 
 授权码模式的完整流程：
 
-```text
+```txt
 ① 用户点击"微信登录"
         │
         ▼
@@ -108,7 +108,7 @@ OAuth 2.0 是一个授权框架，定义了四种授权模式：
 
 Spring Security 的本质是一条 **Servlet Filter Chain**（过滤器链），每个请求都要经过这条链的处理：
 
-```text
+```txt
 HTTP Request
     │
     ▼
@@ -236,7 +236,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 RBAC（Role-Based Access Control，基于角色的访问控制）是企业应用中最广泛使用的权限模型：
 
-```text
+```txt
 ┌────────┐     M:N      ┌────────┐     M:N      ┌────────────┐
 │  用户   │ ◀──────────▶ │  角色   │ ◀──────────▶ │  权限/资源  │
 │ (User) │              │ (Role) │              │(Permission)│
@@ -419,7 +419,7 @@ public Order refundOrder(@PathVariable Long id) { ... }
 本章从两个维度构建了企业级 Java 应用的安全体系：
 
 | 维度 | 核心能力 | 关键技术 |
-|------|---------|---------|
+| :-- | :-- | :-- |
 | **认证授权** | 身份认证 + 权限控制 | JWT / OAuth 2.0 / Spring Security / RBAC |
 | **数据安全** | 传输加密 + 存储加密 + 日志脱敏 + 审计 | HTTPS / AES / Logback / AOP |
 

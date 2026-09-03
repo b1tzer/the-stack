@@ -14,7 +14,7 @@ Stream Queue 解决了这个问题：
 
 ## 2. Stream Queue 的存储模型
 
-```text
+```txt
 ┌──────────────────────────────────────────────┐
 │              Stream Queue                     │
 │                                              │
@@ -35,7 +35,7 @@ Stream Queue 解决了这个问题：
 ## 3. 核心特性
 
 | 特性 | 说明 |
-|------|------|
+| :-- | :-- |
 | 消息保留 | 消息不因确认而删除，按时间/大小保留 |
 | 回溯消费 | 消费者可以从任意 offset 开始消费 |
 | 多消费者 | 多个消费者独立消费，互不影响 |
@@ -59,7 +59,7 @@ channel.queueDeclare("event.stream", true, false, false, args);
 ### 4.1 保留策略
 
 | 参数 | 说明 |
-|------|------|
+| :-- | :-- |
 | x-stream-max-segment-size-bytes | 单个 Segment 大小（默认 100MB） |
 | x-max-length-bytes | Stream 总大小 |
 | x-stream-max-age | 消息最大保留时间 |
@@ -85,7 +85,7 @@ channel.basicConsume("event.stream", false, args, new StreamConsumer(channel));
 ## 6. Stream Queue vs 其他队列
 
 | 维度 | Classic | Quorum | Stream |
-|------|---------|--------|--------|
+| :-- | :-- | :-- | :-- |
 | 消息保留 | 确认即删除 | 确认即删除 | 按策略保留 |
 | 回溯消费 | ❌ | ❌ | ✅ |
 | 高可用 | 镜像（废弃） | Raft | 副本（可选） |
@@ -97,7 +97,7 @@ channel.basicConsume("event.stream", false, args, new StreamConsumer(channel));
 ## 7. 适用场景
 
 | 场景 | 是否适合 |
-|------|----------|
+| :-- | :-- |
 | 事件溯源（Event Sourcing） | ✅ 非常适合 |
 | 日志收集 | ✅ 高吞吐 + 保留策略 |
 | 消息回溯 | ✅ 原生支持 |
@@ -110,7 +110,7 @@ channel.basicConsume("event.stream", false, args, new StreamConsumer(channel));
 Stream Queue 的设计理念和 Kafka 类似，但有一些关键区别：
 
 | 维度 | Stream Queue | Kafka |
-|------|-------------|-------|
+| :-- | :-- | :-- |
 | 协议 | AMQP（RabbitMQ 原生） | 自定义协议 |
 | 分区 | 单分区（单 Queue） | 多 Partition |
 | 消费者组 | 不支持（每个消费者独立） | 支持 |

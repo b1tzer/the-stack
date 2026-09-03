@@ -59,7 +59,7 @@ Schema 就是把消息结构声明成一份**独立的、可版本化的定义**
 
 序列化后的字节结构（Confluent Wire Format）：
 
-```text
+```txt
 Byte 0        : Magic Byte, 固定 0x00
 Byte 1..4     : Schema ID (int32, big-endian)
 Byte 5..end   : Avro/Protobuf/JSON binary payload
@@ -85,7 +85,7 @@ Schema Registry 支持三种格式，各自定位不同（详见 [§2 序列化�
 
 ## 5. 完整链路
 
-```text
+```txt
        .avsc / .proto / .json
               │
               ▼

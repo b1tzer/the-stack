@@ -6,7 +6,7 @@
 
 一个 Partition 对应一个目录，目录内以「分段」为单位分文件。以 `orders-0` 为例：
 
-```text
+```txt
 orders-0/
 ├── 00000000000000000000.log          ← 消息数据文件（FileRecords）
 ├── 00000000000000000000.index        ← 偏移量索引（OffsetIndex）
@@ -43,7 +43,7 @@ orders-0/
 
 `.log` 不是「一条条消息」，而是「一批批 RecordBatch」。Kafka 0.11 起使用 v2 格式（`magic = 2`），KIP-98 引入，包含幂等与事务所需字段。一批的头部固定 61 字节，后面跟变长 `Record[]`：
 
-```text
+```txt
 偏移(字节)  长度  字段                       说明
   0        8    baseOffset                该批第一条消息的绝对 offset
   8        4    batchLength               从 partitionLeaderEpoch 到末尾的字节数
@@ -71,7 +71,7 @@ CRC 覆盖 attributes 之后的所有字节，位置在 magic 之后，因此客
 
 批内的每条 `Record` 使用 varint 编码，只存相对量：
 
-```text
+```txt
 length          varint
 attributes      int8    （目前未用）
 timestampDelta  varlong  相对 baseTimestamp
@@ -148,7 +148,7 @@ public boolean isFull()   { return _entries >= _maxEntries; }
 
 以「查 offset = 1234 的消息」为例：
 
-```text
+```txt
 1. 定位段：在 UnifiedLog 的 LogSegments 跳表里二分，找到 base offset ≤ 1234 的段
 2. 查 OffsetIndex：把 1234 - baseOffset 作为目标相对 offset，二分查最大的 ≤ target 条目
    → 假设命中 (relativeOffset = 34, position = 8192)
@@ -184,7 +184,7 @@ private int physical      (ByteBuffer buffer, int n) { return buffer.getInt(n * 
 
 写路径：
 
-```text
+```txt
 Producer → ReplicaManager#appendRecords
         → Partition#appendRecordsToLeader
         → UnifiedLog#appendAsLeader

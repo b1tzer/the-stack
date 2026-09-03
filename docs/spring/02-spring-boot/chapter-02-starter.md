@@ -5,7 +5,7 @@
 ## 1. 注册自动配置类：spring.factories vs AutoConfiguration.imports
 
 | 版本 | 方式 |
-|------|------|
+| :-- | :-- |
 | Spring Boot 2.x | META-INF/spring.factories |
 | Spring Boot 2.7 | 两种都支持（过渡期） |
 | Spring Boot 3.x | 只支持 META-INF/spring/.../AutoConfiguration.imports |
@@ -87,7 +87,7 @@ public class DistributedLockAutoConfiguration {
 
 注册文件 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`：
 
-```text
+```txt
 com.example.autoconfigure.DistributedLockAutoConfiguration
 ```
 

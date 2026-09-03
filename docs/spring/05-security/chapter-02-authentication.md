@@ -193,7 +193,7 @@ protected void doFilterInternal(HttpServletRequest request,
 ### 3.1 OAuth 2.0 四种授权模式
 
 | 模式 | 流程 | 适用场景 |
-|------|------|----------|
+| :-- | :-- | :-- |
 | 授权码模式 | 用户→授权页→授权码→后端换 Token | 第三方登录（微信、GitHub） |
 | 隐式模式 | 用户→授权页→直接返回 Token（前端） | 已不推荐，安全隐患大 |
 | 密码模式 | 用户名+密码直接换 Token | 自家 App、高度信任的第一方 |
@@ -227,7 +227,7 @@ protected void doFilterInternal(HttpServletRequest request,
 **OIDC vs OAuth 2.0**：
 
 | 概念 | OAuth 2.0 | OIDC |
-|------|-----------|------|
+| :-- | :-- | :-- |
 | 解决问题 | 授权（Authorization） | 认证（Authentication） |
 | Token 类型 | Access Token | ID Token + Access Token |
 | ID Token | 无 | JWT 格式，包含用户身份信息 |
@@ -461,7 +461,7 @@ public class OAuth2LoginConfig {
 选型之前，先看清 Session-Cookie、JWT、OAuth 2.0 三者的本质差异：
 
 | 维度 | Session-Cookie | JWT | OAuth 2.0 |
-|------|---------------|-----|-----------|
+| :-- | :-- | :-- | :-- |
 | 存储位置 | 服务端（内存/Redis） | 客户端（LocalStorage/Cookie） | 不存储 token，授权服务器管理 |
 | 状态 | 有状态 | 无状态（token 自包含） | 依赖授权服务器 |
 | 跨域 | 需额外处理 | 天然支持（Header） | 天然支持 |
@@ -485,7 +485,7 @@ public class OAuth2LoginConfig {
 ## 6. OAuth 2.0 四种授权模式
 
 | 模式 | 流程 | 适用场景 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | 授权码模式 | 用户→授权页→授权码→后端换 Token | 第三方登录（微信、GitHub） |
 | 隐式模式 | 用户→授权页→直接返回 Token（前端） | 已不推荐，安全隐患大 |
 | 密码模式 | 用户名+密码直接换 Token | 自家 App、高度信任的第一方 |
@@ -493,7 +493,7 @@ public class OAuth2LoginConfig {
 
 授权码模式的完整流程：
 
-```text
+```txt
 ① 用户点击"微信登录"
 ② 浏览器跳转授权页（携带 client_id、redirect_uri、scope）
 ③ 用户确认授权，回调 redirect_uri 并携带授权码 code

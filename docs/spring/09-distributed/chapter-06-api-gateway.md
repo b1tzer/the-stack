@@ -7,7 +7,7 @@
 Spring Cloud Gateway 的核心抽象是 **三元组**：
 
 | 组件 | 作用 | 类比 | 典型实现 |
-|------|------|------|----------|
+| :-- | :-- | :-- | :-- |
 | **Route（路由）** | 定义转发目标地址 | Nginx 的 `location` + `proxy_pass` | `uri: lb://user-service` |
 | **Predicate（断言）** | 匹配请求条件 | Nginx 的 `if` 判断 | `Path=/api/users/**` |
 | **Filter（过滤器）** | 修改请求/响应 | Servlet 的 `Filter` | `StripPrefix=1` |
@@ -246,7 +246,7 @@ spring:
 ### 4.2 限流算法对比
 
 | 特性 | 令牌桶（Token Bucket） | 漏桶（Leaky Bucket） |
-|------|----------------------|---------------------|
+| :-- | :-- | :-- |
 | **原理** | 桶中存放令牌，请求取走令牌才放行 | 请求进入桶，以固定速率流出处理 |
 | **突发流量** | ✅ 允许突发 | ❌ 严格匀速 |
 | **适用场景** | API 网关、用户请求限流 | 流量整形、削峰填谷 |
@@ -389,7 +389,7 @@ public class GatewayExceptionHandler implements ErrorWebExceptionHandler {
 ## 9. 最佳实践总结
 
 | 实践 | 说明 | 反模式 |
-|------|------|--------|
+| :-- | :-- | :-- |
 | **网关无状态** | 不存储会话，便于水平扩展 | 在 Gateway 中使用 Session |
 | **超时递减** | Gateway 超时 < 下游服务超时 | 所有超时设为相同值 |
 | **限流分层** | IP → 用户 → API 三层限流 | 只做单维度限流 |

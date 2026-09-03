@@ -5,7 +5,7 @@
 ES 集群中的每个节点可以承担多种角色：
 
 | 角色 | 配置 | 职责 |
-|------|------|------|
+| :-- | :-- | :-- |
 | **Master** | `node.roles: [master]` | 集群元数据管理、分片分配决策 |
 | **Data** | `node.roles: [data]` | 存储数据、执行 CRUD 和搜索 |
 | **Data Hot** | `node.roles: [data_hot]` | 存储热数据（ILM） |
@@ -32,12 +32,13 @@ node.roles: []
 ES 使用类 Raft 协议进行 Master 选举：
 
 | 参数 | 说明 |
-|------|------|
+| :-- | :-- |
 | `discovery.seed_hosts` | 集群种子节点列表 |
 | `cluster.initial_master_nodes` | 初始 Master 候选节点 |
 | `cluster.fault_detection.leader_check.timeout` | Leader 检测超时 |
 
 **选举流程**：
+
 1. 节点启动后向 `discovery.seed_hosts` 发送发现请求
 2. 当候选节点数 > 总数/2 时，发起选举
 3. 优先选择 `master` 节点中版本号最高的节点
@@ -67,7 +68,7 @@ GET /_cluster/health
 ```
 
 | 状态 | 含义 | 处理 |
-|------|------|------|
+| :-- | :-- | :-- |
 | 🟢 Green | 所有分片正常 | 正常 |
 | 🟡 Yellow | 主分片正常，部分副本未分配 | 检查节点数 |
 | 🔴 Red | 部分主分片不可用 | 紧急处理 |
@@ -92,7 +93,7 @@ GET /_cluster/allocation/explain
 ### 4.1 分片分配策略
 
 | 策略 | 说明 |
-|------|------|
+| :-- | :-- |
 | **均衡分配** | 尽量均匀分配到各节点 |
 | **主副分离** | 主分片和副本不在同一节点 |
 | **磁盘水位线** | 磁盘使用率超过阈值不再分配新分片 |

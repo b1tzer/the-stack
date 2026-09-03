@@ -60,7 +60,7 @@ typedef struct redisObject {
 
 `refcount` 支撑对象共享：Redis 启动时预创建 0~9999 共 10000 个整数对象（`OBJ_SHARED_INTEGERS`）。多个 key 存储相同的小整数时，指向同一个 `redisObject`，靠 `refcount` 计数管理生命周期。
 
-```text
+```txt
 SET a 1000   → robj{type=String, encoding=int, ptr=1000, refcount=1}
 SET b 1000   → 同一个 robj，refcount 加 1
 SET c 1000   → 同一个 robj，refcount 加 1
@@ -76,7 +76,7 @@ SET c 1000   → 同一个 robj，refcount 加 1
 
 当 value 是整数且可以用 `long` 表示时，直接存在 `redisObject.ptr` 里（不分配 SDS）：
 
-```text
+```txt
 SET counter 1000
 redisObject{type=String, encoding=int, ptr=1000}
 ```
@@ -85,7 +85,7 @@ redisObject{type=String, encoding=int, ptr=1000}
 
 当 value 是字符串且长度 ≤ 44 字节时，`redisObject` 和 SDS 在一次 `malloc` 中连续分配：
 
-```text
+```txt
 redisObject | sdshdr8 | buf（≤ 44 字节）
 ← 一次 malloc →
 ```
@@ -98,7 +98,7 @@ embstr 的优势：一次内存分配（而非两次），对象头和数据连�
 
 当 value 是字符串且长度 > 44 字节时，`redisObject` 和 SDS 分别分配：
 
-```text
+```txt
 redisObject          sdshdr + buf
   ↓ ptr ──────────→
 ← malloc 1 →        ← malloc 2 →
@@ -137,7 +137,7 @@ hash-max-listpack-value 64
 
 listpack 编码下，field 和 value 连续存储在一块内存里：
 
-```text
+```txt
 listpack: [len|field1][len|value1][len|field2][len|value2]...[end]
 ```
 

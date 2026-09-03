@@ -13,7 +13,7 @@ CREATE INDEX idx_email_prefix ON users(email(10));
 
 联合索引是把多个列组成一个索引键。它和单列索引一样是一棵 B+ 树，区别只在叶子节点按**多列的字典序**排序：先比第一列，第一列相同再比第二列，以此类推。
 
-```text
+```txt
 联合索引 idx_a_b_c (a, b, c) 的叶子节点，按 (a, b, c) 字典序排列
 ┌─────────────┐
 │ (1, 1, 1)   │
@@ -166,7 +166,7 @@ SELECT * FROM sys.schema_redundant_indexes;
 ### 3.1 索引设计 Checklist
 
 | 检查项 | 说明 |
-|--------|------|
+| :-- | :-- |
 | WHERE 条件列 | 频繁出现在 WHERE 中的列需要索引 |
 | JOIN 关联列 | 被驱动表的关联列需要索引 |
 | ORDER BY 列 | 排序列可以纳入联合索引 |

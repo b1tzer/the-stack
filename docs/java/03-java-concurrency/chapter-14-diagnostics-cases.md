@@ -16,7 +16,7 @@ jstack <pid> > thread.dump
 
 打开 dump 文件，直接搜 `DEADLOCK`：
 
-```text
+```txt
 Found one Java-level deadlock:
 =============================
 "reconciliation-thread-2":
@@ -108,7 +108,7 @@ public class ReconciliationService {
 根因一目了然：
 
 | 方法 | 锁顺序 | 维护团队 |
-|------|--------|---------|
+| :-- | :-- | :-- |
 | `createOrder`（下单） | orderLock → stockLock | 订单组 |
 | `reconcileOrder`（对账） | stockLock → orderLock | 结算组 |
 
@@ -189,7 +189,7 @@ public void reconcileOrder() {
 ### 1.6 总结
 
 | 信号 | 含义 | 工具 |
-|------|------|------|
+| :-- | :-- | :-- |
 | CPU 低、线程数高、请求无响应 | 大量线程 BLOCKED / WAITING——大概率死锁 | `top` + `jstack` |
 | `jstack` 末尾 `Found one Java-level deadlock` | 经典死锁 | `jstack` |
 | 两个代码路径锁顺序相反 | 根因 | 代码审查 |
@@ -216,7 +216,7 @@ new ThreadPoolExecutor(
 
 容器 K8s 4C8G，JVM `-Xmx6G`。00:10 分流量突然打到 5 万 QPS，之后发生的事用时间线来还原：
 
-```text
+```txt
 00:10  QPS 瞬间从 2w 打到 5w，队列 2000 满，开始 CallerRuns
 00:12  Tomcat IO 线程（默认 200）被占用 150+，接口 RT > 5s
 00:13  上游超时重试 + 用户疯狂刷新，QPS 膨胀到 25w —— 正反馈形成
@@ -230,7 +230,7 @@ CallerRunsPolicy 的语义是：**当线程池满了，提交任务的线程（�
 
 于是形成了致命的链条：
 
-```text
+```txt
 1. 业务线程池满 → CallerRunsPolicy 让 Tomcat 线程执行任务
 2. Tomcat 线程被优惠券领取业务占住（耗时 200ms+）
 3. 能处理新 HTTP 请求的 Tomcat 线程变少 → 新请求排队
@@ -242,7 +242,7 @@ CallerRunsPolicy 的语义是：**当线程池满了，提交任务的线程（�
 
 这是一个**正反馈环**，一旦触发就会自我强化直到系统完全崩溃。`top -Hp` 的输出证实了这一点：
 
-```text
+```txt
   PID USER      PR  NI    VIRT    RES    SHR S  %CPU  COMMAND
   101 root      20   0   4.2g   1.1g    28m R  98.0  biz-20       ← 业务线程
   102 root      20   0   4.2g   1.1g    28m R  97.8  biz-21       ← 业务线程
@@ -282,6 +282,7 @@ new ThreadPoolExecutor(
 ```
 
 关键改动：
+
 1. `maxPoolSize` 从 80 降到 8 —— 4C8G 的容器，80 个线程的上下文切换就占掉 38% CPU
 2. `CallerRunsPolicy` → `DiscardOldestPolicy` —— **绝不能让 Tomcat 线程来跑业务**
 3. 队列从 `LinkedBlockingQueue` 改为 `ArrayBlockingQueue` —— 减少 GC 压力
@@ -305,7 +306,7 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 ### 2.5 总结
 
 | 问题 | 根因 | 修复方向 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | CallerRuns 拖垮 Tomcat | 业务线程池满了让调用者（Tomcat 线程）执行任务 | 拒绝策略绝不绑 Tomcat 线程 |
 | 线程数过高 | 4C 容器开 80 线程 | 按 CPU 核数 × 2 设置（IO 密集型） |
 | 重启无效 | 配置未变 | 修复配置后再部署；紧急降级用 DiscardOldest |
@@ -402,12 +403,13 @@ public class Task {
 `ConcurrentHashMap` 的文档明确写了：它是线程安全的，但**不保证复合操作的原子性**，且 **key 的 equals/hashCode 必须稳定**。这是使用者必须遵守的契约，不是容器的 bug。
 
 类似的陷阱还包括：
+
 - `HashSet` / 任何依赖 `hashCode` 的容器都有这个问题
 
 ### 3.6 总结
 
 | 症状 | 根因 | 修复 |
-|------|------|------|
+| :-- | :-- | :-- |
 | `ConcurrentHashMap` 存了重复 key | 可变字段改变 hashCode | 重写 hashCode，只依赖不可变字段 |
 | `containsKey` 返回 false | key 被修改后 hash 变了 | 同上 |
 | 排查时 map.size > 预期值 | 同一对象存在不同桶中 | 代码审查 + hashCode 审计 |
@@ -433,7 +435,7 @@ jfr print --events jdk.VirtualThreadPinned vt.jfr
 
 输出：
 
-```text
+```txt
 jdk.VirtualThreadPinned {
   startTime = 10:23:45.102
   duration = 212 ms
@@ -455,7 +457,7 @@ jdk.VirtualThreadPinned {
 
 **但是**——当虚拟线程在 `synchronized` 块内阻塞时，JVM 无法卸载它。虚拟线程被"钉住"（pinned）在 carrier 上，carrier 被占死。
 
-```text
+```txt
 8 个 carrier → 每个被 pinned → 实际并发 = 8
 
 5000 QPS × 平均处理 50ms = 250 个并发需求 → 8 个可用 → 排队 242 个
@@ -516,7 +518,7 @@ JDK 24 的 JEP 491 消除了 `synchronized` 的 pinning 问题。JDK 25 LTS 将�
 ### 4.5 诊断信号
 
 | 信号 | 工具 | 含义 |
-|------|------|------|
+| :-- | :-- | :-- |
 | 虚拟线程环境下吞吐不升反降 | 压测对比 | 可能存在 pinning |
 | `jfr print --events jdk.VirtualThreadPinned` | JFR | 精确定位 pinning 代码位置 |
 | 大量虚拟线程 `WAITING`、carrier 全部 `RUNNABLE` | `jcmd Thread.print` | carrier 被占满 |
@@ -525,6 +527,7 @@ JDK 24 的 JEP 491 消除了 `synchronized` 的 pinning 问题。JDK 25 LTS 将�
 ### 4.6 总结
 
 虚拟线程不是"开了就快"的银弹。它的调度优势建立在"非 pinning 的阻塞操作"上。pinning 场景包括：
+
 - `synchronized` 块内的阻塞 I/O（JDK 21-23）
 - Native 方法（JNI）内的阻塞
 - 某些老版本 JDBC 驱动的内部实现
@@ -545,7 +548,7 @@ jstack <pid> > thread.dump
 
 200 个线程，栈几乎一模一样：
 
-```text
+```txt
 "http-nio-8080-exec-1" #42 daemon prio=5
    java.lang.Thread.State: WAITING (parking)
     at sun.misc.Unsafe.park(Native Method)
@@ -594,7 +597,7 @@ public class ContractService {
 
 当并发请求足够大（比如 200 个 Tomcat 线程同时调用 `processFlow`），每个请求提交多个 `CompletableFuture` 任务到 `flowExecutor`：
 
-```text
+```txt
 1. flowExecutor: 20 线程 + 100 队列 = 最多 120 个任务排队
 2. 第 121 个任务到来 → DiscardPolicy 静默丢弃
 3. 被丢弃任务的 FutureTask 永远无法完成
@@ -641,6 +644,7 @@ public FlowResult processFlow(FlowRequest request) {
 ```
 
 关键改动：
+
 1. `DiscardPolicy` → `AbortPolicy` — 拒绝就抛异常，调用者感知到
 2. `CompletableFuture.orTimeout(30, TimeUnit.SECONDS)` — 每个 Future 单独超时
 3. `get(60, TimeUnit.SECONDS)` — 总超时兜底
@@ -668,7 +672,7 @@ public FlowResult processFlow(FlowRequest request) throws InterruptedException {
 ### 5.6 总结：DiscardPolicy 两条禁用场景
 
 | 场景 | 为什么禁用 |
-|------|----------|
+| :-- | :-- |
 | 提交的是 `Future` / `CompletableFuture` | 丢弃后调用方永久阻塞在 `get()`/`join()` |
 | 任务有副作用（如发 MQ、写库） | 丢弃等于数据丢失且无感知 |
 | 可以用 DiscardOldest 替代 | 至少丢的是老任务，且你可以打日志 |
@@ -693,7 +697,7 @@ new ThreadPoolExecutor(
 
 某天凌晨，监控告警：任务积压 5 万条，机器 CPU 却只有 3%。`jstack` 显示：
 
-```text
+```txt
 "pool-1-thread-1" WAITING on LinkedBlockingQueue.take()
 "pool-1-thread-2" WAITING on LinkedBlockingQueue.take()
 "pool-1-thread-3" WAITING on LinkedBlockingQueue.take()
@@ -741,7 +745,7 @@ new ThreadPoolExecutor(
 ### 6.4 参数配置速查
 
 | 业务类型 | corePoolSize | maxPoolSize | 队列容量 | 说明 |
-|---------|-------------|-------------|---------|------|
+| :-- | :-- | :-- | :-- | :-- |
 | CPU 密集型 | CPU 核数 | CPU 核数 | 小（128~512） | 线程数 ≈ CPU 核数 |
 | IO 密集型 | CPU 核数 | CPU × 2 | 大（1024~4096） | 线程可在等待 IO 时出让 CPU |
 | 混合型 | CPU 核数 | CPU × 1.5 | 中等（512~1024） | 按实际压测调整 |
@@ -755,7 +759,7 @@ new ThreadPoolExecutor(
 ### 6.6 总结
 
 | 症状 | 根因 | 修复 |
-|------|------|------|
+| :-- | :-- | :-- |
 | maxPoolSize 不触发 | 无界队列永不满 | 换有界队列 |
 | CPU 低、任务堆积 | 核心线程少、任务全在队列里 | 合理设 core 和 max |
 | 觉得队里越大越好 | 误解队列作用 | 队列是缓冲，不是仓库 |
@@ -787,7 +791,7 @@ grep -c "java.lang.Thread.State" thread.dump
 
 传统的 `jstack` 不显示虚拟线程——虚拟线程是 JVM 内部管理的对象，不在操作系统线程表里。`jstack` 只输出 platform 线程，所以输出里只有 15 条 carrier 线程（ForkJoinPool 的 worker）+ 一些 JVM 内部线程。所有 carrier 线程的状态都是：
 
-```text
+```txt
 "ForkJoinPool-1-worker-1" #25 daemon prio=5
    java.lang.Thread.State: WAITING (parking)
     at jdk.internal.misc.VirtualThread.parkOnCarrierThread(VirtualThread.java:661)
@@ -808,7 +812,7 @@ jfr print --events jdk.VirtualThreadPinned vt.jfr
 
 输出揭示了真相：
 
-```text
+```txt
 jdk.VirtualThreadPinned {
   startTime = 03:14:22.103
   duration = 1,283,492 ms          ← 钉住了 21 分钟！
@@ -833,6 +837,7 @@ jdk.VirtualThreadPinned {
 2. 这些被 pin 的虚拟线程全部在等待某个尚未调度的虚拟线程释放资源
 
 此时：
+
 - 所有 carrier 被占满，无法调度新的虚拟线程
 - 被 pin 的虚拟线程在等某个资源，而释放资源的虚拟线程还没被调度
 - 调度器本身不会创建额外的 carrier 线程来打破僵局
@@ -868,7 +873,7 @@ private static final Semaphore DB_SEMAPHORE = new Semaphore(4); // 小于 carrie
 ### 7.7 总结
 
 | 信号 | 含义 | 工具 |
-|------|------|------|
+| :-- | :-- | :-- |
 | 虚拟线程服务突然无响应，CPU 低 | 所有 carrier 可能被 pin 住 | JFR `VirtualThreadPinned` 事件 |
 | `jstack` 看不出问题 | `jstack` 不输出虚拟线程 | `jcmd Thread.dump_to_file -format=json` |
 | `VirtualThreadPinned` 持续时间 > 1s | 严重 pinning | JFR |
@@ -891,13 +896,13 @@ jstack <pid> > thread.dump
 grep "java.lang.Thread.State" thread.dump | sort | uniq -c | sort -rn
 ```
 
-```text
+```txt
 200 RUNNABLE       ← 全部 RUNNABLE？但 CPU 却是 8%？
 ```
 
 不寻常：200 个线程全是 `RUNNABLE`，但 CPU 只有 8%。查看具体栈：
 
-```text
+```txt
 "http-nio-8080-exec-1" #42 daemon prio=5
    java.lang.Thread.State: RUNNABLE
     at java.net.SocketInputStream.socketRead0(Native Method)    ← Native 方法
@@ -935,7 +940,7 @@ public class RiskService {
 
 ### 8.4 第三步：事故链
 
-```text
+```txt
 13:00  风控服务数据库故障，响应时间从 50ms → 10s
 13:02  支付服务 QPS 300，200 个 Tomcat 线程全部被卡在 socketRead0()
 13:04  用户看到"支付失败"，疯狂刷新
@@ -973,7 +978,7 @@ public class RestTemplateConfig {
 三种超时的区别：
 
 | 超时类型 | 对应 TCP 阶段 | 默认值（未设置时） | 推荐值 |
-|---------|-------------|------------------|--------|
+| :-- | :-- | :-- | :-- |
 | `connectTimeout` | TCP 三次握手 | `0`（无限） | 2s |
 | `connectionRequestTimeout` | 从连接池租连接 | `-1`（无限） | 1s |
 | `responseTimeout` (`readTimeout`) | 等待响应数据 | `0`（无限） | 3~5s |
@@ -1003,7 +1008,7 @@ public class RiskService {
 
 ### 8.7 总结：三条防线的体系
 
-```
+```txt
 第一道防线：超时 —— 每次调用都有截止时间，过期不候
 第二道防线：熔断 —— 连续失败后直接降级，避免持续消耗资源
 第三道防线：隔离 —— 为不同下游分配独立线程池
@@ -1012,7 +1017,7 @@ public class RiskService {
 ### 8.8 总结
 
 | 信号 | 含义 | 工具 |
-|------|------|------|
+| :-- | :-- | :-- |
 | 大量线程 `RUNNABLE` 在 `socketRead0`，CPU 低 | IO 阻塞——等下游响应 | `jstack` |
 | `HttpURLConnection` 没有超时 | 会永久等待 | 源码审查 |
 | 下游故障 10 秒 → 上游瘫痪 3 小时 | 无超时 + 无熔断的级联放大 | 事故复盘 |

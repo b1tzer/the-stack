@@ -3,7 +3,7 @@
 ## 1. 核心指标
 
 | 指标 | 说明 |
-|------|------|
+| :-- | :-- |
 | UnderReplicatedPartitions | 副本不足的分区数 |
 | ActiveControllerCount | 活跃 Controller 数 |
 | OfflinePartitionsCount | 离线分区数 |
@@ -47,7 +47,7 @@ export KAFKA_JMX_OPTS="-Dcom.sun.management.jmxremote \
 ```
 
 | 指标 | 说明 | 告警阈值 |
-|------|------|----------|
+| :-- | :-- | :-- |
 | kafka.server:type=BrokerTopicMetrics,name=MessagesInPerSec | 每秒消息数 | 根据业务设定 |
 | kafka.server:type=BrokerTopicMetrics,name=BytesInPerSec | 每秒输入字节数 | 根据带宽设定 |
 | kafka.server:type=ReplicaManager,name=UnderReplicatedPartitions | 副本不足分区数 | > 0 |

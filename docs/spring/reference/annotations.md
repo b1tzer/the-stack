@@ -1,7 +1,7 @@
 # 常用注解速查
 
 | 注解 | 说明 |
-|------|------|
+| :-- | :-- |
 | `@SpringBootApplication` | 启动类注解（含 @Configuration + @EnableAutoConfiguration + @ComponentScan） |
 | `@RestController` | RESTful 控制器 |
 | `@RequestMapping` | URL 映射 |

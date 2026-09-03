@@ -41,7 +41,7 @@ WAL 规则只有一条：**在把数据页刷盘之前，必须先把它对应�
 
 反过来「先写日志、后刷数据页」就自洽了：
 
-```text
+```txt
 事务修改流程：
 1. 在 Buffer Pool 中修改数据页（内存操作，快）
 2. 把这次修改写成 Redo Log 记录，追加到 Log Buffer
@@ -67,7 +67,7 @@ LSN 是 Redo Log 的字节偏移量，单调递增。每写一个字节的日志
 
 这三个值一比较，就能回答「这个数据页需不需要重放」：**如果某页的 `FIL_PAGE_LSN` 小于某条日志记录的 LSN，说明这条日志对应的修改还没刷进这个页，崩溃恢复时就要重放。**
 
-```text
+```txt
 LSN 单调递增 →
 0 ──────────── checkpoint LSN ──────────── 当前 LSN
      （这部分日志已刷盘）      （这部分日志可能还没刷进数据页）
@@ -92,7 +92,7 @@ SHOW VARIABLES LIKE 'innodb_redo_log_capacity';    -- 总容量
 
 每条 Redo Log 记录本身是「物理日志」——记录的不是 SQL，而是「哪个页的哪个位置改成了什么」：
 
-```text
+```txt
 ┌──────────────┬────────────────────────────────┐
 │ Type         │  日志类型（MLOG_XXX）           │
 │ Space ID     │  表空间 ID                     │
@@ -138,7 +138,7 @@ Log Buffer 刷盘的时机有四种：事务提交时、Log Buffer 写满一半�
 
 三个值的差异，本质在「刷」这个词落到哪一层：
 
-```text
+```txt
 Log Buffer（内存） → OS Page Cache（操作系统缓存） → 磁盘
        └── 值 2 只走到这里        └── 值 1 走到这里（fsync）
 值 0：哪都不主动走，等后台每秒 fsync
@@ -158,7 +158,7 @@ Log Buffer（内存） → OS Page Cache（操作系统缓存） → 磁盘
 
 Redo Log 是循环写的，容量有限。它覆盖旧日志的前提，是「旧日志对应的数据页已经刷盘」。这个「刷盘推进到哪里」的标记，就是 **Checkpoint**。
 
-```text
+```txt
              checkpoint LSN
                   ↓
 redo 文件: [已刷盘部分][未刷盘部分][空闲]
@@ -180,7 +180,7 @@ Checkpoint 做的事：把 Buffer Pool 里「LSN 小于某个值」的脏页批�
 
 把前面几节串起来，MySQL 崩溃重启后做这样几件事：
 
-```text
+```txt
 1. 找到最近一次 Checkpoint LSN
 2. 从 Checkpoint LSN 开始，向后扫描 Redo Log
 3. 对每条日志：若目标数据页的 FIL_PAGE_LSN < 这条日志的 LSN，就重放这条日志
@@ -199,7 +199,7 @@ Redo Log 只解决「InnoDB 自己崩溃不丢数据」。但 MySQL 还有第二
 
 难点在于：写两份日志是两次独立的磁盘写，崩溃可能发生在「只写完了一份」的瞬间。如果不管先后顺序，都会出问题：
 
-```text
+```txt
 方案一：先写 Redo，再写 Binlog
   写完 Redo 后崩溃 → 主库恢复了该事务，但 Binlog 里没有
   → 从库基于 Binlog 重放，少了一条数据，主从不一致
@@ -211,7 +211,7 @@ Redo Log 只解决「InnoDB 自己崩溃不丢数据」。但 MySQL 还有第二
 
 InnoDB 用**两阶段提交**解决这个「两份日志无法原子写」的难题。事务提交分三步：
 
-```text
+```txt
 1. InnoDB：写 Redo Log，标记为 prepare（准备）状态
 2. Server：写 Binlog
 3. InnoDB：把 Redo Log 标记为 commit（提交）状态
@@ -219,7 +219,7 @@ InnoDB 用**两阶段提交**解决这个「两份日志无法原子写」的难
 
 崩溃恢复时，扫描 Redo Log 里处于 `prepare` 状态的事务，用「Binlog 是否完整」来裁决它的命运：
 
-```text
+```txt
 崩溃恢复对 prepare 事务的判定：
 - 对应 Binlog 完整（能查到该事务的 XID 事件）→ 提交（补写 redo commit）
 - 对应 Binlog 不完整（没有 XID）→ 回滚

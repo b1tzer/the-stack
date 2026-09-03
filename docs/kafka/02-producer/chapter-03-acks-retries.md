@@ -12,7 +12,7 @@
 
 ### 2.1 原理
 
-```text
+```txt
 Producer 启动 → InitProducerIdRequest → Broker 分配 PID
     │
     ▼
@@ -74,7 +74,7 @@ props.put("delivery.timeout.ms", 120000);    // 总超时 2 分钟
 
 当 `max.in.flight.requests.per.connection > 1` 时，重试可能导致消息乱序：
 
-```text
+```txt
 发送 msg1 → 失败（重试中）
 发送 msg2 → 成功
 msg1 重试成功

@@ -6,7 +6,7 @@
 
 Spring Boot 启动不是一步到位，而是分阶段推进。把 `run` 的内部过程按「是否影响 Bean 装配」分成四段，比死记十几个方法名有用：
 
-```text
+```txt
 准备阶段：推断类型 → 装配 RunListener → 准备 Environment → 打印 Banner
         ↓
 装配阶段：创建 ApplicationContext → 应用 Initializer → refresh()
@@ -106,7 +106,7 @@ public class MyListener {
 
 启动报错时，控制台会输出一份「Description / Action」报告，它来自 `FailureAnalyzer`：
 
-```text
+```txt
 ***************************
 APPLICATION FAILED TO START
 ***************************
@@ -169,7 +169,7 @@ spring:
 
 K8s 滚动更新时，Pod 会先收到 `SIGTERM`，再等 `terminationGracePeriodSeconds`（默认 30s）强制杀进程。要让优雅停机真正生效，这两个超时必须满足：
 
-```text
+```txt
 spring.lifecycle.timeout-per-shutdown-phase  <  terminationGracePeriodSeconds
 ```
 

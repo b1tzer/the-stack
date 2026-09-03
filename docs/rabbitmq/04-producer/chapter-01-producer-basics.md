@@ -10,7 +10,7 @@ channel.basicPublish(exchange, routingKey, props, body);
 
 这一行代码背后发生了什么：
 
-```text
+```txt
 1. 应用层调用 basicPublish
 2. 消息经过拦截器链（ProducerInterceptor）
 3. 序列化器将 body 转为 byte[]
@@ -69,7 +69,7 @@ AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
 ### 3.1 必须设置的属性
 
 | 属性 | 为什么必须设 |
-|------|-------------|
+| :-- | :-- |
 | deliveryMode = 2 | 不设的话消息只在内存，Broker 崩溃就丢 |
 | correlationId | 用于消息追踪和去重 |
 | messageId | 用于幂等消费 |
@@ -95,7 +95,7 @@ channel.basicPublish("notification.fanout", "", props, body);
 
 ## 5. 发送失败的处理
 
-```text
+```txt
 消息发送失败的可能原因：
   ├─ Exchange 不存在 → Channel 异常（404 NOT_FOUND）
   ├─ Routing key 无匹配 Queue → 消息被丢弃（或走 Alternate Exchange）
@@ -105,7 +105,7 @@ channel.basicPublish("notification.fanout", "", props, body);
 ```
 
 | 失败场景 | 处理方式 |
-|----------|----------|
+| :-- | :-- |
 | Exchange 不存在 | 检查配置，确保 Exchange 已声明 |
 | 无匹配 Queue | 配置 Alternate Exchange 记录未路由消息 |
 | Broker 内存满 | 等待 flow control 解除，或增大内存 |

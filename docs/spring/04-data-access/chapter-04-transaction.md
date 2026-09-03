@@ -68,7 +68,7 @@ public class TxConfig {
 
 `@Transactional` 的执行流程：
 
-```text
+```txt
 @Transactional 执行流程：
   1. AOP 代理拦截方法调用
   2. TransactionManager.getTransaction() → 获取/创建数据库连接，设置 autoCommit=false
@@ -92,7 +92,7 @@ public class TxConfig {
 
 事务方法调用经过 `TransactionInterceptor` 的完整链路：
 
-```text
+```txt
 @Transactional 注解
         ↓ 解析为切入点
 TransactionInterceptor（环绕通知）
@@ -209,7 +209,7 @@ public class OrderService {
 
 嵌套事务保存点原理：
 
-```text
+```txt
 NESTED 事务流程：
   BEGIN TRANSACTION (外层)
     INSERT INTO orders ...
@@ -383,7 +383,7 @@ public class BatchService {
 
 **根因**：Spring 事务绑定在 `ThreadLocal` 上，每个线程有自己的事务上下文。子线程拿不到主线程的事务，各自独立提交，不受主线程回滚影响。
 
-```text
+```txt
 主线程事务 ─────────────────────────── 回滚 ✅
   ├─ 子线程1: 独立事务 ──── 已提交 ❌
   ├─ 子线程2: 独立事务 ──── 已提交 ❌

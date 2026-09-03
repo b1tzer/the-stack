@@ -54,7 +54,7 @@ WHERE MATCH(title, content) AGAINST('+MySQL +优化 -PostgreSQL' IN BOOLEAN MODE
 上面的查询要求同时包含「MySQL」和「优化」，且不能出现「PostgreSQL」。常用操作符如下：
 
 | 操作符 | 语义 |
-|--------|------|
+| :-- | :-- |
 | `+词`  | 必须包含 |
 | `-词`  | 必须不包含 |
 | `词*`  | 前缀匹配 |

@@ -12,7 +12,7 @@
 
 Exchange 的存在解耦了这个关系：
 
-```text
+```txt
 Producer ──▶ Exchange ──▶ Queue A
                       ──▶ Queue B
                       ──▶ Queue C
@@ -23,7 +23,7 @@ Producer 只需要知道 Exchange 名字和 routing key，不需要知道消息�
 ## 2. Exchange 的属性
 
 | 属性 | 说明 | 默认值 |
-|------|------|--------|
+| :-- | :-- | :-- |
 | Name | Exchange 名称 | - |
 | Type | 类型（direct/topic/fanout/headers） | - |
 | Durable | 持久化（Broker 重启后保留） | false |
@@ -57,7 +57,7 @@ channel.queueBind("order.queue", "order.exchange", "order.created");
 ## 5. 四种 Exchange 类型概览
 
 | 类型 | 路由规则 | 匹配方式 | 典型场景 |
-|------|----------|----------|----------|
+| :-- | :-- | :-- | :-- |
 | Direct | routing key 精确匹配 | `order.created` = `order.created` | 点对点、任务分发 |
 | Topic | routing key 通配符匹配 | `order.*` 匹配 `order.created` | 事件订阅、分类路由 |
 | Fanout | 忽略 routing key | 广播到所有绑定 Queue | 广播通知、实时推送 |
@@ -99,7 +99,7 @@ channel.queueDeclare("order.queue", true, false, false, args);
 
 每个 Exchange 是一个 Erlang 进程。当消息到达时：
 
-```text
+```txt
 1. Broker 收到 basic.publish(exchange, routingKey, body)
 2. 找到 Exchange 进程
 3. Exchange 查询 binding 表（ETS 表，O(1) 查找）

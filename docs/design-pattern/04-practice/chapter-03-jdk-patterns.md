@@ -275,7 +275,7 @@ Action action = new AbstractAction("Click") {
 ## 4. 速查表：JDK 类与设计模式对应
 
 | JDK 类/接口 | 设计模式 | 说明 |
-|------------|---------|------|
+| :-- | :-- | :-- |
 | `Runtime.getRuntime()` | 单例 | 全局唯一运行时实例 |
 | `Calendar.getInstance()` | 工厂 | 根据地区创建不同实现 |
 | `StringBuilder` | 建造者 | 链式构建字符串 |

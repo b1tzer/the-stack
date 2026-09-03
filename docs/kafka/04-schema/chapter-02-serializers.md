@@ -19,7 +19,7 @@ Avro 是 Apache 基金会的项目，从 Hadoop 生态起源，被 Confluent 深
 
 例如 `Order{orderId: 100, amount: 99.5, email: null}`：
 
-```text
+```txt
 orderId (long, ZigZag)  : 0xC8 0x01           // 100 → 200 → 2 bytes
 amount  (double, IEEE)  : 8 bytes
 email   (union, null=0) : 0x00                // 1 byte

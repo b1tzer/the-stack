@@ -20,7 +20,7 @@
 
 有 Key 的消息在分区扩展后 rehash，同一 Key 的消息可能路由到新分区：
 
-```text
+```txt
 扩展前：Key=A 的消息全部到 Partition 0（有序）
 扩展后：Key=A 的消息部分到 Partition 0，部分到 Partition 3（无序）
 ```

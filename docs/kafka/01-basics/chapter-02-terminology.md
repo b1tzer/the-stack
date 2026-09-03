@@ -14,7 +14,7 @@
 
 存储层级关系：
 
-```text
+```txt
 Topic（逻辑）
   └── Partition 0（物理分片）
   │     ├── Segment 0（000000.log）
@@ -40,7 +40,7 @@ Topic（逻辑）
 
 ISR 的动态变化：
 
-```text
+```txt
 正常：ISR = {Leader, Follower1, Follower2}
 Follower2 变慢：ISR = {Leader, Follower1}（Follower2 被移出）
 Follower2 恢复：ISR = {Leader, Follower1, Follower2}（重新加入）
@@ -61,7 +61,7 @@ Follower2 恢复：ISR = {Leader, Follower1, Follower2}（重新加入）
 
 生产者内部流程：
 
-```text
+```txt
 send() → 拦截器 → 序列化 → 分区器 → RecordAccumulator → Sender → Broker
                                                                       ↓
                                                               ACK 返回
@@ -81,7 +81,7 @@ send() → 拦截器 → 序列化 → 分区器 → RecordAccumulator → Sende
 
 消费者组与分区的关系：
 
-```text
+```txt
 Topic 有 3 个分区
 Consumer Group 有 2 个消费者
 
@@ -106,7 +106,7 @@ Consumer Group 有 2 个消费者
 
 Kafka 0.11+ 使用 Record Batch 格式：
 
-```text
+```txt
 ┌─────────────────────────────────┐
 │         Record Batch            │
 │  Base Offset (8字节)             │

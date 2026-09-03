@@ -26,7 +26,7 @@ MM2 用**两个专门的内部 topic** 记录 offset 映射，分工明确。
 
 **由 MirrorSourceConnector 写入**。每复制一条消息（或按一定采样频率），把 `(topic, partition, sourceOffset, targetOffset)` 四元组作为一条记录写入 offset-syncs topic。
 
-```text
+```txt
 offset-syncs 内容（伪）:
   (orders, 0, srcOffset=1000, targetOffset=800)
   (orders, 0, srcOffset=2000, targetOffset=1800)
@@ -45,7 +45,7 @@ offset-syncs 内容（伪）:
 1. 从源集群读取每个 consumer group 的最新已提交 offset（committed offset）
 2. 用 offset-syncs topic 的映射把源 offset 翻译成目标 offset，写入 checkpoints topic
 
-```text
+```txt
 checkpoints 内容（伪）:
   { group: "order-service", topic: "orders", partition: 0,
     upstreamOffset: 1950, downstreamOffset: 1750,
@@ -128,7 +128,7 @@ try (KafkaConsumer<String, String> consumer = new KafkaConsumer<>(consumerProps)
 
 Active-Active 每个 region 有独立 consumer 在读**本地 + 远端前缀**两批 topic：
 
-```text
+```txt
 us-east consumer 订阅: [ orders,        us-west.orders        ]
 us-west consumer 订阅: [ orders,        us-east.orders        ]
 ```

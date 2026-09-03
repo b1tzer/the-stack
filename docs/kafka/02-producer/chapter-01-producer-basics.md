@@ -33,7 +33,7 @@ Producer → 拦截器 → 序列化器 → 分区器 → RecordAccumulator → 
 ## 3. 核心参数
 
 | 参数 | 说明 | 默认值 |
-|------|------|--------|
+| :-- | :-- | :-- |
 | bootstrap.servers | Broker 地址 | - |
 | acks | 确认机制 | all |
 | retries | 重试次数 | Integer.MAX_VALUE |

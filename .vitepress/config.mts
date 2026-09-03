@@ -66,9 +66,69 @@ export default withOpenInEditor(withMermaid(defineConfig({
           { text: 'AI 工程', link: '/ai/01-LLM接口与提示词工程' },
         ],
       },
+      { text: '场景实战', link: '/scenarios/', activeMatch: '^/scenarios/' },
     ],
 
     sidebar: {
+      '/scenarios/': [
+        {
+          text: '场景实战',
+          items: [
+            { text: '场景首页', link: '/scenarios/' },
+          ],
+        },
+        {
+          text: '缓存场景',
+          items: [
+            { text: '缓存场景首页', link: '/scenarios/01-cache/' },
+            { text: '缓存失效：穿透·击穿·雪崩', link: '/scenarios/01-cache/chapter-01-cache-invalidation' },
+            { text: '缓存写路径：四种模式与一致性', link: '/scenarios/01-cache/chapter-02-cache-write-patterns' },
+            { text: '多级缓存与纵深防御', link: '/scenarios/01-cache/chapter-03-multi-level-defense' },
+            { text: '大 Key 与热 Key', link: '/scenarios/01-cache/chapter-04-big-hot-key' },
+          ],
+        },
+        {
+          text: '并发控制',
+          items: [
+            { text: '并发控制首页', link: '/scenarios/02-concurrency/' },
+            { text: '分布式锁', link: '/scenarios/02-concurrency/chapter-01-distributed-lock' },
+            { text: '限流器', link: '/scenarios/02-concurrency/chapter-02-rate-limiting' },
+            { text: '幂等控制', link: '/scenarios/02-concurrency/chapter-03-idempotency' },
+          ],
+        },
+        {
+          text: '消息场景',
+          items: [
+            { text: '消息场景首页', link: '/scenarios/03-messaging/' },
+            { text: '延迟任务', link: '/scenarios/03-messaging/chapter-01-delayed-task' },
+            { text: 'RPC over MQ', link: '/scenarios/03-messaging/chapter-02-rpc-over-mq' },
+            { text: '竞争消费者', link: '/scenarios/03-messaging/chapter-03-competing-consumers' },
+            { text: '发布订阅', link: '/scenarios/03-messaging/chapter-04-pub-sub' },
+            { text: '消息去重', link: '/scenarios/03-messaging/chapter-05-deduplication' },
+          ],
+        },
+        {
+          text: '数据访问',
+          items: [
+            { text: '数据访问首页', link: '/scenarios/04-data-access/' },
+            { text: '读写分离', link: '/scenarios/04-data-access/chapter-01-read-write-split' },
+            { text: '多租户', link: '/scenarios/04-data-access/chapter-02-multi-tenant' },
+          ],
+        },
+        {
+          text: '综合案例',
+          items: [
+            { text: '综合案例首页', link: '/scenarios/05-cases/' },
+            { text: '电商订单系统', link: '/scenarios/05-cases/chapter-01-ecommerce' },
+            { text: '排行榜', link: '/scenarios/05-cases/chapter-02-leaderboard' },
+            { text: '缓存系统实战', link: '/scenarios/05-cases/chapter-03-cache-system' },
+            { text: '日志分析', link: '/scenarios/05-cases/chapter-04-log-analysis' },
+            { text: '搜索引擎', link: '/scenarios/05-cases/chapter-05-search-engine' },
+            { text: '数据同步', link: '/scenarios/05-cases/chapter-06-data-sync' },
+            { text: '电商订单（消息驱动）', link: '/scenarios/05-cases/chapter-07-order-system' },
+          ],
+        },
+      ],
       '/ai/': [
         {
           text: 'AI 工程',
@@ -244,9 +304,6 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '第一个 ES 应用', link: '/elasticsearch/10-practice/chapter-02-first-app' },
             { text: '首次生产部署', link: '/elasticsearch/10-practice/chapter-03-first-production' },
             { text: 'Spring 集成', link: '/elasticsearch/10-practice/chapter-04-spring-integration' },
-            { text: '日志分析', link: '/elasticsearch/10-practice/chapter-05-log-analysis' },
-            { text: '搜索引擎', link: '/elasticsearch/10-practice/chapter-06-search-engine' },
-            { text: '数据同步', link: '/elasticsearch/10-practice/chapter-07-data-sync' },
           ],
         },
         {
@@ -286,6 +343,8 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '单体架构', link: '/engineering/03-architecture/chapter-04-monolith' },
             { text: '事件驱动', link: '/engineering/03-architecture/chapter-05-event-driven' },
             { text: '架构决策', link: '/engineering/03-architecture/chapter-06-architecture-decision' },
+            { text: 'API 设计', link: '/engineering/03-architecture/chapter-07-api-design' },
+            { text: '数据建模', link: '/engineering/03-architecture/chapter-08-data-modeling' },
           ],
         },
         {
@@ -312,6 +371,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         {
           text: '工程实践',
           items: [
+            { text: 'Git 工作流', link: '/engineering/06-engineering-practices/chapter-01-git-workflow' },
             { text: 'Code Review', link: '/engineering/06-engineering-practices/chapter-02-code-review' },
             { text: '测试', link: '/engineering/06-engineering-practices/chapter-03-testing' },
             { text: 'CI/CD', link: '/engineering/06-engineering-practices/chapter-04-cicd' },
@@ -336,17 +396,6 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '需求分析', link: '/engineering/08-project-management/chapter-02-requirements' },
             { text: '估算', link: '/engineering/08-project-management/chapter-03-estimation' },
             { text: '技术债务', link: '/engineering/08-project-management/chapter-04-technical-debt' },
-          ],
-        },
-        {
-          text: '实战',
-          items: [
-            { text: '软件工程入门', link: '/engineering/11-practice/chapter-01-getting-started' },
-            { text: 'Git 工作流', link: '/engineering/11-practice/chapter-02-git-workflow' },
-            { text: 'API 设计', link: '/engineering/11-practice/chapter-03-api-design' },
-            { text: '数据建模', link: '/engineering/11-practice/chapter-04-data-modeling' },
-            { text: '性能调优', link: '/engineering/11-practice/chapter-05-performance-tuning' },
-            { text: '案例分析', link: '/engineering/11-practice/chapter-06-case-studies' },
           ],
         },
         {
@@ -597,16 +646,6 @@ export default withOpenInEditor(withMermaid(defineConfig({
           ],
         },
         {
-          text: '消息模式',
-          items: [
-            { text: 'RPC 模式', link: '/rabbitmq/06-message-patterns/chapter-01-rpc-pattern' },
-            { text: '竞争消费者', link: '/rabbitmq/06-message-patterns/chapter-02-competing-consumers' },
-            { text: '发布/订阅', link: '/rabbitmq/06-message-patterns/chapter-03-pub-sub' },
-            { text: '消息去重', link: '/rabbitmq/06-message-patterns/chapter-04-deduplication' },
-            { text: '幂等性设计', link: '/rabbitmq/06-message-patterns/chapter-05-idempotency' },
-          ],
-        },
-        {
           text: '集群',
           items: [
             { text: '集群基础', link: '/rabbitmq/07-clustering/chapter-01-cluster-basics' },
@@ -619,19 +658,16 @@ export default withOpenInEditor(withMermaid(defineConfig({
         {
           text: '运维管理',
           items: [
-            { text: '管理与监控', link: '/rabbitmq/09-operations/chapter-01-management' },
-            { text: '安全配置', link: '/rabbitmq/09-operations/chapter-02-security' },
-            { text: '常见问题', link: '/rabbitmq/09-operations/chapter-03-troubleshooting' },
-            { text: '性能调优', link: '/rabbitmq/09-operations/chapter-04-performance-tuning' },
+            { text: '管理与监控', link: '/rabbitmq/08-operations/chapter-01-management' },
+            { text: '安全配置', link: '/rabbitmq/08-operations/chapter-02-security' },
+            { text: '常见问题', link: '/rabbitmq/08-operations/chapter-03-troubleshooting' },
+            { text: '性能调优', link: '/rabbitmq/08-operations/chapter-04-performance-tuning' },
           ],
         },
         {
           text: 'Spring 集成',
           items: [
-            { text: 'Spring AMQP', link: '/rabbitmq/09-spring-integration/chapter-01-spring-amqp' },
-            { text: 'Spring Boot 配置', link: '/rabbitmq/09-spring-integration/chapter-02-spring-boot-config' },
-            { text: '错误处理与重试', link: '/rabbitmq/09-spring-integration/chapter-03-error-handling' },
-            { text: '测试策略', link: '/rabbitmq/09-spring-integration/chapter-04-testing' },
+            { text: 'Spring AMQP 集成', link: '/spring/07-async-and-messaging/chapter-05-messaging#rabbitmq-integration' },
           ],
         },
         {
@@ -640,10 +676,9 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '安装部署与环境配置', link: '/rabbitmq/10-practice/chapter-01-installation' },
             { text: '第一个 RabbitMQ 应用', link: '/rabbitmq/10-practice/chapter-02-first-app' },
             { text: '首次生产部署', link: '/rabbitmq/10-practice/chapter-03-first-production' },
-            { text: '电商订单系统', link: '/rabbitmq/10-practice/chapter-04-order-system' },
-            { text: '事件驱动架构', link: '/rabbitmq/10-practice/chapter-05-event-driven' },
-            { text: '可靠性模式', link: '/rabbitmq/10-practice/chapter-06-reliability-patterns' },
-            { text: '性能基准', link: '/rabbitmq/10-practice/chapter-07-performance-benchmark' },
+            { text: '事件驱动架构', link: '/rabbitmq/10-practice/chapter-04-event-driven' },
+            { text: '可靠性模式', link: '/rabbitmq/10-practice/chapter-05-reliability-patterns' },
+            { text: '性能基准', link: '/rabbitmq/10-practice/chapter-06-performance-benchmark' },
           ],
         },
         {
@@ -722,13 +757,13 @@ export default withOpenInEditor(withMermaid(defineConfig({
         {
           text: '运维管理',
           items: [
-            { text: '备份恢复', link: '/mysql/09-operations/chapter-01-backup-restore' },
-            { text: '监控', link: '/mysql/09-operations/chapter-02-monitoring' },
-            { text: '安全与用户管理', link: '/mysql/09-operations/chapter-03-security' },
-            { text: '日常维护', link: '/mysql/09-operations/chapter-04-maintenance' },
-            { text: '连接管理', link: '/mysql/09-operations/chapter-05-connection-mgmt' },
-            { text: '在线 DDL', link: '/mysql/09-operations/chapter-06-online-ddl' },
-            { text: '数据迁移', link: '/mysql/09-operations/chapter-07-data-migration' },
+            { text: '备份恢复', link: '/mysql/08-operations/chapter-01-backup-restore' },
+            { text: '监控', link: '/mysql/08-operations/chapter-02-monitoring' },
+            { text: '安全与用户管理', link: '/mysql/08-operations/chapter-03-security' },
+            { text: '日常维护', link: '/mysql/08-operations/chapter-04-maintenance' },
+            { text: '连接管理', link: '/mysql/08-operations/chapter-05-connection-mgmt' },
+            { text: '在线 DDL', link: '/mysql/08-operations/chapter-06-online-ddl' },
+            { text: '数据迁移', link: '/mysql/08-operations/chapter-07-data-migration' },
           ],
         },
         {
@@ -859,14 +894,6 @@ export default withOpenInEditor(withMermaid(defineConfig({
           ],
         },
         {
-          text: '实战项目',
-          items: [
-            { text: '电商订单系统设计', link: '/postgresql/13-projects/chapter-01-ecommerce' },
-            { text: '读写分离架构搭建', link: '/postgresql/13-projects/chapter-02-read-write-split' },
-            { text: '多租户架构设计', link: '/postgresql/13-projects/chapter-03-multi-tenant' },
-          ],
-        },
-        {
           text: '参考手册',
           items: [
             { text: '参数速查', link: '/postgresql/reference/parameters' },
@@ -912,10 +939,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         {
           text: '缓存工程',
           items: [
-            { text: '缓存失效：穿透·击穿·雪崩', link: '/redis/03-cache-engineering/chapter-01-cache-invalidation' },
-            { text: '缓存写路径：四种模式与一致性', link: '/redis/03-cache-engineering/chapter-02-cache-write-patterns' },
-            { text: '多级缓存与纵深防御', link: '/redis/03-cache-engineering/chapter-03-multi-level-defense' },
-            { text: '大 Key 与热 Key', link: '/redis/03-cache-engineering/chapter-04-big-hot-key' },
+            { text: '缓存工程场景', link: '/scenarios/01-cache/' },
           ],
         },
         {
@@ -925,15 +949,6 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '哨兵', link: '/redis/04-high-availability/chapter-02-sentinel' },
             { text: '集群', link: '/redis/04-high-availability/chapter-03-cluster' },
             { text: '线上问题案例集', link: '/redis/04-high-availability/chapter-04-production-cases' },
-          ],
-        },
-        {
-          text: '场景与模式',
-          items: [
-            { text: '分布式锁', link: '/redis/06-patterns/chapter-01-distributed-lock' },
-            { text: '限流器', link: '/redis/06-patterns/chapter-02-rate-limiter' },
-            { text: '延迟队列', link: '/redis/06-patterns/chapter-03-delay-queue' },
-            { text: '排行榜', link: '/redis/06-patterns/chapter-04-leaderboard' },
           ],
         },
         {
@@ -951,7 +966,6 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '安装部署与环境配置', link: '/redis/10-practice/chapter-01-installation' },
             { text: '第一个 Redis 应用', link: '/redis/10-practice/chapter-02-first-app' },
             { text: '首次生产部署', link: '/redis/10-practice/chapter-03-first-production' },
-            { text: '实战项目', link: '/redis/10-practice/chapter-04-hands-on-project' },
           ],
         },
         {
@@ -1014,6 +1028,8 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '多数据源', link: '/spring/04-data-access/chapter-06-multi-datasource' },
             { text: '数据库迁移', link: '/spring/04-data-access/chapter-07-flyway-liquibase' },
             { text: '响应式数据访问', link: '/spring/04-data-access/chapter-08-r2dbc' },
+            { text: 'Elasticsearch 集成', link: '/spring/04-data-access/chapter-09-elasticsearch-integration' },
+            { text: 'Redis 集成', link: '/spring/04-data-access/chapter-10-redis-integration' },
           ],
         },
         {
@@ -1070,7 +1086,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '连接池与容器调优', link: '/spring/10-production/chapter-01-pool-tuning' },
             { text: '容器化部署', link: '/spring/10-production/chapter-02-containerization' },
             { text: 'GraalVM 原生镜像', link: '/spring/10-production/chapter-03-graalvm' },
-            { text: 'CI/CD 流水线', link: '/spring/10-production/chapter-04-cicd' },
+            { text: 'JVM 调优', link: '/spring/10-production/chapter-05-jvm-tuning' },
           ],
         },
         {

@@ -18,7 +18,7 @@ public class ReportGenerator {
 
 容器扫描后得到的 `BeanDefinition` 大致是：
 
-```text
+```txt
 GenericBeanDefinition {
     beanClassName = "com.example.ReportGenerator",
     scope        = "prototype",
@@ -133,7 +133,7 @@ public class MonitorBeanPostProcessor implements BeanPostProcessor {
 
 三个初始化回调的执行顺序固定：
 
-```text
+```txt
 @PostConstruct  →  InitializingBean.afterPropertiesSet  →  init-method
 ```
 
@@ -175,7 +175,7 @@ protected void invokeInitMethods(String beanName, Object bean, @Nullable RootBea
 
 销毁顺序和初始化镜像对称：
 
-```text
+```txt
 @PreDestroy  →  DisposableBean.destroy  →  destroy-method
 ```
 

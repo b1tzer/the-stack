@@ -54,7 +54,7 @@ GET /my-index/_search?search_type=dfs_query_then_fetch
 ```
 
 | 搜索模式 | 说明 | 适用场景 |
-|---------|------|---------|
+| :-- | :-- | :-- |
 | `query_then_fetch` | 默认，每个分片独立评分 | 通用场景 |
 | `dfs_query_then_fetch` | 先收集全局词频，再评分 | 需要精确评分的场景 |
 
@@ -77,7 +77,7 @@ GET /my-index/_search?preference=_primary_first
 ## 6. 读取性能优化
 
 | 优化手段 | 原理 |
-|---------|------|
+| :-- | :-- |
 | 使用 `filter` | 结果可缓存，不计算评分 |
 | 减少返回字段 | `_source` 过滤减少网络传输 |
 | 使用 `routing` | 只查询特定分片 |

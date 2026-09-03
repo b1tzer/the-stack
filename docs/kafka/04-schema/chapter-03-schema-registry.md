@@ -17,7 +17,7 @@ Schema Registry 是一个独立于 Broker 的 REST 服务。它不属于 Apache 
 
 三者关系示例：
 
-```text
+```txt
 Subject: orders-value
 ├─ Version 1 → Schema ID 42   (初始 schema)
 ├─ Version 2 → Schema ID 51   (加了 email 字段)
@@ -33,7 +33,7 @@ Subject: shipments-value
 
 `KafkaAvroSerializer` / `KafkaProtobufSerializer` / `KafkaJsonSchemaSerializer` 三个 Serializer 输出的字节结构完全一致，都遵循 Confluent Wire Format：
 
-```text
+```txt
 +-----------+---------------+----------------------+
 | Magic Byte| Schema ID     | Serialized Payload   |
 | (1 byte)  | (4 bytes, BE) | (Avro/Proto/JSON bin)|
@@ -53,7 +53,7 @@ Deserializer 拿到消息第一件事就是校验 `bytes[0] == 0x00`。如果不
 
 Producer 侧一次 `send()` 的完整链路：
 
-```text
+```txt
 producer.send(new ProducerRecord("orders", key, orderObj))
    │
    ▼
@@ -73,7 +73,7 @@ KafkaProducer 发送到 Broker
 
 Consumer 侧的反向链路：
 
-```text
+```txt
 KafkaConsumer.poll() 收到 byte[]
    │
    ▼

@@ -14,7 +14,7 @@ SQL → Parser → Analyzer → Rewriter → Planner/Optimizer → Executor → 
 ```
 
 | 阶段 | 说明 |
-|------|------|
+| :-- | :-- |
 | Parser | 语法检查，生成语法树 |
 | Analyzer | 语义检查，解析表名/列名 |
 | Rewriter | 规则重写（视图展开） |
@@ -56,7 +56,7 @@ Hash Join  (cost=1.15..2.45 rows=3) (actual time=0.05..0.08 rows=3 loops=1)
 ```
 
 | 指标 | 含义 |
-|------|------|
+| :-- | :-- |
 | cost=启动代价..总代价 | 优化器估算的代价（不是时间） |
 | actual time=首行时间..总时间 | 真实耗时（毫秒） |
 | rows | 实际返回的行数 |
@@ -74,7 +74,7 @@ Hash Join  (cost=1.15..2.45 rows=3) (actual time=0.05..0.08 rows=3 loops=1)
 ## 4. 常见扫描方式
 
 | 方式 | 说明 | 适用场景 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | Seq Scan | 全表扫描 | 小表或无索引 |
 | Index Scan | 索引扫描 + 回表 | 有索引，需回表 |
 | Index Only Scan | 仅索引扫描 | 覆盖索引 |
@@ -83,7 +83,7 @@ Hash Join  (cost=1.15..2.45 rows=3) (actual time=0.05..0.08 rows=3 loops=1)
 ## 5. 连接方式
 
 | 方式 | 说明 | 适用场景 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | Nested Loop | 嵌套循环 | 小表驱动大表 |
 | Hash Join | 哈希连接 | 等值连接，大表 |
 | Merge Join | 归并连接 | 已排序数据 |
@@ -91,7 +91,7 @@ Hash Join  (cost=1.15..2.45 rows=3) (actual time=0.05..0.08 rows=3 loops=1)
 ## 6. 查询计划节点类型
 
 | 节点类型 | 说明 | 触发条件 |
-|---------|------|----------|
+| :-- | :-- | :-- |
 | Seq Scan | 全表扫描 | 无索引或选择性低 |
 | Index Scan | 索引扫描 + 回表 | 有索引，需要回表取数据 |
 | Index Only Scan | 仅索引扫描 | 覆盖索引，不需要回表 |

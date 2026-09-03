@@ -135,7 +135,7 @@ try {
 ## 7. 事务 vs 非事务对比
 
 | 特性 | 幂等 Producer | 事务 Producer |
-|------|---------------|---------------|
+| :-- | :-- | :-- |
 | 范围 | 单分区 | 跨分区 + Offset |
 | 开销 | 极低 | 中等 |
 | 配置 | `enable.idempotence=true` | `transactional.id` + `enable.idempotence=true` |

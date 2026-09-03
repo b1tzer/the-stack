@@ -79,7 +79,7 @@ Spring AOP 不直接改目标类的字节码，而是生成一个代理对象挡
 Spring Boot 2.0 起默认使用 CGLIB（`spring.aop.proxy-target-class` 默认 `true`），因为大多数业务类不实现接口。
 :::
 
-```text
+```txt
 调用方 → 代理对象（CGLIB 子类）
               │ 拦截
               ▼
@@ -168,7 +168,7 @@ service.process();
 
 Spring 里所有自动代理的逻辑都集中在 `AbstractAutoProxyCreator`，它实现了 `SmartInstantiationAwareBeanPostProcessor`，挂在 Bean 生命周期的初始化后阶段：
 
-```text
+```txt
 DefaultListableBeanFactory
   └─ AbstractBeanFactory#getBean()
        └─ AbstractAutowireCapableBeanFactory#initializeBean()
@@ -217,7 +217,7 @@ protected Object wrapIfNecessary(Object bean, String beanName, Object cacheKey) 
 
 关键在第 2 步 `getAdvicesAndAdvisorsForBean`，它的调用链：
 
-```text
+```txt
 getAdvicesAndAdvisorsForBean()
   └─ findEligibleAdvisors()
        ├─ findCandidateAdvisors()     // 从容器收集所有 Advisor Bean
@@ -251,7 +251,7 @@ public AopProxy createAopProxy(AdvisedSupport config) {
 
 决策逻辑：
 
-```text
+```txt
 proxyTargetClass = true（Spring Boot 默认）
   ├─ 目标类是接口 → JdkDynamicAopProxy
   └─ 否则 → CglibAopProxy
@@ -285,7 +285,7 @@ JDK 动态代理的逻辑类似，区别在 `JdkDynamicAopProxy#invoke`，它直
 
 ### 7.5 源码流程总览
 
-```text
+```txt
 Spring 容器启动
   │
   ├─ 解析 @Aspect 类 → AspectJAdvisorFactory → Advisor Bean

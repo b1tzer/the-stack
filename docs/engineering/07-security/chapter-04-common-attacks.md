@@ -99,7 +99,7 @@ public String upload(@RequestParam MultipartFile file) {
 ## 5. 攻击防御总结
 
 | 攻击 | 防御方法 |
-|------|----------|
+| :-- | :-- |
 | XSS | HTML 转义、CSP 头、HttpOnly Cookie |
 | CSRF | CSRF Token、SameSite Cookie、验证 Referer |
 | SQL 注入 | 参数化查询、ORM 框架 |

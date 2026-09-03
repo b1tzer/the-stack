@@ -37,7 +37,7 @@ consumer.assign(Arrays.asList(new TopicPartition("topic", 0)));
 ## 3. 核心参数
 
 | 参数 | 说明 | 默认值 |
-|------|------|--------|
+| :-- | :-- | :-- |
 | group.id | 消费者组 | - |
 | enable.auto.commit | 自动提交 | true |
 | auto.commit.interval.ms | 提交间隔 | 5000 |

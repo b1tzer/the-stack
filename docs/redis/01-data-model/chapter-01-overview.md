@@ -6,7 +6,7 @@
 
 Redis（Remote Dictionary Server）是一个开源的键值对存储系统，数据保存在内存中，读写速度远超基于磁盘的数据库。它的本质是一个**数据结构服务器**：value 不只是普通字符串，而可以是 String、Hash、List、Set、ZSet 等多种数据结构，并针对每种结构提供原子操作命令。
 
-```text
+```txt
 key  →  value（value 可以是多种数据结构）
 
 "user:123"        →  "{name:'张三', age:25}"     String
