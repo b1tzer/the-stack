@@ -117,13 +117,13 @@ HTTP Request
 │  (Spring 容器的入口，委托给 FilterChainProxy)                       │
 │                                                                  │
 │  ┌─────────────────────────────────────────────────────────────┐ │
-│  │              FilterChainProxy                                │ │
-│  │                                                              │ │
-│  │  ┌──────────┐  ┌──────────────────┐  ┌──────────────────┐  │ │
-│  │  │ Security │  │ Authentication   │  │  Authorization    │  │ │
-│  │  │ Context  │  │     Filter       │  │     Filter        │  │ │
-│  │  │  Filter  │  │ (认证：你是谁？)   │  │ (授权：你能做什么？)│  │ │
-│  │  └──────────┘  └──────────────────┘  └──────────────────┘  │ │
+│  │              FilterChainProxy                               │ │
+│  │                                                             │ │
+│  │  ┌──────────┐  ┌──────────────────┐  ┌──────────────────┐   │ │
+│  │  │ Security │  │ Authentication   │  │  Authorization   │   │ │
+│  │  │ Context  │  │     Filter       │  │     Filter       │   │ │
+│  │  │  Filter  │  │ (认证：你是谁？)   │  │ (授权：你能做什么？)│   │ │
+│  │  └──────────┘  └──────────────────┘  └──────────────────┘   │ │
 │  └─────────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────┘
     │
@@ -133,9 +133,32 @@ HTTP Request
 
 ### 2.2 认证流程详解
 
-一次登录认证的完整流程涉及多个组件的协作：
+一次登录认证的完整流程，各组件按顺序协作：
 
-![security-auth-flow](/spring/security-auth-flow.svg)
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as 用户(浏览器)
+    participant F as AuthenticationFilter
+    participant M as AuthenticationManager
+    participant P as DaoAuthenticationProvider
+    participant U as UserDetailsService
+    participant E as PasswordEncoder
+    participant S as SecurityContextHolder
+
+    Client->>F: 提交用户名/密码
+    Note over F: 创建未认证的 Authentication 对象
+    F->>M: authenticate(authentication)
+    M->>P: authenticate(authentication)
+    P->>U: loadUserByUsername(username)
+    U-->>P: 返回 UserDetails（含密码、权限）
+    P->>E: matches(rawPassword, encodedPassword)
+    E-->>P: 返回匹配结果
+    P-->>M: 返回已认证 Authentication
+    M-->>F: 返回已认证 Authentication
+    F->>S: setAuthentication(auth)
+    Note over S: 后续请求通过 getAuthentication() 获取当前用户
+```
 
 ### 2.3 核心代码示例
 
