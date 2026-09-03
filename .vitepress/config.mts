@@ -73,12 +73,14 @@ export default withOpenInEditor(withMermaid(defineConfig({
       '/scenarios/': [
         {
           text: '场景实战',
+          collapsed: true,
           items: [
             { text: '场景首页', link: '/scenarios/' },
           ],
         },
         {
           text: '缓存场景',
+          collapsed: true,
           items: [
             { text: '缓存场景首页', link: '/scenarios/01-cache/' },
             { text: '缓存失效：穿透·击穿·雪崩', link: '/scenarios/01-cache/chapter-01-cache-invalidation' },
@@ -89,6 +91,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '并发控制',
+          collapsed: true,
           items: [
             { text: '并发控制首页', link: '/scenarios/02-concurrency/' },
             { text: '分布式锁', link: '/scenarios/02-concurrency/chapter-01-distributed-lock' },
@@ -98,6 +101,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '消息场景',
+          collapsed: true,
           items: [
             { text: '消息场景首页', link: '/scenarios/03-messaging/' },
             { text: '延迟任务', link: '/scenarios/03-messaging/chapter-01-delayed-task' },
@@ -109,6 +113,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '数据访问',
+          collapsed: true,
           items: [
             { text: '数据访问首页', link: '/scenarios/04-data-access/' },
             { text: '读写分离', link: '/scenarios/04-data-access/chapter-01-read-write-split' },
@@ -117,6 +122,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '综合案例',
+          collapsed: true,
           items: [
             { text: '综合案例首页', link: '/scenarios/05-cases/' },
             { text: '电商订单系统', link: '/scenarios/05-cases/chapter-01-ecommerce' },
@@ -132,6 +138,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
       '/ai/': [
         {
           text: 'AI 工程',
+          collapsed: true,
           items: [
             { text: 'LLM 接口与提示词工程', link: '/ai/01-LLM接口与提示词工程' },
             { text: 'RAG 架构与工程落地', link: '/ai/02-RAG架构与工程落地' },
@@ -144,12 +151,14 @@ export default withOpenInEditor(withMermaid(defineConfig({
       '/design-pattern/': [
         {
           text: '入门',
+          collapsed: true,
           items: [
             { text: '为什么需要设计模式', link: '/design-pattern/00-intro/chapter-01-why-patterns' },
           ],
         },
         {
           text: '创建型',
+          collapsed: true,
           items: [
             { text: '工厂模式', link: '/design-pattern/01-creational/chapter-01-factory' },
             { text: '单例模式', link: '/design-pattern/01-creational/chapter-02-singleton' },
@@ -160,6 +169,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '结构型',
+          collapsed: true,
           items: [
             { text: '适配器模式', link: '/design-pattern/02-structural/chapter-01-adapter' },
             { text: '装饰器模式', link: '/design-pattern/02-structural/chapter-02-decorator' },
@@ -173,6 +183,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '行为型',
+          collapsed: true,
           items: [
             { text: '策略模式', link: '/design-pattern/03-behavioral/chapter-01-strategy' },
             { text: '观察者模式', link: '/design-pattern/03-behavioral/chapter-02-observer' },
@@ -189,6 +200,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '实战',
+          collapsed: true,
           items: [
             { text: '设计模式入门', link: '/design-pattern/04-practice/chapter-01-getting-started' },
             { text: 'Spring 中的模式', link: '/design-pattern/04-practice/chapter-02-spring-patterns' },
@@ -199,6 +211,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '参考手册',
+          collapsed: true,
           items: [
             { text: '模式速查表', link: '/design-pattern/reference/pattern-cheatsheet' },
             { text: 'UML 类图速查', link: '/design-pattern/reference/uml-cheatsheet' },
@@ -208,6 +221,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
       '/elasticsearch/': [
         {
           text: '基础入门',
+          collapsed: true,
           items: [
             { text: 'ES 引入', link: '/elasticsearch/01-basics/chapter-00-intro' },
             { text: 'ES 概览', link: '/elasticsearch/01-basics/chapter-01-overview' },
@@ -217,6 +231,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '索引与映射',
+          collapsed: true,
           items: [
             { text: '文档 CRUD', link: '/elasticsearch/02-indexing/chapter-01-document-crud' },
             { text: '映射', link: '/elasticsearch/02-indexing/chapter-02-mapping' },
@@ -228,6 +243,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '搜索',
+          collapsed: true,
           items: [
             { text: 'Query DSL', link: '/elasticsearch/03-search/chapter-01-query-dsl' },
             { text: '全文搜索', link: '/elasticsearch/03-search/chapter-02-full-text-search' },
@@ -240,6 +256,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '聚合',
+          collapsed: true,
           items: [
             { text: '指标聚合', link: '/elasticsearch/04-aggregation/chapter-01-metrics-agg' },
             { text: '桶聚合', link: '/elasticsearch/04-aggregation/chapter-02-bucket-agg' },
@@ -249,6 +266,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '分布式原理',
+          collapsed: true,
           items: [
             { text: '分布式架构', link: '/elasticsearch/05-distributed-internals/chapter-01-architecture' },
             { text: '分片机制', link: '/elasticsearch/05-distributed-internals/chapter-02-sharding' },
@@ -261,6 +279,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '数据建模',
+          collapsed: true,
           items: [
             { text: '建模原则', link: '/elasticsearch/06-data-modeling/chapter-01-modeling-principles' },
             { text: 'Nested vs Join', link: '/elasticsearch/06-data-modeling/chapter-02-nested-vs-join' },
@@ -270,6 +289,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '运维管理',
+          collapsed: true,
           items: [
             { text: '集群管理', link: '/elasticsearch/07-operations/chapter-01-cluster-management' },
             { text: '监控', link: '/elasticsearch/07-operations/chapter-02-monitoring' },
@@ -281,6 +301,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '性能优化',
+          collapsed: true,
           items: [
             { text: '索引优化', link: '/elasticsearch/08-performance/chapter-01-index-optimization' },
             { text: '查询优化', link: '/elasticsearch/08-performance/chapter-02-query-optimization' },
@@ -290,6 +311,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '生态工具',
+          collapsed: true,
           items: [
             { text: 'ELK Stack', link: '/elasticsearch/09-ecosystem/chapter-01-elk' },
             { text: 'Beats', link: '/elasticsearch/09-ecosystem/chapter-02-beats' },
@@ -299,6 +321,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '实战',
+          collapsed: true,
           items: [
             { text: '安装部署与环境配置', link: '/elasticsearch/10-practice/chapter-01-installation' },
             { text: '第一个 ES 应用', link: '/elasticsearch/10-practice/chapter-02-first-app' },
@@ -308,6 +331,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '参考手册',
+          collapsed: true,
           items: [
             { text: '参数速查', link: '/elasticsearch/reference/parameters' },
             { text: 'API 速查', link: '/elasticsearch/reference/api' },
@@ -317,6 +341,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
       '/engineering/': [
         {
           text: '设计原则',
+          collapsed: true,
           items: [
             { text: '软件工程概览', link: '/engineering/01-principles/chapter-01-overview' },
             { text: 'SOLID 原则', link: '/engineering/01-principles/chapter-02-solid' },
@@ -327,6 +352,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '设计模式',
+          collapsed: true,
           items: [
             { text: '创建型', link: '/engineering/02-design-patterns/chapter-01-creational' },
             { text: '结构型', link: '/engineering/02-design-patterns/chapter-02-structural' },
@@ -336,6 +362,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '架构设计',
+          collapsed: true,
           items: [
             { text: '架构风格', link: '/engineering/03-architecture/chapter-01-architecture-styles' },
             { text: '整洁架构', link: '/engineering/03-architecture/chapter-02-clean-architecture' },
@@ -349,6 +376,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: 'DDD',
+          collapsed: true,
           items: [
             { text: 'DDD 概览', link: '/engineering/04-ddd/chapter-01-ddd-overview' },
             { text: '限界上下文', link: '/engineering/04-ddd/chapter-02-bounded-context' },
@@ -359,6 +387,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '系统设计',
+          collapsed: true,
           items: [
             { text: '设计方法论', link: '/engineering/05-system-design/chapter-01-design-methodology' },
             { text: '高并发', link: '/engineering/05-system-design/chapter-02-high-concurrency' },
@@ -370,6 +399,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '工程实践',
+          collapsed: true,
           items: [
             { text: 'Git 工作流', link: '/engineering/06-engineering-practices/chapter-01-git-workflow' },
             { text: 'Code Review', link: '/engineering/06-engineering-practices/chapter-02-code-review' },
@@ -381,6 +411,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '安全',
+          collapsed: true,
           items: [
             { text: '安全概览', link: '/engineering/07-security/chapter-01-security-overview' },
             { text: '认证', link: '/engineering/07-security/chapter-02-authentication' },
@@ -391,6 +422,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '项目管理',
+          collapsed: true,
           items: [
             { text: '敏捷', link: '/engineering/08-project-management/chapter-01-agile' },
             { text: '需求分析', link: '/engineering/08-project-management/chapter-02-requirements' },
@@ -400,6 +432,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '参考手册',
+          collapsed: true,
           items: [
             { text: '设计原则速查', link: '/engineering/reference/principles' },
             { text: '工具链速查', link: '/engineering/reference/toolchain' },
@@ -410,6 +443,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
       '/java/': [
         {
           text: 'Java 语言',
+          collapsed: true,
           items: [
             { text: '类型系统', link: '/java/01-java-language/chapter-01-type-system' },
             { text: '面向对象', link: '/java/01-java-language/chapter-02-oop' },
@@ -419,6 +453,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: 'JVM Runtime',
+          collapsed: true,
           items: [
             { text: '字节码与类加载', link: '/java/02-jvm-runtime/chapter-01-bytecode-classloading' },
             { text: 'JVM 运行时数据区', link: '/java/02-jvm-runtime/chapter-02-memory-model' },
@@ -434,6 +469,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: 'Java 并发',
+          collapsed: true,
           items: [
             { text: '并发的本质', link: '/java/03-java-concurrency/chapter-01-why-concurrency' },
             { text: '线程：Java 的执行单元', link: '/java/03-java-concurrency/chapter-02-thread-model' },
@@ -453,6 +489,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '网络与通信',
+          collapsed: true,
           items: [
             { text: '网络通信基础', link: '/java/04-java-network/chapter-01-network-basics' },
             { text: 'TCP/IP', link: '/java/04-java-network/chapter-02-tcp-ip' },
@@ -468,6 +505,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '数据访问与持久化',
+          collapsed: true,
           items: [
             { text: '持久化思想', link: '/java/05-java-data-access/chapter-01-persistence-thought' },
             { text: 'JDBC', link: '/java/05-java-data-access/chapter-02-jdbc' },
@@ -481,6 +519,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
       '/kafka/': [
         {
           text: '基础入门',
+          collapsed: true,
           items: [
             { text: 'Kafka 概览', link: '/kafka/01-basics/chapter-01-overview' },
             { text: '核心术语', link: '/kafka/01-basics/chapter-02-terminology' },
@@ -490,6 +529,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '生产者',
+          collapsed: true,
           items: [
             { text: '生产者 API', link: '/kafka/02-producer/chapter-01-producer-basics' },
             { text: '分区策略', link: '/kafka/02-producer/chapter-02-partition-strategy' },
@@ -500,6 +540,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '消费者',
+          collapsed: true,
           items: [
             { text: '消费者 API', link: '/kafka/03-consumer/chapter-01-consumer-basics' },
             { text: '消费者组', link: '/kafka/03-consumer/chapter-02-consumer-group' },
@@ -510,6 +551,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: 'Schema 与序列化',
+          collapsed: true,
           items: [
             { text: 'Schema 概览', link: '/kafka/04-schema/chapter-01-schema-overview' },
             { text: '序列化格式对比', link: '/kafka/04-schema/chapter-02-serializers' },
@@ -519,6 +561,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '存储原理',
+          collapsed: true,
           items: [
             { text: '日志分段', link: '/kafka/05-storage-internals/chapter-01-log-segment' },
             { text: 'Page Cache', link: '/kafka/05-storage-internals/chapter-02-page-cache' },
@@ -529,6 +572,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '可靠性',
+          collapsed: true,
           items: [
             { text: 'ACK 机制', link: '/kafka/06-reliability/chapter-01-acks' },
             { text: 'Exactly Once', link: '/kafka/06-reliability/chapter-02-exactly-once' },
@@ -538,6 +582,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '流处理',
+          collapsed: true,
           items: [
             { text: 'Streams 概览', link: '/kafka/07-streams/chapter-01-streams-basics' },
             { text: '流操作', link: '/kafka/07-streams/chapter-02-stream-operations' },
@@ -548,6 +593,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: 'Connect',
+          collapsed: true,
           items: [
             { text: 'Connect 概览', link: '/kafka/08-connect/chapter-01-connect-basics' },
             { text: '连接器配置', link: '/kafka/08-connect/chapter-02-connect-config' },
@@ -557,6 +603,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '运维管理',
+          collapsed: true,
           items: [
             { text: '集群管理', link: '/kafka/09-operations/chapter-01-cluster-management' },
             { text: '监控', link: '/kafka/09-operations/chapter-02-monitoring' },
@@ -566,6 +613,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '多集群',
+          collapsed: true,
           items: [
             { text: '拓扑与场景', link: '/kafka/10-multi-cluster/chapter-01-scenarios' },
             { text: 'MirrorMaker 2', link: '/kafka/10-multi-cluster/chapter-02-mirrormaker2' },
@@ -575,6 +623,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '实战',
+          collapsed: true,
           items: [
             { text: '安装部署与环境配置', link: '/kafka/11-practice/chapter-01-installation' },
             { text: '第一个 Kafka 应用', link: '/kafka/11-practice/chapter-02-first-app' },
@@ -587,6 +636,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '参考手册',
+          collapsed: true,
           items: [
             { text: '参数速查', link: '/kafka/reference/parameters' },
             { text: '命令速查', link: '/kafka/reference/commands' },
@@ -596,6 +646,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
       '/rabbitmq/': [
         {
           text: '基础入门',
+          collapsed: true,
           items: [
             { text: 'RabbitMQ 概览', link: '/rabbitmq/01-basics/chapter-01-overview' },
             { text: '整体架构', link: '/rabbitmq/01-basics/chapter-02-architecture' },
@@ -606,6 +657,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: 'Exchange',
+          collapsed: true,
           items: [
             { text: 'Exchange 基础', link: '/rabbitmq/02-exchange/chapter-01-exchange-basics' },
             { text: 'Direct Exchange', link: '/rabbitmq/02-exchange/chapter-02-direct-exchange' },
@@ -617,6 +669,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: 'Queue',
+          collapsed: true,
           items: [
             { text: 'Queue 基础', link: '/rabbitmq/03-queue/chapter-01-queue-basics' },
             { text: 'Classic Queue', link: '/rabbitmq/03-queue/chapter-02-classic-queue' },
@@ -628,6 +681,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '生产者',
+          collapsed: true,
           items: [
             { text: '生产者基础', link: '/rabbitmq/04-producer/chapter-01-producer-basics' },
             { text: 'Publisher Confirm', link: '/rabbitmq/04-producer/chapter-02-publisher-confirm' },
@@ -637,6 +691,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '消费者',
+          collapsed: true,
           items: [
             { text: '消费者基础', link: '/rabbitmq/05-consumer/chapter-01-consumer-basics' },
             { text: 'ACK 机制', link: '/rabbitmq/05-consumer/chapter-02-ack-mechanism' },
@@ -647,6 +702,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '集群',
+          collapsed: true,
           items: [
             { text: '集群基础', link: '/rabbitmq/07-clustering/chapter-01-cluster-basics' },
             { text: '镜像队列', link: '/rabbitmq/07-clustering/chapter-02-mirrored-queue' },
@@ -657,6 +713,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '运维管理',
+          collapsed: true,
           items: [
             { text: '管理与监控', link: '/rabbitmq/08-operations/chapter-01-management' },
             { text: '安全配置', link: '/rabbitmq/08-operations/chapter-02-security' },
@@ -666,12 +723,14 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: 'Spring 集成',
+          collapsed: true,
           items: [
             { text: 'Spring AMQP 集成', link: '/spring/07-async-and-messaging/chapter-04-messaging#rabbitmq-integration' },
           ],
         },
         {
           text: '实战',
+          collapsed: true,
           items: [
             { text: '安装部署与环境配置', link: '/rabbitmq/10-practice/chapter-01-installation' },
             { text: '第一个 RabbitMQ 应用', link: '/rabbitmq/10-practice/chapter-02-first-app' },
@@ -683,6 +742,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '参考手册',
+          collapsed: true,
           items: [
             { text: '参数速查', link: '/rabbitmq/reference/parameters' },
             { text: '命令速查', link: '/rabbitmq/reference/commands' },
@@ -692,6 +752,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
       '/mysql/': [
         {
           text: '基础入门',
+          collapsed: true,
           items: [
             { text: 'MySQL 概览', link: '/mysql/01-basics/chapter-01-overview' },
             { text: '整体架构', link: '/mysql/01-basics/chapter-02-architecture' },
@@ -700,6 +761,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: 'InnoDB 内核',
+          collapsed: true,
           items: [
             { text: '数据页与行格式', link: '/mysql/02-innodb-internals/chapter-01-data-page' },
             { text: 'Buffer Pool', link: '/mysql/02-innodb-internals/chapter-02-buffer-pool' },
@@ -711,6 +773,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '索引与查询优化',
+          collapsed: true,
           items: [
             { text: 'B+ 树索引', link: '/mysql/03-index/chapter-01-btree-index' },
             { text: '索引设计', link: '/mysql/03-index/chapter-02-index-design' },
@@ -725,6 +788,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '事务与锁',
+          collapsed: true,
           items: [
             { text: '事务与 MVCC', link: '/mysql/04-transaction-lock/chapter-01-transaction' },
             { text: '锁机制', link: '/mysql/04-transaction-lock/chapter-02-lock' },
@@ -734,6 +798,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: 'SQL 高级特性',
+          collapsed: true,
           items: [
             { text: '窗口函数', link: '/mysql/06-advanced-features/chapter-01-window-function' },
             { text: 'CTE', link: '/mysql/06-advanced-features/chapter-02-cte' },
@@ -745,6 +810,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '复制与高可用',
+          collapsed: true,
           items: [
             { text: '异步复制', link: '/mysql/07-replication-ha/chapter-01-binlog-replication' },
             { text: 'GTID', link: '/mysql/07-replication-ha/chapter-02-gtid' },
@@ -756,6 +822,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '运维管理',
+          collapsed: true,
           items: [
             { text: '备份恢复', link: '/mysql/08-operations/chapter-01-backup-restore' },
             { text: '监控', link: '/mysql/08-operations/chapter-02-monitoring' },
@@ -768,6 +835,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '实战',
+          collapsed: true,
           items: [
             { text: '安装部署与环境配置', link: '/mysql/10-practice/chapter-01-installation' },
             { text: '首次生产部署', link: '/mysql/10-practice/chapter-02-first-production' },
@@ -779,6 +847,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '参考手册',
+          collapsed: true,
           items: [
             { text: '参数速查', link: '/mysql/reference/parameters' },
             { text: '数据类型速查', link: '/mysql/reference/types' },
@@ -790,6 +859,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
       '/postgresql/': [
         {
           text: 'PG 到底特殊在哪',
+          collapsed: true,
           items: [
             { text: '认识 PostgreSQL', link: '/postgresql/01-pg-unique/chapter-01-pg-overview' },
             { text: '类型系统', link: '/postgresql/01-pg-unique/chapter-02-type-system' },
@@ -799,6 +869,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '内部架构',
+          collapsed: true,
           items: [
             { text: '进程与内存架构', link: '/postgresql/02-architecture/chapter-01-process-memory' },
             { text: 'WAL 日志与崩溃恢复', link: '/postgresql/02-architecture/chapter-02-wal' },
@@ -808,6 +879,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: 'SQL 能力',
+          collapsed: true,
           items: [
             { text: '窗口函数', link: '/postgresql/03-sql-power/chapter-01-window-function' },
             { text: 'CTE 与递归', link: '/postgresql/03-sql-power/chapter-02-cte-recursive' },
@@ -818,6 +890,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '索引深入',
+          collapsed: true,
           items: [
             { text: '索引类型', link: '/postgresql/04-indexing/chapter-01-index-types' },
             { text: '索引设计', link: '/postgresql/04-indexing/chapter-02-index-design' },
@@ -827,6 +900,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '事务与并发',
+          collapsed: true,
           items: [
             { text: '隔离级别', link: '/postgresql/05-transactions/chapter-01-isolation-levels' },
             { text: '锁机制', link: '/postgresql/05-transactions/chapter-02-locking' },
@@ -836,6 +910,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '存储过程与触发器',
+          collapsed: true,
           items: [
             { text: 'PL/pgSQL 基础', link: '/postgresql/06-plpgsql/chapter-01-plpgsql-basics' },
             { text: '触发器', link: '/postgresql/06-plpgsql/chapter-02-triggers' },
@@ -844,6 +919,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '性能优化',
+          collapsed: true,
           items: [
             { text: '配置调优', link: '/postgresql/07-performance/chapter-01-config-tuning' },
             { text: '查询优化', link: '/postgresql/07-performance/chapter-02-query-optimization' },
@@ -852,6 +928,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '监控体系',
+          collapsed: true,
           items: [
             { text: '系统视图监控', link: '/postgresql/08-monitoring/chapter-01-pg-stat-views' },
             { text: 'pg_stat_statements', link: '/postgresql/08-monitoring/chapter-02-pg-stat-statements' },
@@ -861,6 +938,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '高可用与复制',
+          collapsed: true,
           items: [
             { text: '流复制', link: '/postgresql/09-ha/chapter-01-streaming-replication' },
             { text: '逻辑复制', link: '/postgresql/09-ha/chapter-02-logical-replication' },
@@ -870,6 +948,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '扩展与生态',
+          collapsed: true,
           items: [
             { text: '扩展机制', link: '/postgresql/10-ecosystem/chapter-01-extension-system' },
             { text: 'FDW 外部数据', link: '/postgresql/10-ecosystem/chapter-02-fdw' },
@@ -878,6 +957,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '安全与运维',
+          collapsed: true,
           items: [
             { text: '用户与安全', link: '/postgresql/11-ops/chapter-01-user-security' },
             { text: '日常维护', link: '/postgresql/11-ops/chapter-02-maintenance' },
@@ -886,6 +966,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '生产避坑指南',
+          collapsed: true,
           items: [
             { text: '事务 ID 回卷', link: '/postgresql/12-production-pitfalls/chapter-01-xid-wraparound' },
             { text: '表膨胀检测与治理', link: '/postgresql/12-production-pitfalls/chapter-02-table-bloat' },
@@ -895,6 +976,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '参考手册',
+          collapsed: true,
           items: [
             { text: '参数速查', link: '/postgresql/reference/parameters' },
             { text: '类型速查', link: '/postgresql/reference/types' },
@@ -904,6 +986,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '教程',
+          collapsed: true,
           items: [
             { text: '安装部署与环境配置', link: '/postgresql/tutorials/installation' },
             { text: '第一个数据库', link: '/postgresql/tutorials/first-db' },
@@ -915,6 +998,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
       '/redis/': [
         {
           text: '数据模型',
+          collapsed: true,
           items: [
             { text: '概览', link: '/redis/01-data-model/chapter-01-overview' },
             { text: '基础类型', link: '/redis/01-data-model/chapter-02-basic-types' },
@@ -926,6 +1010,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '单机核心',
+          collapsed: true,
           items: [
             { text: '线程模型', link: '/redis/02-standalone-core/chapter-01-thread-model' },
             { text: '命令与 RESP', link: '/redis/02-standalone-core/chapter-02-command-resp' },
@@ -938,12 +1023,14 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '缓存工程',
+          collapsed: true,
           items: [
             { text: '缓存工程场景', link: '/scenarios/01-cache/' },
           ],
         },
         {
           text: '高可用',
+          collapsed: true,
           items: [
             { text: '主从复制', link: '/redis/04-high-availability/chapter-01-replication' },
             { text: '哨兵', link: '/redis/04-high-availability/chapter-02-sentinel' },
@@ -953,6 +1040,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '运维管理',
+          collapsed: true,
           items: [
             { text: '性能', link: '/redis/05-operations/chapter-01-performance' },
             { text: '排障', link: '/redis/05-operations/chapter-02-troubleshooting' },
@@ -962,6 +1050,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '实战',
+          collapsed: true,
           items: [
             { text: '安装部署与环境配置', link: '/redis/10-practice/chapter-01-installation' },
             { text: '第一个 Redis 应用', link: '/redis/10-practice/chapter-02-first-app' },
@@ -970,6 +1059,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '参考手册',
+          collapsed: true,
           items: [
             { text: '参数速查', link: '/redis/reference/parameters' },
             { text: '命令速查', link: '/redis/reference/commands' },
@@ -981,6 +1071,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         { text: 'Spring 概览', link: '/spring/01-core/chapter-01-spring-overview' },
         {
           text: '核心原理',
+          collapsed: true,
           items: [
             { text: 'IoC 容器', link: '/spring/01-core/chapter-02-ioc-container' },
             { text: 'Bean 完整生命周期', link: '/spring/01-core/chapter-03-bean-lifecycle' },
@@ -993,6 +1084,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: 'Spring Boot',
+          collapsed: true,
           items: [
             { text: '自动配置原理', link: '/spring/02-spring-boot/chapter-01-autoconfiguration' },
             { text: 'Starter 机制', link: '/spring/02-spring-boot/chapter-02-starter' },
@@ -1005,6 +1097,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: 'Web 开发',
+          collapsed: true,
           items: [
             { text: 'Spring MVC', link: '/spring/03-web/chapter-01-spring-mvc' },
             { text: '全局异常处理', link: '/spring/03-web/chapter-03-global-exception' },
@@ -1019,6 +1112,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '数据访问',
+          collapsed: true,
           items: [
             { text: 'JdbcTemplate', link: '/spring/04-data-access/chapter-01-jdbc-template' },
             { text: 'MyBatis 集成', link: '/spring/04-data-access/chapter-02-mybatis-integration' },
@@ -1035,6 +1129,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '安全',
+          collapsed: true,
           items: [
             { text: '安全架构', link: '/spring/05-security/chapter-01-security-architecture' },
             { text: '认证机制', link: '/spring/05-security/chapter-02-authentication' },
@@ -1044,6 +1139,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '可观测性',
+          collapsed: true,
           items: [
             { text: '日志体系', link: '/spring/06-observability/chapter-01-logging' },
             { text: '指标监控', link: '/spring/06-observability/chapter-02-metrics' },
@@ -1053,6 +1149,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '异步与消息',
+          collapsed: true,
           items: [
             { text: '事件机制', link: '/spring/07-async-and-messaging/chapter-01-event' },
             { text: '异步处理', link: '/spring/07-async-and-messaging/chapter-02-async' },
@@ -1062,6 +1159,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '测试',
+          collapsed: true,
           items: [
             { text: '单元测试', link: '/spring/08-testing/chapter-01-unit-test' },
             { text: '集成测试', link: '/spring/08-testing/chapter-02-integration-test' },
@@ -1071,6 +1169,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '分布式系统',
+          collapsed: true,
           items: [
             { text: '分布式锁', link: '/spring/09-distributed/chapter-01-distributed-lock' },
             { text: '分布式事务', link: '/spring/09-distributed/chapter-02-distributed-transaction' },
@@ -1082,6 +1181,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '生产化',
+          collapsed: true,
           items: [
             { text: '连接池与容器调优', link: '/spring/10-production/chapter-01-pool-tuning' },
             { text: '容器化部署', link: '/spring/10-production/chapter-02-containerization' },
@@ -1091,6 +1191,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '实战',
+          collapsed: true,
           items: [
             { text: '构建与部署', link: '/spring/11-practice/chapter-01-build-deploy' },
             { text: '第一个 Spring Boot 应用', link: '/spring/11-practice/chapter-02-first-app' },
@@ -1100,6 +1201,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
         {
           text: '参考手册',
+          collapsed: true,
           items: [
             { text: '注解速查', link: '/spring/reference/annotations' },
             { text: 'Starter 速查', link: '/spring/reference/starters' },
