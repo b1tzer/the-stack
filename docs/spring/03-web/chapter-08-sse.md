@@ -2,51 +2,111 @@
 
 > 很多场景只需要服务端单向推送：进度条、通知、实时日志流。SSE 基于 HTTP 长连接，比 WebSocket 轻量，浏览器原生支持自动重连。类比：广播电台——电台单向发射信号，你打开收音机就能听。你不能通过收音机跟电台说话，想说话得打电话（HTTP 请求）。
 
-## 1. 什么时候用 SSE
+## 1. SSE 是什么
 
-SSE 和 WebSocket 都能实现服务端推送，但适用场景不同：
+写代码之前，先回答四个问题：SSE 是什么、哪一步让它被识别成 SSE、数据长什么样、后文用到的抽象是什么。
+
+### 1.1 它是一个标准，不是新协议
+
+SSE（Server-Sent Events）是 WHATWG 在 HTML 标准里定义的一套规范。它没有发明新的传输层，而是规定「怎样用普通 HTTP 响应，实现服务端到客户端的单向持续推送」。它由三个约定拼成：
+
+1. **响应头**：服务端声明 `Content-Type: text/event-stream`
+2. **数据格式**：响应体按固定文本格式书写（见 §1.3）
+3. **浏览器 API**：`EventSource` 负责发起请求、解析格式、断线自动重连
+
+对照 WebSocket：WebSocket 是独立协议（`ws://`），需要 TCP 升级握手；SSE 全程就是 HTTP，只是把一次响应「拉长」成一条持续输出的流。
+
+### 1.2 哪一步让它被识别成 SSE
+
+识别只发生在一个地方——响应头 `Content-Type: text/event-stream`。
+
+对应后文每一段代码里的这一行：
+
+```java
+produces = MediaType.TEXT_EVENT_STREAM_VALUE
+```
+
+`MediaType.TEXT_EVENT_STREAM_VALUE` 的字符串值就是 `text/event-stream`。这一行让 Spring 把 `Content-Type` 响应头写成 `text/event-stream`，浏览器据此知道「这条响应不是一次性返回完，而是一条事件流」。
+
+完整链路：
+
+1. 控制器声明 `produces = text/event-stream`，Spring 把该值写入响应头
+2. 服务端不关闭连接（普通响应返回完就 close，SSE 响应保持打开）
+3. 浏览器读到 `Content-Type: text/event-stream`，把后续 body 当作流式事件逐条解析，而不是一次性读完
+
+没有这个响应头，body 就只是普通文本，浏览器不会按 SSE 解析，也不会自动重连。
+
+### 1.3 数据长什么样
+
+响应体是纯 UTF-8 文本。每个事件由若干字段行 + 一个空行组成：
+
+```text
+id: 1
+event: heartbeat
+data: ping 1
+
+id: 2
+event: heartbeat
+data: ping 2
+```
+
+| 字段 | 含义 |
+| :-- | :-- |
+| `data:` | 消息内容，可多行 |
+| `event:` | 事件名，前端据此分发监听器 |
+| `id:` | 事件 ID，用于断线续传（§3.3） |
+| `:` 开头 | 注释行，客户端忽略，用于心跳（§6.1） |
+
+后文 `emitter.send(...)` 底层最终都会变成上面这种 `data: xxx` 加空行的文本，通过响应流发给浏览器。
+
+### 1.4 后文的两个抽象
+
+全文出现两个抽象，分别属于两套框架：
+
+| 抽象 | 所属框架 | 本质 | 展开章节 |
+| :-- | :-- | :-- | :-- |
+| `SseEmitter` | Spring MVC（Servlet） | 对「异步 `HttpServletResponse` 持续写 SSE 文本」的封装 | §3 |
+| `Flux<ServerSentEvent<T>>` | WebFlux（Reactor） | 用响应式流表达一条 SSE 数据流 | §4 |
+
+`SseEmitter` 不是 SSE 协议本身，只是一个 Java 对象：你调 `emitter.send(...)`，框架负责把它序列化成 §1.3 的格式再写进响应。`Flux<ServerSentEvent>` 是 WebFlux 侧的等价物，框架把这条流映射成 SSE 响应。
+
+## 2. SSE vs WebSocket
+
+SSE 和 WebSocket 都能实现服务端推送，差异如下表：
 
 | 维度 | SSE | WebSocket |
 | :-- | :-- | :-- |
-| 方向 | 服务端→客户端单向 | 双向 |
+| 通信方向 | 服务端→客户端单向 | 双向 |
 | 协议 | HTTP | 独立协议（ws://） |
-| 重连 | 浏览器自动重连 | 需手动实现 |
+| 自动重连 | 浏览器原生支持 | 需手动实现 |
+| 消息回溯 | `Last-Event-ID` 原生支持 | 需自己实现 |
 | 数据格式 | UTF-8 文本 | 文本或二进制 |
+| 二进制数据 | 不支持（仅 UTF-8） | 原生支持 |
 | 防火墙 | 通 HTTP 代理 | 可能被拦截 |
 | 连接数限制 | HTTP/1.1 下浏览器 6 个 | 无限制 |
+| 负载均衡 | 标准 HTTP 负载均衡 | 需会话粘滞 |
+| 线程模型 | MVC 占线程 / WebFlux 非阻塞 | 非阻塞 |
 | 适用场景 | 通知、进度、日志流 | 聊天、游戏、协同编辑 |
 
-**决策依据**：只需要服务端推送 → SSE（更简单、自动重连）。需要双向通信 → WebSocket。两者不互弃，可以在同一个项目中共存。
+**一句话决策**：单向推送用 SSE，双向通信用 WebSocket。两者不互斥，可在同一项目中共存。
 
-WebSocket 的完整用法参见 [WebSocket 实时通信](/spring/03-web/chapter-07-websocket)。下面用一个最简示例跑通 SSE。
+WebSocket 的完整用法参见 [WebSocket 实时通信](/spring/03-web/chapter-07-websocket)。认证方案参见 [安全架构](/spring/05-security/chapter-01-security-architecture)。下面从 Spring MVC 的 `SseEmitter` 开始。
 
-## 2. Spring MVC 实现
+## 3. Spring MVC 实现（SseEmitter）
 
 **依赖：** Spring Boot Starter Web（已包含，无需额外依赖）。
 
-最简的 SSE 端点，浏览器打开 `http://localhost:8080/stream` 就能看到每秒刷新的数据流：
+MVC 下写 SSE，核心是 `SseEmitter`。它是 Spring MVC 对「异步写 SSE 流」的封装：Controller 方法返回 `SseEmitter` 后立即返回，连接保持打开，之后在任意线程调用 `emitter.send(...)` 推送事件，框架负责把事件序列化成 §1.3 的文本写进响应。
 
-```java
-@RestController
-public class SseController {
+为什么需要它：HTTP 原生是「一次请求一次响应」，服务端不能主动开口。`SseEmitter` 利用 Servlet 3.0 的异步能力，把这次请求「挂起」成一条长连接，让服务端能在任意时刻往里写数据。这正是「SSE 单向推送」在 Servlet 栈里的落点。
 
-    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<String>> stream() {
-        return Flux.interval(Duration.ofSeconds(1))
-                .map(seq -> ServerSentEvent.<String>builder()
-                        .id(String.valueOf(seq))
-                        .event("heartbeat")
-                        .data("ping " + seq)
-                        .build());
-    }
-}
-```
+::: info 📖 Flux 属于 WebFlux
+`Flux<ServerSentEvent>` 是响应式（WebFlux）的写法，不放在本节，见 §4。
+:::
 
-实际项目中，SSE 通常用 `SseEmitter` 配合服务类实现消息推送：
+### 3.1 最小示例
 
-### 2.1 SseEmitter
-
-`SseEmitter` 是 Spring MVC 提供的 SSE 抽象，允许在同步 Servlet 容器中异步推送事件。
+Controller 创建并返回 `SseEmitter`，同时注册三个生命周期回调。浏览器打开 `http://localhost:8080/notifications` 即可建立连接。
 
 ```java
 @RestController
@@ -70,7 +130,7 @@ public class NotificationController {
 }
 ```
 
-### 2.2 消息推送服务
+### 3.2 消息推送服务
 
 ```java
 @Service
@@ -117,9 +177,9 @@ public class NotificationService {
 }
 ```
 
-### 2.3 带重连 ID 的实现
+### 3.3 带重连 ID 的实现
 
-SSE 协议支持 `id` 字段。浏览器断线重连时，自动在请求头中带上 `Last-Event-ID`，服务端可以从断点处补推消息：
+`EventSource` 断线后会自动重连，但重连后从哪继续？这靠 `id` 字段：服务端为每条消息标一个递增的 `id`，浏览器记住最后收到的 `id`；重连时自动在请求头带上 `Last-Event-ID`，服务端据此从断点处补推消息：
 
 ```java
 @GetMapping(value = "/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -149,9 +209,11 @@ public SseEmitter streamEvents(HttpServletRequest request) {
 
 这是 SSE 相比 WebSocket 的核心优势之一——浏览器原生支持断线重连 + `Last-Event-ID`，无需自己实现重连逻辑。
 
-## 3. WebFlux 响应式实现
+## 4. WebFlux 响应式实现
 
-WebFlux 的 `Flux` 天然适合 SSE 流——非阻塞 I/O，少量线程就能支撑大量连接。MVC 下每个 SSE 连接占一个线程，1000 个连接需要 1000 个线程；WebFlux 下 1000 个连接可能只需要几十个线程。
+`Flux` 是 Reactor 的响应式类型，表示「0 到 N 个元素、随时间陆续发出的异步序列」。它天然适合 SSE 流：你声明好这条流，WebFlux 订阅它、把每个元素写成一条 SSE 事件，无需像 §3 那样手动调用 `send()`。这是 `SseEmitter` 与 `Flux` 的核心区别——前者你主动 `send()`，后者你声明数据来源、框架自动写。
+
+线程模型也不同：MVC 下每个 SSE 连接占一个线程，1000 个连接需要 1000 个线程；WebFlux 非阻塞 I/O，1000 个连接可能只需要几十个线程。
 
 ```java
 @RestController
@@ -181,9 +243,9 @@ public class ReactiveSseController {
 }
 ```
 
-## 4. 前端对接
+## 5. 前端对接
 
-### 4.1 EventSource（不需要认证时）
+### 5.1 EventSource（不需要认证时）
 
 `EventSource` API 简单，自动重连，但**不支持自定义 Header**（浏览器安全规范故意限制，防止通过 SSE 绕过 CORS 预检）。
 
@@ -214,7 +276,7 @@ source.onerror = () => {
 source.close();
 ```
 
-### 4.2 fetch + ReadableStream（需要认证时）
+### 5.2 fetch + ReadableStream（需要认证时）
 
 `EventSource` 不支持自定义 Header，无法携带 Token。需要用 `fetch` 手动读取 SSE 流：
 
@@ -245,11 +307,15 @@ async function streamWithAuth(url, token) {
 
 **选择标准**：不需要认证 → `EventSource`（自动重连更简单）。需要认证 → `fetch + ReadableStream`。
 
-## 5. 心跳保活
+## 6. 生产环境要点
 
-代理服务器（Nginx、云 SLB）有空闲超时（通常 60s）。SSE 连接长时间没有数据推送，代理会断开连接。
+长连接在开发环境能跑通，生产环境还需解决四个问题：代理空闲断开、连接数失控、HTTP/1.1 连接上限、多实例消息丢失。
 
-解决方案：定期发送 SSE 注释行（以 `:` 开头，客户端不会收到事件）：
+### 6.1 心跳保活
+
+代理服务器（Nginx、云 SLB）有空闲超时（通常 60s）。SSE 连接长时间没有数据推送，代理会把它当成死连接断开。
+
+解决方案：定期发送 SSE 注释行（以 `:` 开头，客户端不会收到事件）。注释行不产生任何事件，却能让连接上持续有字节流动，代理因此认为连接仍活跃、不主动断开：
 
 ```java
 // MVC 心跳
@@ -287,7 +353,7 @@ public Flux<ServerSentEvent<String>> stream() {
 }
 ```
 
-## 6. 连接数管理
+### 6.2 连接数管理
 
 每个 SSE 连接占用资源：MVC 下是一个线程，WebFlux 下是一个连接。不控制连接数会导致 OOM 或线程池耗尽。
 
@@ -326,7 +392,7 @@ public void logConnectionCount() {
 Metrics.gauge("sse.connections.active", activeConnections);
 ```
 
-## 7. HTTP/2 优势
+### 6.3 HTTP/2 优势
 
 HTTP/1.1 下浏览器对同一域名限制 6 个 TCP 连接。如果页面同时开了 6 个 SSE 流，后续的 HTTP 请求会被阻塞。
 
@@ -340,7 +406,7 @@ server:
 
 **生产环境强烈建议开启 HTTP/2**，尤其是 SSE 连接数较多的场景。
 
-## 8. 多实例扩展
+### 6.4 多实例扩展
 
 和 WebSocket 一样，SSE 连接是有状态的。用户 A 连接实例 1，消息从实例 2 推送，A 收不到。
 
@@ -385,9 +451,11 @@ public class SseBroadcastService {
 }
 ```
 
-## 9. 常见错误
+## 7. 常见错误
 
 ### ❌ 不设超时，默认 30 秒断开
+
+`new SseEmitter()` 不传超时参数时，超时时间由 Servlet 容器决定，Tomcat 默认是 30 秒。连接闲置超过 30 秒，容器会强制结束这次异步请求。
 
 ```java
 // ❌ 默认超时 30 秒，连接自动断开
@@ -441,19 +509,3 @@ emitter.send(Base64.getEncoder().encodeToString(imageBytes));
 // 或者用 WebSocket 传输二进制
 ```
 
-## 10. SSE vs WebSocket
-
-| 维度 | SSE | WebSocket |
-|------|-----|-----------|
-| 通信方向 | 单向（服务端→客户端） | 双向 |
-| 协议 | HTTP | 独立协议（ws://） |
-| 自动重连 | 浏览器原生支持 | 需手动实现 |
-| 消息回溯 | `Last-Event-ID` 原生支持 | 需自己实现 |
-| 二进制数据 | 不支持（仅 UTF-8） | 原生支持 |
-| 连接数限制 | HTTP/1.1 下 6 个 | 无限制 |
-| 负载均衡 | 标准 HTTP 负载均衡 | 需要会话粘滞 |
-| 线程模型 | MVC 占线程 / WebFlux 非阻塞 | 非阻塞 |
-
-**一句话决策**：单向推送用 SSE，双向通信用 WebSocket。通知、进度条、日志流 → SSE。聊天、协作编辑、游戏 → WebSocket。
-
-> WebSocket 的完整用法参见 [WebSocket 实时通信](/spring/03-web/chapter-07-websocket)。认证方案参见 [安全架构](/spring/05-security/chapter-01-security-architecture)。
