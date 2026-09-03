@@ -50,7 +50,7 @@ title: 电商订单系统设计
 | 响应时间 | P99 < 200ms |
 | 一致性 | 支付与库存最终一致 |
 
-秒杀等高并发场景的架构见 [并发控制](../../scenarios/02-concurrency/) 与 [消息场景](../../scenarios/03-messaging/)，具体实现见 [分布式锁](../../spring/09-distributed/chapter-01-distributed-lock) 与 [消息集成](../../spring/07-async-and-messaging/chapter-05-messaging)。
+秒杀等高并发场景的架构见 [并发控制](../../scenarios/02-concurrency/) 与 [消息场景](../../scenarios/03-messaging/)，具体实现见 [分布式锁](../../spring/09-distributed/chapter-01-distributed-lock) 与 [消息集成](../../spring/07-async-and-messaging/chapter-04-messaging)。
 
 ## 2. 表结构设计
 

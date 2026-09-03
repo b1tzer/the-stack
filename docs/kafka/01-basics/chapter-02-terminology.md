@@ -111,16 +111,16 @@ Kafka 0.11+ 使用 Record Batch 格式：
 │         Record Batch            │
 │  Base Offset (8字节)             │
 │  Batch Length (4字节)            │
-│  Partition Leader Epoch          │
-│  Magic (1字节, v2=2)            │
-│  CRC32C (4字节)                 │
+│  Partition Leader Epoch         │
+│  Magic (1字节, v2=2)             │
+│  CRC32C (4字节)                  │
 │  Attributes (2字节)              │
 │  Last Offset Delta              │
-│  First Timestamp / Max Timestamp │
+│  First Timestamp / Max Timestamp│
 │  Producer ID (8字节)             │
-│  Producer Epoch                  │
-│  Base Sequence                   │
-│  Record Count                    │
+│  Producer Epoch                 │
+│  Base Sequence                  │
+│  Record Count                   │
 │  ─────────────────────────────  │
 │  Record 1: Key + Value + Headers│
 │  Record 2: Key + Value + Headers│

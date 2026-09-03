@@ -23,27 +23,27 @@ public class SecurityConfig {
 
 **双 Token 刷新流程**：
 
-```
+```txt
 客户端                           服务端
   │                                │
-  │── POST /auth/login ──────────►│ 1. 验证用户名密码
+  │── POST /auth/login ──────────► │ 1. 验证用户名密码
   │                                │ 2. 生成 Access Token（2h）+ Refresh Token（7d）
   │◄── { accessToken, refreshToken}│
   │                                │
-  │── GET /api/orders ───────────►│ 3. 验证 Access Token
-  │   Authorization: Bearer xxx   │
+  │── GET /api/orders ───────────► │ 3. 验证 Access Token
+  │   Authorization: Bearer xxx    │
   │                                │
-  │  ...2 小时后...                │
+  │  ...2 小时后...                 │
   │                                │
-  │── GET /api/orders ───────────►│ 4. Access Token 过期，返回 401
-  │◄── 401 Unauthorized           │
+  │── GET /api/orders ───────────► │ 4. Access Token 过期，返回 401
+  │◄── 401 Unauthorized            │
   │                                │
-  │── POST /auth/refresh ────────►│ 5. 验证 Refresh Token
-  │   { refreshToken }            │ 6. 签发新 Access Token
-  │◄── { accessToken }            │
+  │── POST /auth/refresh ────────► │ 5. 验证 Refresh Token
+  │   { refreshToken }             │ 6. 签发新 Access Token
+  │◄── { accessToken }             │
   │                                │
-  │── GET /api/orders ───────────►│ 7. 用新 Token 继续访问
-  │   Authorization: Bearer new   │
+  │── GET /api/orders ───────────► │ 7. 用新 Token 继续访问
+  │   Authorization: Bearer new    │
 ```
 
 **Token 刷新控制器**：
@@ -84,17 +84,25 @@ public class AuthController {
             throw new BusinessException(401, "Refresh Token 无效或已过期");
         }
 
-        // 2. 检查 Refresh Token 是否在白名单中（防止重放）
         String username = tokenProvider.getUsernameFromToken(refreshToken);
-        if (!refreshTokenService.isValid(username, refreshToken)) {
+        UserDetails user = userDetailsService.loadUserByUsername(username);
+
+        // 2. 轮换：同时签发新的 Access Token 和 Refresh Token
+        String newAccessToken = tokenProvider.generateToken(user);
+        String newRefreshToken = tokenProvider.generateRefreshToken(user);
+
+        RefreshTokenService.RotationResult result =
+            refreshTokenService.rotate(refreshToken, newRefreshToken);
+
+        // 3. 重放检测：旧 Token 再次出现即视为泄露，撤销整个 Token 家族
+        if (result == RefreshTokenService.RotationResult.REUSED) {
+            throw new BusinessException(401, "检测到 Refresh Token 重放，会话已撤销，请重新登录");
+        }
+        if (result == RefreshTokenService.RotationResult.INVALID) {
             throw new BusinessException(401, "Refresh Token 已失效，请重新登录");
         }
 
-        // 3. 签发新的 Access Token
-        UserDetails user = userDetailsService.loadUserByUsername(username);
-        String newAccessToken = tokenProvider.generateToken(user);
-
-        return new TokenResponse(newAccessToken, refreshToken,
+        return new TokenResponse(newAccessToken, newRefreshToken,
             tokenProvider.getExpirationSeconds());
     }
 
@@ -114,26 +122,100 @@ public class AuthController {
 public class RefreshTokenService {
 
     private final StringRedisTemplate redisTemplate;
-    private static final String PREFIX = "refresh_token:";
+    private static final long TTL_DAYS = 7;
 
+    // {token} -> familyId：token 当前活跃，值指向它所属的授权家族
+    private static final String TOKEN_PREFIX = "refresh_token:";
+    // {familyId} -> 当前活跃的 token
+    private static final String FAMILY_PREFIX = "refresh_family:";
+    // {token} -> familyId：token 已被轮换（用于重放检测时定位家族）
+    private static final String USED_PREFIX = "refresh_used:";
+    // {username} -> familyId：用户当前活跃的授权家族（注销时定位）
+    private static final String USER_PREFIX = "refresh_user:";
+
+    /** 轮换结果 */
+    public enum RotationResult { VALID, REUSED, INVALID }
+
+    // 登录：创建新的 Token 家族，作废旧家族
     public void save(String username, String refreshToken) {
-        // 每个用户只有一个有效的 Refresh Token
-        // 新登录会覆盖旧的
+        String oldFamilyId = redisTemplate.opsForValue().get(USER_PREFIX + username);
+        if (oldFamilyId != null) {
+            revokeFamily(oldFamilyId);
+        }
+
+        String familyId = UUID.randomUUID().toString();
         redisTemplate.opsForValue().set(
-            PREFIX + username, refreshToken, 7, TimeUnit.DAYS);
+            TOKEN_PREFIX + refreshToken, familyId, TTL_DAYS, TimeUnit.DAYS);
+        redisTemplate.opsForValue().set(
+            FAMILY_PREFIX + familyId, refreshToken, TTL_DAYS, TimeUnit.DAYS);
+        redisTemplate.opsForValue().set(
+            USER_PREFIX + username, familyId, TTL_DAYS, TimeUnit.DAYS);
     }
 
-    public boolean isValid(String username, String refreshToken) {
-        String stored = redisTemplate.opsForValue()
-            .get(PREFIX + username);
-        return refreshToken.equals(stored);
+    // 轮换：签发新 token，旧 token 作废；检测到旧 token 重放则撤销整个家族
+    public RotationResult rotate(String refreshToken, String newRefreshToken) {
+        String familyId = redisTemplate.opsForValue().get(TOKEN_PREFIX + refreshToken);
+
+        // token 已不在活跃集合：要么从未签发，要么已被轮换过
+        if (familyId == null) {
+            String usedFamilyId = redisTemplate.opsForValue().get(USED_PREFIX + refreshToken);
+            if (usedFamilyId != null) {
+                // 旧 token 再次出现 → 重放，撤销整个家族
+                revokeFamily(usedFamilyId);
+                return RotationResult.REUSED;
+            }
+            return RotationResult.INVALID;
+        }
+
+        // 校验是否仍是该家族的当前活跃 token
+        String activeToken = redisTemplate.opsForValue().get(FAMILY_PREFIX + familyId);
+        if (!refreshToken.equals(activeToken)) {
+            revokeFamily(familyId);
+            return RotationResult.REUSED;
+        }
+
+        // 正常轮换：作废旧 token，激活新 token
+        redisTemplate.delete(TOKEN_PREFIX + refreshToken);
+        redisTemplate.opsForValue().set(
+            USED_PREFIX + refreshToken, familyId, TTL_DAYS, TimeUnit.DAYS);
+        redisTemplate.opsForValue().set(
+            TOKEN_PREFIX + newRefreshToken, familyId, TTL_DAYS, TimeUnit.DAYS);
+        redisTemplate.opsForValue().set(
+            FAMILY_PREFIX + familyId, newRefreshToken, TTL_DAYS, TimeUnit.DAYS);
+        return RotationResult.VALID;
     }
 
     public void deleteByUsername(String username) {
-        redisTemplate.delete(PREFIX + username);
+        String familyId = redisTemplate.opsForValue().get(USER_PREFIX + username);
+        if (familyId != null) {
+            revokeFamily(familyId);
+            redisTemplate.delete(USER_PREFIX + username);
+        }
+    }
+
+    // 撤销整个家族的活跃 token（重放检测命中时调用）
+    private void revokeFamily(String familyId) {
+        String activeToken = redisTemplate.opsForValue().get(FAMILY_PREFIX + familyId);
+        if (activeToken != null) {
+            redisTemplate.delete(TOKEN_PREFIX + activeToken);
+        }
+        redisTemplate.delete(FAMILY_PREFIX + familyId);
     }
 }
 ```
+
+::: info 规范依据：RFC 9700 §4.14.2
+OAuth 2.0 安全最佳实践（RFC 9700，2025 年 1 月发布，BCP 240）要求，面向 public client 的授权服务器必须采用以下两种方式之一检测 Refresh Token 重放：
+
+1. **Sender-constrained**：将 Refresh Token 加密绑定到客户端实例（如 mTLS / DPoP）
+2. **Refresh Token Rotation**：每次刷新都签发新的 Refresh Token，旧的立即作废，但保留家族关系记录
+
+原文：「*the authorization server issues a new refresh token with every access token refresh response. The previous refresh token is invalidated, but information about the relationship is retained by the authorization server*」。
+
+当攻击者与合法客户端同时持有同一个 Refresh Token 时，其中一方会提交一个已作废的 token，服务端据此撤销该授权家族（token family），迫使重新授权登录——这把一次「长期静默泄露」变成了「可被立即发现的止损事件」。上面的实现正是 Rotation + Reuse Detection 的落地：`USED_PREFIX` 记录已轮换的 token 及其家族，一旦旧 token 再次出现即触发 `revokeFamily`。
+
+> 参考：https://datatracker.ietf.org/doc/html/rfc9700
+:::
 
 **JWT Token 黑名单（主动失效）**：
 

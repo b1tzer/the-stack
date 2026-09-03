@@ -5,7 +5,7 @@
 ## 与缓存抽象的分工 {#redis-vs-caching}
 
 - 本章讲 `RedisTemplate` 直接操作 Redis 数据结构的 API、序列化器、连接工厂、Lua 脚本执行。
-- [Spring 缓存抽象](../../spring/07-async-and-messaging/chapter-04-caching.md) 讲 `@Cacheable` / `CacheManager`，以及把 Redis 作为缓存后端。
+- [Spring 缓存抽象](./chapter-11-caching.md) 讲 `@Cacheable` / `CacheManager`，以及把 Redis 作为缓存后端。
 
 ## 1. 依赖与配置 {#redis-dependency}
 

@@ -12,4 +12,4 @@
 - 发布订阅
 - 消息去重
 
-相关权威章节：[Spring 消息集成](../../spring/07-async-and-messaging/chapter-05-messaging.md)。
+相关权威章节：[Spring 消息集成](../../spring/07-async-and-messaging/chapter-04-messaging.md)。

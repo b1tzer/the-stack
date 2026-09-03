@@ -44,7 +44,7 @@ gRPC 调用：先定义 proto 接口，再生成客户端与服务端代码，�
 消费者：监听队列 → 处理事件（扣库存、发通知等）
 ```
 
-消息队列的落地代码见 [Spring 消息集成](../../spring/07-async-and-messaging/chapter-05-messaging)。
+消息队列的落地代码见 [Spring 消息集成](../../spring/07-async-and-messaging/chapter-04-messaging)。
 
 ### 2.3 通信方式选型
 

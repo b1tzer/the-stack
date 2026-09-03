@@ -667,7 +667,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         {
           text: 'Spring 集成',
           items: [
-            { text: 'Spring AMQP 集成', link: '/spring/07-async-and-messaging/chapter-05-messaging#rabbitmq-integration' },
+            { text: 'Spring AMQP 集成', link: '/spring/07-async-and-messaging/chapter-04-messaging#rabbitmq-integration' },
           ],
         },
         {
@@ -1030,6 +1030,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '响应式数据访问', link: '/spring/04-data-access/chapter-08-r2dbc' },
             { text: 'Elasticsearch 集成', link: '/spring/04-data-access/chapter-09-elasticsearch-integration' },
             { text: 'Redis 集成', link: '/spring/04-data-access/chapter-10-redis-integration' },
+            { text: '缓存抽象', link: '/spring/04-data-access/chapter-11-caching' },
           ],
         },
         {
@@ -1056,8 +1057,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '事件机制', link: '/spring/07-async-and-messaging/chapter-01-event' },
             { text: '异步处理', link: '/spring/07-async-and-messaging/chapter-02-async' },
             { text: '定时任务', link: '/spring/07-async-and-messaging/chapter-03-scheduling' },
-            { text: '缓存抽象', link: '/spring/07-async-and-messaging/chapter-04-caching' },
-            { text: '消息集成', link: '/spring/07-async-and-messaging/chapter-05-messaging' },
+            { text: '消息集成', link: '/spring/07-async-and-messaging/chapter-04-messaging' },
           ],
         },
         {

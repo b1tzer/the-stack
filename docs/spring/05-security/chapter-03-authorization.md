@@ -8,7 +8,7 @@
 
 **RBAC 五表模型**（用户-角色-权限三核心 + 两张关联表）：
 
-```
+```txt
 ┌──────────┐    ┌──────────────┐    ┌──────────┐
 │ sys_user │───►│ sys_user_role│◄───│ sys_role │
 │──────────│    │──────────────│    │──────────│
@@ -18,14 +18,14 @@
 └──────────┘                        └─────┬────┘
                                           │
                                     ┌─────┴──────────────┐
-                                    │sys_role_permission  │
+                                    │sys_role_permission │
                                     │────────────────────│
                                     │ role_id            │
                                     │ permission_id      │
                                     └─────┬──────────────┘
                                           │
                                     ┌─────┴────────────┐
-                                    │ sys_permission    │
+                                    │ sys_permission   │
                                     │──────────────────│
                                     │ id               │
                                     │ permission_code  │
@@ -310,7 +310,7 @@ public class OrderController {
 
 ## 4. 授权实战
 
-### 3.1 数据权限控制
+### 4.1 数据权限控制
 
 ```java
 @Target(ElementType.METHOD)
@@ -363,7 +363,7 @@ public class OrderService {
 }
 ```
 
-### 3.2 数据库级权限控制
+### 4.2 数据库级权限控制
 
 ```java
 @Service
@@ -395,7 +395,7 @@ public class DatabasePermissionService {
 }
 ```
 
-### 3.3 权限缓存
+### 4.3 权限缓存
 
 ```java
 @Service
@@ -425,79 +425,7 @@ public class PermissionCacheService {
 }
 ```
 
-## 5. 权限缓存与最佳实践
-
-### 4.1 五张核心表
-
-```sql
-CREATE TABLE sys_user (
-    id          BIGINT PRIMARY KEY AUTO_INCREMENT,
-    username    VARCHAR(50) UNIQUE NOT NULL,
-    password    VARCHAR(100) NOT NULL,
-    status      TINYINT DEFAULT 1 COMMENT '1-正常 0-禁用',
-    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE sys_role (
-    id          BIGINT PRIMARY KEY AUTO_INCREMENT,
-    role_code   VARCHAR(50) UNIQUE NOT NULL COMMENT '如 ROLE_ADMIN',
-    role_name   VARCHAR(100) NOT NULL,
-    status      TINYINT DEFAULT 1
-);
-
-CREATE TABLE sys_permission (
-    id              BIGINT PRIMARY KEY AUTO_INCREMENT,
-    permission_code VARCHAR(100) UNIQUE NOT NULL COMMENT '如 order:read',
-    permission_name VARCHAR(200) NOT NULL,
-    resource_type   VARCHAR(20) DEFAULT 'api' COMMENT 'menu/button/api',
-    parent_id       BIGINT DEFAULT 0
-);
-
-CREATE TABLE sys_user_role (
-    user_id BIGINT NOT NULL,
-    role_id BIGINT NOT NULL,
-    PRIMARY KEY (user_id, role_id)
-);
-
-CREATE TABLE sys_role_permission (
-    role_id       BIGINT NOT NULL,
-    permission_id BIGINT NOT NULL,
-    PRIMARY KEY (role_id, permission_id)
-);
-```
-
-### 4.2 UserDetailsService 集成
-
-```java
-@Service
-public class CustomUserDetailsService implements UserDetailsService {
-
-    private final UserMapper userMapper;
-
-    @Override
-    public UserDetails loadUserByUsername(String username) {
-        SysUser user = userMapper.selectByUsername(username);
-        if (user == null) {
-            throw new UsernameNotFoundException("用户不存在: " + username);
-        }
-
-        List<String> permissions = userMapper.selectPermissionsByUserId(user.getId());
-        List<GrantedAuthority> authorities = permissions.stream()
-            .map(SimpleGrantedAuthority::new)
-            .collect(Collectors.toList());
-
-        return new User(
-            user.getUsername(),
-            user.getPassword(),
-            user.getStatus() == 1,
-            true, true, true,
-            authorities
-        );
-    }
-}
-```
-
-**最佳实践：**
+## 5. 授权最佳实践
 
 1. **权限粒度**——菜单权限 + 按钮权限 + 数据权限，三层控制
 2. **角色设计**——遵循最小权限原则，不要给用户多余权限

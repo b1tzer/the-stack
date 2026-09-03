@@ -88,9 +88,9 @@ Kafka 的高吞吐来自四个机制，各一句话概括，深度见对应文�
 
 Benchmark 数据依赖消息大小、压缩、副本因子、硬件与网络，只能作为上界参考。
 
-### 5.1 LinkedIn 2014 基准
+### 5.1 [LinkedIn 2014 基准](https://engineering.linkedin.com/kafka/benchmarking-apache-kafka-2-million-writes-second-three-cheap-machines)
 
-三台廉价机器（6 核 Xeon、32GB 内存、7200RPM SATA、1GbE），100 字节小消息。[来源](https://engineering.linkedin.com/kafka/benchmarking-apache-kafka-2-million-writes-second-three-cheap-machines)
+三台廉价机器（6 核 Xeon、32GB 内存、7200RPM SATA、1GbE），100 字节小消息。
 
 | 场景 | 吞吐量 | 带宽 |
 | :-- | :-- | :-- |
@@ -103,9 +103,9 @@ Benchmark 数据依赖消息大小、压缩、副本因子、硬件与网络，�
 
 端到端延迟：中位数 2ms，99 分位 3ms，99.9 分位 14ms。
 
-### 5.2 Confluent 2020 对比基准
+### 5.2 [Confluent 2020 对比基准](https://www.confluent.io/blog/kafka-fastest-messaging-system/)
 
-Confluent 用 OpenMessaging Benchmark 在 3 节点云硬件上对比（1KB 消息、3 副本）。[来源](https://www.confluent.io/blog/kafka-fastest-messaging-system/)
+Confluent 用 OpenMessaging Benchmark 在 3 节点云硬件上对比（1KB 消息、3 副本）。
 
 | 系统 | 峰值吞吐 | p99 延迟（200 MB/s 负载） |
 | :-- | :-- | :-- |

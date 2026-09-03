@@ -7,4 +7,4 @@
 - [多级缓存与纵深防御](./chapter-03-multi-level-defense.md)
 - [大 Key 与热 Key](./chapter-04-big-hot-key.md)
 
-相关权威章节：[Spring 缓存抽象](../../spring/07-async-and-messaging/chapter-04-caching.md)。
+相关权威章节：[Spring 缓存抽象](../../spring/04-data-access/chapter-11-caching.md)。
