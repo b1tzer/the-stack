@@ -10,12 +10,14 @@
 
 ## 2. 三个环节的丢消息场景
 
+> 本节涉及的术语在前置章节有详细解释：[acks 与幂等](../02-core/chapter-05-ack-and-idempotence.md#ack-modes)、[副本与 ISR/OSR](../02-core/chapter-04-replication-and-isr.md#isr)、[Offset](../02-core/chapter-03-consumer-group.md#offset-management) 与 [Rebalance](../02-core/chapter-03-consumer-group.md#rebalance)。
+
 ### 2.1 生产者 → Broker
 
 | 场景 | 原因 | 解决方案 |
 | :-- | :-- | :-- |
-| acks=0 | 发完即返回，网络丢包无感知 | 改为 acks=all |
-| acks=1 | Leader 写入后返回 ACK，Leader 宕机时 Follower 未同步 | 改为 acks=all |
+| [acks](../02-core/chapter-05-ack-and-idempotence.md#ack-modes)=0 | 发完即返回，网络丢包无感知 | 改为 acks=all |
+| [acks](../02-core/chapter-05-ack-and-idempotence.md#ack-modes)=1 | Leader 写入后返回 ACK，Leader 宕机时 Follower 未同步 | 改为 acks=all |
 | 发送异常未处理 | send() 的 Future 被忽略 | 检查回调或 .get() 返回值 |
 
 ```java
@@ -55,8 +57,8 @@ Controller 从 ISR 里选一个新 Leader（某个 Follower）
 | 场景 | 原因 | 解决方案 |
 | :-- | :-- | :-- |
 | 副本因子=1 | 单节点宕机，数据永久丢失 | default.replication.factor=3 |
-| min.insync.replicas=1 | acks=all 但只有一个副本写入 | min.insync.replicas=2 |
-| Unclean Leader 选举 | OSR 副本当选，丢失未同步数据 | unclean.leader.election.enable=false |
+| [min.insync.replicas](../02-core/chapter-05-ack-and-idempotence.md#min-insync-replicas)=1 | acks=all 但只有一个副本写入 | min.insync.replicas=2 |
+| [Unclean Leader 选举](../02-core/chapter-04-replication-and-isr.md#unclean-leader-election) | [OSR](../02-core/chapter-04-replication-and-isr.md#isr) 副本当选，丢失未同步数据 | unclean.leader.election.enable=false |
 | 数据保留过期 | 消息被自动删除 | 合理配置 log.retention |
 
 #### 为什么 min.insync.replicas=1 时 acks=all 也会丢
@@ -86,9 +88,9 @@ Leader 宕机 → 消息永久丢失
 
 | 场景 | 原因 | 解决方案 |
 | :-- | :-- | :-- |
-| 自动提交 Offset | 消息处理前 Offset 已提交，宕机后跳过 | enable.auto.commit=false |
+| 自动提交 [Offset](../02-core/chapter-03-consumer-group.md#offset-management) | 消息处理前 Offset 已提交，宕机后跳过 | enable.auto.commit=false |
 | 手动提交时机不对 | 先提交再处理，处理失败时消息丢失 | 处理完再提交 |
-| 消费者 Rebalance | 分区重新分配，未提交的 Offset 丢失 | Rebalance 监听器 + 手动提交 |
+| 消费者 [Rebalance](../02-core/chapter-03-consumer-group.md#rebalance) | 分区重新分配，未提交的 Offset 丢失 | Rebalance 监听器 + 手动提交 |
 
 #### 自动提交是怎么把消息"静默丢掉"的
 
@@ -233,8 +235,10 @@ enable.auto.commit=false
 isolation.level=read_committed  # 事务场景
 ```
 
+> 其中 `enable.idempotence` 是幂等生产者开关（见 [幂等生产者](../02-core/chapter-05-ack-and-idempotence.md#idempotent-producer)），`isolation.level=read_committed` 是事务场景的消费隔离级别（见 [事务隔离级别](./chapter-04-exactly-once.md#isolation-level)）。
+
 ## 5. 预防
 
 - 上线前用 `kafka-producer-perf-test.sh` 和 `kafka-consumer-perf-test.sh` 做端到端计数对比
 - 监控 `UnderReplicatedPartitions` 和 `UnderMinIsrPartitionCount`
-- 消费者实现幂等处理，即使重复消费也不产生副作用
+- 消费者实现[幂等处理](./chapter-02-message-dedup.md#idempotent-consumer)，即使重复消费也不产生副作用

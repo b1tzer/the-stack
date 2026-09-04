@@ -57,7 +57,7 @@ Topic 有 3 个分区，消费者组有 5 个消费者
 
 这意味着：如果你的消费者处理速度跟不上生产速度，增加消费者实例的前提是分区数足够多。否则你加再多消费者也没用。
 
-## 4. Rebalance：为什么不可避免
+## 4. Rebalance：为什么不可避免 {#rebalance}
 
 消费者组不是静态的。消费者会加入、离开、宕机。每次组成员变化，分区分配方案就必须重新计算——这就是 **Rebalance**。
 
@@ -148,7 +148,7 @@ props.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG,
 
 两个超时的区别在于：`session.timeout.ms` 检测的是"消费者进程是否还活着"（网络分区、进程崩溃），`max.poll.interval.ms` 检测的是"消费者是否还在正常消费"（处理逻辑阻塞、死锁）。
 
-## 7. Offset 管理
+## 7. Offset 管理 {#offset-management}
 
 消费者组的 Offset 是整个消费模型的"进度条"。它回答的问题是："这个消费者组消费到了哪里？"
 

@@ -10,7 +10,7 @@
 | 跨分区 | 无序 |
 | 全局有序 | 不保证（需要特殊处理） |
 
-单分区内有序的根源是存储结构：每个分区是一条独立的追加日志（append-only log），消息按到达顺序写到日志末尾，同一个分区里的偏移量单调递增、天然有序。详见 [分区与 Offset](../02-core/chapter-01-partition-and-offset.md)。
+单分区内有序的根源是存储结构：每个分区是一条独立的追加日志（append-only log），消息按到达顺序写到日志末尾，同一个分区里的偏移量单调递增、天然有序。详见 [分区与 Offset](../02-core/chapter-01-partition-and-offset.md#partition-ordering)。
 
 跨分区为什么无序：不同的分区是相互独立的日志，各自记录自己的偏移量，Kafka 不维护任何跨分区的全局序号或全局时钟。两个分区的"第 100 条"之间没有先后关系，消费者按分区拉取、按分区处理，跨分区消息到达消费者的先后就不受控制。
 
@@ -25,7 +25,7 @@ msg1 重试成功
 结果：msg2 在 msg1 之前（乱序）
 ```
 
-解决方案：开启幂等生产者，内部通过 Sequence Number 重排序。
+解决方案：开启[幂等生产者](../02-core/chapter-05-ack-and-idempotence.md#idempotent-producer)，内部通过 Sequence Number 重排序（`max.in.flight.requests` 保证顺序的原理见该章 [max.in.flight 限制](../02-core/chapter-05-ack-and-idempotence.md#max-in-flight)）。
 
 ```java
 props.put("enable.idempotence", true);
@@ -38,7 +38,7 @@ props.put("max.in.flight.requests.per.connection", 5);  // 允许 5 个在途请
 
 ### 2.2 分区扩展导致乱序
 
-有 Key 的消息在分区扩展后 rehash，同一 Key 的消息可能路由到新分区：
+有 Key 的消息在分区扩展后，[Key 路由](../02-core/chapter-01-partition-and-offset.md#partition-routing)的取模结果会变（`hash(key) % 分区数`），同一 Key 的消息可能路由到新分区：
 
 ```txt
 扩展前：Key=A 的消息全部到 Partition 0（有序）
@@ -51,7 +51,7 @@ props.put("max.in.flight.requests.per.connection", 5);  // 允许 5 个在途请
 
 ### 2.3 消费者侧乱序
 
-Rebalance 期间，分区重新分配，同一分区的消息可能被不同消费者先后处理，导致处理顺序与消息顺序不一致。
+[Rebalance](../02-core/chapter-03-consumer-group.md#rebalance) 期间，分区重新分配，同一分区的消息可能被不同消费者先后处理，导致处理顺序与消息顺序不一致。
 
 更常见的乱序来自**多线程消费**：
 
@@ -70,6 +70,8 @@ while (true) {
 ## 3. 保证顺序的方案
 
 ### 3.1 单分区内有序（最简单）
+
+同一业务实体的消息用相同的 Key 作为分区键（Key 路由原理见 [分区与 Offset](../02-core/chapter-01-partition-and-offset.md#partition-routing)），这样同一实体总是落到同一分区，天然有序：
 
 ```java
 // 同一业务实体的消息用相同的 Key

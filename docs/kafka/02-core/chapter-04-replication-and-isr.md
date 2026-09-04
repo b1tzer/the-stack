@@ -163,7 +163,7 @@ A 的 LEO = 2，无需截断，m2 保留
 
 Leader 所在 Broker 宕机后，Controller 从当前 ISR 中选第一个成员作为新 Leader。为什么是 ISR？因为 ISR 中的副本与 Leader 同步，选它不会丢数据。为什么是"第一个"？因为副本列表的顺序是创建时确定的，第一个成员就是 preferred replica，选它有利于负载均衡。
 
-### 7.2 Unclean Leader 选举
+### 7.2 Unclean Leader 选举 {#unclean-leader-election}
 
 如果 ISR 为空呢？所有同步副本都挂了，只剩下 OSR（落后的副本）。这时候有两个选择：
 

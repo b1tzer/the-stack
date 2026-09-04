@@ -54,13 +54,13 @@ Leader → Producer：返回 ACK
 
 代价：吞吐最低（必须等最慢的 Follower），但可靠性最高。
 
-### 为什么 acks=all 还需要 min.insync.replicas
+### 为什么 acks=all 还需要 min.insync.replicas {#min-insync-replicas}
 
 `acks=all` 保证消息写入所有 ISR 副本。但如果 ISR 只剩 Leader 一个呢？`acks=all` 退化成了 `acks=1`——只写一个副本就返回确认。
 
 `min.insync.replicas=2` 保证 ISR 中至少有 2 个副本。如果 ISR 收缩到只剩 Leader，Broker 会拒绝 `acks=all` 的写入，返回 `NotEnoughReplicasException`。这是一条硬红线：**宁可拒绝写入，也不允许单副本写入被当作"可靠写入"**。
 
-## 3. 幂等生产者：重试导致的重复
+## 3. 幂等生产者：重试导致的重复 {#idempotent-producer}
 
 `acks=all` 消除了"丢消息"的问题，但引入了"重复消息"的问题。
 
@@ -104,7 +104,7 @@ Spring Boot 配置：
 spring.kafka.producer.properties.enable.idempotence=true
 ```
 
-### 为什么 max.in.flight.requests.per.connection 限制在 5
+### 为什么 max.in.flight.requests.per.connection 限制在 5 {#max-in-flight}
 
 幂等生产者允许多个请求同时在途（`max.in.flight.requests.per.connection > 1`），但有乱序风险：
 
@@ -119,7 +119,7 @@ Broker 收到的顺序：Seq=1, Seq=2, Seq=0
 
 Kafka 内部维护了一个重排序缓冲区，能对最多 5 个在途请求进行重排序。超过 5 个就无法保证去重。这个数字是性能和正确性的平衡点。
 
-## 4. 事务：跨分区的 Exactly Once
+## 4. 事务：跨分区的 Exactly Once {#transactions}
 
 幂等生产者只能保证**单分区**内的去重。如果你需要"写入 Topic A 和 Topic B 要么都成功要么都失败"——这就是事务的场景。
 

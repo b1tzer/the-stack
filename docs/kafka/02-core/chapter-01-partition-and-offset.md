@@ -12,7 +12,7 @@
 
 这就是 Partition 存在的根本原因。它不是 Kafka 的一个"特性"，而是分布式系统面对单机瓶颈时的标准答案——就像数据库分表、HDFS 分块一样。
 
-## 2. 拆分带来了什么
+## 2. 拆分带来了什么 {#partition-ordering}
 
 把一个 Topic 拆成多个 Partition，每个 Partition 放在不同的 Broker 上，立刻得到两个结果：
 
@@ -62,7 +62,7 @@ Offset 的设计决定了 Kafka 的两个核心能力：
 
 **精确定位**：消费者说"给我 Partition 0 从 Offset 1234 开始的消息"，Broker 通过索引直接定位到文件位置，不需要扫描整个日志。这个查找过程的细节见 [日志分段与索引](../reference/chapter-02-log-segment.md)。
 
-## 5. 消息怎么决定去哪个分区
+## 5. 消息怎么决定去哪个分区 {#partition-routing}
 
 每条消息发送时，必须有一个规则决定它去哪个 Partition。Kafka 的默认分区器（`UniformStickyPartitioner`，2.4+）有三条规则：
 
@@ -92,7 +92,7 @@ Offset 的设计决定了 Kafka 的两个核心能力：
 
 但这只是起点。你还需要考虑：消费者处理单条消息的耗时、Topic 的消息量增长预期、集群的 Broker 数量。分区数一旦创建就只能增加不能减少——因为已有消息带着各自的 Offset 分布在各分区里，减少分区意味着搬数据、重排 Offset，代价极高。
 
-## 7. 分区扩展的风险
+## 7. 分区扩展的风险 {#partition-expansion}
 
 分区数只能增加。增加分区时有两个风险：
 
