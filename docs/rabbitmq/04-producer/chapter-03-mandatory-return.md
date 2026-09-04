@@ -4,7 +4,7 @@
 
 ## 1. 默认行为
 
-```text
+```txt
 Producer ──▶ Exchange ──routing failed──▶ ???
 
 默认：消息静默丢弃。Producer 不知道。
@@ -20,7 +20,7 @@ channel.basicPublish("order.exchange", "order.unknown",
 ```
 
 | mandatory | 路由成功 | 路由失败 |
-|-----------|----------|----------|
+| :-- | :-- | :-- |
 | false（默认） | 正常投递 | 静默丢弃 |
 | true | 正常投递 | Return 回调通知 Producer |
 
@@ -47,7 +47,7 @@ channel.basicPublish("order.exchange", "order.unknown", true, props, body);
 ## 4. Return 的触发条件
 
 | 条件 | 是否触发 Return |
-|------|----------------|
+| :-- | :-- |
 | 消息路由到至少一个 Queue | ❌ 不触发 |
 | 消息路由不到任何 Queue + mandatory = true | ✅ 触发 |
 | 消息路由不到任何 Queue + mandatory = false | ❌ 静默丢弃 |
@@ -56,7 +56,7 @@ channel.basicPublish("order.exchange", "order.unknown", true, props, body);
 ## 5. Mandatory vs Alternate Exchange
 
 | 维度 | Mandatory | Alternate Exchange |
-|------|-----------|-------------------|
+| :-- | :-- | :-- |
 | 机制 | Return 回调通知 Producer | 自动转发到另一个 Exchange |
 | Producer 感知 | 需要监听 Return 回调 | 无感知（消息去了 AE） |
 | 适用场景 | 需要 Producer 处理未路由消息 | 需要统一收集未路由消息 |

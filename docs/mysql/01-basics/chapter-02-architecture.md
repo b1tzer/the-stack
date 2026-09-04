@@ -106,7 +106,7 @@ ALTER TABLE myisam_table ENGINE = InnoDB;
 
 **InnoDB 核心特性总结：**
 | 特性 | 说明 |
-|------|------|
+| :-- | :-- |
 | 事务支持 | 完整的 ACID 支持 |
 | 行级锁 | 高并发下的细粒度锁 |
 | MVCC | 多版本并发控制，读不阻塞写 |

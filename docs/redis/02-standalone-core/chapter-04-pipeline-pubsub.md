@@ -8,7 +8,7 @@ Pipeline（管道）把多条命令批量发送给 Redis，一次性接收全部
 
 ### 1.1 问题：RTT 开销
 
-```text
+```txt
 无 Pipeline：
   客户端 → 服务端：SET a 1
   服务端 → 客户端：OK              （1 次 RTT）

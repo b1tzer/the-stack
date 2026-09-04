@@ -22,7 +22,7 @@ channel.basicPublish("order.exchange", "order.created", props, body);
 
 ## 3. 优先级的工作原理
 
-```text
+```txt
 Queue 中的消息：
   [msg1(priority=1), msg2(priority=5), msg3(priority=10)]
 
@@ -35,7 +35,7 @@ Queue 内部维护一个优先级堆，高优先级消息排在前面。
 ## 4. 优先级的范围
 
 | 值 | 含义 |
-|------|------|
+| :-- | :-- |
 | 0 | 最低优先级（默认） |
 | 1-9 | 中等优先级 |
 | 10 | 最高优先级 |
@@ -63,7 +63,7 @@ Quorum Queue 和 Stream Queue 不支持优先级。如果需要优先级，用 C
 ## 6. 典型场景
 
 | 场景 | 优先级设置 |
-|------|-----------|
+| :-- | :-- |
 | 订单处理 | VIP 订单 priority=10，普通订单 priority=0 |
 | 通知推送 | 紧急通知 priority=10，营销通知 priority=1 |
 | 任务队列 | 实时任务 priority=5，批量任务 priority=1 |
@@ -72,7 +72,7 @@ Quorum Queue 和 Stream Queue 不支持优先级。如果需要优先级，用 C
 
 如果不需要严格的优先级排序，可以用多个 Queue + 多消费者的方式实现"伪优先级"：
 
-```text
+```txt
 high.priority.queue → Consumer 1 (优先消费)
 low.priority.queue  → Consumer 2 (有空才消费)
 ```

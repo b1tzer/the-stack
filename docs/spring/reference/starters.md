@@ -3,7 +3,7 @@
 ## 官方 Starter
 
 | Starter | 说明 |
-|---------|------|
+| :-- | :-- |
 | `spring-boot-starter-web` | Web 应用（内嵌 Tomcat） |
 | `spring-boot-starter-data-jpa` | JPA + Hibernate |
 | `spring-boot-starter-data-redis` | Redis（Lettuce） |
@@ -29,7 +29,7 @@
 ## 常用第三方 Starter
 
 | Starter | 说明 |
-|---------|------|
+| :-- | :-- |
 | `mybatis-spring-boot-starter` | MyBatis |
 | `mybatis-plus-boot-starter` | MyBatis-Plus |
 | `pagehelper-spring-boot-starter` | PageHelper 分页 |
@@ -46,7 +46,7 @@
 ## Actuator 端点
 
 | 端点 | 说明 |
-|------|------|
+| :-- | :-- |
 | `/actuator/health` | 健康检查 |
 | `/actuator/info` | 应用信息 |
 | `/actuator/metrics` | 指标数据 |

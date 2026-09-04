@@ -11,7 +11,7 @@
 Spring Boot 2.3+ 内置了分层机制，将 jar 分为四层：
 
 | 层 | 内容 | 变化频率 | 大小占比 |
-|----|------|---------|---------|
+| :-- | :-- | :-- | :-- |
 | **dependencies** | 第三方依赖 jar | 极低 | ~70% |
 | **spring-boot-loader** | Spring Boot 加载器 | 极低 | ~1% |
 | **snapshot-dependencies** | SNAPSHOT 依赖 | 低 | ~5% |

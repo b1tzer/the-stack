@@ -38,7 +38,7 @@ class MilkSugarVanillaCoffee extends Coffee { double cost() { return 7.5; } }
 ### 1.2 工作中的典型应用场景
 
 | 场景 | Spring/JDK 中的例子 |
-|------|-------------------|
+| :-- | :-- |
 | IO 流包装 | `BufferedInputStream(new FileInputStream(...))` |
 | 线程安全包装 | `Collections.synchronizedList(list)` |
 | 不可变包装 | `Collections.unmodifiableList(list)` |
@@ -263,7 +263,7 @@ flowchart LR
 ### 4.1 装饰器模式 vs 代理模式（最容易混淆）
 
 | 对比维度 | 装饰器模式 | 代理模式 |
-|---------|----------|---------|
+| :-- | :-- | :-- |
 | **目的** | **增强**对象功能，叠加新行为 | **控制**对象访问（权限、延迟加载） |
 | **被包装对象来源** | 由**外部传入**（构造方法参数） | 代理通常**自己创建**真实对象 |
 | **透明性** | 调用方**知道**在使用装饰器 | 调用方**不知道**在访问代理 |
@@ -273,7 +273,7 @@ flowchart LR
 ### 4.2 装饰器模式 vs 继承
 
 | 对比维度 | 装饰器模式 | 继承 |
-|---------|----------|------|
+| :-- | :-- | :-- |
 | **扩展时机** | 运行期动态组合 | 编译期静态确定 |
 | **类数量** | O(N)，N 种装饰器 | O(2^N)，N 种功能的所有组合 |
 | **灵活性** | ✅ 可以任意组合 | ❌ 组合固定 |
@@ -282,7 +282,7 @@ flowchart LR
 ### 4.3 在 Spring / JDK 中的应用
 
 | 框架/类 | 说明 |
-|--------|------|
+| :-- | :-- |
 | `BufferedInputStream` | 为 InputStream 添加缓冲功能 |
 | `Collections.synchronizedList()` | 为 List 添加线程安全 |
 | `Collections.unmodifiableList()` | 为 List 添加不可变保护 |

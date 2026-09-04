@@ -62,7 +62,7 @@ SET binlog_format = 'ROW';
 
 **方案一：先写 Redo，再写 Binlog**
 
-```text
+```txt
 1. 写 Redo Log（提交）        ← 写到这里断电
 2. 写 Binlog
 ```
@@ -71,7 +71,7 @@ SET binlog_format = 'ROW';
 
 **方案二：先写 Binlog，再写 Redo**
 
-```text
+```txt
 1. 写 Binlog                 ← 写到这里断电
 2. 写 Redo Log（提交）
 ```
@@ -80,7 +80,7 @@ SET binlog_format = 'ROW';
 
 无论哪种固定顺序，断电都会打破「主库和从库看到同一批已提交事务」的约定。两阶段提交的解法，是把这个「提交」拆成两段，并在崩溃恢复时**根据 Binlog 的状态反推该不该提交**：
 
-```text
+```txt
 阶段一  prepare：Redo Log 写入，标记为 prepare 状态（还未真正提交）
 阶段二  commit：
         1. 写 Binlog
@@ -89,7 +89,7 @@ SET binlog_format = 'ROW';
 
 崩溃恢复时的判断规则：
 
-```text
+```txt
 扫描 Redo Log，找到处于 prepare 状态的事务
   ├─ 在 Binlog 里能找到对应记录（事务已完整写进 Binlog）
   │      → 说明阶段二已经走完至少一半，主库应提交

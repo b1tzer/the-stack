@@ -11,7 +11,7 @@ title: 数据页与存储结构
 
 PostgreSQL 的逻辑结构从大到小依次为：
 
-```text
+```txt
 Database Cluster (集群)
   └── Database (数据库)
         └── Schema (模式)
@@ -21,7 +21,7 @@ Database Cluster (集群)
 ```
 
 | 层次 | 说明 | 对应 Java 类比 |
-|------|------|---------------|
+| :-- | :-- | :-- |
 | **Database Cluster** | 一个 PG 实例管理的所有数据库 | 一个 MySQL Instance |
 | **Database** | 独立的数据库，不同 DB 之间默认隔离 | MySQL 的 Database |
 | **Schema** | 数据库内的命名空间，隔离表/视图等对象 | 无直接对应（MySQL schema ≈ database） |
@@ -35,7 +35,7 @@ Database Cluster (集群)
 
 每个数据页固定为 **8192 字节（8KB）**，内部结构如下：
 
-```text
+```txt
 ┌──────────────────────────────────────────┐  偏移 0
 │           PageHeaderData (24 字节)        │
 │  - pd_lsn: 最后修改该页的 WAL LSN          │
@@ -66,7 +66,7 @@ Database Cluster (集群)
 ### PageHeader 字段详解
 
 | 字段 | 大小 | 说明 |
-|------|------|------|
+| :-- | :-- | :-- |
 | `pd_lsn` | 8 字节 | 最后修改该页的 WAL 记录的 LSN，用于恢复判断 |
 | `pd_checksum` | 2 字节 | 页校验和（PG 12+，需 initdb 时开启 `--data-checksums`） |
 | `pd_lower` | 2 字节 | ItemId 数组的结束位置（空闲空间起点） |
@@ -78,7 +78,7 @@ Database Cluster (集群)
 
 每个 ItemId 占 **4 字节**，记录对应 Tuple 在页内的偏移和长度。ItemId 数组从页头开始向后增长，Tuple 数据从页尾开始向前增长，中间是 Free Space。
 
-```text
+```txt
 ItemId 结构 (4 bytes):
 ┌──────────────────────────────────┐
 │  offset (15 bits) | flags (2 bits) | length (15 bits) │
@@ -91,7 +91,7 @@ PostgreSQL 默认使用 **堆表（Heap Table）** 存储数据，即行记录�
 
 ### 3.1 Tuple（元组）结构
 
-```text
+```txt
 ┌────────────────────────────────────┐
 │        HeapTupleHeaderData         │
 │  (23~27 字节，含对齐)                │
@@ -118,7 +118,7 @@ PostgreSQL 默认使用 **堆表（Heap Table）** 存储数据，即行记录�
 PG 的 MVCC 直接体现在 Tuple 头部：
 
 | 操作 | 行为 |
-|------|------|
+| :-- | :-- |
 | **INSERT** | 写入新 Tuple，`t_xmin` = 当前事务 ID |
 | **UPDATE** | 旧行标记删除（`t_xmax` = 当前事务 ID），新行作为新 Tuple 插入 |
 | **DELETE** | 不物理删除，仅设置 `t_xmax` = 当前事务 ID |
@@ -140,13 +140,13 @@ PG 的 MVCC 直接体现在 Tuple 头部：
 ### TOAST 存储策略
 
 | 策略 | 说明 | 适用场景 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | **PLAIN** | 不压缩，不外部存储 | 小字段（默认值） |
 | **EXTENDED** | 先压缩，压缩后仍太大则外部存储 | TEXT、BYTEA（默认策略） |
 | **EXTERNAL** | 不压缩，直接外部存储 | 不需要压缩的大字段 |
 | **MAIN** | 压缩，尽量不外部存储 | 需要尽量保留在行内的字段 |
 
-```text
+```txt
 ┌─────────────────────────────────────────────────┐
 │                  主表 (Heap Table)                │
 │                                                  │
@@ -173,7 +173,7 @@ PG 的 MVCC 直接体现在 Tuple 头部：
 
 表空间定义了数据库对象在文件系统中的存储位置。
 
-```text
+```txt
 ┌─────────────────────────────────────────────┐
 │              表空间 (Tablespace)              │
 │                                              │
@@ -190,7 +190,7 @@ PG 的 MVCC 直接体现在 Tuple 头部：
 ```
 
 | 用途 | 说明 |
-|------|------|
+| :-- | :-- |
 | **磁盘空间管理** | 将大表放在高速 SSD，小表放在 HDD |
 | **I/O 隔离** | 将热点表和冷数据表分离到不同磁盘 |
 | **备份策略** | 不同表空间可以使用不同的备份策略 |
@@ -210,7 +210,7 @@ CREATE TABLE orders (
 
 `$PGDATA` 目录是 PG 集群的根目录，主要结构如下：
 
-```text
+```txt
 $PGDATA/
 ├── base/                  # 各数据库的数据文件
 │   ├── 1/                 # template1 的数据
@@ -241,7 +241,7 @@ $PGDATA/
 ### 数据文件命名规则
 
 | 文件后缀 | 说明 |
-|----------|------|
+| :-- | :-- |
 | 无后缀 | 表/索引的主数据文件（大小 = N × 8KB） |
 | `.1`, `.2`, ... | 超过 1GB 的表自动分段（段文件） |
 | `_fsm` | Free Space Map — 记录每个数据页的空闲空间 |
@@ -249,7 +249,7 @@ $PGDATA/
 
 ### FSM 和 VM 的作用
 
-```text
+```txt
 表数据文件: 16384
   ├── 16384        (主数据文件，存储实际 Tuple)
   ├── 16384_fsm    (Free Space Map: 记录每页空闲空间大小)
@@ -264,7 +264,7 @@ $PGDATA/
 ## 本章小结
 
 | 要点 | 记忆关键词 |
-|------|-----------|
+| :-- | :-- |
 | PG 数据页固定 8KB | 比 InnoDB 的 16KB 小一半 |
 | PageHeader + ItemId + Tuple + Free Space | ItemId 从前往后，Tuple 从后往前 |
 | 堆表存储，MVCC 在 Tuple 头部 | UPDATE = DELETE + INSERT，产生死元组 |

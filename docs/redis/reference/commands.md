@@ -3,7 +3,7 @@
 ## String
 
 | 命令 | 说明 |
-|------|------|
+| :-- | :-- |
 | `SET key value [EX seconds] [NX\|XX]` | 设置值，EX=过期秒数，NX=不存在才设置 |
 | `GET key` | 获取值 |
 | `MSET k1 v1 k2 v2` | 批量设置 |
@@ -15,7 +15,7 @@
 ## Hash
 
 | 命令 | 说明 |
-|------|------|
+| :-- | :-- |
 | `HSET key field value` | 设置字段 |
 | `HGET key field` | 获取字段 |
 | `HMSET key f1 v1 f2 v2` | 批量设置 |
@@ -27,7 +27,7 @@
 ## List
 
 | 命令 | 说明 |
-|------|------|
+| :-- | :-- |
 | `LPUSH key value` | 左端插入 |
 | `RPUSH key value` | 右端插入 |
 | `LPOP key` | 左端弹出 |
@@ -39,7 +39,7 @@
 ## Set
 
 | 命令 | 说明 |
-|------|------|
+| :-- | :-- |
 | `SADD key member` | 添加成员 |
 | `SREM key member` | 删除成员 |
 | `SMEMBERS key` | 所有成员 |
@@ -52,7 +52,7 @@
 ## Sorted Set
 
 | 命令 | 说明 |
-|------|------|
+| :-- | :-- |
 | `ZADD key score member` | 添加带分数的成员 |
 | `ZSCORE key member` | 获取分数 |
 | `ZRANGE key start stop [WITHSCORES]` | 按分数升序 |
@@ -66,7 +66,7 @@
 ## 通用
 
 | 命令 | 说明 |
-|------|------|
+| :-- | :-- |
 | `DEL key` | 删除（阻塞） |
 | `UNLINK key` | 异步删除（非阻塞） |
 | `EXISTS key` | 是否存在 |

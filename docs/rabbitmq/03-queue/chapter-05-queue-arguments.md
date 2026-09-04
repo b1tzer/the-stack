@@ -5,7 +5,7 @@
 ## 1. 参数总览
 
 | 参数 | 类型 | Classic | Quorum | Stream | 说明 |
-|------|------|---------|--------|--------|------|
+| :-- | :-- | :-- | :-- | :-- | :-- |
 | x-queue-type | string | ✅ | ✅ | ✅ | 队列类型 |
 | x-max-length | int | ✅ | ✅ | ❌ | 最大消息数 |
 | x-max-length-bytes | int | ✅ | ✅ | ✅ | 最大字节数 |
@@ -25,7 +25,7 @@
 ## 2. 超限行为（x-overflow）
 
 | 值 | 说明 |
-|------|------|
+| :-- | :-- |
 | `drop-head` | 丢弃队头最老的消息（默认） |
 | `reject-publish` | 拒绝新消息（生产者收到 nack） |
 | `reject-publish-dlx` | 拒绝新消息并发送到 DLX |

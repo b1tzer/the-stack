@@ -14,7 +14,7 @@ Java 不像 C/C++ 那样直接编译成机器码，而是编译成一种中间�
 
 **3. 语言生态统一。** Kotlin、Scala、Groovy 等语言都编译到同一套字节码格式。它们共享 JVM 生态——同一个库，Java 写的可以被 Kotlin 调用，Scala 写的可以被 Java 调用。
 
-```text
+```txt
 C/C++：  Source → Machine Code → 只能在特定平台
 Java：   Source → Bytecode → JVM → Machine Code → 任何平台
 Kotlin： Source → Bytecode → JVM → Machine Code → 任何平台
@@ -26,7 +26,7 @@ Kotlin： Source → Bytecode → JVM → Machine Code → 任何平台
 
 一个 `.class` 文件的结构：
 
-```text
+```txt
 ClassFile {
     u4             magic;              // 魔数：0xCAFEBABE
     u2             minor_version;
@@ -54,7 +54,7 @@ ClassFile {
 常量池是 Class 文件的"信息仓库"——类名、方法名、字段名、字符串字面量、方法描述符都存在这里。
 
 | 常量类型 | 存储内容 | 示例 |
-|---------|---------|------|
+| :-- | :-- | :-- |
 | CONSTANT_Utf8 | 字符串字面量 | 类名、方法名 |
 | CONSTANT_Class | 类或接口的符号引用 | `java/lang/Object` |
 | CONSTANT_Methodref | 方法的符号引用 | `println:(Ljava/lang/String;)V` |
@@ -66,7 +66,7 @@ ClassFile {
 
 每个方法包含：访问标志、方法名、描述符、属性表。方法的**字节码指令**存储在 `Code` 属性中：
 
-```text
+```txt
 method_info {
     access_flags
     name_index          → 常量池中的方法名
@@ -114,7 +114,7 @@ String name = user.getName(); // aload_1 → invokevirtual getName
 ### 3.4 方法调用（最重要）
 
 | 指令 | 用途 | 场景 |
-|------|------|------|
+| :-- | :-- | :-- |
 | `invokevirtual` | 普通实例方法调用 | `user.getName()` |
 | `invokestatic` | 静态方法调用 | `Math.max(1, 2)` |
 | `invokeinterface` | 接口方法调用 | `list.add(x)` |
@@ -128,7 +128,7 @@ String name = user.getName(); // aload_1 → invokevirtual getName
 核心原因：**不同调用方式的查找成本不同。**
 
 | 指令 | 查找方式 | 为什么这样设计 |
-|------|---------|---------------|
+| :-- | :-- | :-- |
 | `invokevirtual` | 查虚方法表（vtable），固定偏移 | 类的方法表在加载时就确定了，偏移量可缓存 |
 | `invokeinterface` | 线性搜索接口方法表（itable） | 接口的方法表位置不固定，无法用偏移量直接定位 |
 | `invokespecial` | 编译期直接定位，不走多态 | 构造器、`private` 方法、`super` 调用——目标在编译时已知 |
@@ -142,7 +142,7 @@ String name = user.getName(); // aload_1 → invokevirtual getName
 第一卷讲的每个语言特性，在字节码层面都有对应：
 
 | 语言特性 | 字节码层面的体现 |
-|---------|---------------|
+| :-- | :-- |
 | 泛型擦除 | `Signature` 属性保留泛型信息，方法体中插入 `checkcast` |
 | Lambda | `invokedynamic` + `BootstrapMethods` 属性 |
 | 注解 | `RuntimeVisibleAnnotations` / `RuntimeInvisibleAnnotations` 属性 |
@@ -168,7 +168,7 @@ public void process(List<Integer> list) { }  // 编译报错！
 
 编译后，两个方法的描述符完全相同：`(Ljava/util/List;)V`。`Signature` 属性中保留了泛型信息供反射使用，但方法体中的类型检查是通过编译器插入的 `checkcast` 指令实现的：
 
-```text
+```txt
 // List<String>.get(0) 编译后
 invokeinterface List.get:(I)Ljava/lang/Object;
 checkcast java/lang/String    // 编译器插入的类型检查
@@ -207,7 +207,7 @@ try (InputStream in = new FileInputStream(f)) {
 
 `.class` 文件不会自动进入 JVM，需要由 ClassLoader 加载。类的生命周期分为七个阶段：
 
-```text
+```txt
 加载（Loading）
   → 验证（Verification）
   → 准备（Preparation）
@@ -222,7 +222,7 @@ try (InputStream in = new FileInputStream(f)) {
 ### 5.1 各阶段做了什么
 
 | 阶段 | 做了什么 | 为什么要在这步做 |
-|------|---------|----------------|
+| :-- | :-- | :-- |
 | 加载 | 通过全限定名获取字节流，生成 `Class` 对象 | 将外部字节码转为 JVM 可操作的形式 |
 | 验证 | 文件格式、元数据、字节码、符号引用验证 | 防止恶意字节码破坏 JVM |
 | 准备 | 为静态变量分配内存并赋零值 | 保证字段在未显式赋值前有默认值 |
@@ -233,7 +233,7 @@ try (InputStream in = new FileInputStream(f)) {
 
 表格中"符号引用 → 直接引用"是最抽象的一行，用一个例子说清楚：
 
-```text
+```txt
 // 编译时：常量池中存储的是符号引用（字符串描述）
 CONSTANT_Methodref #15 = #16.#17
   #16 = java/io/PrintStream          // 类名
@@ -271,7 +271,7 @@ User[] arr = new User[10];    // 创建数组，不触发数组元素类的初�
 
 ### 6.1 ClassLoader 的层次结构
 
-```text
+```txt
 Bootstrap ClassLoader（引导类加载器）
   └─ 加载 rt.jar（java.lang.String、java.util.List 等核心类）
   └─ C++ 实现，JVM 内置
@@ -291,7 +291,7 @@ Application ClassLoader（应用类加载器）
 
 当一个 ClassLoader 收到加载请求时，它不会自己先加载，而是**先委托给父加载器**。只有父加载器无法加载时，才自己尝试。
 
-```text
+```txt
 Application ClassLoader 收到请求"加载 java.lang.String"
   → 委托给 Platform ClassLoader
     → 委托给 Bootstrap ClassLoader
@@ -355,7 +355,7 @@ Tomcat 需要在同一个 JVM 中运行多个 Web 应用，每个应用可能依
 
 解决方案：每个 Web 应用使用独立的 `WebAppClassLoader`，加载顺序与标准双亲委派**相反**：
 
-```text
+```txt
 WebAppClassLoader 加载顺序：
   1. 自己的 /WEB-INF/classes 和 /WEB-INF/lib（优先自己）
   2. 找不到才委托给父加载器
@@ -369,7 +369,7 @@ WebAppClassLoader 加载顺序：
 
 OSGi 实现了模块化系统，每个 Bundle（模块）有独立的 ClassLoader。与 Tomcat 的树状结构不同，OSGi 的 ClassLoader 之间是**网状委托关系**：
 
-```text
+```txt
 Bundle A 的 ClassLoader
   ├─ import: org.slf4j（委托给 Bundle B）
   ├─ import: com.google.gson（委托给 Bundle C）
@@ -427,7 +427,7 @@ public class Hello {
 
 `javap -c` 输出：
 
-```text
+```txt
 public int add(int, int);
   Code:
      0: iload_1      // 加载局部变量 1（参数 a）到操作数栈

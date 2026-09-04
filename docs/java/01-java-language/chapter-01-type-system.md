@@ -26,7 +26,7 @@ Java 的设计者 James Gosling 和他的团队在设计 Java（最初叫 Oak）
 
 这是 Java 最重要的设计目标。解决方案是在源码和机器码之间插入一层抽象——字节码（Bytecode）和虚拟机（JVM）。源码编译成字节码，字节码在 JVM 上运行，JVM 屏蔽了底层操作系统的差异。
 
-```text
+```txt
 C/C++：Source → Machine Code → 只能在特定平台运行
 Java：  Source → Bytecode → JVM → 任何平台都能运行
 ```
@@ -191,7 +191,7 @@ EnumMap<Color, String> colorNames = new EnumMap<>(Color.class);
 Java 有 8 种基本类型：
 
 | 类型 | 大小 | 范围 | 默认值 |
-|------|------|------|--------|
+| :-- | :-- | :-- | :-- |
 | `byte` | 1 字节 | -128 ~ 127 | 0 |
 | `short` | 2 字节 | -32768 ~ 32767 | 0 |
 | `int` | 4 字节 | -2^31 ~ 2^31-1 | 0 |
@@ -210,6 +210,7 @@ Integer i = new Integer(10);
 ```
 
 每次创建一个整数，都需要：
+
 1. 在堆上分配内存（对象头 + 实例数据 + 对齐填充）
 2. 创建对象引用
 3. GC 最终需要回收这个对象
@@ -304,6 +305,7 @@ public void process() {
 ```
 
 当方法 `process()` 执行完毕：
+
 - 栈帧被弹出，`count` 和 `user` 引用消失
 - 堆上的 User 对象变成"不可达"（没有引用指向它了）
 - GC 在某个时刻回收这个对象
@@ -348,7 +350,7 @@ HotSpot JVM 中，一个 Java 对象在堆中的结构：
 ### 4.1 三个层次
 
 | 层次 | 含义 | 运算符/方法 |
-|------|------|------------|
+| :-- | :-- | :-- |
 | **identity** | 是否同一个对象（内存地址相同） | `==` |
 | **equality** | 逻辑上是否相等 | `equals()` |
 | **hash** | 对象的哈希指纹 | `hashCode()` |
@@ -493,6 +495,7 @@ for (int i = 0; i < 10000; i++) {
 ```
 
 每次 `+=` 都会：
+
 1. 创建一个 `StringBuilder`
 2. append 当前字符串和新值
 3. 调用 `toString()` 创建一个新的 String 对象
@@ -525,6 +528,7 @@ b == c  // true
 String 不是 Java 中唯一的不可变对象。`Integer`、`Long`、`Double` 等包装类型也是不可变的。`LocalDate`、`BigDecimal` 等也是。
 
 设计不可变对象的原则：
+
 1. 类声明为 `final`（或所有方法为 `final`）
 2. 所有字段为 `private final`
 3. 不提供修改状态的方法
@@ -538,7 +542,7 @@ Java 的类型系统在编译期和运行期都有检查机制，这使得很多
 
 **自动扩大（Widening）**——安全，编译器自动完成：
 
-```text
+```txt
 byte → short → int → long → float → double
          char →
 ```

@@ -4,7 +4,7 @@
 
 ## 1. 路由规则
 
-```text
+```txt
 Producer ──▶ Fanout Exchange ──▶ Queue A
                               ──▶ Queue B
                               ──▶ Queue C
@@ -50,7 +50,7 @@ channel.queueBind(queueName, "realtime.fanout", "");
 
 ### 2.3 事件广播
 
-```text
+```txt
 配置变更事件 → Fanout Exchange → 缓存服务（清除本地缓存）
                                 → 日志服务（记录变更）
                                 → 监控服务（触发检查）
@@ -59,7 +59,7 @@ channel.queueBind(queueName, "realtime.fanout", "");
 ## 3. Fanout vs Topic（广播场景）
 
 | 特性 | Fanout | Topic（用 `#`） |
-|------|--------|----------------|
+| :-- | :-- | :-- |
 | 路由开销 | 无（直接广播） | 有（模式匹配） |
 | 灵活性 | 低（全部广播） | 高（可以选择性广播） |
 | 性能 | 最快 | 稍慢 |

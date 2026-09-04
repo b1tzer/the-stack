@@ -75,7 +75,7 @@ curl http://localhost:9187/metrics | grep pg_stat_database
 ### 连接数
 
 | 指标 | PromQL 表达式 | 说明 |
-|------|-------------|------|
+| :-- | :-- | :-- |
 | 当前连接数 | `pg_stat_activity_count` | 按 state 标签分组 |
 | 最大连接数 | `pg_settings_max_connections` | 静态配置值 |
 | 连接使用率 | `pg_stat_activity_count / pg_settings_max_connections * 100` | 超过 80% 告警 |
@@ -138,7 +138,7 @@ pg_database_xid_age{datname="your_db"} / 2147483647 * 100
 ### 推荐 Dashboard
 
 | Dashboard ID | 名称 | 适用场景 |
-|-------------|------|---------|
+| :-- | :-- | :-- |
 | 9628 | PostgreSQL Database | 通用数据库概览 |
 | 14114 | PostgreSQL | 细粒度监控 |
 | 10923 | pg_stat_statements | SQL 级分析 |
@@ -294,7 +294,7 @@ groups:
 ### 解决方案
 
 | 策略 | 实现方式 | 适用场景 |
-|------|---------|---------|
+| :-- | :-- | :-- |
 | **只读副本监控** | 在 replica 上执行 pg_stat_statements 查询 | 主库不承担监控查询开销 |
 | **采样而非全量** | `pg_stat_statements.track = top`，限制 `max` 值 | 减少统计开销 |
 | **exporter 超时保护** | `--timeout=5s`，超时放弃采集 | 避免监控卡住 |
@@ -326,7 +326,7 @@ LIMIT 50;
 ### 与 postgres_exporter 对比
 
 | 特性 | postgres_exporter | pgwatch2 |
-|------|------------------|----------|
+| :-- | :-- | :-- |
 | 安装复杂度 | 低（单二进制） | 中（含 Web UI + InfluxDB/PG） |
 | 指标丰富度 | 基础（系统视图） | 丰富（含自定义 SQL） |
 | 存储后端 | Prometheus（拉取） | InfluxDB / PostgreSQL / Prometheus |

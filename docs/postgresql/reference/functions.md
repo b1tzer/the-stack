@@ -8,7 +8,7 @@ title: 函数速查表
 ## 窗口函数
 
 | 函数 | 说明 | 示例 |
-|------|------|------|
+| :-- | :-- | :-- |
 | `ROW_NUMBER()` | 连续行号 | `ROW_NUMBER() OVER (ORDER BY id)` |
 | `RANK()` | 跳跃排名 | `RANK() OVER (PARTITION BY dept ORDER BY salary DESC)` |
 | `DENSE_RANK()` | 密集排名 | `DENSE_RANK() OVER (ORDER BY score DESC)` |
@@ -21,7 +21,7 @@ title: 函数速查表
 ## 聚合函数
 
 | 函数 | 说明 |
-|------|------|
+| :-- | :-- |
 | `COUNT(*)` / `COUNT(col)` | 计数 |
 | `SUM(col)` | 求和 |
 | `AVG(col)` | 平均值 |
@@ -34,7 +34,7 @@ title: 函数速查表
 ## JSONB 函数
 
 | 函数/操作符 | 说明 |
-|------------|------|
+| :-- | :-- |
 | `->` | 提取 JSON 对象 |
 | `->>` | 提取文本值 |
 | `#>` | 按路径提取 JSON |
@@ -51,7 +51,7 @@ title: 函数速查表
 ## 日期函数
 
 | 函数 | 说明 | 示例 |
-|------|------|------|
+| :-- | :-- | :-- |
 | `NOW()` | 当前时间戳 | `SELECT NOW()` |
 | `CURRENT_DATE` | 当前日期 | `SELECT CURRENT_DATE` |
 | `DATE_TRUNC(p, ts)` | 截断 | `DATE_TRUNC('month', NOW())` |
@@ -62,7 +62,7 @@ title: 函数速查表
 ## 字符串函数
 
 | 函数 | 说明 |
-|------|------|
+| :-- | :-- |
 | `CONCAT(a, b)` | 拼接 |
 | `SUBSTR(s, start, len)` | 截取 |
 | `LENGTH(s)` | 长度 |
@@ -75,7 +75,7 @@ title: 函数速查表
 ## 系统函数
 
 | 函数 | 说明 |
-|------|------|
+| :-- | :-- |
 | `pg_size_pretty(bytes)` | 人类可读大小 |
 | `pg_database_size(db)` | 数据库大小 |
 | `pg_total_relation_size(rel)` | 表总大小 |

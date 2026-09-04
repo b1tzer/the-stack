@@ -6,7 +6,7 @@
 
 Federation 在两个 RabbitMQ 集群之间建立"联邦"关系，上游的消息自动同步到下游。
 
-```text
+```txt
 上游集群 (Beijing)              下游集群 (Shanghai)
   Exchange A ──Federation Link──▶ Exchange A'
   Queue B    ──Federation Link──▶ Queue B'
@@ -38,7 +38,7 @@ rabbitmqctl set_policy federate-me "^order\\." \
 
 Shovel 比 Federation 更灵活：可以在任意两个 Broker（不限于 RabbitMQ）之间搬运消息。
 
-```text
+```txt
 Source Broker ──Shovel──▶ Destination Broker
 (RabbitMQ)                (RabbitMQ / 其他 AMQP)
 ```
@@ -64,7 +64,7 @@ rabbitmqctl set_parameter shovel my-shovel \
 ## 3. Federation vs Shovel
 
 | 维度 | Federation | Shovel |
-|------|-----------|--------|
+| :-- | :-- | :-- |
 | 粒度 | Exchange/Queue 级别 | 单条消息级别 |
 | 配置 | 策略驱动 | 参数驱动 |
 | 协议 | 只支持 AMQP | 支持 AMQP + MQTT |

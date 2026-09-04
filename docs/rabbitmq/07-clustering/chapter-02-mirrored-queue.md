@@ -4,7 +4,7 @@
 
 ## 1. 镜像队列的原理
 
-```text
+```txt
 Queue: order.queue
   Master (Node 1) ← 所有读写
     │
@@ -19,7 +19,7 @@ Queue: order.queue
 ## 2. 镜像队列的问题
 
 | 问题 | 说明 |
-|------|------|
+| :-- | :-- |
 | 异步复制 | Master 崩溃时，未同步到 Mirror 的消息丢失 |
 | 故障转移慢 | 需要重新选举 Mirror 为 Master |
 | 性能瓶颈 | 所有读写都走 Master |
@@ -28,7 +28,7 @@ Queue: order.queue
 ## 3. 为什么迁移到 Quorum Queue
 
 | 维度 | 镜像队列 | Quorum Queue |
-|------|---------|--------------|
+| :-- | :-- | :-- |
 | 复制方式 | 异步 | 同步（Raft） |
 | 消息丢失 | 可能 | 极低（多数确认） |
 | 故障转移 | 手动/半自动 | 自动（Raft Leader 选举） |

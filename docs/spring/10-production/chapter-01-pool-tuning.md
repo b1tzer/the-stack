@@ -8,7 +8,7 @@
 
 请求进来后，先由 Tomcat 的工作线程接手，线程再向连接池借一条连接去查数据库：
 
-```text
+```txt
 请求 → Tomcat 工作线程（threads.max 个） → HikariCP 连接池（maximum-pool-size 条） → 数据库
 ```
 
@@ -48,7 +48,7 @@ spring:
 **HikariCP 关键参数速查表：**
 
 | 参数 | 默认值 | 推荐值 | 说明 |
-|------|--------|--------|------|
+| :-- | :-- | :-- | :-- |
 | maximum-pool-size | 10 | 20 | 最大连接数 |
 | minimum-idle | = maximum-pool-size | 5 | 最小空闲连接 |
 | connection-timeout | 30000ms | 3000ms | 获取连接等待超时 |
@@ -81,7 +81,7 @@ maximum-pool-size = (CPU 核心数 * 2) + 有效磁盘数
 
 池耗尽时，线程在 `connection-timeout` 内拿不到连接，抛 `SQLTransientConnectionException`：
 
-```text
+```txt
 HikariPool-1 - Connection is not available, request timed out after 5000ms.
 ```
 
@@ -150,7 +150,7 @@ server:
 ```
 
 | 参数 | 默认值 | 作用 |
-|------|--------|------|
+| :-- | :-- | :-- |
 | `threads.max` | 200 | 最大工作线程数，同时处理请求的上限 |
 | `threads.min-spare` | 10 | 最小空闲线程，避免流量突增时现建线程 |
 | `accept-count` | 100 | 连接队列长度，线程满了先进队列，队列也满才拒绝 |
@@ -208,121 +208,10 @@ public class TomcatConfig {
 
 ---
 
-## 4. JVM 参数调优
-
-### 4.1 生产环境推荐参数
-
-```bash
-java -jar app.jar \
-  # 堆内存
-  -Xms4g \                          # 初始堆大小（建议 = Xmx，避免动态扩缩）
-  -Xmx4g \                          # 最大堆大小（物理内存的 50-75%）
-  -Xmn2g \                          # 新生代大小（堆的 1/3 到 1/2）
-
-  # 元空间（替代 PermGen）
-  -XX:MetaspaceSize=256m \
-  -XX:MaxMetaspaceSize=512m \
-
-  # GC 策略 —— G1（推荐，Java 11+ 默认）
-  -XX:+UseG1GC \
-  -XX:MaxGCPauseMillis=200 \        # 目标最大 GC 停顿时间（ms）
-  -XX:G1HeapRegionSize=8m \         # G1 区域大小
-  -XX:InitiatingHeapOccupancyPercent=45 \  # 触发并发标记的堆占用率
-  -XX:G1ReservePercent=15 \         # 预留内存防止 to-space 溢出
-
-  # GC 日志（Java 11+ 统一格式）
-  -Xlog:gc*:file=/var/log/app/gc.log:time,uptime,level,tags:filecount=10,filesize=50M \
-
-  # OOM 处理
-  -XX:+HeapDumpOnOutOfMemoryError \
-  -XX:HeapDumpPath=/var/log/app/heapdump.hprof \
-  -XX:+ExitOnOutOfMemoryError \      # OOM 后退出（配合 K8s 重启策略）
-
-  # 性能优化
-  -XX:+UseStringDeduplication \      # 字符串去重（G1 专属）
-  -XX:+OptimizeStringConcat \        # 优化字符串拼接
-  -XX:+AlwaysPreTouch \              # 启动时预分配内存（减少首次 GC 延迟）
-  -Djava.security.egd=file:/dev/urandom  # 加速随机数生成
-```
-
-### 4.2 GC 策略选型
-
-| GC 策略 | 适用场景 | 最大停顿 | 吞吐量 | 内存效率 |
-|---------|---------|---------|--------|---------|
-| **G1** | 通用场景（推荐默认） | 可控（~200ms） | 高 | 中等 |
-| **ZGC** | 超低延迟（Java 15+） | <10ms | 中等 | 较低 |
-| **Shenandoah** | 超低延迟（RedHat） | <10ms | 中等 | 较低 |
-| **Parallel** | 吞吐优先（批处理） | 不可控 | 最高 | 高 |
-
-```bash
-# 如果需要极致低延迟，使用 ZGC（Java 17+）
-java -jar app.jar \
-  -Xms4g -Xmx4g \
-  -XX:+UseZGC \
-  -XX:+ZGenerational \              # Java 21+ 分代 ZGC
-  -XX:SoftMaxHeapSize=4g \
-  -Xlog:gc*:file=/var/log/app/gc.log:time,uptime,level,tags
-```
-
-### 4.3 GC 日志分析
-
-```
-# 正常 GC 日志示例（G1）
-[gc] GC(42) Pause Young (Concurrent Start) (G1 Evacuation Pause) 1024M->256M(4096M) 45.123ms
-
-关键指标：
-- 1024M->256M：GC 前 → GC 后的堆使用量
-- 4096M：总堆大小
-- 45.123ms：GC 停顿时间
-
-告警阈值建议：
-- Young GC 停顿 > 100ms：关注
-- Full GC 停顿 > 1s：严重
-- Full GC 频率 > 1次/小时：排查内存泄漏
-```
-
-### 4.4 JVM 监控
-
-```java
-@Component
-@Slf4j
-public class JvmMonitor {
-
-    @Scheduled(fixedRate = 60000)
-    public void report() {
-        MemoryMXBean memory = ManagementFactory.getMemoryMXBean();
-        MemoryUsage heap = memory.getHeapMemoryUsage();
-        MemoryUsage nonHeap = memory.getNonHeapMemoryUsage();
-
-        List<GarbageCollectorMXBean> gcBeans = ManagementFactory.getGarbageCollectorMXBeans();
-
-        log.info("JVM Heap: {}/{} MB ({}%), NonHeap: {} MB",
-                heap.getUsed() / 1024 / 1024,
-                heap.getMax() / 1024 / 1024,
-                heap.getUsed() * 100 / heap.getMax(),
-                nonHeap.getUsed() / 1024 / 1024);
-
-        for (GarbageCollectorMXBean gc : gcBeans) {
-            log.info("GC [{}]: count={}, time={}ms",
-                    gc.getName(), gc.getCollectionCount(), gc.getCollectionTime());
-        }
-    }
-}
-```
-
-**踩坑提醒：**
-- `-Xms` 和 `-Xmx` 设成一样！避免 JVM 在运行时动态扩缩堆大小，这个过程会触发 Full GC
-- 不要迷信"大堆 = 好"——堆越大，Full GC 停顿越长。4-8GB 是多数 Web 应用的甜区
-- 生产环境 **必须** 开启 GC 日志和 HeapDump——出了问题没有日志就是在盲人摸象
-
----
-
-## 5. 调优 Checklist
+## 4. 调优 Checklist
 
 - [ ] `max-lifetime` 小于数据库 `wait_timeout`
 - [ ] `maximum-pool-size` 按 `2*CPU+1` 起步，压测后调整
 - [ ] `connection-timeout` 设一个能容忍的值（如 3~5s），不要用默认 30s 掩盖泄漏
 - [ ] 确认连接池和 Tomcat 线程池谁才是瓶颈，避免只调一个
-- [ ] `-Xms` 和 `-Xmx` 设成一样
-- [ ] 生产环境开启 GC 日志和 HeapDump
 - [ ] 线上观察 `hikaricp_connections_active` 指标，贴近 `maximum-pool-size` 时就要扩容或优化 SQL

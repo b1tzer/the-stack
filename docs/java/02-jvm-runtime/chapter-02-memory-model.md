@@ -4,7 +4,7 @@
 
 ## 1. 全景图
 
-```text
+```txt
 JVM 运行时数据区
  ├── 线程共享
  │    ├── Heap（堆）—— 对象实例、数组
@@ -17,7 +17,7 @@ JVM 运行时数据区
 
 这些区域不是孤立存在的。一行 Java 代码的执行，会同时涉及多个区域。以 `User user = new User("Tom")` 为例：
 
-```text
+```txt
 1. 方法区：加载 User 类的元数据（类名、字段、方法字节码）
 2. 堆：分配 User 对象的内存空间
 3. 虚拟机栈：当前方法的栈帧中，user 变量指向堆中的对象
@@ -32,7 +32,7 @@ JVM 运行时数据区
 
 每调用一个方法，JVM 就在当前线程的虚拟机栈上压入一个**栈帧**。方法返回时弹出。栈帧是方法执行的"工作台"，包含四个组成部分：
 
-```text
+```txt
 栈帧
 ├── 局部变量表 —— 存放方法参数和局部变量
 ├── 操作数栈   —— 字节码指令的运算中转站
@@ -68,7 +68,7 @@ public class UserService {
 
 这和[第一章](./chapter-01-bytecode-classloading)讲的"解析阶段"直接相关。静态方法、final 方法在类加载时就解析为直接引用（静态解析），但虚方法和接口方法的解析是延迟的——每次调用时通过动态链接查找实际目标。这就是多态在栈帧层面的支撑：
 
-```text
+```txt
 // 编译时：invokevirtual 的目标是父类方法的符号引用
 // 运行时：通过动态链接，找到子类重写后的方法入口
 
@@ -125,7 +125,7 @@ JSP 页面编译成 Servlet 后，整个页面的逻辑在一个 `_jspService()`
 
 程序计数器记录的是当前线程正在执行的**字节码偏移量**。没有程序计数器，线程切换之后就不知道该从哪里恢复。多线程看上去是"同时运行"，但底层经常是在 CPU 时间片之间不断切换；每个线程都必须有自己独立的执行位置记录。
 
-```text
+```txt
 线程 A：PC = 12   → 当前执行到第 12 个字节码偏移量
 线程 B：PC = 87   → 当前执行到第 87 个字节码偏移量
 
@@ -141,7 +141,7 @@ CPU 从 A 切到 B
 
 因为不同线程执行的方法、执行进度也不同，所以程序计数器是**线程私有**的，独立记录。
 
-```text
+```txt
 线程私有数据区的协作关系
 
 Thread A
@@ -183,7 +183,7 @@ public native void start0();
 
 当 Java 调用 `native` 方法后，执行流程会从 Java 世界切换到本地世界：
 
-```text
+```txt
 Java 方法
     ↓
 JNI / JVM 桥接
@@ -209,7 +209,7 @@ HotSpot 并没有专门维护一块独立的 `Native Method Stack`，而是直�
 
 因此，我们通常看不到这样两块完全独立的内存：
 
-```text
+```txt
 Java VM Stack
 
 Native Method Stack
@@ -217,7 +217,7 @@ Native Method Stack
 
 而更接近于：
 
-```text
+```txt
 线程栈（Thread Stack）
 ├── Java 方法调用帧
 ├── Java 方法调用帧
@@ -258,7 +258,7 @@ User user = new User("Tom");
 
 TLAB 用完后，线程需要在 Eden 共享区分配对象。这个过程需要 CAS 保证原子性：
 
-```text
+```txt
 // 伪代码：Eden 共享区的对象分配
 while (true) {
     address = freePointer;                    // 读取当前分配指针
@@ -290,7 +290,7 @@ JVM 不是死板地等到对象年龄达到 15 才晋升。有一个**动态年�
 
 为什么需要这个规则？举个具体例子：
 
-```text
+```txt
 Survivor 区大小 = 100MB
 
 某次 Minor GC 后，存活对象分布：
@@ -334,7 +334,7 @@ jstat -gcutil <pid> 1000
 
 方法区不是"存方法的地方"——它存的是**类的元数据**：
 
-```text
+```txt
 方法区（Metaspace）
 ├── 类元数据（Klass）
 │   ├── 类名、访问修饰符、父类、接口列表
@@ -353,7 +353,7 @@ JDK 7 之后，`static Object obj = new Object()` 中，`obj` 这个引用本身
 
 方法区中有一个容易被忽略但极其重要的区域——**CodeCache**，存储 JIT 编译后的机器码和 JNI 编译的本地代码。
 
-```text
+```txt
 方法区
 ├── 类元数据（Metaspace）
 ├── 运行时常量池
@@ -448,7 +448,7 @@ jcmd <pid> VM.metaspace
 
 普通 Java 对象分配在堆上，由 GC 自动回收。堆外内存是通过 `Unsafe.allocateMemory()` 或 `ByteBuffer.allocateDirect()` 分配的**本地内存**，不受 GC 直接管理。
 
-```text
+```txt
 普通对象:
   new byte[1024]  →  分配在 Eden  →  GC 自动回收
 
@@ -458,7 +458,7 @@ jcmd <pid> VM.metaspace
 
 Cleaner 的工作原理基于**虚引用（PhantomReference）**——[第四章](./chapter-04-gc)会详细讲四种引用类型，这里先建立直觉：
 
-```text
+```txt
 DirectByteBuffer（堆上，小对象）
   └─ 持有一个 Cleaner 对象
        └─ Cleaner 关联一个虚引用 + 回收动作（释放本地内存）
@@ -475,7 +475,7 @@ DirectByteBuffer（堆上，小对象）
 
 传统的 I/O 操作需要在用户空间（堆）和内核空间之间拷贝数据：
 
-```text
+```txt
 传统 I/O（两次拷贝）:
   磁盘 → 内核缓冲区 → 用户缓冲区(堆) → 内核缓冲区 → 网卡
          read()         write()
@@ -483,7 +483,7 @@ DirectByteBuffer（堆上，小对象）
 
 使用堆外内存后，可以避免一次用户空间的拷贝：
 
-```text
+```txt
 Direct I/O（一次拷贝）:
   磁盘 → 内核缓冲区(直接内存) → 网卡
          sendfile() 系统调用
@@ -578,7 +578,7 @@ JDK 7+ 的变化意味着：`intern()` 不再往永久代塞数据，而是把�
 
 G1 收集器提供了一个专门的字符串去重优化：`-XX:+UseStringDeduplication`。它的原理是在 GC 过程中，发现多个 `String` 对象的 `char[]` 内容相同，就让它们共享同一个 `char[]`。
 
-```text
+```txt
 去重前：
   String@0x1001 → char[]{'h','e','l','l','o'}  （20 字节）
   String@0x1002 → char[]{'h','e','l','l','o'}  （20 字节）
@@ -616,7 +616,7 @@ for (int i = 0; i < 1_000_000; i++) {
 
 ### 8.5 字符串常量池的内存模型
 
-```text
+```txt
 堆（Heap）
 ├── StringTable（HashTable，桶数组）
 │   ├── [0] → "hello" → "world"  （链表处理哈希冲突）

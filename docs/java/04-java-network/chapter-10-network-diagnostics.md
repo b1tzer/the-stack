@@ -7,7 +7,7 @@
 ### 1.1 异常类型与根因对照表
 
 | 错误现象 | 含义 | 常见根因 | 排查方向 |
-|----------|------|----------|----------|
+| :-- | :-- | :-- | :-- |
 | `ConnectException: Connection refused` | 目标端口没有进程监听 | 服务未启动 / 端口配错 / 防火墙 DROP | 检查服务状态、端口、iptables |
 | `SocketTimeoutException: connect timed out` | 连接建立超时 | 网络不可达 / 防火墙静默丢包 / SYN 队列满 | ping / telnet / ss -s |
 | `SocketTimeoutException: read timed out` | 读数据超时 | 对端处理慢 / 网络拥塞 / 对端 GC | 抓包分析 RTT / 查对端日志 |
@@ -22,7 +22,7 @@ TCP 连接状态是网络排查的第一手信息。两个最容易出问题的�
 
 **TIME-WAIT 过多：**
 
-```text
+```txt
 主动关闭方在发送最后一个 ACK 后进入 TIME-WAIT，等待 2MSL（通常 60s）。
 高并发短连接场景下，大量 TIME-WAIT 会耗尽端口。
 
@@ -45,7 +45,7 @@ net.ipv4.tcp_fin_timeout = 30      # 缩短 FIN-WAIT-2 超时
 
 **CLOSE-WAIT 过多：**
 
-```text
+```txt
 被动关闭方收到 FIN 后进入 CLOSE-WAIT，等待应用层调用 close()。
 如果 CLOSE-WAIT 堆积，说明应用代码有 bug —— 没有正确关闭连接。
 
@@ -86,7 +86,7 @@ public void handleRequest(Socket socket) {
 
 ### 1.3 连接状态全景图
 
-```text
+```txt
                                主动打开
                                   │
                                   ↓
@@ -158,7 +158,7 @@ tcpdump -i eth0 port 53
 
 **tcpdump 输出解读：**
 
-```text
+```txt
 # 正常的 TCP 三次握手
 22:01:01.100 IP 10.0.1.1.54321 > 10.0.1.2.8080: Flags [S], seq 1000
 22:01:01.101 IP 10.0.1.2.8080 > 10.0.1.1.54321: Flags [S.], seq 2000, ack 1001
@@ -179,7 +179,7 @@ tcpdump -i eth0 port 53
 
 **常用过滤器：**
 
-```text
+```txt
 # 按 IP 过滤
 ip.addr == 10.0.1.100
 ip.src == 10.0.1.100 && ip.dst == 10.0.1.200
@@ -210,7 +210,7 @@ tcp.analysis.zero_window
 **关键分析场景：**
 
 | 场景 | Wireshark 过滤器/操作 | 说明 |
-|------|----------------------|------|
+| :-- | :-- | :-- |
 | 连接慢 | 统计 → Conversations → 看 TCP 建连时间 | 对比 SYN→SYN+ACK 的时间差 |
 | 数据丢失 | `tcp.analysis.retransmission` | 重传多说明网络丢包 |
 | 服务端处理慢 | 追踪流，看 Request→Response 的时间差 | 排除网络因素后查服务端 |
@@ -264,7 +264,7 @@ ss -tni
 
 **输出解读：**
 
-```text
+```txt
 $ ss -tni
 State   Recv-Q  Send-Q  Local Address:Port  Peer Address:Port
 ESTAB   0       0       10.0.1.1:8080       10.0.1.2:54321
@@ -298,7 +298,7 @@ grep -A 5 "BLOCKED\|WAITING\|TIMED_WAITING" /tmp/thread_dump.txt | grep -i "sock
 
 **典型的网络相关线程栈：**
 
-```text
+```txt
 # 1. 正常的 NIO 线程（Selector 等待事件）
 "NIO-Selector-1" #15 daemon prio=5
    java.lang.Thread.State: RUNNABLE
@@ -362,7 +362,7 @@ vmtool --action getInstances \
 
 **Arthas 诊断流程：**
 
-```text
+```txt
 ┌─────────────────────────────────────────────────────────┐
 │               Arthas 网络问题诊断流程                     │
 │                                                         │
@@ -438,7 +438,7 @@ public void logPoolStats() {
 ### 4.2 NIO vs BIO 选择
 
 | 特性 | BIO（阻塞 I/O） | NIO（非阻塞 I/O） | AIO（异步 I/O） |
-|------|-----------------|-------------------|-----------------|
+| :-- | :-- | :-- | :-- |
 | 线程模型 | 1 连接 = 1 线程 | 1 线程管理多连接 | 回调通知 |
 | 阻塞点 | read/write 阻塞 | Selector 轮询 | 无阻塞 |
 | 适用场景 | 连接数少，每个连接数据量大 | 连接数多，每个连接数据量小 | 极端高并发 |
@@ -623,7 +623,7 @@ public class ExternalApiService {
 
 **限流与熔断的关系：**
 
-```text
+```txt
 ┌─────────────────────────────────────────────────────────┐
 │                   流量保护层次                            │
 │                                                         │
@@ -647,7 +647,7 @@ public class ExternalApiService {
 ### 5.1 网络编程检查清单
 
 | 类别 | 检查项 | 说明 |
-|------|--------|------|
+| :-- | :-- | :-- |
 | 连接管理 | 所有连接都有关闭逻辑 | try-with-resources / finally |
 | 连接管理 | 使用连接池，避免频繁建连 | 连接池大小合理配置 |
 | 连接管理 | 设置合理的超时时间 | connect timeout / read timeout |
@@ -724,7 +724,7 @@ java.security.Security.setProperty("networkaddress.cache.negative.ttl", "10");
 
 一个完善的网络监控应覆盖以下指标：
 
-```text
+```txt
 ┌─────────────────────────────────────────────────────────┐
 │                 网络监控指标体系                          │
 │                                                         │

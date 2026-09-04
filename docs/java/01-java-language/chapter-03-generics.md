@@ -386,12 +386,14 @@ Spring、MyBatis 等框架大量利用这个能力来获取泛型参数。第二
 ### 7.1 当前限制
 
 **不能使用基本类型：**
+
 ```java
 List<int> list = new ArrayList<>();     // ❌
 List<Integer> list = new ArrayList<>();  // ✅ 但有装箱开销
 ```
 
 **不能实例化类型参数：**
+
 ```java
 public <T> T create() {
     return new T();  // ❌
@@ -399,6 +401,7 @@ public <T> T create() {
 ```
 
 **运行期类型缺失：**
+
 ```java
 List<String> a = new ArrayList<>();
 List<Integer> b = new ArrayList<>();
@@ -419,7 +422,7 @@ Oracle 正在开发的 Project Valhalla 计划解决这些问题：
 泛型在主流 Java 框架中无处不在：
 
 | 框架 / 场景 | 泛型用法 | 解决的问题 |
-|-------------|----------|-----------|
+| :-- | :-- | :-- |
 | 集合框架 | `List<T>`、`Map<K,V>` | 类型安全的容器 |
 | Spring | `getBean(Class<T>)` | 返回类型自动匹配 |
 | MyBatis | `BaseMapper<T>` | 通用 CRUD 操作 |

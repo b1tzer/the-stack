@@ -8,7 +8,7 @@
 
 每次执行 SQL 之前，如果都要经历一次完整的连接建立过程，代价是这样的：
 
-```text
+```txt
 客户端                           数据库服务器
   |                                |
   |------ TCP 三次握手 ------------>|  ~1-5ms（同机房）
@@ -34,7 +34,7 @@ HikariCP 是 Spring Boot 2.x 起的默认连接池，以极致的性能和简洁
 以下是核心参数的调优指南：
 
 | 参数 | 含义 | 默认值 | 建议值 | 调优说明 |
-|------|------|--------|--------|----------|
+| :-- | :-- | :-- | :-- | :-- |
 | `maximumPoolSize` | 最大连接数 | 10 | CPU核数×2+磁盘数 | PostgreSQL 官方公式；MySQL 通常 10-30 足够 |
 | `minimumIdle` | 最小空闲连接数 | 等于 maximumPoolSize | 等于 maximumPoolSize | 保持连接池满载，避免突发流量时临时建连 |
 | `connectionTimeout` | 获取连接最大等待时间 | 30000ms | 30000ms（30s） | 太短会在高峰时误报，太长会让请求堆积 |
@@ -45,7 +45,7 @@ HikariCP 是 Spring Boot 2.x 起的默认连接池，以极致的性能和简洁
 
 **关键原则**：连接池不是越大越好。每个连接都会占用数据库的内存和线程资源。一个 100 连接的池，对数据库来说是 100 个并发工作线程——如果数据库 CPU 已经打满，再多连接只是让排队更长。
 
-```text
+```txt
                 应用连接池                    数据库
          ┌─────────────────┐           ┌──────────────┐
          │ ● ● ● ● ● ● ● ●│  连接 1~N │  Worker 线程  │
@@ -84,7 +84,7 @@ public class ConnectionPoolMonitor {
 关键监控指标：
 
 | 指标 | 含义 | 告警阈值 |
-|------|------|----------|
+| :-- | :-- | :-- |
 | `activeConnections` | 正在使用的连接数 | 持续 > 80% 池容量 |
 | `threadsAwaitingConnection` | 等待连接的线程数 | > 0 持续超过 5s |
 | `connectionTimeoutRate` | 获取连接超时率 | > 1% |
@@ -103,7 +103,7 @@ for (User user : userList) {
 }
 ```
 
-```text
+```txt
 时间轴（每次 insert ~5ms 网络 + ~2ms 事务）：
 
 请求1  ████▓▓  请求2  ████▓▓  请求3  ████▓▓  ...  请求N  ████▓▓
@@ -148,7 +148,7 @@ public void batchInsert(List<User> users) throws SQLException {
 }
 ```
 
-```text
+```txt
 时间轴（批量模式）：
 
 ┌──────────────────────────────────────┐
@@ -208,7 +208,7 @@ try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH, fals
 两种方式的对比：
 
 | 特性 | foreach 拼接 | ExecutorType.BATCH |
-|------|-------------|-------------------|
+| :-- | :-- | :-- |
 | 网络往返 | 1 次 | N/batchSize 次 |
 | SQL 长度限制 | 受 max_allowed_packet 限制 | 无特殊限制 |
 | 内存占用 | 低 | 较高（缓存 Statement） |
@@ -265,7 +265,7 @@ public class DaoMetricsAspect {
 关键监控维度：
 
 | 层级 | 监控指标 | 工具 |
-|------|----------|------|
+| :-- | :-- | :-- |
 | Controller | 接口 RT、QPS、错误率 | Prometheus + Grafana |
 | Service | 事务时长、业务异常率 | AOP + Micrometer |
 | DAO | SQL 执行时间、结果集大小 | p6spy、MyBatis 拦截器 |
@@ -282,7 +282,7 @@ public class DaoMetricsAspect {
 
 **排查步骤**：
 
-```text
+```txt
 1. 检查连接池状态
    active = maximumPoolSize  → 池已满
    waiting > 0               → 有线程在排队
@@ -321,7 +321,7 @@ public void goodExample() {
 ### 4.2 问题排查对照表
 
 | 问题 | 可能原因 | 排查方向 | 解决方案 |
-|------|----------|----------|----------|
+| :-- | :-- | :-- | :-- |
 | 接口 RT 高 | SQL 全表扫描 | EXPLAIN 分析执行计划 | 添加合适索引 |
 | 接口 RT 高 | N+1 查询 | 开启 SQL 日志统计查询次数 | 使用 JOIN 或批量查询 |
 | 连接超时 | 连接池太小 | 查看 activeConnections | 增大 maximumPoolSize |
@@ -393,7 +393,7 @@ public void updateUser(User user) {
 - **连接池指标**：确认池大小是否合理
 - **接口 RT 分布**：发现性能拐点
 
-```text
+```txt
 优化飞轮：
 
   监控  →  发现瓶颈  →  分析原因  →  优化  → 验证效果 → 监控

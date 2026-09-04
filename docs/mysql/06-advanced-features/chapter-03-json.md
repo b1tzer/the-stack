@@ -83,7 +83,7 @@ SELECT JSON_ARRAY('a', 'b', 'c');
 下表列出了这类文档级函数的常用成员，按用途分组便于记忆：
 
 | 用途 | 函数 |
-|------|------|
+| :-- | :-- |
 | 提取 | `JSON_EXTRACT`、`->`、`->>` |
 | 修改 | `JSON_SET`、`JSON_INSERT`、`JSON_REPLACE`、`JSON_REMOVE` |
 | 构造 | `JSON_OBJECT`、`JSON_ARRAY` |

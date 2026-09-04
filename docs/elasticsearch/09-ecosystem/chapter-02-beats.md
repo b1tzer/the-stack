@@ -5,7 +5,7 @@
 Beats 是 Elastic Stack 的轻量级数据采集器，用于将数据发送到 Elasticsearch 或 Logstash。
 
 | Beat | 用途 | 数据源 |
-|------|------|--------|
+| :-- | :-- | :-- |
 | **Filebeat** | 日志文件采集 | 日志文件 |
 | **Metricbeat** | 系统和服务指标 | CPU、内存、服务 |
 | **Heartbeat** | 健康检查 | URL、TCP 端口 |

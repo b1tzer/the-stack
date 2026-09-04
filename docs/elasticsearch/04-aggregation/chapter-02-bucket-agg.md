@@ -50,7 +50,7 @@ GET /my-index/_search
 ```
 
 | interval | 说明 |
-|----------|------|
+| :-- | :-- |
 | `minute` / `1m` | 每分钟 |
 | `hour` / `1h` | 每小时 |
 | `day` / `1d` | 每天 |

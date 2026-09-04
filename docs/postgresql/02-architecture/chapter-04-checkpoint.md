@@ -11,7 +11,7 @@ title: Checkpoint 与脏页刷新
 
 **Checkpoint** 是一个时间点，在这个时间点上，PostgreSQL 保证**所有在该时间点之前产生的脏页都已写入磁盘**。完成 Checkpoint 后，崩溃恢复只需从该 Checkpoint 的 LSN 开始重放 WAL，而不需要从更早的位置开始。
 
-```text
+```txt
 时间轴:
 ─────────────────────────────────────────────────────►
 
@@ -31,7 +31,7 @@ title: Checkpoint 与脏页刷新
 ### Checkpoint 做了什么？
 
 | 步骤 | 操作 | I/O 特征 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | 1 | 记录 Checkpoint 开始（WAL） | 顺序写 |
 | 2 | 将所有脏页刷到磁盘 | **大量随机写**（最耗时） |
 | 3 | 刷 CLOG、Subtrans 等状态文件 | 顺序写 |
@@ -45,7 +45,7 @@ title: Checkpoint 与脏页刷新
 PostgreSQL 的 Checkpoint 由以下任一条件触发：
 
 | 触发条件 | 参数 | 默认值 | 说明 |
-|----------|------|--------|------|
+| :-- | :-- | :-- | :-- |
 | **超时触发** | `checkpoint_timeout` | 5 min | 距离上次 Checkpoint 超过此时间 |
 | **WAL 量触发** | `max_wal_size` | 1 GB | 自上次 Checkpoint 以来产生的 WAL 量超过此值 |
 | **手动触发** | `CHECKPOINT` 命令 | — | DBA 手动执行（如 VACUUM 大表后） |
@@ -53,7 +53,7 @@ PostgreSQL 的 Checkpoint 由以下任一条件触发：
 
 ### 参数关系图
 
-```text
+```txt
 checkpoint_timeout = 5min
          │
          ▼
@@ -76,7 +76,7 @@ max_wal_size 越大 → Checkpoint 间隔越长 → 写入性能越好
 ### 相关参数
 
 | 参数 | 默认值 | 说明 |
-|------|--------|------|
+| :-- | :-- | :-- |
 | `checkpoint_timeout` | 5min | Checkpoint 最大间隔（建议 5~30min） |
 | `max_wal_size` | 1GB | 触发 Checkpoint 的 WAL 累积量 |
 | `min_wal_size` | 80MB | pg_wal/ 空间回收的下限 |
@@ -100,7 +100,7 @@ SELECT * FROM pg_stat_bgwriter;
 
 Checkpoint 不是一次性把所有脏页刷完，而是在**两次 Checkpoint 之间的时间窗口**内，按照 `checkpoint_completion_target` 的比例分散刷盘。
 
-```text
+```txt
 checkpoint_completion_target = 0.9 (默认)
 
 CP1                                              CP2
@@ -118,7 +118,7 @@ CP1                                              CP2
 ### 不同取值的影响
 
 | 值 | 行为 | 适合场景 |
-|----|------|---------|
+| :-- | :-- | :-- |
 | **0.0** | Checkpoint 一开始就集中刷完所有脏页 | ❌ 不推荐，I/O 尖峰严重 |
 | **0.5** | 在前 50% 的时间内均匀刷完 | 写入压力中等 |
 | **0.9** | 在前 90% 的时间内均匀刷完（默认） | 大多数场景，I/O 最平滑 |
@@ -132,7 +132,7 @@ CP1                                              CP2
 
 Checkpoint 期间的 I/O 问题主要体现在：
 
-```text
+```txt
 正常运行时:
   写入速率: ─────────────────────── (平稳)
                ↑
@@ -164,7 +164,7 @@ FROM pg_stat_bgwriter;
 ```
 
 | 指标 | 健康范围 | 异常信号 |
-|------|---------|---------|
+| :-- | :-- | :-- |
 | `checkpoints_req / checkpoints_timed` | < 0.1 | 频繁被 WAL 量触发 → 增大 `max_wal_size` |
 | `buffers_backend / buffers_checkpoint` | < 0.1 | Backend 直接写出过多 → 增大 `shared_buffers` 或 `bgwriter` 参数 |
 | `checkpoint_write_time` | 与 `checkpoint_sync_time` 接近 | 写入时间远大于 sync → 磁盘写入瓶颈 |
@@ -176,7 +176,7 @@ Background Writer 是 Checkpoint 的"前置助手"，它的职责是在 Checkpoi
 ### Bg Writer vs Checkpointer
 
 | 维度 | Background Writer | Checkpointer |
-|------|-------------------|--------------|
+| :-- | :-- | :-- |
 | **职责** | 提前刷出"不活跃"的脏页 | 保证**所有**脏页在 Checkpoint 点落盘 |
 | **刷出范围** | 部分脏页（基于 LRU 策略） | 所有在 Checkpoint LSN 之前的脏页 |
 | **刷出策略** | 周期性扫描，优先刷 usage_count 低的页 | 必须在 Checkpoint 完成前全部刷完 |
@@ -186,14 +186,14 @@ Background Writer 是 Checkpoint 的"前置助手"，它的职责是在 Checkpoi
 ### Bg Writer 关键参数
 
 | 参数 | 默认值 | 说明 |
-|------|--------|------|
+| :-- | :-- | :-- |
 | `bgwriter_delay` | 200ms | Bg Writer 唤醒间隔 |
 | `bgwriter_lru_maxpages` | 100 | 每次最多写出的页数（0 = 禁用 Bg Writer） |
 | `bgwriter_lru_multiplier` | 2.0 | 预判需要多少干净页可复用，值越大写出越多 |
 
 ### 三层脏页刷出体系
 
-```text
+```txt
 ┌───────────────────────────────────────────────────────┐
 │                    脏页刷出架构                         │
 │                                                       │
@@ -228,7 +228,7 @@ Background Writer 是 Checkpoint 的"前置助手"，它的职责是在 Checkpoi
 
 磁盘通常以扇区（512B 或 4KB）为单位写入。如果在写入 8KB 数据页的过程中断电，可能只有前 4KB 被写入，后 4KB 仍是旧数据 — 这就是 **部分页写入（Torn Page）** 问题。
 
-```text
+```txt
 正常写入 8KB 数据页:
 [═══════════════════════════════════]  ✅ 完整写入
 
@@ -245,7 +245,7 @@ Background Writer 是 Checkpoint 的"前置助手"，它的职责是在 Checkpoi
 
 `full_page_writes = on`（默认）时，每次 Checkpoint 后**第一次修改**某个数据页，会将该页的**完整内容**写入 WAL 记录（Full Page Image），而非仅记录增量变化。
 
-```text
+```txt
 WAL 记录类型:
 
   普通 WAL 记录: [LSN] [操作类型] [增量数据]  (小)
@@ -266,7 +266,7 @@ WAL 记录类型:
 ### full_page_writes 的性能影响
 
 | 场景 | 影响 |
-|------|------|
+| :-- | :-- |
 | Checkpoint 刚完成后的写入 | WAL 量显著增大（每页首次修改多 8KB） |
 | 大批量 UPDATE/INSERT | Checkpoint 后短时间内 WAL 膨胀 |
 | 关闭 full_page_writes | WAL 量减少，但有数据损坏风险 |
@@ -284,7 +284,7 @@ SHOW full_page_writes;
 ## 7. 与 MySQL Redo Log Checkpoint 对比
 
 | 维度 | PostgreSQL | MySQL (InnoDB) |
-|------|------------|----------------|
+| :-- | :-- | :-- |
 | **日志名称** | WAL (Write-Ahead Log) | Redo Log (ib_logfile) |
 | **日志结构** | 多个 16MB 段文件 | 固定大小的循环文件组 |
 | **Checkpoint 方式** | 独立进程 Checkpointer，周期性全量刷脏页 | 模糊检查点（Fuzzy Checkpoint），持续部分刷脏页 |
@@ -298,7 +298,7 @@ SHOW full_page_writes;
 
 ### 架构差异图
 
-```text
+```txt
 PostgreSQL Checkpoint 模型:
 ┌────────────────────────────────────────────┐
 │  CP1 ───── Bg Writer 预刷 ────── CP2       │
@@ -329,7 +329,7 @@ MySQL InnoDB Checkpoint 模型:
 ## 本章小结
 
 | 要点 | 记忆关键词 |
-|------|-----------|
+| :-- | :-- |
 | Checkpoint 将所有脏页刷盘 | 标记恢复点，缩短恢复时间 |
 | 两种触发：超时(5min) + WAL 量(1GB) | `max_wal_size` 是核心调优参数 |
 | checkpoint_completion_target = 0.9 | 分散刷脏，平滑 I/O |

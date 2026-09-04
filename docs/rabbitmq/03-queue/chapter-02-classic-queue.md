@@ -4,7 +4,7 @@
 
 ## 1. Classic Queue 的存储结构
 
-```text
+```txt
 ┌──────────────────────────────────────────┐
 │            Classic Queue                 │
 │                                          │
@@ -30,7 +30,7 @@ Classic Queue 使用一种混合存储：热数据在内存（Q1），冷数据�
 
 ## 2. 消息流转
 
-```text
+```txt
 消息进入 → Q1（内存）
   │
   ├─ 内存够 → 一直在 Q1，直接消费
@@ -44,7 +44,7 @@ Classic Queue 使用一种混合存储：热数据在内存（Q1），冷数据�
 ## 3. Classic Queue 的局限
 
 | 问题 | 说明 |
-|------|------|
+| :-- | :-- |
 | 镜像队列已废弃 | 3.x 版本中，Mirrored Queue 被 Quorum Queue 取代 |
 | 内存瓶颈 | 消息堆积时换页到磁盘，消费性能下降 |
 | 不支持流控回压 | 生产速度远大于消费速度时，可能撑爆内存 |
@@ -53,7 +53,7 @@ Classic Queue 使用一种混合存储：热数据在内存（Q1），冷数据�
 ## 4. Classic Queue 参数
 
 | 参数 | 默认值 | 说明 |
-|------|--------|------|
+| :-- | :-- | :-- |
 | x-max-length | 不限 | Queue 最大消息数 |
 | x-max-length-bytes | 不限 | Queue 最大字节数 |
 | x-overflow | drop-head | 超限时行为：drop-head（丢最老）/ reject-publish |
@@ -75,7 +75,7 @@ Classic Queue 使用一种混合存储：热数据在内存（Q1），冷数据�
 ## 6. Classic Queue vs Quorum Queue
 
 | 维度 | Classic Queue | Quorum Queue |
-|------|--------------|--------------|
+| :-- | :-- | :-- |
 | 高可用 | 镜像队列（已废弃） | Raft 协议（内置） |
 | 持久性 | 可选 | 强持久 |
 | 性能 | 更高（无共识开销） | 稍低（Raft 共识） |

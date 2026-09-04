@@ -9,7 +9,7 @@
 ### 1.1 事件风暴的步骤
 
 | 步骤 | 产出 | 参与者 |
-|------|------|--------|
+| :-- | :-- | :-- |
 | 1. 头脑风暴事件 | 所有领域事件（橙色便签） | 全员 |
 | 2. 排列时间线 | 事件的先后顺序 | 全员 |
 | 3. 识别命令 | 触发事件的命令（蓝色便签） | 全员 |
@@ -19,7 +19,7 @@
 
 ### 1.2 事件风暴的产出示例
 
-```
+```txt
 [用户注册] → (User) → [用户已注册]
 [提交订单] → (Order) → [订单已创建]
 [支付订单] → (Payment) → [支付已完成] → [订单已确认]
@@ -29,36 +29,36 @@
 
 ## 2. DDD 分层架构实现
 
-```java
-// 目录结构
-// com.example.order
-//   ├── application/          // 应用层
-//   │   ├── CreateOrderCommand.java
-//   │   ├── OrderApplicationService.java
-//   │   └── OrderQueryService.java
-//   ├── domain/               // 领域层
-//   │   ├── model/
-//   │   │   ├── Order.java           // 聚合根
-//   │   │   ├── OrderLine.java       // 实体
-//   │   │   ├── Money.java           // 值对象
-//   │   │   └── OrderStatus.java     // 枚举
-//   │   ├── event/
-//   │   │   └── OrderCreatedEvent.java
-//   │   ├── repository/
-//   │   │   └── OrderRepository.java // 仓储接口
-//   │   └── service/
-//   │       └── OrderDomainService.java
-//   ├── infrastructure/       // 基础设施层
-//   │   ├── persistence/
-//   │   │   ├── JpaOrderRepository.java
-//   │   │   └── OrderEntity.java
-//   │   └── messaging/
-//   │       └── RabbitOrderEventPublisher.java
-//   └── interfaces/           // 接口层
-//       ├── rest/
-//       │   └── OrderController.java
-//       └── rpc/
-//           └── OrderGrpcService.java
+```txt
+目录结构
+com.example.order
+  ├── application/          // 应用层
+  │   ├── CreateOrderCommand.java
+  │   ├── OrderApplicationService.java
+  │   └── OrderQueryService.java
+  ├── domain/               // 领域层
+  │   ├── model/
+  │   │   ├── Order.java           // 聚合根
+  │   │   ├── OrderLine.java       // 实体
+  │   │   ├── Money.java           // 值对象
+  │   │   └── OrderStatus.java     // 枚举
+  │   ├── event/
+  │   │   └── OrderCreatedEvent.java
+  │   ├── repository/
+  │   │   └── OrderRepository.java // 仓储接口
+  │   └── service/
+  │       └── OrderDomainService.java
+  ├── infrastructure/       // 基础设施层
+  │   ├── persistence/
+  │   │   ├── JpaOrderRepository.java
+  │   │   └── OrderEntity.java
+  │   └── messaging/
+  │       └── RabbitOrderEventPublisher.java
+  └── interfaces/           // 接口层
+      ├── rest/
+      │   └── OrderController.java
+      └── rpc/
+          └── OrderGrpcService.java
 ```
 
 ## 3. 从传统架构迁移到 DDD
@@ -131,7 +131,7 @@ class OrderApplicationService {
 ## 4. 常见陷阱与解决方案
 
 | 陷阱 | 问题 | 解决方案 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | 贫血模型 | 实体只有 getter/setter | 将业务逻辑移到实体中 |
 | 聚合过大 | 聚合包含过多实体 | 通过 ID 引用，保持小聚合 |
 | 忽视限界上下文 | 所有业务共享一个模型 | 明确上下文边界，各上下文独立模型 |

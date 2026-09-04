@@ -10,7 +10,7 @@ Spring Boot 2.6 起默认禁止循环依赖，`spring.main.allow-circular-refere
 
 一个 Bean 从创建到销毁的完整流程见 [Bean 完整生命周期](./chapter-03-bean-lifecycle.md)，这里只回顾和循环依赖相关的三步，顺序固定：
 
-```text
+```txt
 1. 实例化     new 出对象，字段全是 null
 2. 属性填充   往对象里注入依赖（这一步才去容器拿别的 Bean）
 3. 初始化     回调 Aware、@PostConstruct，最后创建 AOP 代理
@@ -32,7 +32,7 @@ public class ServiceB {
 }
 ```
 
-```text
+```txt
 BeanCurrentlyInCreationException: Error creating bean with name 'serviceA':
 Requested bean is currently in creation: Is there an unresolvable circular reference?
 ```
@@ -62,7 +62,7 @@ private final Map<String, ObjectFactory<?>> singletonFactories = new HashMap<>(1
 
 三个 Map 不是平级的，是一条流水线：
 
-```text
+```txt
 singletonFactories（三级）  存 ObjectFactory，等有人来取才生产半成品
         │ getObject()
         ▼

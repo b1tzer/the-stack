@@ -4,7 +4,7 @@
 
 ## 1. 消息确认的完整链路
 
-```text
+```txt
 Producer ──Confirm──▶ Broker ──投递──▶ Consumer ──ACK──▶ Broker 删除消息
          (消息到达)          (消息送达)         (消息处理完成)
 ```
@@ -101,7 +101,7 @@ try {
 
 ## 6. ACK 与 Prefetch 的配合
 
-```text
+```txt
 Prefetch = 10
   Consumer 当前有 7 条未确认消息
   Broker 还能推 3 条

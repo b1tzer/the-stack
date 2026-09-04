@@ -164,7 +164,7 @@ pgbackrest --stanza=mydb check
 ### 6.3 pgBackRest vs pg_dump vs pg_basebackup
 
 | 对比项 | pg_dump | pg_basebackup | pgBackRest |
-|--------|---------|---------------|------------|
+| :-- | :-- | :-- | :-- |
 | 备份类型 | 逻辑备份 | 物理备份 | 物理备份 |
 | 增量备份 | ❌ | PG 17+ | ✅ |
 | 并行备份 | ✅ (-j) | ❌ | ✅ |
@@ -190,7 +190,7 @@ echo "$(date): Backup completed: mydb_${DATE}.dump" >> ${BACKUP_DIR}/backup.log
 ## 7. 备份策略选择
 
 | 策略 | 适用场景 | RPO | RTO | 工具 |
-|------|---------|-----|-----|------|
+| :-- | :-- | :-- | :-- | :-- |
 | 每日逻辑备份 | 小型数据库（< 100GB） | 24小时 | 小时级 | pg_dump |
 | 每周全量 + 每日增量 | 中型数据库 | 24小时 | 分钟级 | pg_basebackup |
 | 流复制 + WAL 归档 | 大型数据库，高可用 | 秒级 | 秒级 | 流复制 |

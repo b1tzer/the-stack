@@ -5,7 +5,7 @@
 ## 1. 什么情况下消息变成死信
 
 | 场景 | 说明 |
-|------|------|
+| :-- | :-- |
 | 消费者拒绝 | `basic.nack` 或 `basic.reject`，且 `requeue = false` |
 | 消息 TTL 到期 | 消息在 Queue 中超过 x-message-ttl |
 | Queue 长度超限 | Queue 达到 x-max-length，新消息将最老的消息挤出 |
@@ -33,7 +33,7 @@ channel.queueDeclare("order.queue", true, false, false, args);
 当消息变成死信时，RabbitMQ 会在消息的 headers 中添加：
 
 | Header | 说明 |
-|--------|------|
+| :-- | :-- |
 | `x-first-death-reason` | 第一次变成死信的原因（rejected, expired, maxlen, delivery_limit） |
 | `x-first-death-queue` | 第一次变成死信的 Queue 名 |
 | `x-first-death-exchange` | 第一次变成死信的 Exchange 名 |
@@ -56,7 +56,7 @@ public void handleDlx(Message message) {
 
 死信消息被发送到 DLX 后，如果 DLX 绑定的 Queue 也有 DLX 配置，消息会继续死信下去。这可以实现多级重试：
 
-```text
+```txt
 order.queue (retry 1) → DLX → delay.1min.queue (TTL 1分钟) → order.queue (retry 2)
 order.queue (retry 2) → DLX → delay.5min.queue (TTL 5分钟) → order.queue (retry 3)
 order.queue (retry 3) → DLX → final.dlx.queue (人工处理)

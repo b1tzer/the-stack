@@ -35,7 +35,7 @@
 
 解开一个 fat jar，结构长这样：
 
-```text
+```txt
 app.jar
 ├── BOOT-INF/
 │   ├── classes/                     # 你自己的 .class
@@ -51,7 +51,7 @@ app.jar
 
 `MANIFEST.MF` 里的两个关键项决定了启动方式：
 
-```text
+```txt
 Main-Class: org.springframework.boot.loader.JarLauncher
 Start-Class: com.example.MyApplication
 ```
@@ -62,7 +62,7 @@ Start-Class: com.example.MyApplication
 
 拆多模块时，只有一个规则要守住：**只有最终可运行的应用模块才配 `spring-boot-maven-plugin`，被依赖的库模块不配。**
 
-```text
+```txt
 demo-parent (pom)
 ├── demo-common        (jar，库模块，不配插件)
 ├── demo-service-api   (jar，库模块，不配插件)

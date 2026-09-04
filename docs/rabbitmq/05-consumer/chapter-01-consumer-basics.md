@@ -69,7 +69,7 @@ channel.basicAck(deliveryTag, true);    // 批量确认（<= deliveryTag 的所�
 ## 3. basicAck vs basicNack vs basicReject
 
 | 方法 | 说明 | requeue |
-|------|------|---------|
+| :-- | :-- | :-- |
 | basicAck | 确认消息已处理完成 | - |
 | basicNack | 拒绝消息（可批量） | true=重新入队，false=进 DLX |
 | basicReject | 拒绝单条消息 | true=重新入队，false=进 DLX |
@@ -107,7 +107,7 @@ channel.basicCancel(tag);  // 取消这个消费者
 
 ## 5. 消费者生命周期
 
-```text
+```txt
 basicConsume → 注册消费者
   │
   ├─ 消息到达 → handleDelivery → basicAck
@@ -122,7 +122,7 @@ basicConsume → 注册消费者
 
 多个 Consumer 订阅同一个 Queue 时，消息在 Consumer 之间轮询分发：
 
-```text
+```txt
                     ┌─ Consumer 1 (处理 msg1, msg4, msg7...)
 Queue ──round-robin──┼─ Consumer 2 (处理 msg2, msg5, msg8...)
                     └─ Consumer 3 (处理 msg3, msg6, msg9...)

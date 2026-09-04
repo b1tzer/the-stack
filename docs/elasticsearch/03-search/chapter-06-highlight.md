@@ -76,7 +76,7 @@ GET /my-index/_search
 ```
 
 | 参数 | 说明 |
-|------|------|
+| :-- | :-- |
 | `fragment_size` | 每个高亮片段的最大字符数（默认 100） |
 | `number_of_fragments` | 返回的高亮片段数量（默认 5），设为 0 返回完整字段 |
 | `no_match_size` | 无匹配时返回的字段长度（默认 0 不返回） |
@@ -84,7 +84,7 @@ GET /my-index/_search
 ## 4. 高亮器类型
 
 | 高亮器 | 说明 | 适用场景 |
-|--------|------|---------|
+| :-- | :-- | :-- |
 | `unified` | 默认，基于 BM25 的高亮 | 通用场景 |
 | `fvh` (Fast Vector Highlighter) | 需要 `term_vector: with_positions_offsets` | 大字段高亮，性能好 |
 | `plain` | 基于 Lucene 的标准高亮 | 简单场景 |

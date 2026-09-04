@@ -10,7 +10,7 @@
 
 为什么线程满了，CPU 却不忙？jstack 拉一把看看线程都在干什么：
 
-```text
+```txt
 "http-nio-8080-exec-127" #127 daemon prio=5 os_prio=0 tid=... nid=... 
    java.lang.Thread.State: RUNNABLE
         at java.net.SocketInputStream.socketRead0(Native Method)
@@ -30,7 +30,7 @@
 
 上一章 §3.5 的 Echo Server 用的就是最原始的 BIO：每 `accept` 一个连接，分配一个线程处理。线程 90% 的时间都阻塞在 `read()` 上。
 
-```text
+```txt
 ┌─────────────────────────────────────────┐
 │              Main Thread                 │
 │   serverSocket.accept()  ◄── 阻塞等待   │
@@ -52,7 +52,7 @@
 
 每个 Java 线程需要独立的栈空间（~1MB）。10000 个连接 = 10000 个线程 = ~10GB 内存。你花 10GB 内存雇了一万个「等待工」，让他们 70% 的时间在工位上睡觉。
 
-```text
+```txt
 线程状态分布（典型 Web 服务器）:
 ┌──────────────────────────────────────────────┐
 │ ████████ 10%  计算（业务逻辑）                 │
@@ -68,7 +68,7 @@ BIO 仍有适用场景——连接数 < 100、短生命周期请求、原型开�
 
 BIO 的根因是：线程被用来「等数据来」。NIO 换了一个思路：**让操作系统在「有数据可读」时通知我，线程只负责处理。**
 
-```text
+```txt
 BIO:  线程 → read() → 阻塞等数据 → 数据到了 → 处理 → read() → 阻塞等 ...
 NIO:  线程 → 注册关心 READ 事件 → 做其他事 → Selector 通知「可读」→ 处理 → 继续等通知
 ```
@@ -95,7 +95,7 @@ NIO 依赖三个核心组件——Channel、Buffer、Selector。
 
 回到那个故障。你 jstack 里除了 200 个卡在 `socketRead0` 的工作线程，还看到了这个：
 
-```text
+```txt
 "http-nio-8080-Poller" #30 daemon prio=5 os_prio=0 tid=... nid=... runnable
    java.lang.Thread.State: RUNNABLE
         at sun.nio.ch.EPollArrayWrapper.epollWait(Native Method)
@@ -253,7 +253,7 @@ SocketChannel sc = ssc.accept(); // 无连接时返回 null，不阻塞
 
 在 BIO 中，`read(byte[] buf)` 直接把数据读到字节数组里。NIO 的 Channel 不能直接读写字节——**所有数据必须经过 Buffer**。
 
-```text
+```txt
 BIO:   Stream  ──read──►  byte[]
 NIO:   Channel ──read──►  Buffer ──get()──►  byte[]
 ```
@@ -264,7 +264,7 @@ NIO:   Channel ──read──►  Buffer ──get()──►  byte[]
 
 你见过这个报错吗？
 
-```text
+```txt
 java.lang.OutOfMemoryError: Direct buffer memory
 ```
 
@@ -326,7 +326,7 @@ ByteBuffer directBuf = ByteBuffer.allocateDirect(1024); // 堆外内存
 
 传统 I/O 把一份数据从文件发到网络，要拷贝 4 次：
 
-```text
+```txt
 传统 I/O（4 次拷贝 + 4 次上下文切换）：
   磁盘 → 内核缓冲区 → 用户缓冲区 → Socket 缓冲区 → 网卡
          read()         用户态        write()
@@ -354,7 +354,7 @@ fileChannel.transferTo(0, fileChannel.size(), socketChannel);
 
 `ByteBuffer.allocateDirect()` 也和零拷贝有关——堆内存 Buffer 在 I/O 时需要额外拷一次到直接内存（操作系统不能直接访问 Java 堆），`allocateDirect()` 跳过了这一步：
 
-```text
+```txt
 allocate()：       堆内存 → 临时直接内存 → 内核缓冲区 → 网卡
 allocateDirect()： 直接内存 → 内核缓冲区 → 网卡
 ```
@@ -432,7 +432,7 @@ public class NioEchoServer {
 
 原生 NIO 能工作，但写生产代码需要一个人搞定下面这张清单：
 
-```text
+```txt
 ├── Buffer 的 flip / clear / compact 切换（☠️ 翻车之王）
 ├── 半包 / 粘包问题（TCP 是字节流，没有消息边界）
 ├── SelectionKey 的 attach / detach 生命周期
@@ -462,7 +462,7 @@ Netty 的解决办法：检测到连续 512 次空返回后重建 Selector。
 
 ### 7.2 所以有了 Netty
 
-```text
+```txt
 原生 NIO 的痛点              Netty 的解决方案
 ─────────────────           ─────────────────
 Buffer flip/clear 繁琐 ──►  ByteBuf（读写指针分开，自动扩容）

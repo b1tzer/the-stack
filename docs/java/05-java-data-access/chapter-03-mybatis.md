@@ -48,7 +48,7 @@ public User findById(int id) {
 MyBatis 选择了**半自动化**的路线。这与 Hibernate 等全自动化 ORM 框架形成了鲜明对比：
 
 | 维度 | JDBC | MyBatis | Hibernate/JPA |
-|------|------|---------|---------------|
+| :-- | :-- | :-- | :-- |
 | SQL 控制 | 完全手动 | **开发者手写 SQL** | 框架自动生成 |
 | 对象映射 | 手动 ResultSet → Object | **XML/注解声明式映射** | 全自动映射 |
 | 学习成本 | 低（但繁琐） | 中 | 高 |
@@ -384,7 +384,7 @@ public class SlowSqlPlugin implements Interceptor {
 ![mybatis-interceptor-chain](/java/mybatis-interceptor-chain.svg)
 
 | 拦截对象 | 典型场景 | 示例 |
-|---------|---------|------|
+| :-- | :-- | :-- |
 | **Executor** | 二级缓存实现、拦截 update/query | 自定义缓存策略 |
 | **ParameterHandler** | 参数加密、类型转换 | 手机号脱敏 |
 | **StatementHandler** | SQL 改写、分页、慢 SQL 监控 | **PageHelper 分页插件** |

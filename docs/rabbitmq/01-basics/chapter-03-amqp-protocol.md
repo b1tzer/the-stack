@@ -16,7 +16,7 @@ RabbitMQ 实现的是 AMQP 0-9-1 版本。不要和 AMQP 1.0 混淆——1.0 是
 
 所有 AMQP 通信都以"帧"（Frame）为单位：
 
-```text
+```txt
 ┌──────────┬──────────────────────────────────┬──────────┐
 │ 帧类型   │ 帧内容                           │ 帧结束   │
 │ (1 byte) │ (payload)                        │ 0xCE     │
@@ -24,7 +24,7 @@ RabbitMQ 实现的是 AMQP 0-9-1 版本。不要和 AMQP 1.0 混淆——1.0 是
 ```
 
 | 帧类型 | 用途 |
-|--------|------|
+| :-- | :-- |
 | 1 (Method) | 命令帧（如 basic.publish, queue.declare） |
 | 2 (Header) | 消息头（属性：delivery-mode, content-type 等） |
 | 3 (Body) | 消息体（实际数据） |
@@ -32,7 +32,7 @@ RabbitMQ 实现的是 AMQP 0-9-1 版本。不要和 AMQP 1.0 混淆——1.0 是
 
 一条消息的发送过程：
 
-```text
+```txt
 Client → Broker: Method Frame (basic.publish)
 Client → Broker: Header Frame (消息属性)
 Client → Broker: Body Frame (消息内容)
@@ -43,7 +43,7 @@ Client → Broker: Body Frame (消息内容)
 ### 3.1 连接与 Channel
 
 | 命令 | 方向 | 说明 |
-|------|------|------|
+| :-- | :-- | :-- |
 | connection.start | S→C | Broker 发送支持的 SASL 机制 |
 | connection.start-ok | C→S | 客户端发送认证信息 |
 | connection.tune | S→C | 协商参数（frame-max, heartbeat） |
@@ -54,7 +54,7 @@ Client → Broker: Body Frame (消息内容)
 ### 3.2 Exchange 操作
 
 | 命令 | 说明 |
-|------|------|
+| :-- | :-- |
 | exchange.declare | 声明 Exchange（名称、类型、持久化等） |
 | exchange.delete | 删除 Exchange |
 | exchange.bind | Exchange 之间的绑定（较少用） |
@@ -62,7 +62,7 @@ Client → Broker: Body Frame (消息内容)
 ### 3.3 Queue 操作
 
 | 命令 | 说明 |
-|------|------|
+| :-- | :-- |
 | queue.declare | 声明 Queue（名称、持久化、排他等） |
 | queue.bind | 将 Queue 绑定到 Exchange |
 | queue.unbind | 解除绑定 |
@@ -72,7 +72,7 @@ Client → Broker: Body Frame (消息内容)
 ### 3.4 消息操作
 
 | 命令 | 方向 | 说明 |
-|------|------|------|
+| :-- | :-- | :-- |
 | basic.publish | C→S | 发送消息到 Exchange |
 | basic.consume | C→S | 订阅 Queue（Push 模式） |
 | basic.get | C→S | 主动拉取一条消息（Pull 模式） |
@@ -102,7 +102,7 @@ channel.queueDeclare("order.queue", false, false, false, null); // 错误！
 ## 5. AMQP vs 其他协议
 
 | 协议 | RabbitMQ 支持 | 特点 | 场景 |
-|------|--------------|------|------|
+| :-- | :-- | :-- | :-- |
 | AMQP 0-9-1 | 默认 | 功能最全，RabbitMQ 原生 | 通用消息 |
 | AMQP 1.0 | 插件 | 标准化，但语义不同 | 企业集成 |
 | MQTT | 插件 | 轻量，适合 IoT | IoT 设备 |

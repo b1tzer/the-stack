@@ -31,7 +31,7 @@ ALTER EXTENSION pg_stat_statements UPDATE;
 ## 2. 常用扩展
 
 | 扩展 | 说明 | 用途 |
-|------|------|------|
+| :-- | :-- | :-- |
 | uuid-ossp | UUID 生成 | 生成全局唯一 ID |
 | pg_trgm | 模糊搜索 | 支持 LIKE 走索引 |
 | btree_gist | GiST 索引支持 | 范围类型索引 |
@@ -134,7 +134,7 @@ CREATE TRIGGER trg_order_notify
 ### 6.2 LISTEN/NOTIFY 的限制
 
 | 限制 | 说明 | 替代方案 |
-|------|------|----------|
+| :-- | :-- | :-- |
 | 会话级 | 连接断开后失效 | 使用消息队列（RabbitMQ/Kafka） |
 | 不持久化 | 如果没有监听者，通知丢失 | 使用消息队列 |
 | 8000 字节限制 | payload 最大 8000 字节 | 只发送通知，不发送数据 |

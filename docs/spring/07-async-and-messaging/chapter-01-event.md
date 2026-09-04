@@ -71,7 +71,7 @@ public class UserEventListener {
 > **踩坑提醒**：异步事件监听器抛出异常不会传播回调用方。如果需要感知异常，要自行处理或使用 `CompletableFuture`。
 
 | 特性 | 同步事件 | 异步事件（@Async） |
-|------|---------|-------------------|
+| :-- | :-- | :-- |
 | 执行线程 | 发布者线程 | 线程池线程 |
 | 异常传播 | 会抛给调用方 | 静默吞掉（需配置 Handler） |
 | 事务参与 | 同一事务 | 不在同一事务 |
@@ -195,7 +195,7 @@ public class TransactionalEventListeners {
 ```
 
 | TransactionPhase | 触发时机 | 典型场景 |
-|------------------|---------|---------|
+| :-- | :-- | :-- |
 | `BEFORE_COMMIT` | 事务提交前 | 注册到事务性资源 |
 | `AFTER_COMMIT` | 事务提交后（默认） | 发邮件、推送通知 |
 | `AFTER_ROLLBACK` | 事务回滚后 | 补偿操作、清理资源 |
@@ -224,7 +224,7 @@ public class TransactionalEventListeners {
 ```
 
 | 维度 | Spring Event | 消息队列（Kafka/RabbitMQ） |
-|------|-------------|--------------------------|
+| :-- | :-- | :-- |
 | 边界 | 进程内 | 跨进程、跨服务 |
 | 持久化 | 无 | 有（可配置） |
 | 可靠性 | JVM 存活就可靠 | 支持确认机制 |
@@ -253,7 +253,7 @@ eventBus.post(new OrderCreatedEvent(this, 1L, 10086L, BigDecimal.valueOf(99.9)))
 ```
 
 | 特性 | Spring Event | Guava EventBus |
-|------|-------------|----------------|
+| :-- | :-- | :-- |
 | 事务感知 | ✅ @TransactionalEventListener | ❌ |
 | 异步支持 | ✅ @Async | ✅ AsyncEventBus |
 | 条件过滤 | ✅ SpEL condition | ❌ |

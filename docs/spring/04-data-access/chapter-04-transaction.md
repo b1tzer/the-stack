@@ -49,11 +49,26 @@ public void good() {
 }
 ```
 
+`rollbackFor` 是方法级开关，只影响单个方法。要让整个应用默认对 Checked Exception 也回滚，用 Spring Framework 6.2（Spring Boot 3.4+）新增的全局开关：
+
+```java
+@Configuration
+@EnableTransactionManagement(rollbackOn = RollbackOn.ALL_EXCEPTIONS)
+public class TxConfig {
+}
+```
+
+`rollbackOn` 是 `@EnableTransactionManagement` 在 Spring Framework 6.2 新增的属性，`RollbackOn` 枚举只有两个值：`RUNTIME_EXCEPTIONS`（默认）和 `ALL_EXCEPTIONS`。Spring Boot 默认已开启事务管理，通常不用写 `@EnableTransactionManagement`；要改全局回滚行为，在任意 `@Configuration` 类上手动加这行即可——Boot 检测到用户声明后会让自己，以你写的 `rollbackOn` 为准。
+
+两种写法怎么选：方法级 `rollbackFor` 意图明确、只影响单个方法，是新项目最稳的写法；全局开关适合统一治理存量项目，但它会让原本「Checked Exception 提交」的方法整体反转，改之前要先确认没有代码依赖旧的默认提交行为。
+
+为什么默认是 `RuntimeException` 而不是 `Exception`？官方没有直接改默认值——那会让存量应用的提交行为静默反转，属于破坏性变更——而是新增 `rollbackOn` 属性让开发者显式选择。Kotlin 项目（异常不区分受检与否）官方建议直接切到 `ALL_EXCEPTIONS`。
+
 ### 1.3 PlatformTransactionManager 原理
 
 `@Transactional` 的执行流程：
 
-```text
+```txt
 @Transactional 执行流程：
   1. AOP 代理拦截方法调用
   2. TransactionManager.getTransaction() → 获取/创建数据库连接，设置 autoCommit=false
@@ -77,7 +92,7 @@ public void good() {
 
 事务方法调用经过 `TransactionInterceptor` 的完整链路：
 
-```text
+```txt
 @Transactional 注解
         ↓ 解析为切入点
 TransactionInterceptor（环绕通知）
@@ -87,7 +102,7 @@ AOP 代理（JDK / CGLIB）
 目标 Bean 的业务方法
 ```
 
-代理机制（JDK 动态代理 vs CGLIB、为什么自调用会失效）已在 [AOP 章节](../01-core/chapter-05-aop.md) §4 与 §9.3 讲透，这里不再重复。
+代理机制（JDK 动态代理 vs CGLIB、为什么自调用会失效）已在 [AOP 章节](../01-core/chapter-05-aop.md) §4 与 §7.3 讲透，这里不再重复。
 
 ## 2. 传播行为
 
@@ -194,7 +209,7 @@ public class OrderService {
 
 嵌套事务保存点原理：
 
-```text
+```txt
 NESTED 事务流程：
   BEGIN TRANSACTION (外层)
     INSERT INTO orders ...
@@ -299,6 +314,8 @@ public class UserService {
     public void noTransaction() {
         // 以非事务方式运行，不会回滚
     }
+
+    // ❌ 场景7：多线程环境（事务绑定在 ThreadLocal 上，子线程拿不到，详见 §4.3）
 }
 ```
 
@@ -337,6 +354,51 @@ public class UserService {
 ```
 
 > **踩坑提醒**：自调用是 `@Transactional` 失效最常见的原因。理解原理：Spring AOP 基于代理，`this.method()` 调用的是原始对象而非代理对象，AOP 增强不生效。最干净的方案是把需要事务的方法拆到另一个 Service 中。
+
+### 4.3 多线程事务失效
+
+![多线程事务失效](/spring/pitfall-thread-transaction.svg)
+
+```java
+@Service
+public class BatchService {
+
+    @Autowired
+    private OrderDao orderDao;
+    @Autowired
+    private ExecutorService executor;
+
+    @Transactional
+    public void batchProcess(List<Order> orders) {
+        List<Future<?>> futures = orders.stream()
+            .map(order -> executor.submit(() -> orderDao.insert(order)))  // 子线程里操作
+            .collect(Collectors.toList());
+
+        futures.forEach(f -> { try { f.get(); } catch (Exception e) { throw new RuntimeException(e); } });
+    }
+}
+```
+
+子线程抛异常，主线程回滚了，但子线程已提交的数据不回滚。
+
+**根因**：Spring 事务绑定在 `ThreadLocal` 上，每个线程有自己的事务上下文。子线程拿不到主线程的事务，各自独立提交，不受主线程回滚影响。
+
+```txt
+主线程事务 ─────────────────────────── 回滚 ✅
+  ├─ 子线程1: 独立事务 ──── 已提交 ❌
+  ├─ 子线程2: 独立事务 ──── 已提交 ❌
+  └─ 子线程3: 独立事务 ──── 异常但无事务 ❌
+```
+
+**解法**：
+
+| 方案 | 做法 | 适用场景 |
+| :-- | :-- | :-- |
+| 主线程统一操作（推荐） | 不开子线程，所有 DB 操作在主线程事务内完成 | 数据量不大 |
+| 编程式事务 | 子线程里手动 `TransactionTemplate.execute()` | 子任务需要独立事务 |
+| 两阶段提交 | 消息队列 + 本地事务表 | 分布式场景 |
+
+**结论：`@Transactional` 的边界就是当前线程。想跨线程共享事务，要么不用多线程，要么用编程式事务。**
 
 ---
 

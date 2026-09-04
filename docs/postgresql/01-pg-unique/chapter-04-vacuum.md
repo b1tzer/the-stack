@@ -36,7 +36,7 @@ VACUUM 之后：
 PG 提供了多种 VACUUM 命令，适用于不同场景：
 
 | 命令 | 做了什么 | 锁表？ | 空间归还 OS？ | 适用场景 |
-|------|---------|--------|-------------|---------|
+| :-- | :-- | :-- | :-- | :-- |
 | `VACUUM` | 清理 Dead Tuple，标记空间可复用 | ❌ 不锁表 | ❌ 不归还 | 日常维护（首选） |
 | `VACUUM FULL` | 重写整张表，彻底回收空间 | ✅ 锁表 | ✅ 归还 | 表膨胀严重，低峰期执行 |
 | `ANALYZE` | 更新统计信息（不清理数据） | ❌ | — | 大量数据变化后 |
@@ -81,7 +81,7 @@ autovacuum_analyze_scale_factor = 0.1
 默认配置的触发公式：`dead_tuples > 50 + 0.2 × total_tuples`
 
 | 表大小 | 触发阈值 | 说明 |
-|--------|---------|------|
+| :-- | :-- | :-- |
 | 1,000 行 | 250 个 Dead Tuple | 合理 |
 | 100 万行 | 20 万个 Dead Tuple | **太大了！** 20 万个废弃行才会触发清理 |
 | 1 亿行 | 2000 万个 Dead Tuple | **灾难级**，表已经严重膨胀 |
@@ -114,7 +114,7 @@ PG 用 **代价延迟（Cost-based Throttling）** 机制来平衡：
 
 ### 4.1 工作原理
 
-```text
+```txt
 VACUUM 扫描数据页 → 每读/写一个页面，累积"代价"
                     → 代价达到 vacuum_cost_limit 时
                     → 暂停 vacuum_cost_delay 毫秒
@@ -125,7 +125,7 @@ VACUUM 扫描数据页 → 每读/写一个页面，累积"代价"
 代价计算规则：
 
 | 操作 | 代价 | 说明 |
-|------|------|------|
+| :-- | :-- | :-- |
 | 读到已在缓存中的页面 | `vacuum_cost_page_hit = 1` | 代价最低 |
 | 读到不在缓存中的页面 | `vacuum_cost_page_miss = 10` | 需要磁盘 IO |
 | 修改（标记为可复用） | `vacuum_cost_page_dirty = 20` | 代价最高 |
@@ -143,7 +143,7 @@ autovacuum_vacuum_cost_limit = -1  # -1 表示用全局 vacuum_cost_limit
 ### 4.2 调优原则
 
 | 场景 | 调整方式 |
-|------|---------|
+| :-- | :-- |
 | VACUUM 太慢，跟不上 Dead Tuple 产生 | 降低 `cost_delay` 或提高 `cost_limit` |
 | VACUUM 影响业务 IO | 提高 `cost_delay` 或降低 `cost_limit` |
 | 高频更新的关键表 | 表级设置 `autovacuum_vacuum_cost_delay = 0`（不限速） |
@@ -175,7 +175,7 @@ WHERE backend_type = 'autovacuum worker';
 
 VACUUM FREEZE 是一种特殊的 VACUUM，它的目的不是清理 Dead Tuple，而是**冻结旧事务 ID**，防止事务 ID 回卷（详见[上一章 §6](./chapter-03-mvcc.md#xid-wraparound)）。
 
-```text
+```txt
 正常 VACUUM：清理 Dead Tuple，释放空间
 VACUUM FREEZE：把旧行的 xmin 改为特殊的 FrozenTransactionId（2），表示"已冻结，不再参与可见性判断"
 ```
@@ -254,7 +254,7 @@ END $$;
 ## 8. 最佳实践总结
 
 | 实践 | 说明 |
-|------|------|
+| :-- | :-- |
 | **不要关闭 autovacuum** | 默认开启，关闭会导致表膨胀和事务 ID 回卷 |
 | **大表降低 scale_factor** | `autovacuum_vacuum_scale_factor = 0.01`（1% 就触发） |
 | **高频表取消 IO 限制** | `autovacuum_vacuum_cost_delay = 0` |

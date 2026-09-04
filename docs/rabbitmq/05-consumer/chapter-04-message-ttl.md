@@ -48,7 +48,7 @@ channel.basicConsume("order.timeout.queue", false, consumer);
 
 ## 4. Head-of-Line Blocking 问题
 
-```text
+```txt
 Queue: [msg1(TTL=60s), msg2(TTL=10s), msg3(TTL=30s)]
 
 t=0s:   msg1 在队头
@@ -68,7 +68,7 @@ t=60s:  msg1 过期 → msg1 出队 → msg2, msg3 一起出队
 ## 5. TTL vs 延迟消息插件
 
 | 维度 | TTL + DLX | 延迟消息插件 |
-|------|-----------|-------------|
+| :-- | :-- | :-- |
 | Head-of-Line Blocking | 有 | 无 |
 | 精度 | 秒级 | 毫秒级 |
 | 配置 | Queue 参数 | Exchange 参数 |

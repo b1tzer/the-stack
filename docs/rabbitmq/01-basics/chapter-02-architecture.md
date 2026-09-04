@@ -4,7 +4,7 @@
 
 ## 1. 整体架构图
 
-```text
+```txt
 ┌─────────────────────────────────────────────────────────────────┐
 │                        RabbitMQ Broker                          │
 │                                                                 │
@@ -40,7 +40,7 @@
 
 一条 TCP 连接的建立需要三次握手，开销不小。如果每个操作都建一条新连接，性能扛不住。RabbitMQ 的解决方案是：**一条 TCP 连接内复用多个 Channel**。
 
-```text
+```txt
 ┌────────────────────────────────────────┐
 │           TCP Connection               │
 │  ┌──────────┐ ┌──────────┐ ┌────────┐ │
@@ -75,7 +75,7 @@ executor.submit(() -> {
 ### 2.3 连接参数
 
 | 参数 | 默认值 | 说明 |
-|------|--------|------|
+| :-- | :-- | :-- |
 | heartbeat | 60s | 心跳间隔，检测连接存活 |
 | channel_max | 2047 | 每个连接最大 Channel 数 |
 | frame_max | 131072 | AMQP 帧最大大小 |
@@ -87,7 +87,7 @@ executor.submit(() -> {
 
 vhost 是 RabbitMQ 的逻辑隔离单元，类似于数据库中的 schema 或 Nginx 中的 server block。
 
-```text
+```txt
 vhost: /order
   ├── Exchange: order.exchange
   ├── Queue: order.created.queue
@@ -111,7 +111,7 @@ vhost: /payment
 
 一条消息从生产到消费的完整路径：
 
-```text
+```txt
 1. Producer 创建连接 → 创建 Channel
 2. Channel.basicPublish(exchange, routingKey, properties, body)
 3. Broker 收到消息：
@@ -140,7 +140,7 @@ AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
 ```
 
 | 属性 | 说明 | 常用场景 |
-|------|------|----------|
+| :-- | :-- | :-- |
 | deliveryMode | 1=非持久化，2=持久化 | 生产环境必须为 2 |
 | contentType | 内容类型 | application/json |
 | correlationId | 关联 ID | RPC 模式匹配请求和响应 |
@@ -155,7 +155,7 @@ RabbitMQ 基于 Erlang/OTP 构建，这决定了它的几个核心特性：
 
 **每个 Queue 是一个 Erlang 进程**：
 
-```text
+```txt
 Queue A → Erlang Process (独立调度)
 Queue B → Erlang Process (独立调度)
 Queue C → Erlang Process (独立调度)
@@ -180,7 +180,7 @@ Queue C → Erlang Process (独立调度)
 
 ### 6.1 消息存储路径
 
-```text
+```txt
 消息进入 Queue
   ├─ 小消息（< 4KB）→ 直接写入 Queue 的 ETS 表（内存）
   └─ 大消息（≥ 4KB）→ 写入消息存储文件（磁盘），Queue 中存引用
@@ -188,7 +188,7 @@ Queue C → Erlang Process (独立调度)
 
 ### 6.2 持久化机制
 
-```text
+```txt
 Queue 声明为 Durable + 消息标记为 Persistent
   → 消息写入磁盘（msg_store_persistent）
   → Queue 元数据写入 Mnesia
@@ -200,7 +200,7 @@ Queue 声明为 Durable + 消息标记为 Persistent
 ### 6.3 内存管理
 
 | 参数 | 说明 |
-|------|------|
+| :-- | :-- |
 | `vm_memory_high_watermark` | 内存高水位（默认 0.6），超过后阻塞生产者 |
 | `vm_memory_high_watermark_paging_ratio` | 开始换页的内存比例（默认 0.5） |
 | `disk_free_limit` | 磁盘低水位（默认 50MB），低于后阻塞生产者 |

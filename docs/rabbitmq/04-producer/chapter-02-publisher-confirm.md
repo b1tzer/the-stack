@@ -4,7 +4,7 @@
 
 ## 1. 为什么需要 Publisher Confirm
 
-```text
+```txt
 Producer ──发送消息──▶ Broker ──写入Queue──▶ ???
 
 问题：basicPublish 是异步的，发送成功不等于 Broker 收到。
@@ -59,7 +59,7 @@ unconfirmed.add(tag);
 ## 4. Confirm 的触发时机
 
 | 场景 | Confirm 行为 |
-|------|-------------|
+| :-- | :-- |
 | 消息路由到持久化 Queue + 持久化消息 | 写入磁盘后 confirm |
 | 消息路由到持久化 Queue + 非持久化消息 | 写入内存后 confirm |
 | 消息路由到 Quorum Queue | 多数节点 Raft 确认后 confirm |
@@ -72,7 +72,7 @@ unconfirmed.add(tag);
 ## 5. Confirm vs 事务
 
 | 维度 | Publisher Confirm | 事务（tx） |
-|------|------------------|-----------|
+| :-- | :-- | :-- |
 | 性能 | 高（异步，批量确认） | 低（同步，每批一个事务） |
 | 粒度 | 每条消息 | 每批消息 |
 | 推荐 | ✅ 生产环境必用 | ❌ 不推荐 |

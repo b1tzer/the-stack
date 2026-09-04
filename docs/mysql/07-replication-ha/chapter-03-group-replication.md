@@ -21,7 +21,7 @@ group_replication_single_primary_mode = ON  # 单主模式
 ### 1.3 单主 vs 多主
 
 | 模式 | 说明 |
-|------|------|
+| :-- | :-- |
 | 单主 | 只有一个可写，其他只读（推荐） |
 | 多主 | 所有节点可写，需处理冲突 |
 
@@ -122,7 +122,7 @@ SELECT * FROM performance_schema.replication_group_member_stats;
 ### 3.1 MGR vs 传统主从复制
 
 | 特性 | 传统主从 | MGR |
-|------|---------|-----|
+| :-- | :-- | :-- |
 | 数据一致性 | 最终一致 | 强一致（Paxos） |
 | 自动故障转移 | 需要 MHA/Orchestrator | 内置 |
 | 多写支持 | 不支持 | 多主模式支持 |

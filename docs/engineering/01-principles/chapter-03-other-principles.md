@@ -180,6 +180,8 @@ class OrderController {
 }
 
 // 好：容器管理对象的创建和生命周期
+// 应用启动时，容器按声明创建 DataSource → OrderRepository → OrderService 的依赖链，
+// 需要哪个就注入哪个，应用代码不再自己 new。
 @Configuration
 public class AppConfig {
     @Bean

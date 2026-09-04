@@ -77,7 +77,7 @@ public class HotDataPreloader implements ApplicationRunner {
 
 // 动态内容的 CDN 策略
 // 1. 接口响应设置 Cache-Control 头
-@GetMapping(\"/api/products/{id}\")
+@GetMapping("/api/products/{id}")
 public ResponseEntity<ProductVO> getProduct(@PathVariable Long id) {
     ProductVO product = productService.findById(id);
     return ResponseEntity.ok()
@@ -112,7 +112,7 @@ public class OrderService {
 ## 5. 性能优化 Checklist
 
 | 层次 | 优化手段 | 预期收益 |
-|------|---------|----------|
+| :-- | :-- | :-- |
 | 数据库 | 索引优化、SQL 优化、读写分离 | 10-100 倍 |
 | 缓存 | 多级缓存、热点预加载 | 100-1000 倍 |
 | 应用 | 异步处理、批量操作 | 2-10 倍 |

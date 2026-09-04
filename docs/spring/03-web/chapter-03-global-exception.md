@@ -210,7 +210,7 @@ public class GlobalExceptionHandler {
 
 生产环境排查问题的流程：
 
-```text
+```txt
 前端报错 → 拿到 traceId → 后端日志按 traceId grep → 定位完整链路
 ```
 
@@ -235,7 +235,7 @@ return new ErrorResponse(500, "服务器内部错误",
 
 ### 3.1 优先级从高到低
 
-```text
+```txt
 1. Controller 内的 @ExceptionHandler（本 Controller 异常）
 2. @ControllerAdvice 中的 @ExceptionHandler（全局）
 3. @ResponseStatus 注解（直接映射状态码）
@@ -300,7 +300,7 @@ public class FallbackExceptionHandler {
 
 Spring MVC 的异常处理机制只在 DispatcherServlet 内部生效。Filter 中抛出的异常不会被 `@ExceptionHandler` 捕获：
 
-```text
+```txt
 请求进入
   │
   ▼

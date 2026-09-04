@@ -113,7 +113,7 @@ public class OrderService {
 ### 1.3 日志级别使用规范
 
 | 级别 | 用途 | 示例 |
-|------|------|------|
+| :-- | :-- | :-- |
 | `ERROR` | 系统错误，需要立即关注 | 异常堆栈、服务不可用 |
 | `WARN` | 潜在问题，暂不影响业务 | 重试、降级、配置缺失 |
 | `INFO` | 关键业务流程 | 订单创建、用户登录、支付完成 |
@@ -186,7 +186,7 @@ public class OrderService {
 ### 2.2 ELK 配置要点
 
 | 组件 | 作用 | 关键配置 |
-|------|------|----------|
+| :-- | :-- | :-- |
 | Filebeat | 日志采集 | `json.keys_under_root: true` |
 | Logstash | 日志处理 | `json` filter 解析 JSON 行 |
 | Elasticsearch | 日志存储 | 索引按日期分区 `myapp-2024.01.15` |

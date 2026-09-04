@@ -98,7 +98,7 @@ public class Thread implements Runnable {
 
 存储关系是这样的：
 
-```text
+```txt
    Thread-A                          Thread-B
   ┌─────────────────────┐          ┌─────────────────────┐
   │ threadLocals ──┐    │          │ threadLocals ──┐    │
@@ -154,7 +154,7 @@ static class Entry extends WeakReference<ThreadLocal<?>> {
 
 ### 2.3 `get` / `set` / `remove` 的调用路径
 
-```text
+```txt
     ThreadLocal.set(v)
            │
            ▼
@@ -185,7 +185,7 @@ static class Entry extends WeakReference<ThreadLocal<?>> {
 
 看引用链：
 
-```text
+```txt
 Thread (Root, GC 从这里出发)
    │  强引用
    ▼
@@ -267,7 +267,7 @@ executor.execute(() -> {
 
 生产环境的排查步骤：
 
-```text
+```txt
 jstat -gcutil <pid> 1000     # 观察 OU（老年代使用率）是否单调上升
        │
        ▼
@@ -294,7 +294,7 @@ MAT 有一个专用视图 `Path to GC Roots → exclude weak references`，能�
 
 ### 4.1 复制发生的时机
 
-```text
+```txt
 Thread parent = Thread.currentThread();
 parent.inheritableThreadLocals = { TL_TRACE_ID: "req-42" }
 
@@ -331,7 +331,7 @@ InheritableThreadLocal<Map<String, String>> ctx =
 
 `InheritableThreadLocal` 的传递语义假设了"父线程创建子线程"这个动作与"业务任务提交"是同一件事。在线程池模型下这个假设不成立：
 
-```text
+```txt
 时刻 T0: 线程池初始化，创建 Worker-1, Worker-2, ...
          此时 Main 线程的 InheritableThreadLocal 还是空的
          Worker 的 inheritableThreadLocals 是空快照
@@ -357,7 +357,7 @@ InheritableThreadLocal<Map<String, String>> ctx =
 
 ### 5.1 抓拍—回放模型
 
-```text
+```txt
 Main 线程                         Worker 线程
    │                                  │
    │ ttl.set("req-42")                │

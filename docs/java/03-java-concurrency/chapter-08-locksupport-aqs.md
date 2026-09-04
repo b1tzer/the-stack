@@ -106,7 +106,7 @@ public class SimpleLock {
 
 `AbstractQueuedSynchronizer`（AQS）的内部结构：
 
-```text
+```txt
      ┌──────────────────────────────────────────────┐
      │        AbstractQueuedSynchronizer            │
      │                                              │
@@ -333,7 +333,7 @@ public final void acquireShared(int arg) {
 
 举一个 `CountDownLatch` 的场景：
 
-```text
+```txt
 CountDownLatch(3)：三条线程 A / B / C 都在 await
 队列： head → NodeA → NodeB → NodeC ← tail
 
@@ -384,7 +384,7 @@ private void doReleaseShared() {
 
 一个 AQS 内部只有一条 CLH **同步队列**（排队争锁的）。但可以挂**多个条件队列**——每个 `Condition` 一条：
 
-```text
+```txt
 同步队列（一条，AQS 内建）
    head → Node → Node → Node ← tail
            争锁排队者
@@ -466,7 +466,7 @@ public E take() throws InterruptedException {
 
 用 32 位 `state` 的高低位分别记两种锁：
 
-```text
+```txt
 state (32 bit)
 ┌───────────────────────┬───────────────────────┐
 │    高 16 位             │    低 16 位            │

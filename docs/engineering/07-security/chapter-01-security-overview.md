@@ -5,7 +5,7 @@
 ## 1. OWASP Top 10 (2021)
 
 | 排名 | 风险 | 说明 | 防御 |
-|------|------|------|------|
+| :-- | :-- | :-- | :-- |
 | A01 | 访问控制失效 | 未授权访问 | 最小权限、RBAC |
 | A02 | 加密机制失效 | 明文存储、弱加密 | 强加密、密钥管理 |
 | A03 | 注入 | SQL/NoSQL/OS 注入 | 参数化查询、输入校验 |
@@ -17,41 +17,9 @@
 | A09 | 日志与监控不足 | 攻击无法被发现 | 日志、告警、SIEM |
 | A10 | SSRF | 利用服务端发起请求 | 白名单、网络隔离 |
 
-## 2. 最常见的攻击
+## 2. 安全编码原则
 
-### SQL 注入
-
-```java
-// ❌ 危险：拼接 SQL
-String sql = "SELECT * FROM users WHERE name = '" + name + "'";
-
-// ✅ 安全：参数化查询
-String sql = "SELECT * FROM users WHERE name = ?";
-PreparedStatement ps = conn.prepareStatement(sql);
-ps.setString(1, name);
-```
-
-### XSS（跨站脚本）
-
-```html
-<!-- ❌ 危险：直接输出用户输入 -->
-<div>${userInput}</div>
-
-<!-- ✅ 安全：HTML 转义 -->
-<div th:text="${userInput}"></div>
-```
-
-### CSRF（跨站请求伪造）
-
-```java
-// Spring Security 自动处理 CSRF Token
-@EnableWebSecurity
-public class SecurityConfig extends WebSecurityConfigurerAdapter {
-    // CSRF 默认开启
-}
-```
-
-## 3. 安全编码原则
+SQL 注入、XSS、CSRF 等攻击的原理与防御代码见 [常见攻击与防御](./chapter-04-common-attacks.md)。
 
 1. **最小权限**：每个组件只拥有必要的权限
 2. **纵深防御**：多层安全措施，不依赖单一防线

@@ -1,11 +1,11 @@
 # 消息队列选型
 
-> 选消息队列不是选「最好的」，而是选「最适合的」。本章聚焦 RabbitMQ 的核心优势与适用场景。完整技术对比见 [Kafka · 消息队列选型](/kafka/01-basics/chapter-04-mq-comparison)。
+> 选消息队列不是选「最好的」，而是选「最适合的」。本章聚焦 RabbitMQ 的核心优势与适用场景。完整技术对比见 [Kafka · 消息队列选型](/kafka/01-intro/chapter-03-mq-comparison)。
 
 ## RabbitMQ 的核心优势
 
 | 维度 | RabbitMQ 的特点 |
-|------|----------------|
+| :-- | :-- |
 | 路由能力 | 4 种 Exchange（Direct/Topic/Fanout/Headers），路由规则灵活 |
 | 延迟 | 微秒级，比 Kafka 低一个数量级 |
 | 协议支持 | AMQP/MQTT/STOMP，IoT 场景天然适配 |
@@ -25,7 +25,7 @@
 ## 不选 RabbitMQ 的场景
 
 | 场景 | 原因 | 推荐 |
-|------|------|------|
+| :-- | :-- | :-- |
 | 日志收集/大数据流 | 消息堆积后性能下降 | Kafka |
 | 百万级 QPS | Erlang 单节点瓶颈 | Kafka / Pulsar |
 | 消息回溯 | 不支持按 offset 回溯 | Kafka |
@@ -35,7 +35,7 @@
 
 实际项目中经常组合：
 
-```text
+```txt
 IoT 设备 ──MQTT──▶ RabbitMQ ──AMQP──▶ 业务服务
                                       │
                                       ▼

@@ -2,7 +2,7 @@
 
 ## 1. 分析器组成
 
-```
+```txt
 Character Filter → Tokenizer → Token Filter
      ↓               ↓            ↓
   字符过滤         分词         词元过滤
@@ -11,7 +11,7 @@ Character Filter → Tokenizer → Token Filter
 ## 2. 内置分析器
 
 | 分析器 | 说明 |
-|--------|------|
+| :-- | :-- |
 | standard | 默认，按单词分词 |
 | simple | 按非字母字符分词 |
 | whitespace | 按空格分词 |
@@ -56,7 +56,7 @@ POST /_analyze
 ## 5. 常用 Token Filter
 
 | Filter | 作用 | 示例 |
-|--------|------|------|
+| :-- | :-- | :-- |
 | `lowercase` | 转小写 | `Hello` → `hello` |
 | `stop` | 去除停用词 | `[the, is, a, cat]` → `[cat]` |
 | `synonym` | 同义词替换 | `手机` → `手机, 手机设备` |

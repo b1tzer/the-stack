@@ -110,7 +110,7 @@ EXPLAIN ANALYZE SELECT * FROM users WHERE age > 25;  -- 8.0.18+，含实际执�
 ### 2.2 核心字段
 
 | 字段 | 说明 |
-|------|------|
+| :-- | :-- |
 | type | 访问类型 |
 | possible_keys | 可能使用的索引 |
 | key | 实际使用的索引 |
@@ -122,7 +122,7 @@ EXPLAIN ANALYZE SELECT * FROM users WHERE age > 25;  -- 8.0.18+，含实际执�
 ### 2.3 type 访问类型（从差到好）
 
 | type | 说明 |
-|------|------|
+| :-- | :-- |
 | ALL | 全表扫描 |
 | index | 全索引扫描 |
 | range | 范围扫描 |
@@ -134,7 +134,7 @@ EXPLAIN ANALYZE SELECT * FROM users WHERE age > 25;  -- 8.0.18+，含实际执�
 ### 2.4 Extra 常见值
 
 | Extra | 说明 |
-|------|------|
+| :-- | :-- |
 | Using index | 覆盖索引 |
 | Using where | 存储引擎返回后再过滤 |
 | Using temporary | 使用临时表 |
@@ -220,7 +220,7 @@ WHERE u.age > 25;
 ### 3.4 常见 EXPLAIN 结果解读
 
 | 场景 | type | Extra | 说明 | 优化建议 |
-|------|------|-------|------|----------|
+| :-- | :-- | :-- | :-- | :-- |
 | 全表扫描 | ALL | Using where | 最差 | 添加合适索引 |
 | 全索引扫描 | index | Using index | 索引全扫描 | 检查 WHERE 条件 |
 | 范围扫描 | range | Using index condition | 范围查询 | 可接受 |

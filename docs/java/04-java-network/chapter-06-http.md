@@ -18,14 +18,14 @@ curl -w "DNS解析: %{time_namelookup}s | TCP连接: %{time_connect}s | TLS握�
 ```
 
 | 阶段 | 含义 | 异常高意味着什么 |
-|------|------|----------------|
+| :-- | :-- | :-- |
 | `time_namelookup` | DNS 解析耗时 | DNS 服务器慢或缓存失效 |
 | `time_connect` | TCP 三次握手耗时 | 网络延迟高，检查 RTT |
 | `time_appconnect` | TLS 握手耗时 | SSL 证书链长或 OCSP 超时 |
 | `time_starttransfer` | 首字节时间（TTFB） | **服务端处理慢**——这是你最该查的阶段 |
 | `time_total` | 总耗时 | 前面所有阶段之和 |
 
-```text
+```txt
 典型结果解读：
 
 正常请求：
@@ -47,7 +47,7 @@ DNS:0.520 | TCP:0.320 | TLS:0.850 | TTFB:0.180 | Total:1.870
 
 一个 HTTP 请求从发出到收到响应，经历的不是一个原子操作，而是一组可拆解的阶段：
 
-```text
+```txt
 客户端                                    服务器
   │                                         │
   ├─ ① DNS 解析 (time_namelookup)           │
@@ -98,7 +98,7 @@ Connection: keep-alive
 {"name":"张三","email":"zhangsan@example.com"}
 ```
 
-```text
+```txt
 ┌────────────────────────────────────────────┐
 │ 请求行 (Request Line)                       │
 │   方法  空格  URI  空格  版本  CRLF         │
@@ -125,7 +125,7 @@ Location: /api/users/42
 ### 2.3 Header 分类速查
 
 | 类别 | 示例 | 说明 |
-|------|------|------|
+| :-- | :-- | :-- |
 | **通用头** | `Date`, `Connection`, `Cache-Control` | 请求和响应都能用 |
 | **请求头** | `Host`, `Authorization`, `Accept` | 客户端发出 |
 | **响应头** | `Server`, `Set-Cookie`, `Location` | 服务端返回 |
@@ -140,7 +140,7 @@ Location: /api/users/42
 HTTP 定义了 9 个方法。对 Java 后端而言，只需要记住两个核心属性就够用了：
 
 | 方法 | 安全（不修改资源） | 幂等（多次调用结果相同） |
-|------|:--:|:--:|
+| :-- | :--: | :--: |
 | GET | ✅ | ✅ |
 | HEAD | ✅ | ✅ |
 | OPTIONS | ✅ | ✅ |
@@ -173,7 +173,7 @@ public void recordLogin(@PathVariable Long id) { ... }
 ### 3.2 GET 与 POST 的常见误解
 
 | 误解 | 事实 |
-|------|------|
+| :-- | :-- |
 | "GET 参数有长度限制" | 协议本身无限制，限制来自浏览器地址栏和服务器默认 buffer |
 | "POST 比 GET 安全" | 都是明文传输（HTTP），安全性依赖 HTTPS |
 | "GET 不能有 Body" | 协议允许，但大多数框架会忽略 |
@@ -186,7 +186,7 @@ public void recordLogin(@PathVariable Long id) { ... }
 
 你用 Nginx 做反向代理，后面挂着 Java 应用。线上告警亮了：
 
-```text
+```txt
 2026-08-09 15:32:11 error.log: connect() failed (111: Connection refused) while connecting to upstream
 2026-08-09 15:35:47 error.log: upstream timed out (110: Connection timed out) while reading response header from upstream
 2026-08-09 15:40:02 access.log: GET /api/orders 502
@@ -196,7 +196,7 @@ public void recordLogin(@PathVariable Long id) { ... }
 这三种错误码，根因完全不一样：
 
 | 错误 | Nginx error.log 关键词 | 根因 | 排查方向 |
-|------|----------------------|------|---------|
+| :-- | :-- | :-- | :-- |
 | **502** | `connect() failed` / `connection refused` | 上游根本没响应——进程挂了、端口没监听、防火墙拦了 | `netstat -tlnp` 看端口、`systemctl status` 看进程 |
 | **504** | `upstream timed out` | 上游还活着但处理超时——慢 SQL、线程池满、外部依赖卡 | 看 TTFB、`jstack`、数据库慢查询日志 |
 | **Connection Timeout** | error.log 干净但客户端连不上 | TCP 握手阶段失败——SYN 队列满、`somaxconn` 太小、防火墙 DROP | `ss -s` 看 SYN-RECV、`netstat -s` 看丢包 |
@@ -206,7 +206,7 @@ public void recordLogin(@PathVariable Long id) { ... }
 ### 4.2 4xx：问题在你这边
 
 | 状态码 | 什么时候会出现 | 你该查什么 |
-|--------|-------------|----------|
+| :-- | :-- | :-- |
 | **400** | 前端发来的 JSON 少了一个必填字段 | 请求体的 `Content-Type` 和参数校验 |
 | **401** | Token 过期了，前端没做刷新 | `Authorization` 头和 JWT 有效期 |
 | **403** | 用户有 Token 但没这个接口的权限 | RBAC 配置和 `@PreAuthorize` |
@@ -216,7 +216,7 @@ public void recordLogin(@PathVariable Long id) { ... }
 ### 4.3 5xx：问题在服务端或中间层
 
 | 状态码 | 什么时候会出现 | 排查命令 |
-|--------|-------------|---------|
+| :-- | :-- | :-- |
 | **500** | 代码没 catch 住的异常（NPE、SQLException） | `grep "ERROR" application.log` |
 | **502** | 上游进程挂了、Nginx 连不上 upstream | `netstat -tlnp | grep 8080` |
 | **503** | 服务过载、所有 Worker 线程都在忙 | `jstack | grep catalina-exec | wc -l` |
@@ -232,7 +232,7 @@ grep -E "connect\(\) failed|upstream timed out|no live upstreams|reset by peer" 
 ```
 
 | 关键词 | 问题层 | 行动 |
-|--------|--------|------|
+| :-- | :-- | :-- |
 | `connect() failed` | 上游未监听 | 重启上游服务 |
 | `upstream timed out` | 上游处理慢 | 查慢 SQL、线程池 |
 | `no live upstreams` | 全部上游不健康 | 查健康检查或全挂了 |
@@ -244,7 +244,7 @@ grep -E "connect\(\) failed|upstream timed out|no live upstreams|reset by peer" 
 
 ### 5.1 HTTP/1.0 → HTTP/1.1：省掉每次重连的握手
 
-```text
+```txt
 HTTP/1.0：每请求一次 = 一次 TCP 握手 + 一次数据 + 一次挥手
 HTTP/1.1：一次 TCP 握手 → 多次请求/响应（Keep-Alive）→ 最后才挥手
 ```
@@ -253,7 +253,7 @@ HTTP/1.1：一次 TCP 握手 → 多次请求/响应（Keep-Alive）→ 最后�
 
 HTTP/1.1 在同一连接上请求必须按序返回（队头阻塞）。HTTP/2 引入的多路复用在一个 TCP 连接上并行传输多个请求/响应：
 
-```text
+```txt
 HTTP/1.1：
 连接1: 请求CSS → [等待响应] → 请求JS → [等待响应]
 连接2: 请求IMG1 → [等待响应] → ...
@@ -266,13 +266,13 @@ HTTP/2：
 
 HTTP/2 解决了应用层队头阻塞，但 TCP 层丢一个包，所有请求都得等重传。HTTP/3 用 QUIC（UDP 之上）彻底消除了这个瓶颈：
 
-```text
+```txt
 TCP (HTTP/1.1 / HTTP/2):   丢 Packet 3 → 所有 Stream 都等
 QUIC (HTTP/3):             丢 Packet 3 → 只影响 Stream 1，其他照常
 ```
 
 | 维度 | HTTP/1.1 | HTTP/2 | HTTP/3 |
-|------|----------|--------|--------|
+| :-- | :-- | :-- | :-- |
 | 传输层 | TCP | TCP | QUIC (UDP) |
 | 多路复用 | ❌ | ✅ (应用层) | ✅ (传输层，真正无阻塞) |
 | 队头阻塞 | 应用层+TCP | 仅 TCP | 无 |

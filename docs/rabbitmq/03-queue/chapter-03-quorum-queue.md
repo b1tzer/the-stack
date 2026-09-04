@@ -14,7 +14,7 @@ Quorum Queue 用 Raft 协议解决了这些问题：**每条消息必须被多�
 
 ## 2. Raft 协议在 Quorum Queue 中的应用
 
-```text
+```txt
 Producer ──▶ Leader Node ──复制──▶ Follower 1
                              ──复制──▶ Follower 2
                              ──复制──▶ Follower 3
@@ -32,7 +32,7 @@ channel.queueDeclare("order.queue", true, false, false, args);
 ## 3. Quorum Queue 的核心特性
 
 | 特性 | 说明 |
-|------|------|
+| :-- | :-- |
 | 强一致 | 每条消息多数确认才算写入成功 |
 | 自动 Leader 选举 | Leader 崩溃后自动选举新 Leader |
 | 不支持消息回溯 | 消息确认后即删除（和 Classic Queue 一样） |
@@ -43,7 +43,7 @@ channel.queueDeclare("order.queue", true, false, false, args);
 ## 4. Quorum Queue 参数
 
 | 参数 | 默认值 | 说明 |
-|------|--------|------|
+| :-- | :-- | :-- |
 | x-queue-type | classic | 必须设为 `quorum` |
 | x-quorum-initial-group-size | 不限 | 初始组成员数 |
 | x-delivery-limit | 20 | 最大投递次数（超过后进 DLX） |
@@ -78,7 +78,7 @@ Quorum Queue 默认不在内存中缓存消息（`x-max-in-memory-length = 0`）
 
 ## 5. 集群部署
 
-```text
+```txt
 3 节点集群：
   Node 1 (Leader)  ──Raft──▶ Node 2 (Follower)
                            ──Raft──▶ Node 3 (Follower)
@@ -92,7 +92,7 @@ Leader 崩溃：自动选举新 Leader（约几秒）
 ### 5.1 节点数量选择
 
 | 节点数 | 容错能力 | 写入需要确认数 |
-|--------|----------|----------------|
+| :-- | :-- | :-- |
 | 3 | 容忍 1 节点故障 | 2 |
 | 5 | 容忍 2 节点故障 | 3 |
 | 7 | 容忍 3 节点故障 | 4 |
@@ -126,7 +126,7 @@ Leader 崩溃：自动选举新 Leader（约几秒）
 
 ## 7. 从镜像队列迁移到 Quorum Queue
 
-```text
+```txt
 1. 创建新的 Quorum Queue（不同名称）
 2. 修改生产者：发送到新 Queue
 3. 等待旧 Queue 消费完毕

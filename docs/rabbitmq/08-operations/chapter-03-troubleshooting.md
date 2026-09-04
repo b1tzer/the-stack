@@ -24,7 +24,7 @@ rabbitmqctl list_channels consumer_count
 **症状**：消息发了但消费者没收到。
 
 **排查链路**：
-```text
+```txt
 Producer → Publisher Confirm → Broker → Queue → Consumer → ACK
 ```
 

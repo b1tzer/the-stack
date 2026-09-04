@@ -19,7 +19,7 @@ INSERT INTO accounts VALUES (1, 500);
 
 两个事务按下面的时序交错执行，隔离级别是 InnoDB 默认的 `REPEATABLE READ`：
 
-```text
+```txt
 时间轴        事务 A                             事务 B
 ────────────────────────────────────────────────────────────
 T1          BEGIN;
@@ -113,7 +113,7 @@ MVCC（Multi-Version Concurrency Control，多版本并发控制）的核心思�
 
 InnoDB 的聚簇索引里，每一行记录除了你定义的列，还额外带着三个隐藏列：
 
-```text
+```txt
 ┌─────────────┬──────────────────────────────────────┐
 │ 用户列       │  id, balance, ...                    │
 ├─────────────┼──────────────────────────────────────┤
@@ -191,7 +191,7 @@ Read View 是一份「快照读可见性判定」的上下文。每次快照读�
 
 T6 事务 A 第二次 `SELECT`，版本链此刻是：
 
-```text
+```txt
 当前记录（聚簇索引）         Undo 旧版本
   balance     = 1000          balance     = 500
   DB_TRX_ID   = 102           DB_TRX_ID   = 101
@@ -212,7 +212,7 @@ T6 事务 A 第二次 `SELECT`，版本链此刻是：
 
 重新走一遍正确的判定：
 
-```text
+```txt
 Read View（T2 创建，事务 A 复用）：
   creator_trx_id = 101
   m_ids          = {101}

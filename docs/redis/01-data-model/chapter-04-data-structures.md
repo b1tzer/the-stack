@@ -42,7 +42,7 @@ Redis 7.0 有5种 SDS 类型（sdshdr5/8/16/32/64），按字符串长度自动�
 
 SDS 扩容时会多分配一些空间，减少后续修改的内存分配次数：
 
-```text
+```txt
 修改后 len < 1MB → alloc = len * 2（翻倍预分配）
 修改后 len ≥ 1MB → alloc = len + 1MB（固定预分配 1MB）
 ```
@@ -156,7 +156,7 @@ typedef struct dictEntry {
 
 以 `GET user:1001` 为例，dict 定位 key 的完整链路：
 
-```text
+```txt
 1. 计算哈希值
    hash = dictType->hashFunction("user:1001")
    // Redis 默认用 SipHash，把任意长度的 key 映射成一个 64 位整数
@@ -204,7 +204,7 @@ rehash 表面是「把数据从 ht[0] 搬到 ht[1]」，本质要回答三个「
 
 **触发条件**：
 
-```text
+```txt
 负载因子 ≥ 1（没有 BGSAVE 时）
 负载因子 > 5（有 BGSAVE 时，避免 rehash 与 fork 同时进行）
 负载因子 < 0.1（缩容）
@@ -212,7 +212,7 @@ rehash 表面是「把数据从 ht[0] 搬到 ht[1]」，本质要回答三个「
 
 **迁移步骤**：
 
-```text
+```txt
 1. 分配 ht[1]（大小为 ht[0] 的两倍，或第一个 ≥ used*2 的 2^n）
 2. rehashidx = 0（开始迁移）
 3. 每次对字典的增删改查，额外迁移 ht[0] 中 rehashidx 位置的一个桶
@@ -222,7 +222,7 @@ rehash 表面是「把数据从 ht[0] 搬到 ht[1]」，本质要回答三个「
 
 **迁移期间的查询与插入**：
 
-```text
+```txt
 查询 key：先查 ht[0]，没找到再查 ht[1]
 插入 key：直接插入 ht[1]（新数据不进 ht[0]）
 ```
@@ -259,7 +259,7 @@ typedef struct zskiplist {
 
 查找 `ZRANK rank 40` 时，从最高层开始向下跳，每跨过一个节点就把该层的 `span` 累加进排名：
 
-```text
+```txt
 从 header 出发：
   第 3 层：跳到 30（span 累计 1）
   第 3 层：跳到 50（超过 40，回退）
@@ -273,7 +273,7 @@ typedef struct zskiplist {
 
 每个节点的层数是随机的，概率为：
 
-```text
+```txt
 P(level ≥ 1) = 1
 P(level ≥ 2) = 1/4
 P(level ≥ 3) = 1/16
@@ -352,7 +352,7 @@ Redis 7.0 用 listpack 替代了 ziplist。listpack 解决了 ziplist 的「连�
 
 ziplist 每个节点的 `previous_entry_length` 记录前一个节点的长度（1字节或5字节）。当某个节点从短变长（跨越254字节阈值），后续所有节点的 `previous_entry_length` 都要从1字节扩展到5字节，可能引发连锁反应。
 
-```text
+```txt
 连锁更新：节点A变长 → 节点B的prevlen扩展 → 节点B变长 → 节点C的prevlen扩展 → ...
 最坏情况：O(n^2) 时间复杂度
 ```
@@ -361,7 +361,7 @@ ziplist 每个节点的 `previous_entry_length` 记录前一个节点的长度�
 
 listpack 去掉了 `previous_entry_length`，每个节点记录自己的长度而非前一个节点的长度：
 
-```text
+```txt
 listpack 节点：[encoding][data][self-len]
 ```
 

@@ -103,7 +103,7 @@ output {
 ## 6. ELK 架构选型
 
 | 架构 | 适用场景 | 说明 |
-|------|---------|------|
+| :-- | :-- | :-- |
 | Filebeat → ES | 简单日志采集 | 轻量，无需 Logstash |
 | Filebeat → Logstash → ES | 需要复杂处理 | Logstash 做过滤和转换 |
 | Filebeat → Kafka → Logstash → ES | 大规模日志 | Kafka 削峰填谷 |
@@ -116,4 +116,3 @@ output {
 - 索引按日期滚动：`logs-YYYY.MM.dd`，配合 ILM 自动清理
 - Logstash 多实例部署，通过 Kafka 实现负载均衡
 - 生产环境 ES 集群至少 3 节点，配置专用 Master 节点
-

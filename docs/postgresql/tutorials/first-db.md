@@ -184,7 +184,7 @@ WHERE id = 1;
 ```
 
 | 操作 | 语法 | 说明 |
-|------|------|------|
+| :-- | :-- | :-- |
 | 提取文本 | `col->>'key'` | 返回 TEXT |
 | 提取 JSON | `col->'key'` | 返回 JSONB |
 | 路径提取 | `col#>>'{a,b,c}'` | 嵌套路径 |
@@ -326,7 +326,7 @@ CREATE TABLE t2 (id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY);
 ```
 
 | 特性 | SERIAL | IDENTITY |
-|------|--------|----------|
+| :-- | :-- | :-- |
 | SQL 标准 | ❌ PG 私有 | ✅ SQL:2003 |
 | 手动插入值 | 可以 | 需 `OVERRIDING SYSTEM VALUE` |
 | 推荐程度 | 兼容旧代码 | **新项目首选** |

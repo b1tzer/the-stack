@@ -31,7 +31,7 @@ jstack 24789 | grep -A 30 "0x6145"
 
 输出让人瞬间清醒：
 
-```text
+```txt
 "http-nio-8080-exec-3" #42 prio=5 os_prio=0 cpu=954832.45ms
    java.lang.Thread.State: RUNNABLE
     at java.util.regex.Pattern$Curly.match(Pattern.java:4367)
@@ -64,7 +64,7 @@ public class PaymentValidator {
 
 正则引擎的匹配过程：
 
-```text
+```txt
 ^([A-Z0-9]+)+$ 匹配 "ABCDEFGHIJKLMNOPQRSTUVWXYZ!"
 
 步骤1：内层 [A-Z0-9]+ 贪婪匹配全部 26 个大写字母
@@ -102,7 +102,7 @@ public static void main(String[] args) {
 
 输出：
 
-```text
+```txt
 长度 10 → 1 ms
 长度 15 → 5 ms
 长度 20 → 160 ms
@@ -171,7 +171,7 @@ jstat -gcutil <pid> 1000 10
 
 输出：
 
-```text
+```txt
   S0     S1     E      O      M     YGC     YGCT    FGC    FGCT     GCT
   0.00  98.23  45.12  96.87  94.21  1234   45.234   89   156.234  201.468
   0.00   0.00  87.34  97.12  94.22  1235   45.256   90   158.012  203.268
@@ -190,7 +190,7 @@ jmap -dump:format=b,file=/tmp/order_heap.hprof <pid>
 
 **Leak Suspects Report 直接指认凶手：**
 
-```text
+```txt
 Problem Suspect 1:
   One instance of "java.util.concurrent.ConcurrentHashMap" loaded by
   "jdk.internal.loader.ClassLoaders$AppClassLoader"
@@ -209,7 +209,7 @@ Problem Suspect 1:
 
 ### 2.4 第三步：Dominator Tree 确认
 
-```text
+```txt
 Class Name                                    | Shallow Heap | Retained Heap
 java.lang.Thread @ main                       | 48 B         | 2,323 MB
 ├─ com.example.order.cache.OrderCacheManager  | 32 B         | 2,005 MB
@@ -274,7 +274,7 @@ public class OrderCacheManager {
 jstat -gcutil <pid> 1000 10
 ```
 
-```text
+```txt
   S0     S1     E      O      M     YGC     YGCT    FGC    FGCT     GCT
   45.12  0.00  32.45  38.21  45.23   123    2.345     0    0.000   2.345
 ```
@@ -284,7 +284,7 @@ jstat -gcutil <pid> 1000 10
 ### 2.8 总结
 
 | 信号 | 含义 |
-|------|------|
+| :-- | :-- |
 | 老年代持续上涨、Full GC 后不降 | 内存泄漏，不是堆不够 |
 | MAT Leak Suspects 指向静态 Map | 无界缓存 |
 | Dominator Tree 确认保留量 | 定量证据：多少对象、多少内存 |
@@ -306,7 +306,7 @@ jstat -gc <pid> 1000 5
 
 关注 `MU`（Metaspace Used）和 `MC`（Metaspace Capacity）列：
 
-```text
+```txt
 Timestamp        S0C    S1C    S0U    S1U      EC       EU        OC         OU       MC     MU
 104568.1         0.0   5120.0  0.0   5120.0 204800.0 102400.0  614400.0   307200.0  217088.0 208654.0
 104569.1         0.0   5120.0  0.0   5120.0 204800.0 112400.0  614400.0   310000.0  218112.0 210954.0
@@ -325,7 +325,7 @@ jcmd <pid> VM.class_stats | head -30
 
 输出：
 
-```text
+```txt
 Index  Super  InstBytes  KlassBytes  annotations  CpAll  MethodCount  Bytecodes  MethodAll  ROAll   RWAll   Total   ClassName
 1       -1     0          352         0             0      0            0          0          24      16      40      [Ljava.lang.Object;
 ...
@@ -344,7 +344,7 @@ Index  Super  InstBytes  KlassBytes  annotations  CpAll  MethodCount  Bytecodes 
 arthas> classloader
 ```
 
-```text
+```txt
  name                                                    numberOfInstances  loadedCountTotal
  net.sf.cglib.core.AbstractClassGenerator$EnhancerKey    1                  45231
  net.sf.cglib.core.AbstractClassGenerator$EnhancerKey    1                  43892
@@ -419,7 +419,7 @@ public class ReportService {
 jstat -gc <pid> 1000 5
 ```
 
-```text
+```txt
 MU 稳定在 48MB，不再增长
 ```
 
@@ -432,7 +432,7 @@ jcmd <pid> VM.class_stats | wc -l
 ### 总结
 
 | 排查维度 | Metaspace OOM | 堆 OOM |
-|---------|--------------|--------|
+| :-- | :-- | :-- |
 | 监控指标 | `jstat -gc` 的 MU 持续增长 | `jstat -gc` 的 OU 持续增长 |
 | Full GC 效果 | MC/MU 不降 | OC/OU 不降 |
 | 类数量 | `jcmd VM.class_stats \| wc -l` 持续增长 | 正常 |
@@ -500,7 +500,7 @@ jmap -dump:format=b,file=/tmp/heap_after.hprof <pid>
 ### 调优效果
 
 | 指标 | 调优前 | 调优后 |
-|------|--------|--------|
+| :-- | :-- | :-- |
 | Full GC 频率 | 每 15~25 秒 1 次 | 0 次 / 小时 |
 | Young GC 停顿 | 80~150ms | 20~45ms |
 | 接口 P99 | 3200ms | 85ms |
@@ -510,7 +510,7 @@ jmap -dump:format=b,file=/tmp/heap_after.hprof <pid>
 ### 总结：如何判断「晋升过快」vs「内存泄漏」
 
 | 特征 | 晋升过快 | 内存泄漏 |
-|------|---------|---------|
+| :-- | :-- | :-- |
 | Full GC 后的老年代 | 明显下降（如 6G→4G） | 基本不降（6G→5.9G） |
 | MAT 分析 | 热点对象类型正常，只是量大 | 特定类型持续增长 |
 | 修复方向 | 调整年轻代/Survivor/晋升阈值 | 代码层修复引用 |
@@ -536,14 +536,14 @@ jstack <pid> > thread.dump
 grep "java.lang.Thread.State" thread.dump | sort | uniq -c | sort -rn
 ```
 
-```text
+```txt
 189 BLOCKED        ← 189 个线程被阻塞！
  11 RUNNABLE
 ```
 
 189 个线程的栈几乎完全一样：
 
-```text
+```txt
 "http-nio-8080-exec-37" #57 daemon prio=5
    java.lang.Thread.State: BLOCKED
     at com.zaxxer.hikari.pool.HikariPool.getConnection(HikariPool.java:200)
@@ -560,7 +560,7 @@ grep "java.lang.Thread.State" thread.dump | sort | uniq -c | sort -rn
 
 搜 `HikariPool` 相关线程，找持有锁的那个：
 
-```text
+```txt
 "http-nio-8080-exec-28" #48 daemon prio=5
    java.lang.Thread.State: RUNNABLE
     at java.net.SocketInputStream.socketRead0(Native Method)
@@ -580,7 +580,7 @@ exec-28 持有 HikariPool 的锁，并在 `socketRead0` 上——它在等数据
 SHOW FULL PROCESSLIST;
 ```
 
-```text
+```txt
 | Id  | User | Host            | db    | Command | Time | State        | Info                        |
 | 108 | app  | 10.0.1.5:45231  | order | Query   | 284  | Sending data | SELECT * FROM orders WHERE...|
 | 109 | app  | 10.0.1.5:45232  | order | Sleep   | 0    |              | NULL                        |
@@ -675,7 +675,7 @@ public class OrderService {
 ### 连接池泄漏的诊断信号
 
 | 信号 | 工具 | 含义 |
-|------|------|------|
+| :-- | :-- | :-- |
 | 大量线程 BLOCKED 在 `getConnection()` | `jstack` | 连接池耗尽 |
 | `HikariPool` 的 `ActiveConnections` = `maximumPoolSize` | Actuator `/actuator/metrics` | 所有连接都在用 |
 | `PendingConnections` > 0 | Actuator | 有线程在等连接 |
@@ -716,7 +716,7 @@ trace com.example.report.ReportController query -n 5 --skipJDKMethod false
 
 输出：
 
-```text
+```txt
 `---ts=2025-11-11 10:30:15;thread_name=http-nio-8080-exec-12;id=2a;
     `---[98.23% 2890.123ms] ReportController:query()
         +---[0.12% 3.456ms] RequestValidator:validate()
@@ -735,7 +735,7 @@ watch com.example.report.FieldFilter apply '{params, returnObj, throwExp}' -x 3
 
 输出：
 
-```text
+```txt
 params[0]: FieldFilterConfig{
   whitelist=["id","name","amount","createTime","updateTime","category","tags"],
   inputFields: ["id","name","amount","createTime","updateTime","description","status","category","tags","version","createdBy","updatedBy","deletedAt"],
@@ -758,7 +758,7 @@ jcmd <pid> JFR.start name=fieldfilter settings=profile duration=60s filename=/tm
 
 在 JMC 的「Method Profiling」面板中，`FieldFilter.apply()` 的 CPU 采样显示：
 
-```text
+```txt
 FieldFilter.apply()                   98.2%  CPU
   └─ FieldFilter.isFieldAllowed()    97.8%  CPU
        └─ String.matches()           97.6%  CPU
@@ -817,7 +817,7 @@ public class FieldFilter {
 
 修复后 Arthas trace 验证：
 
-```text
+```txt
 `---ts=2025-11-11 11:05:30;thread_name=http-nio-8080-exec-8;
     `---[100% 52.341ms] ReportController:query()
         +---[0.45% 0.234ms] RequestValidator:validate()
@@ -831,7 +831,7 @@ public class FieldFilter {
 修复前后各录制一份 JFR，在 JMC 中对比：
 
 | 指标 | 修复前 | 修复后 |
-|------|--------|--------|
+| :-- | :-- | :-- |
 | HTTP 请求平均响应 | 2890ms | 52ms |
 | `FieldFilter.apply()` CPU 占比 | 97.5% | 0.5% |
 | GC 停顿总时间（60 秒窗口） | 12.3 秒 | 0.8 秒 |
@@ -842,7 +842,7 @@ public class FieldFilter {
 ### 总结：Arthas vs JFR 的选择
 
 | 场景 | 推荐工具 | 原因 |
-|------|---------|------|
+| :-- | :-- | :-- |
 | 快速看哪个方法慢 | Arthas `trace` | 实时、直观 |
 | 看方法入参/返回值 | Arthas `watch` | 精确到每次调用 |
 | 确认线上代码版本 | Arthas `jad` | 反编译运行时字节码 |

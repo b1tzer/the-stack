@@ -15,7 +15,7 @@ HTTP 是请求-响应模型，服务端无法主动推数据给客户端。聊�
 
 WebSocket 在单个 TCP 连接上提供全双工通信，一次握手后双方可以随时互发消息，不再受请求-响应的约束。握手过程：
 
-```text
+```txt
 客户端 → 服务端: HTTP GET /ws (Upgrade: websocket)
 服务端 → 客户端: HTTP 101 Switching Protocols
 ─── 协议升级完成，WebSocket 连接建立 ───
@@ -100,7 +100,7 @@ stompClient.connect({}, () => {
 
 STOMP（Simple Text Oriented Messaging Protocol）在 WebSocket 上定义了一层消息协议，类似 HTTP 的帧格式：
 
-```text
+```txt
 SEND
 destination:/app/chat.send
 content-type:application/json
@@ -116,7 +116,7 @@ Spring 推荐 STOMP 的原因：与 Spring 消息生态（`@MessageMapping`、`S
 ### 3.2 STOMP 核心命令
 
 | 命令 | 方向 | 作用 |
-|------|------|------|
+| :-- | :-- | :-- |
 | CONNECT | 客户端→服务端 | 建立 STOMP 会话 |
 | SUBSCRIBE | 客户端→服务端 | 订阅目的地 |
 | UNSUBSCRIBE | 客户端→服务端 | 取消订阅 |
@@ -132,7 +132,7 @@ Spring 推荐 STOMP 的原因：与 Spring 消息生态（`@MessageMapping`、`S
 
 ### 4.1 路径分工
 
-```text
+```txt
 客户端订阅: /topic/chat/1001  →  接收群聊消息
 客户端订阅: /user/queue/notify →  接收个人通知
 客户端发送: /app/chat.send     →  转发到 @MessageMapping("/chat.send")
@@ -282,7 +282,7 @@ public class WebSocketSecurityConfig {
 
 `SimpleBroker` 只在当前 JVM 进程内有效。集群环境下：
 
-```text
+```txt
 用户 A 连接实例 1，订阅 /topic/chat
 用户 B 连接实例 2，发送消息到 /topic/chat
 实例 2 的 SimpleBroker 只推给本实例的订阅者
@@ -311,7 +311,7 @@ public class WebSocketClusterConfig implements WebSocketMessageBrokerConfigurer 
 }
 ```
 
-```text
+```txt
 ┌──────────┐     ┌──────────┐     ┌──────────┐
 │  实例 A   │     │ 实例 B   │     │  实例 C   │
 │  用户1    │     │ 用户2    │     │  用户3    │
@@ -450,7 +450,7 @@ stompClient.connect({ 'Authorization': 'Bearer ' + token }, onConnect);
 ## 10. WebSocket vs SSE
 
 | 维度 | WebSocket | SSE |
-|------|-----------|-----|
+| :-- | :-- | :-- |
 | 通信方向 | 双向 | 服务端→客户端单向 |
 | 协议 | 独立协议（ws://） | 基于 HTTP |
 | 自动重连 | 需手动实现 | 浏览器原生支持 |

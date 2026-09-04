@@ -14,7 +14,7 @@
 jstat -gcutil <pid> 1000
 ```
 
-```text
+```txt
   S0     S1     E      O      M     YGC     YGCT    FGC    FGCT     GCT
   0.00  45.23  98.12  32.45  45.23  1234   185.234    0    0.000  185.234
   0.00  52.34  12.45  32.67  45.24  1235   185.378    0    0.000  185.378
@@ -34,7 +34,7 @@ jcmd <pid> JFR.start duration=60s filename=alloc.jfr
 
 在 JMC 中打开 `alloc.jfr`，进入 "Allocation" 面板，按 Total Allocated 排序：
 
-```text
+```txt
 Method                                      | Total Allocated | %
 com.example.PaymentCallbackService.callback | 8.2 GB          | 34.2%  ← 60 秒内分配了 8.2GB！
 java.lang.StringBuilder.toString()          | 5.1 GB          | 21.3%
@@ -96,7 +96,7 @@ public class PaymentCallbackService {
 ### 1.6 效果对比
 
 | 指标 | 修复前 | 修复后 |
-|------|--------|--------|
+| :-- | :-- | :-- |
 | 每秒分配速率 | 137 MB/s | 18 MB/s |
 | Young GC 频率 | 每秒 1 次 | 每 8 秒 1 次 |
 | 单次 YGCT | 134 ms | 18 ms |
@@ -106,6 +106,7 @@ public class PaymentCallbackService {
 ### 1.7 教训
 
 日志拼接是 Java 服务中最容易被忽视的 GC 压力源。两个常见高危模式：
+
 1. `logger.info("xxx " + a + " yyy " + b)` —— 即使日志级别是 WARN，拼接也照样执行
 2. `String.format()` 在日志中 —— 内部有 `synchronized`，是性能杀手
 
@@ -125,7 +126,7 @@ public class PaymentCallbackService {
 -XX:+PrintGCDetails -XX:+PrintGCDateStamps -Xloggc:gc.log
 ```
 
-```text
+```txt
 [10:00:15.234] GC(421) Pause Young (Normal) (G1 Evacuation Pause)
   [Eden: 3072.0M(3072.0M)->0.0B(3072.0M)
    Survivors: 256.0M->256.0M
@@ -140,7 +141,7 @@ G1 日志中关注的对象复制（Object Copy）耗时异常——**420ms**。
 
 索引热更新的过程：
 
-```text
+```txt
 1. 加载新索引：500MB 的 Map 结构在 Eden 区创建
 2. Eden 区满（3GB + 500MB 新索引 > 3GB）→ 触发 Young GC
 3. 这些索引对象大部分会存活 → 复制到 Survivor 区
@@ -196,7 +197,7 @@ public void switchIndex(String indexPath) {
 ### 2.5 总结
 
 | 场景特征 | 表象 | 根因 | 修复方向 |
-|---------|------|------|---------|
+| :-- | :-- | :-- | :-- |
 | 大规模长生命对象 | 间歇性 Young GC 耗时暴增 | Object Copy 阶段过大 | `MaxTenuringThreshold=1` / 断流预热 |
 | 15 分钟周期 + P99 毛刺同步 | 毛刺与索引更新时间吻合 | 索引替换触发的复制风暴 | 灰度分批 + 断流预热 |
 
@@ -206,7 +207,7 @@ public void switchIndex(String indexPath) {
 
 某离线 HBase 集群，JDK 8 + G1，`-XX:MaxGCPauseMillis=500`。运行一段时间后，垃圾收集停顿经常达到 3 秒以上。GC 日志暴露了一个令人困惑的事实：
 
-```text
+```txt
 [Times: user=0.12 sys=0.02, real=2.26 secs]
 ```
 
@@ -220,7 +221,7 @@ user=0.12 秒——GC 线程实际干活只花了 120ms。但 real=2.26 秒—�
 
 输出：
 
-```text
+```txt
 vmop [threads: total initially_running wait_to_block] [time: spin block sync cleanup vmop] page_trap_count
 GC(12) [ 482   3    0 ] [ 2255  0   2   0  140  ] 0
 ```
@@ -237,7 +238,7 @@ GC(12) [ 482   3    0 ] [ 2255  0   2   0  140  ] 0
 
 当等待某线程超过 2000ms 时，JVM 打印：
 
-```text
+```txt
 # SafepointSynchronize::begin: Timeout detected:
 # Threads which did not reach the safepoint:
 # "RpcServer.listener,port=24600" #32 daemon prio=5
@@ -286,7 +287,7 @@ while (true) {
 ### 3.7 延伸：SafePoint 延迟的常见元凶
 
 | 元凶 | 原因 | 修复 |
-|------|------|------|
+| :-- | :-- | :-- |
 | 可数循环无 SafePoint | JIT 优化：`int` 索引的循环不插检查 | `-XX:+UseCountedLoopSafepoints` |
 | 偏向锁批量撤销 | JDK 8 偏向锁撤销触发长 SafePoint 同步 | `-XX:-UseBiasedLocking`（JDK 15+ 默认关闭） |
 | jstack 触发 ThreadDump vmop | jstack 本身需要 SafePoint | 低峰期操作，用 `jcmd Thread.dump_to_file` |
@@ -306,7 +307,7 @@ jmap -dump:format=b,file=heap.hprof <pid>
 
 MAT 的 Histogram 按 Retained Heap 排序：
 
-```text
+```txt
 char[]                         2,452,345,678 bytes    ← 24 亿字节！
 java.lang.String                 612,345,678 bytes
 java.lang.StringBuilder          512,234,567 bytes
@@ -314,7 +315,7 @@ java.lang.StringBuilder          512,234,567 bytes
 
 点开 `char[]` 的引用链：
 
-```text
+```txt
 所有 char[] 的 Shallow Heap 都是精确的 2MB+
 → 内容一半是日志文本，一半是 \u0000（空字符填充）
 → 来自 StringBuilder 的预分配机制
@@ -338,7 +339,7 @@ jcmd <pid> VM.flags
 
 ### 4.4 第三步：链条复盘
 
-```text
+```txt
 1. 业务代码用 StringBuilder 拼接日志（扩展参数多、内容长）
 2. StringBuilder 内部 char[] 扩容到 2MB+
 3. -XX:PretenureSizeThreshold=2097152 判定为大对象 → 直接分入老年代
@@ -379,7 +380,7 @@ Full GC 从每天 40 次降到不到 1 次，老年代使用率稳定在 35%。
 ## 5. 四个案例的共同诊断信号
 
 | 信号 | 工具 | 本案例编号 |
-|------|------|----------|
+| :-- | :-- | :-- |
 | Eden 每秒满 → Young GC 频率 > 1 次/秒 | `jstat -gcutil 1000` | 案例 7 |
 | Object Copy 阶段耗时异常 | G1 GC 日志 `real=` | 案例 8 |
 | GC 实际耗时（user）远小于停顿耗时（real） | GC 日志对比 user/real | 案例 9 |

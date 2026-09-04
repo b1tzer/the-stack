@@ -89,25 +89,9 @@ log.info(\"支付信息: cardNo={}\", SensitiveDataUtil.maskPhone(cardNo));
 // 4. 限流（防 DDoS）
 // 5. 输入校验
 // 6. CORS 配置
-
-@Configuration
-public class WebSecurityConfig {
-    
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of(\"https://www.example.com\"));  // 不要用 *
-        config.setAllowedMethods(List.of(\"GET\", \"POST\", \"PUT\", \"DELETE\"));
-        config.setAllowedHeaders(List.of(\"Authorization\", \"Content-Type\"));
-        config.setAllowCredentials(true);
-        config.setMaxAge(3600L);
-        
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration(\"/api/**\", config);
-        return source;
-    }
-}
 ```
+
+CORS 配置要点：允许的来源用白名单（不要用 `*`）、限制允许的方法与请求头、按需开启凭证携带。各框架的 CORS 配置见 [Spring Security](../../spring/05-security/chapter-04-security-practice)。
 
 ## 4. 依赖安全
 
@@ -125,7 +109,7 @@ mvn versions:display-dependency-updates
 ## 5. 安全开发流程
 
 | 阶段 | 安全活动 |
-|------|----------|
+| :-- | :-- |
 | 需求 | 安全需求分析、威胁建模 |
 | 设计 | 安全架构评审 |
 | 编码 | 安全编码规范、代码审查 |

@@ -153,7 +153,7 @@ sync_binlog = 1                        # 与 innodb_flush_log_at_trx_commit=1 �
 ## 6. 关键参数调优说明
 
 | 参数 | 默认值 | 建议值 | 说明 |
-|------|--------|--------|------|
+| :-- | :-- | :-- | :-- |
 | innodb_buffer_pool_size | 128M | 物理内存 70% | 最重要的参数，缓存数据和索引 |
 | innodb_flush_log_at_trx_commit | 1 | 1 (安全) / 2 (性能) | 1=每次提交刷盘，最安全 |
 | sync_binlog | 1 | 1 (安全) / 100 (性能) | 双1保证数据不丢失 |

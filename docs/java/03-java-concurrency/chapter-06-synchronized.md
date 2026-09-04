@@ -102,7 +102,7 @@ public void syncBlock() {
 
 `monitorenter` 真正操作的是对象关联的 **ObjectMonitor**（HotSpot 里的 C++ 结构）：
 
-```text
+```txt
              ┌──────────────────────────────┐
              │        ObjectMonitor          │
              │                              │
@@ -139,7 +139,7 @@ Monitor 的两个动作，落实到 JMM 上：
 
 写到规范里就是 JMM 的"**同一把锁的解锁 happens-before 后续加锁**"。示意：
 
-```text
+```txt
 线程 A                            线程 B
 ─────────────────────            ───────────────────────
 synchronized (lock) {             synchronized (lock) {
@@ -220,7 +220,7 @@ synchronized (queue) {
 
 被 `notify` 唤醒的线程，走的路径是：
 
-```text
+```txt
 Thread-C 状态迁移
 ─────────────────
 在 _WaitSet 中                     WAITING
@@ -264,7 +264,7 @@ Thread-C 状态迁移
 
 `synchronized` 采用**只升不降**的策略：
 
-```text
+```txt
     无锁 ── 首次线程 CAS──▶ 偏向锁
                             │
                    出现竞争  │
@@ -297,7 +297,7 @@ Thread-C 状态迁移
 
 线程 B 尝试获取一把已被线程 A 偏向的锁时，会走这样一条路：
 
-```text
+```txt
 1. JVM 在安全点暂停 A，检查 A 是否还在临界区
 2. 如果 A 已退出 → 撤销偏向，锁回到无锁
    如果 A 仍持有 → 就地升级为轻量级锁，A 继续跑
@@ -318,7 +318,7 @@ Thread-C 状态迁移
 
 轻量级锁自旋若干次仍拿不到，说明持锁线程的临界区并不短：
 
-```text
+```txt
 1. 分配 ObjectMonitor
 2. 对象 Mark Word 改写为"指向 ObjectMonitor 的指针"，标志位 10
 3. 竞争线程 park 到 _EntryList，线程状态变成 BLOCKED

@@ -46,7 +46,7 @@ entityManager.persist(user);
 ### 1.2 详细对比
 
 | 维度 | MyBatis | Hibernate/JPA |
-|------|---------|---------------|
+| :-- | :-- | :-- |
 | **核心理念** | SQL 中心 | 对象中心 |
 | **SQL 控制** | 完全手写 | 框架自动生成（也可手写） |
 | **学习曲线** | 低（会 SQL 就行） | 高（需理解 ORM 概念、生命周期、缓存） |
@@ -83,7 +83,7 @@ Hibernate/JPA 中，一个实体对象从诞生到消亡，会经历几个明确
 
 ### 2.1 三种核心状态
 
-```text
+```txt
 ┌─────────────┐   persist()/save()   ┌──────────────┐   session 关闭   ┌──────────────┐
 │  Transient   │ ────────────────────→ │  Persistent  │ ───────────────→ │   Detached   │
 │  (瞬态)      │                       │  (持久态)     │                  │  (游离态)     │
@@ -95,7 +95,7 @@ Hibernate/JPA 中，一个实体对象从诞生到消亡，会经历几个明确
 ```
 
 | 状态 | 特征 | 举例 |
-|------|------|------|
+| :-- | :-- | :-- |
 | **Transient（瞬态）** | 刚 `new` 出来，数据库中无对应记录，不受 Session 管理 | `User u = new User("张三")` |
 | **Persistent（持久态）** | 已与数据库记录关联，受 Session 管理，修改属性会**自动同步到数据库** | `session.save(u)` 之后 |
 | **Detached（游离态）** | 曾经是持久态，但 Session 已关闭。对象还在，但不再自动同步 | Session 关闭后，对象仍被持有 |
@@ -168,7 +168,7 @@ public class User {
 
 这个行为的底层实现是**代理对象**：Hibernate 不会真的给你一个 `ArrayList<Order>`，而是一个 Proxy，拦截 `getOrders()` 调用，在第一次访问时才发 SQL。
 
-```text
+```txt
 调用 user.getOrders()
        │
        ▼
@@ -231,7 +231,7 @@ User findWithOrders(@Param("id") Long id);
 ### 3.3 Eager vs Lazy 的选择
 
 | | `FetchType.EAGER` | `FetchType.LAZY` |
-|---|---|---|
+| :-- | :-- | :-- |
 | **行为** | 立即加载关联对象 | 访问时才加载 |
 | **SQL** | 一条 JOIN 查询或额外查询 | 按需发 SQL |
 | **适用** | 关联数据几乎总是需要 | 关联数据偶尔需要 |
@@ -353,7 +353,7 @@ MyBatis 天然没有 N+1 问题（因为 SQL 是你写的），但如果你用�
 ### 4.4 对比总结
 
 | 方案 | 框架 | 效果 | 适用场景 |
-|------|------|------|---------|
+| :-- | :-- | :-- | :-- |
 | JOIN FETCH | Hibernate | 一条 SQL，关联数据一起查 | 一对一、一对少 |
 | @BatchSize | Hibernate | 分批查，减少 SQL 数量 | 一对多，数据量大 |
 | EntityGraph | Hibernate | 声明式指定加载图 | Spring Data JPA |
@@ -392,7 +392,7 @@ public class Product {
 
 对应的数据库表：
 
-```text
+```txt
 ┌──────────────────────────────────┐
 │           products               │
 ├──────────────────────────────────┤
@@ -504,7 +504,7 @@ public class Course {
 
 数据库结构：
 
-```text
+```txt
 ┌──────────┐     ┌────────────────┐     ┌──────────┐
 │ students │     │ student_course  │     │ courses  │
 ├──────────┤     ├────────────────┤     ├──────────┤
@@ -547,7 +547,7 @@ public class Truck extends Vehicle {
 ```
 
 | 策略 | 表结构 | 优点 | 缺点 |
-|------|--------|------|------|
+| :-- | :-- | :-- | :-- |
 | `SINGLE_TABLE` | 一张表，用鉴别列区分 | 查询最快，无 JOIN | 列浪费（NULL 多） |
 | `TABLE_PER_CLASS` | 每个子类一张表 | 结构清晰 | 多态查询需 UNION |
 | `JOINED` | 父类和子类各一张表，用 JOIN 关联 | 无冗余，结构规范 | 查询需 JOIN，性能较差 |
@@ -558,7 +558,7 @@ public class Truck extends Vehicle {
 
 ORM 是一把双刃剑。它把开发者从重复的 JDBC 代码中解放出来，但也引入了新的复杂性：
 
-```text
+```txt
 ┌─────────────────────────────────────────────────────────┐
 │                    ORM 的本质                             │
 │                                                         │

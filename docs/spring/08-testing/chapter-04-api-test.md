@@ -143,7 +143,7 @@ void shouldReturnUserList() {
 ### 1.5 REST Assured vs MockMvc 对比
 
 | 维度 | REST Assured | MockMvc |
-|------|-------------|--------|
+| :-- | :-- | :-- |
 | 风格 | BDD（given/when/then） | 链式 API |
 | 可读性 | ⭐⭐⭐⭐⭐ 接近自然语言 | ⭐⭐⭐ 较啰嗦 |
 | 环境 | 需要真实/随机端口 | Mock Servlet |
@@ -207,7 +207,7 @@ Contract.make {
 ### 2.3 Spring Cloud Contract vs 传统集成测试
 
 | 特性 | Spring Cloud Contract | 传统集成测试 |
-|------|---------------------|-------------|
+| :-- | :-- | :-- |
 | 契约定义 | 消费者定义（Groovy/YAML） | 无明确契约 |
 | 测试方向 | 消费者驱动 | 提供者自测 |
 | 接口兼容性 | ✅ 自动验证 | ❌ 手动保证 |
@@ -222,7 +222,7 @@ Contract.make {
 ## 本章总结
 
 | 测试类型 | 工具/注解 | 速度 | 适用场景 |
-|---------|---------|------|--------|
+| :-- | :-- | :-- | :-- |
 | 单元测试 | JUnit 5 + Mockito | ⚡ 极快 | 业务逻辑验证 |
 | 集成测试 | @SpringBootTest | 🐢 慢 | 多组件协作 |
 | Web 测试 | @WebMvcTest + MockMvc | ⚡ 快 | Controller 层 |

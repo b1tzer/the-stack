@@ -31,7 +31,7 @@ class UserControllerIntegrationTest {
 `webEnvironment` 选项：
 
 | 选项 | 说明 | 适用场景 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | `MOCK` | Mock Servlet 环境（默认） | 不启动真实服务器 |
 | `RANDOM_PORT` | 启动真实服务器，随机端口 | 需要真实 HTTP 调用 |
 | `DEFINED_PORT` | 使用配置的端口 | 特定端口需求 |
@@ -232,7 +232,7 @@ void shouldReturn400WhenValidationFails() throws Exception {
 ### 2.6 MockMvc 常用断言
 
 | 断言 | 验证内容 |
-|------|---------|
+| :-- | :-- |
 | `status().isOk()` | 状态码 200 |
 | `status().isCreated()` | 状态码 201 |
 | `status().isBadRequest()` | 状态码 400 |
@@ -337,7 +337,7 @@ class UserJsonTest {
 ### 3.4 测试切片对比
 
 | 切片注解 | 加载范围 | 启动速度 | 适用场景 |
-|---------|---------|---------|--------|
+| :-- | :-- | :-- | :-- |
 | `@SpringBootTest` | 整个应用上下文 | 慢（5-15s） | 完整集成测试 |
 | `@WebMvcTest` | Controller + Web 层 | 快（1-3s） | 测试 HTTP 接口 |
 | `@DataJpaTest` | JPA + DataSource | 快（1-3s） | 测试 Repository |

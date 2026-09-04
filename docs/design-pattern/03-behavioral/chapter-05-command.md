@@ -85,7 +85,7 @@ remote.pressUndo(); // 撤销 → 关灯
 ### 1.4 在 Spring / JDK 中的应用
 
 | 框架/类 | 说明 |
-|--------|------|
+| :-- | :-- |
 | `Runnable` / `Callable` | 将任务封装为对象，提交给线程池执行 |
 | 线程池 `ThreadPoolExecutor` | 命令队列（BlockingQueue）存储待执行的任务 |
 | Spring Batch `Step` | 每个 Step 是一个命令对象 |
@@ -156,7 +156,7 @@ for (Book book : shelf) {
 ### 2.4 在 Spring / JDK 中的应用
 
 | 框架/类 | 说明 |
-|--------|------|
+| :-- | :-- |
 | `java.util.Iterator` | JDK 标准迭代器接口 |
 | `Iterable` + for-each | 语法糖，编译后使用 Iterator |
 | `Stream` | Java 8 内部迭代器，支持惰性求值 |
@@ -237,7 +237,7 @@ public class User {
 ### 3.4 在 Spring / JDK 中的应用
 
 | 框架/类 | 说明 |
-|--------|------|
+| :-- | :-- |
 | Spring `ApplicationEventPublisher` | 事件发布者作为中介，解耦事件生产者和消费者 |
 | MQ（Kafka/RabbitMQ） | 消息队列作为中介，解耦生产者和消费者 |
 | `java.util.Timer` | 定时器作为中介，协调多个 TimerTask |
@@ -321,7 +321,7 @@ editor.restore(history.pop()); // 撤销 → 回到 "Hello"
 ### 4.4 在 Spring / JDK 中的应用
 
 | 框架/类 | 说明 |
-|--------|------|
+| :-- | :-- |
 | 数据库 Undo Log | 事务回滚时恢复数据的历史状态 |
 | `Serializable` | 序列化就是保存对象状态的一种方式 |
 | Spring `@Transactional` 回滚 | 事务失败时恢复到事务开始前的状态 |
@@ -422,7 +422,7 @@ order.nextStep(); // 已发货 → 已完成
 ### 5.4 状态模式 vs 策略模式
 
 | 对比维度 | 状态模式 | 策略模式 |
-|---------|---------|---------|
+| :-- | :-- | :-- |
 | **切换方式** | 状态自动转换（内部驱动） | 客户端主动选择（外部驱动） |
 | **关注点** | 对象在不同状态下的行为差异 | 算法的可替换性 |
 | **状态感知** | 状态对象知道下一个状态是什么 | 策略对象不知道其他策略 |
@@ -512,7 +512,7 @@ System.out.println("总面积: " + calc.getTotalArea());
 ### 6.4 在 Spring / JDK 中的应用
 
 | 框架/类 | 说明 |
-|--------|------|
+| :-- | :-- |
 | 编译器 AST 遍历 | 对语法树节点执行不同操作（类型检查、代码生成） |
 | Spring `BeanDefinitionVisitor` | 访问并处理 BeanDefinition 中的属性 |
 | `FileVisitor` (NIO) | 遍历文件树时执行不同操作 |
@@ -588,7 +588,7 @@ System.out.println(expr.interpret()); // 输出 16
 ### 7.4 在 Spring / JDK 中的应用
 
 | 框架/类 | 说明 |
-|--------|------|
+| :-- | :-- |
 | Spring EL (SpEL) | `#{user.name}` 表达式解析 |
 | 正则表达式 `Pattern` | 正则语法的解释执行 |
 | MyBatis 动态 SQL | `<if>`、`<where>` 等标签的解析 |
@@ -602,7 +602,7 @@ System.out.println(expr.interpret()); // 输出 16
 ## 8. 七种模式对比总结
 
 | 模式 | 核心思想 | 解决的问题 | 关键词 |
-|------|---------|-----------|--------|
+| :-- | :-- | :-- | :-- |
 | **命令模式** | 封装请求 | 请求需要排队/撤销/记录 | 请求对象化、Undo |
 | **迭代器模式** | 统一遍历 | 不同集合遍历方式不一致 | hasNext/next |
 | **中介者模式** | 集中交互 | 对象间网状耦合 | 星型拓扑 |

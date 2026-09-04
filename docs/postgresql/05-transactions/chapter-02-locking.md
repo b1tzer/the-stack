@@ -10,7 +10,7 @@ title: 锁机制
 ## 1. 表级锁
 
 | 锁模式 | 典型触发语句 | 与自身冲突 | 说明 |
-|--------|------------|-----------|------|
+| :-- | :-- | :-- | :-- |
 | `ACCESS SHARE` | SELECT | ❌ | 最弱的锁，只与 ACCESS EXCLUSIVE 冲突 |
 | `ROW SHARE` | SELECT FOR UPDATE | ❌ | |
 | `ROW EXCLUSIVE` | INSERT/UPDATE/DELETE | ❌ | |
@@ -36,7 +36,7 @@ SELECT * FROM accounts WHERE id = 1 FOR KEY SHARE;
 ```
 
 | 行锁模式 | 阻塞 FOR UPDATE | 阻塞 FOR NO KEY UPDATE | 阻塞 FOR SHARE | 阻塞 FOR KEY SHARE |
-|---------|----------------|----------------------|---------------|-------------------|
+| :-- | :-- | :-- | :-- | :-- |
 | FOR UPDATE | ✅ | ✅ | ✅ | ✅ |
 | FOR NO KEY UPDATE | ✅ | ✅ | ✅ | ❌ |
 | FOR SHARE | ✅ | ✅ | ❌ | ❌ |

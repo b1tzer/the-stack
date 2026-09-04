@@ -7,7 +7,7 @@
 **BCrypt 为什么比 MD5 安全**：
 
 | 特性 | MD5 | SHA-256 | BCrypt |
-|------|-----|---------|--------|
+| :-- | :-- | :-- | :-- |
 | 类型 | 哈希 | 哈希 | 自适应哈希 |
 | 盐值（Salt） | ❌ 需要手动加 | ❌ 需要手动加 | ✅ 自动生成 |
 | 计算速度 | ⚡ 极快（10 亿次/秒） | ⚡ 快 | 🐌 故意慢（可调节） |
@@ -218,7 +218,7 @@ public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 **常见安全头说明**：
 
 | 安全头 | 作用 | 推荐值 |
-|--------|------|--------|
+| :-- | :-- | :-- |
 | `Content-Security-Policy` | 限制资源加载来源，防 XSS | `default-src 'self'` |
 | `X-Frame-Options` | 防止页面被 iframe 嵌入 | `DENY` 或 `SAMEORIGIN` |
 | `Strict-Transport-Security` | 强制使用 HTTPS | `max-age=31536000; includeSubDomains` |
@@ -369,7 +369,7 @@ public Order createOrder(@RequestBody OrderRequest request) {
 **安全清单：**
 
 | 类别 | 措施 | 优先级 |
-|------|------|--------|
+| :-- | :-- | :-- |
 | **传输安全** | 全站 HTTPS，HSTS 头部 | 🔴 必须 |
 | **认证** | BCrypt 密码哈希，JWT 签名验证 | 🔴 必须 |
 | **授权** | RBAC 权限模型，接口级 + 数据级 | 🔴 必须 |

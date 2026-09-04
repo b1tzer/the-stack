@@ -6,7 +6,7 @@
 
 ### 1.1 SQL 映射器 vs 对象关系映射
 
-```text
+```txt
 MyBatis 路线：
   Java 方法 → SQL 语句 → 结果集 → Java 对象
   你写 SQL，MyBatis 帮你映射
@@ -44,7 +44,7 @@ JPA 路线：
 
 ### 2.1 决策流程图
 
-```text
+```txt
 新项目选型：
 │
 ├── 团队 SQL 能力强？

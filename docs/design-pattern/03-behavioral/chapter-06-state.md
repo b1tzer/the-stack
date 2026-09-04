@@ -268,7 +268,7 @@ public class Main {
 ## 5. 🔧 框架应用
 
 | 框架/类 | 说明 |
-|--------|------|
+| :-- | :-- |
 | Spring State Machine | Spring 官方状态机框架 |
 | `Thread.State` | 线程状态：NEW → RUNNABLE → BLOCKED → WAITING → TERMINATED |
 | TCP 连接状态 | LISTEN → SYN_SENT → ESTABLISHED → FIN_WAIT → CLOSED |
@@ -292,7 +292,7 @@ public class Main {
 ## 7. 🔍 状态模式 vs 策略模式
 
 | 对比维度 | 状态模式 | 策略模式 |
-|---------|---------|---------|
+| :-- | :-- | :-- |
 | **切换方式** | 状态**自动转换**（内部驱动） | 客户端**主动选择**（外部驱动） |
 | **关注点** | 对象在不同状态下的**行为差异** | **算法**的可替换性 |
 | **状态感知** | 状态对象**知道**下一个状态是什么 | 策略对象**不知道**其他策略 |

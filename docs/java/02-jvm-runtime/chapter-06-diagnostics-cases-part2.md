@@ -14,7 +14,7 @@
 jstat -gcutil <pid> 1000
 ```
 
-```text
+```txt
   S0     S1     E      O      M     YGC     YGCT    FGC    FGCT     GCT
   0.00  45.23  98.12  32.45  45.23  1234   185.234    0    0.000  185.234
   0.00  52.34  12.45  32.67  45.24  1235   185.378    0    0.000  185.378
@@ -34,7 +34,7 @@ jcmd <pid> JFR.start duration=60s filename=alloc.jfr
 
 在 JMC 中打开 `alloc.jfr`，进入 "Allocation" 面板，按 Total Allocated 排序：
 
-```text
+```txt
 Method                                      | Total Allocated | %
 com.example.PaymentCallbackService.callback | 8.2 GB          | 34.2%  ← 60 秒内分配了 8.2GB！
 java.lang.StringBuilder.toString()          | 5.1 GB          | 21.3%
@@ -96,7 +96,7 @@ public class PaymentCallbackService {
 ### 1.6 效果对比
 
 | 指标 | 修复前 | 修复后 |
-|------|--------|--------|
+| :-- | :-- | :-- |
 | 每秒分配速率 | 137 MB/s | 18 MB/s |
 | Young GC 频率 | 每秒 1 次 | 每 8 秒 1 次 |
 | 单次 YGCT | 134 ms | 18 ms |
@@ -106,6 +106,7 @@ public class PaymentCallbackService {
 ### 1.7 教训
 
 日志拼接是 Java 服务中最容易被忽视的 GC 压力源。两个常见高危模式：
+
 1. `logger.info("xxx " + a + " yyy " + b)` —— 即使日志级别是 WARN，拼接也照样执行
 2. `String.format()` 在日志中 —— 内部有 `synchronized`，是性能杀手
 
@@ -125,7 +126,7 @@ public class PaymentCallbackService {
 -XX:+PrintGCDetails -XX:+PrintGCDateStamps -Xloggc:gc.log
 ```
 
-```text
+```txt
 [10:00:15.234] GC(421) Pause Young (Normal) (G1 Evacuation Pause)
   [Eden: 3072.0M(3072.0M)->0.0B(3072.0M)
    Survivors: 256.0M->256.0M
@@ -140,7 +141,7 @@ G1 日志中关注的对象复制（Object Copy）耗时异常——**420ms**。
 
 索引热更新的过程：
 
-```text
+```txt
 1. 加载新索引：500MB 的 Map 结构在 Eden 区创建
 2. Eden 区满（3GB + 500MB 新索引 > 3GB）→ 触发 Young GC
 3. 这些索引对象大部分会存活 → 复制到 Survivor 区
@@ -196,7 +197,7 @@ public void switchIndex(String indexPath) {
 ### 2.5 总结
 
 | 场景特征 | 表象 | 根因 | 修复方向 |
-|---------|------|------|---------|
+| :-- | :-- | :-- | :-- |
 | 大规模长生命对象 | 间歇性 Young GC 耗时暴增 | Object Copy 阶段过大 | `MaxTenuringThreshold=1` / 断流预热 |
 | 15 分钟周期 + P99 毛刺同步 | 毛刺与索引更新时间吻合 | 索引替换触发的复制风暴 | 灰度分批 + 断流预热 |
 
@@ -206,7 +207,7 @@ public void switchIndex(String indexPath) {
 
 某离线 HBase 集群，JDK 8 + G1，`-XX:MaxGCPauseMillis=500`。运行一段时间后，垃圾收集停顿经常达到 3 秒以上。GC 日志暴露了一个令人困惑的事实：
 
-```text
+```txt
 [Times: user=0.12 sys=0.02, real=2.26 secs]
 ```
 
@@ -220,7 +221,7 @@ user=0.12 秒——GC 线程实际干活只花了 120ms。但 real=2.26 秒—�
 
 输出：
 
-```text
+```txt
 vmop [threads: total initially_running wait_to_block] [time: spin block sync cleanup vmop] page_trap_count
 GC(12) [ 482   3    0 ] [ 2255  0   2   0  140  ] 0
 ```
@@ -237,7 +238,7 @@ GC(12) [ 482   3    0 ] [ 2255  0   2   0  140  ] 0
 
 当等待某线程超过 2000ms 时，JVM 打印：
 
-```text
+```txt
 # SafepointSynchronize::begin: Timeout detected:
 # Threads which did not reach the safepoint:
 # "RpcServer.listener,port=24600" #32 daemon prio=5
@@ -286,7 +287,7 @@ while (true) {
 ### 3.7 延伸：SafePoint 延迟的常见元凶
 
 | 元凶 | 原因 | 修复 |
-|------|------|------|
+| :-- | :-- | :-- |
 | 可数循环无 SafePoint | JIT 优化：`int` 索引的循环不插检查 | `-XX:+UseCountedLoopSafepoints` |
 | 偏向锁批量撤销 | JDK 8 偏向锁撤销触发长 SafePoint 同步 | `-XX:-UseBiasedLocking`（JDK 15+ 默认关闭） |
 | jstack 触发 ThreadDump vmop | jstack 本身需要 SafePoint | 低峰期操作，用 `jcmd Thread.dump_to_file` |
@@ -306,7 +307,7 @@ jmap -dump:format=b,file=heap.hprof <pid>
 
 MAT 的 Histogram 按 Retained Heap 排序：
 
-```text
+```txt
 char[]                         2,452,345,678 bytes    ← 24 亿字节！
 java.lang.String                 612,345,678 bytes
 java.lang.StringBuilder          512,234,567 bytes
@@ -314,7 +315,7 @@ java.lang.StringBuilder          512,234,567 bytes
 
 点开 `char[]` 的引用链：
 
-```text
+```txt
 所有 char[] 的 Shallow Heap 都是精确的 2MB+
 → 内容一半是日志文本，一半是 \u0000（空字符填充）
 → 来自 StringBuilder 的预分配机制
@@ -338,7 +339,7 @@ jcmd <pid> VM.flags
 
 ### 4.4 第三步：链条复盘
 
-```text
+```txt
 1. 业务代码用 StringBuilder 拼接日志（扩展参数多、内容长）
 2. StringBuilder 内部 char[] 扩容到 2MB+
 3. -XX:PretenureSizeThreshold=2097152 判定为大对象 → 直接分入老年代
@@ -379,7 +380,7 @@ Full GC 从每天 40 次降到不到 1 次，老年代使用率稳定在 35%。
 ## 5. 四个案例的共同诊断信号
 
 | 信号 | 工具 | 本案例编号 |
-|------|------|----------|
+| :-- | :-- | :-- |
 | Eden 每秒满 → Young GC 频率 > 1 次/秒 | `jstat -gcutil 1000` | 案例 7 |
 | Object Copy 阶段耗时异常 | G1 GC 日志 `real=` | 案例 8 |
 | GC 实际耗时（user）远小于停顿耗时（real） | GC 日志对比 user/real | 案例 9 |
@@ -393,6 +394,7 @@ Full GC 从每天 40 次降到不到 1 次，老年代使用率稳定在 35%。
 2025 年某团队将一个 Spring Boot 服务部署到生产环境后，出现间歇性请求超时——每次卡 10 秒以上，但日志里没有任何业务异常。更诡异的是，容器的 `livenessProbe` 也间歇性超时，触发 K8s 自动重启。重启后恢复，过一段时间又复发。
 
 该团队排查了一圈：
+
 - GC 日志正常，无 Full GC
 - CPU / 内存正常
 - 数据库连接池正常
@@ -409,7 +411,7 @@ jstack -l <pid> > thread.dump
 
 排查者的注意力全部集中在 Tomcat 工作线程上：
 
-```text
+```txt
 "http-nio-8080-exec-1" #42 daemon prio=5
    java.lang.Thread.State: WAITING (parking)
     at sun.misc.Unsafe.park(Native Method)
@@ -434,7 +436,7 @@ logging:
 
 日志中出现了反复出现的一条记录：
 
-```text
+```txt
 o.apache.tomcat.util.threads.LimitLatch : Counting up[http-nio-8080-Acceptor-0] latch=10
 o.apache.tomcat.util.threads.LimitLatch : Counting up[http-nio-8080-Acceptor-0] latch=10
 o.apache.tomcat.util.threads.LimitLatch : Counting up[http-nio-8080-Acceptor-0] latch=10
@@ -444,7 +446,7 @@ o.apache.tomcat.util.threads.LimitLatch : Counting up[http-nio-8080-Acceptor-0] 
 
 他立刻回去翻之前的 `jstack` 输出——Acceptor 线程一直都在那里，但被忽略了：
 
-```text
+```txt
 "http-nio-8080-Acceptor-0" #19 daemon prio=5
    java.lang.Thread.State: WAITING (parking)
     at sun.misc.Unsafe.park(Native Method)
@@ -488,7 +490,7 @@ Tomcat NIO 模式下 `max-connections` 默认值是 10000。这里被改成了 1
 
 理解这个问题需要知道 Tomcat 的一条连接是怎么被交给 worker 线程处理的：
 
-```text
+```txt
 客户端 → OS TCP backlog 队列 → Acceptor 线程 accept() → 连接计数 +1
   → Poller 线程注册到 Selector → Poller 检测到可读事件
   → 交给 Worker 线程池处理（http-nio-8080-exec-*）
@@ -520,7 +522,7 @@ server:
 
 三个参数的关系：
 
-```text
+```txt
 操作系统 TCP backlog（由 acceptCount 控制）
   └→ Acceptor 线程 accept() 后进入 maxConnections 计数的连接池
        └→ Poller 检测到可读数据后交给 maxThreads 个 worker 线程处理
@@ -531,7 +533,7 @@ server:
 ### 6.8 总结
 
 | 信号 | 含义 | 工具 |
-|------|------|------|
+| :-- | :-- | :-- |
 | 工作线程全部 `WAITING`，CPU 低 | 没有新请求进来——问题可能在 Acceptor | `jstack` |
 | Acceptor 线程停在 `LimitLatch.countUpOrAwait` | maxConnections 已打满 | `jstack` |
 | `ss -tnp` 显示连接数恰好 = 某整数 | 确认上限值 | `ss` |
@@ -555,7 +557,7 @@ server:
 kubectl describe pod <pod-name>
 ```
 
-```text
+```txt
 State:          Terminated
   Reason:       OOMKilled
   Exit Code:    137
@@ -565,7 +567,7 @@ Exit Code 137 = `128 + 9`（SIGKILL）。这是 Linux OOM Killer 直接杀进程
 
 用 `kubectl top pod` 看 RSS：
 
-```text
+```txt
 NAME                          CPU(cores)   MEMORY(bytes)
 gateway-pod-xxx               450m         7850Mi   ← 接近 8G limit
 ```
@@ -576,7 +578,7 @@ gateway-pod-xxx               450m         7850Mi   ← 接近 8G limit
 jstat -gcutil <pid> 1000 5
 ```
 
-```text
+```txt
   S0     S1     E      O      M     YGC     YGCT    FGC    FGCT     GCT
   0.00  42.15  56.23  38.12  72.11  1234   23.456    2    1.234   24.690
   0.00  38.45  78.34  39.01  72.12  1235   23.489    2    1.234   24.723
@@ -603,7 +605,7 @@ jcmd <pid> VM.native_memory summary
 
 输出：
 
-```text
+```txt
 Native Memory Tracking:
 
 Total: reserved=7245MB, committed=6812MB
@@ -637,7 +639,7 @@ Total: reserved=7245MB, committed=6812MB
 
 几分钟后，日志中出现：
 
-```text
+```txt
 LEAK: ByteBuf.release() was not called before it's garbage-collected.
 See https://netty.io/wiki/reference-counted-objects.html for more information.
 Recent access records:
@@ -739,7 +741,7 @@ public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
 容器内存分配建议：
 
 | 组件 | 占比 | 8G 容器 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | Java Heap | 50~60% | 4G |
 | Direct Memory | 10~15% | 1G |
 | Thread Stacks | 10~15% | 800M |
@@ -749,7 +751,7 @@ public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
 ### 7.9 排查堆外内存问题的工具链
 
 | 层级 | 工具 | 适用场景 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | 进程级 | `kubectl describe pod` / `dmesg` | 确认 OOMKilled，排除 JVM OOM |
 | 堆级 | `jstat -gcutil` / `jmap -histo` | 确认堆内存正常（从而推断问题在堆外） |
 | 堆外总览 | `jcmd VM.native_memory summary` | 按区域看内存分布，定位到 Direct / Thread / Metaspace |
@@ -759,7 +761,7 @@ public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
 ### 7.10 总结
 
 | 信号 | 含义 | 工具 |
-|------|------|------|
+| :-- | :-- | :-- |
 | Pod OOMKilled、堆正常 | 问题不在堆——在堆外内存 | `kubectl describe pod` + `jstat` |
 | NMT 中 `NIO/Direct` 持续增长 | 直接内存泄漏 | `jcmd VM.native_memory summary` |
 | `LEAK: ByteBuf.release() was not called` | Netty 引用计数泄漏 | `-Dio.netty.leakDetectionLevel=paranoid` |

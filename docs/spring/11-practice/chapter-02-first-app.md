@@ -21,7 +21,7 @@ unzip demo.zip && cd demo
 
 ## 2. 项目结构
 
-```text
+```txt
 demo/
 ├── src/main/java/com/example/demo/
 │   ├── DemoApplication.java

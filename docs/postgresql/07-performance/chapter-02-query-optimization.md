@@ -130,7 +130,7 @@ SELECT * FROM active_users WHERE age > 25;
 ## 5. 索引优化建议
 
 | 场景 | 推荐索引类型 | 示例 |
-|------|------------|------|
+| :-- | :-- | :-- |
 | 等值查询 | B-tree | `CREATE INDEX ON users(email)` |
 | JSONB 字段查询 | GIN | `CREATE INDEX ON docs USING GIN(data)` |
 | 全文检索 | GIN + tsvector | `CREATE INDEX ON articles USING GIN(to_tsvector('chinese', content))` |

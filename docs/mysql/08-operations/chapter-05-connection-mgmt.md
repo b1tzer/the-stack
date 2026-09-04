@@ -218,7 +218,7 @@ SHOW STATUS LIKE 'Max_used_connections_time'; -- 最大连接数发生时间
 ## 7. 最佳实践
 
 | 配置项 | 推荐值 | 说明 |
-|--------|--------|------|
+| :-- | :-- | :-- |
 | max_connections | 200-500 | 根据业务调整 |
 | wait_timeout | 300-600 | 5-10 分钟 |
 | interactive_timeout | 300-600 | 与 wait_timeout 一致 |

@@ -14,7 +14,7 @@ title: 系统视图监控
 ### 关键字段说明
 
 | 字段 | 含义 | Java 开发者关注点 |
-|------|------|------------------|
+| :-- | :-- | :-- |
 | `pid` | 后端进程 ID | 终止卡死连接时使用 |
 | `state` | 活跃/空闲/空闲事务 | 空闲事务可能持有锁不释放 |
 | `query` | 当前执行的 SQL | 排查慢查询 |
@@ -176,7 +176,7 @@ FROM pg_stat_bgwriter;
 ```
 
 | 指标 | 含义 | 告警阈值 |
-|------|------|---------|
+| :-- | :-- | :-- |
 | `checkpoints_req` vs `checkpoints_timed` | 强制检查点占比 | 强制检查点占比 > 50% 说明 checkpoint_timeout 或 max_wal_size 过小 |
 | `buffers_backend` | 后端直接写出的缓冲区 | 占总缓冲区比例高说明 bgwriter 来不及清理 |
 | `buffers_alloc` | 新分配的缓冲区数 | 持续高增长可能表示 shared_buffers 不足 |

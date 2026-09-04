@@ -4,7 +4,7 @@
 
 ## 1. 路由规则
 
-```text
+```txt
 Producer ──routing key="order.created"──▶ Direct Exchange
                                               │
                                     ┌─────────┼─────────┐
@@ -55,7 +55,7 @@ channel.queueBind("notification.queue", "event.exchange", "user.reset-password")
 ## 4. 与 Topic Exchange 的区别
 
 | 特性 | Direct | Topic |
-|------|--------|-------|
+| :-- | :-- | :-- |
 | 匹配方式 | 精确匹配 | 通配符匹配（`*` 和 `#`） |
 | 性能 | 更快（简单字符串比较） | 稍慢（需要模式匹配） |
 | 灵活性 | 低 | 高 |

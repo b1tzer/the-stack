@@ -9,7 +9,7 @@
 ## 2. 字段类型选择
 
 | 场景 | 类型 |
-|------|------|
+| :-- | :-- |
 | 全文搜索 | text |
 | 精确匹配 | keyword |
 | 范围查询 | integer/date |
@@ -89,7 +89,7 @@ PUT /articles
 ## 7. 建模决策清单
 
 | 问题 | 决策 |
-|------|------|
+| :-- | :-- |
 | 字段需要全文搜索？ | 是 → `text`，否 → `keyword` |
 | 字段需要精确匹配/聚合？ | 是 → `keyword` 或 multi-field |
 | 字段需要范围查询？ | 是 → `integer/long/date` |
@@ -104,4 +104,3 @@ PUT /articles
 - `ignore_above` 限制 keyword 字段最大长度（默认 256）
 - 不需要搜索的字段设置 `index: false` 减少索引开销
 - 不需要返回的字段设置 `enabled: false` 跳过索引和存储
-
