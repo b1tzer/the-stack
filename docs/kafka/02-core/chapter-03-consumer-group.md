@@ -71,7 +71,9 @@ Topic 有 3 个分区，消费者组有 5 个消费者
 | 消费者被踢出（poll 超时） | 消费者处理消息太久没调用 poll()，被认为已死 |
 | Topic 分区数增加 | 多了新分区，需要分配给消费者 |
 
-### Rebalance 期间发生了什么
+### 4.1 Rebalance 期间发生了什么 {#rebalance-flow}
+
+上面描述的是 **Eager（急切式）Rebalance**，也是 Kafka 长期以来的默认行为，流程是"全停 → 重新分配 → 恢复"：
 
 ```txt
 1. 某个消费者离开，向 Coordinator 发送 LeaveGroup
@@ -84,9 +86,11 @@ Topic 有 3 个分区，消费者组有 5 个消费者
 8. 每个消费者知道自己的分区，恢复消费
 ```
 
-Rebalance 期间，**所有消费者停止消费**。这不是 Kafka 的 bug，而是有意为之——如果在重新分配的过程中允许消费，可能出现同一个分区被两个消费者同时消费的窗口。
+Eager 模式下，Rebalance 期间**所有消费者停止消费**。这不是 bug，而是有意为之——如果在重新分配过程中允许消费，可能出现同一个分区被两个消费者同时消费的窗口。
 
-## 5. 分配策略
+但"全停"不是唯一选择。Eager 的代价是：哪怕只有一个分区需要迁移，整个组的消费也会整体停顿一次。Kafka 2.4 起（[KIP-429](https://cwiki.apache.org/confluence/display/KAFKA/KIP-429)）引入 **Cooperative（协作式）Rebalance**，把重分配拆成多轮，只暂停真正需要迁移的分区，其余分区照常消费。它由 `CooperativeStickyAssignor` 承载，Kafka 3.0 起成为默认分配策略。两者的取舍见 [§5 分配策略](#assignor)。
+
+## 5. 分配策略 {#assignor}
 
 Kafka 提供了四种分配策略，它们的核心区别在于"Rebalance 时要不要尽量保持原有分配"：
 
@@ -107,6 +111,33 @@ CooperativeSticky（逐步迁移）：
   第2轮：新消费者获取迁移的分区，其他分区不受影响
 ```
 
+### 5.1 选型与版本
+
+四种策略的引入版本与 Rebalance 协议：
+
+| 策略 | 引入版本 | Rebalance 协议 | 依据 |
+| :-- | :-- | :-- | :-- |
+| `RangeAssignor` | 早期（长期默认） | Eager | 3.0 前的默认值 |
+| `RoundRobinAssignor` | 早期 | Eager | 与 Range 同属最早两种 |
+| `StickyAssignor` | 0.11.0.0（2017） | Eager | [KIP-54](https://cwiki.apache.org/confluence/display/KAFKA/KIP-54) |
+| `CooperativeStickyAssignor` | 2.4.0（2019） | Eager / Cooperative | [KIP-429](https://cwiki.apache.org/confluence/display/KAFKA/KIP-429) |
+| 默认改为 `CooperativeSticky` | 3.0（2021） | Cooperative | [KIP-726](https://cwiki.apache.org/confluence/display/KAFKA/KIP-726) |
+
+**生产环境选型**：Kafka 3.0 起默认即 `CooperativeStickyAssignor`，无需配置。Kafka 2.4 起同样可用，显式配置即可：
+
+```java
+props.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG,
+          CooperativeStickyAssignor.class.getName());
+```
+
+::: warning 版本差异
+
+- **2.4+ 可用**：`CooperativeStickyAssignor` 自 2.4.0 引入，2.4 及以后的 2.x 都能用，显式配置即生效，与 3.0 行为等价。
+- **3.0+ 新集群**：默认已是 CooperativeSticky，无需配置，直接受益。
+- **存量老集群迁移**：已在运行的老消费者组要从 `Range/RoundRobin/Sticky` 迁到 Cooperative，必须走 [KIP-429](https://cwiki.apache.org/confluence/display/KAFKA/KIP-429) 的两步滚动升级——第一次滚动把 `CooperativeStickyAssignor` 加到策略列表末尾（此时仍走 Eager），第二次滚动再移除旧的 `Range/RoundRobin/Sticky`。不能一步到位，否则组内新旧消费者混用 Eager / Cooperative 协议，同一分区可能被两个消费者同时认领、都提交 offset。
+- **组内配置必须一致**：`partition.assignment.strategy` 是组级协商出来的，只要组内有一个消费者不支持 Cooperative，整组退回 Eager。
+:::
+
 ## 6. 心跳与 poll：两个超时的含义
 
 消费者需要定期向 Coordinator 报告"我还活着"。有两个超时参数，它们检测的是不同的问题：
@@ -121,7 +152,7 @@ CooperativeSticky（逐步迁移）：
 
 消费者组的 Offset 是整个消费模型的"进度条"。它回答的问题是："这个消费者组消费到了哪里？"
 
-### 自动提交 vs 手动提交
+### 7.1 自动提交 vs 手动提交
 
 **自动提交**（`enable.auto.commit=true`）：消费者每隔 `auto.commit.interval.ms` 自动提交当前 Offset。问题在于：如果消息已经 poll 回来但还没处理完，Offset 已经提交了。此时消费者宕机，重启后从新 Offset 开始，那些未处理的消息就丢了。
 
@@ -129,15 +160,15 @@ CooperativeSticky（逐步迁移）：
 
 这就是为什么 Kafka 的消费端天然支持"At Least Once"——消息可能被重复消费，但不会丢失。要实现 Exactly Once，需要在业务层做幂等处理。
 
-### Offset 存在哪里
+### 7.2 Offset 存在哪里
 
 Offset 存储在 `__consumer_offsets` 这个内部 Topic 中。Key 是 `(group.id, topic, partition)`，Value 是 Offset。选择存 Topic 而不是内存或外部存储，是因为 Topic 本身就有副本和持久化——Offset 不会因为单点故障丢失。
 
-## 8. 静态成员
+## 8. 静态成员 {#static-membership}
 
-传统消费者组中，消费者重启就会触发 Rebalance。但在滚动部署场景下，你希望重启一个消费者不影响其他消费者。
+传统消费者组中，消费者重启就会向 Group Coordinator（Broker）申请新的 `member.id` ，加入群组会触发 Rebalance。但在滚动部署场景下，你希望重启一个消费者不影响其他消费者。
 
-静态成员（`group.instance.id`）解决了这个问题：消费者指定一个固定的 ID，重启后 Coordinator 用 ID 识别它是"同一个消费者"，在 `session.timeout.ms` 内不触发 Rebalance。
+静态成员（`group.instance.id`）解决了这个问题：消费者指定一个固定的 ID，重启后 Coordinator 用 ID 识别它是"同一个消费者"，只要在 `session.timeout.ms` 内重新连接就不触发 Rebalance。
 
 ## 9. Lag 监控
 

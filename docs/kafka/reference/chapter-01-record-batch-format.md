@@ -1,8 +1,8 @@
 # RecordBatch v2 格式
 
-> RecordBatch v2 是 Kafka 0.11+ 使用的消息格式（KIP-98 引入）。本文是字节级参考，面向需要深入底层的读者。
+> RecordBatch v2 是 Kafka 0.11+ 使用的消息格式（[KIP-98](https://cwiki.apache.org/confluence/display/KAFKA/KIP-98) 引入）。本文是字节级参考，面向需要深入底层的读者。
 
-## 批头结构
+## 1. 批头结构
 
 `.log` 文件里不是「一条条消息」，而是「一批批 RecordBatch」。一批的头部固定 61 字节，后面跟变长 `Record[]`：
 
@@ -28,7 +28,7 @@
 
 CRC 覆盖 attributes 之后的所有字节。`partitionLeaderEpoch` 不参与 CRC 计算——它由 Broker 在收到 Produce 请求时才写入，若纳入 CRC 每次都要重算，代价过高。
 
-## 批内 Record 结构
+## 2. 批内 Record 结构
 
 每条 `Record` 使用 varint 编码，只存相对量：
 
@@ -46,7 +46,7 @@ headers[]       Header 数组（KIP-82，0.11 引入）
 
 同批内共享 producerId / baseTimestamp / baseOffset，每条只写增量，压缩比明显高于逐条独立编码。
 
-## 源码参考
+## 3. 源码参考
 
 字节偏移量在 `DefaultRecordBatch` 中以常量形式定义：
 

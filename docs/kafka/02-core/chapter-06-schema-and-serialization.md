@@ -40,7 +40,7 @@ Schema 是一份**独立于代码的消息结构定义**。以 Avro 为例：
 
 只有 Schema 文件不够。多个团队各自维护 `.avsc` 文件会很快失控——版本互相不认、字段冲突、演进无规则。
 
-Schema Registry 是一个独立于 Broker 的 REST 服务，做三件事：
+Schema Registry 是一个独立于 Broker 的 REST 服务进程。它自身不维护独立数据库——schema 数据存在 Kafka 内部主题 `_schemas`（单分区、log-compacted）里，Registry 既是该主题的生产者又是消费者。进程独立于 Broker，存储仍依赖 Kafka。它做三件事：
 
 **存储与版本化**：每个 Topic 的每个版本 Schema 都被登记，分配全局唯一 ID。你注册了 v1、v2、v3，Registry 都记得。
 
@@ -75,21 +75,117 @@ Schema 不是一成不变的。业务发展，字段会增删改。问题是：�
 | FORWARD | 旧 Schema 能读新数据 | 生产者先升级 |
 | FULL | 双向兼容 | 任意顺序 |
 
-**为什么 BACKWARD 需要消费者先升级？** 新 Schema 加了一个字段 `address`，旧消费者不知道 `address` 的存在。如果生产者先升级、开始发 `address`，旧消费者反序列化时会忽略它——这没问题。但如果旧消费者需要处理完整数据，它可能因为缺少 `address` 而逻辑出错。所以 BACKWARD 兼容要求消费者先升级，确保它能处理新字段。
+**BACKWARD 与 FORWARD 的方向正好相反，升级顺序也因此不同。**
 
-**怎么实现兼容？** 新增字段必须带 `default` 值。这样旧数据反序列化时，缺失的字段会被填上默认值，不会报错。删除字段必须有 `default` 值，这样新数据反序列化时，缺失的字段也有默认值。
+- **BACKWARD（新 Schema 读旧数据）**：新 Schema 新增了带 `default` 的字段，旧生产者还在发旧数据，新消费者用新 Schema 读旧数据时，用 `default` 填上缺失的新字段。所以**消费者先升级**。
+- **FORWARD（旧 Schema 读新数据）**：生产者先升级、开始发带新字段的数据，旧消费者用旧 Schema 读时，忽略它不认识的新字段。所以**生产者先升级**。
+- **FULL**：同时满足上面两者，任意顺序升级。
 
-## 6. 配置
+**怎么实现兼容？** 新增字段带 `default` 值即可：旧数据反序列化时，缺失的新字段用 `default` 填（满足 BACKWARD）；旧 Schema 读新数据时，新字段被忽略（满足 FORWARD）。因此「新增带 `default` 的字段」天然满足 FULL，是最安全的演进方式。删除字段几乎总是破坏兼容，需谨慎评估。
+
+## 6. 实际使用：从依赖到收发消息
+
+前几章讲清了「为什么」和「是什么」，这一章把链路串起来。完整流程分四步：引入依赖 → 定义 Schema 并生成类 → 写生产者 → 写消费者。
+
+### 6.1 引入依赖
+
+`kafka-avro-serializer` 由 Confluent 发布，不在 Maven Central，需要额外声明 Confluent 仓库：
+
+```xml
+<repositories>
+  <repository>
+    <id>confluent</id>
+    <url>https://packages.confluent.io/maven/</url>
+  </repository>
+</repositories>
+
+<dependencies>
+  <dependency>
+    <groupId>org.apache.avro</groupId>
+    <artifactId>avro</artifactId>
+    <version>1.11.3</version>
+  </dependency>
+  <dependency>
+    <groupId>io.confluent</groupId>
+    <artifactId>kafka-avro-serializer</artifactId>
+    <version>7.5.0</version>
+  </dependency>
+</dependencies>
+```
+
+### 6.2 定义 Schema 并生成 Java 类
+
+把第 2 章的 `Order.avsc` 放到 `src/main/avro/`，用 `avro-maven-plugin` 在编译期把它生成类型安全的 `Order.java`：
+
+```xml
+<build>
+  <plugins>
+    <plugin>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro-maven-plugin</artifactId>
+      <version>1.11.3</version>
+      <executions>
+        <execution>
+          <phase>generate-sources</phase>
+          <goals><goal>schema</goal></goals>
+          <configuration>
+            <sourceDirectory>${project.basedir}/src/main/avro</sourceDirectory>
+            <outputDirectory>${project.basedir}/target/generated-sources/avro</outputDirectory>
+          </configuration>
+        </execution>
+      </executions>
+    </plugin>
+  </plugins>
+</build>
+```
+
+执行 `mvn generate-sources` 后得到 `Order` 类，之后用它的 builder 构造消息，字段类型在编译期就被 Schema 约束住了。
+
+### 6.3 生产者：写 Avro 消息
 
 ```java
-// Producer
+Properties props = new Properties();
+props.put("bootstrap.servers", "localhost:9092");
 props.put("key.serializer", "io.confluent.kafka.serializers.KafkaAvroSerializer");
 props.put("value.serializer", "io.confluent.kafka.serializers.KafkaAvroSerializer");
 props.put("schema.registry.url", "http://localhost:8081");
 
-// Consumer
+try (KafkaProducer<String, Order> producer = new KafkaProducer<>(props)) {
+    Order order = Order.newBuilder()
+        .setOrderId(1001L)
+        .setAmount(99.9)
+        .build();
+    producer.send(new ProducerRecord<>("orders", order));
+}
+```
+
+发送时 `KafkaAvroSerializer` 会做两件事：向 Registry 注册 `Order` 的 Schema 拿回 ID，然后把「4 字节 ID + Avro 二进制」写进消息。
+
+### 6.4 消费者：读 Avro 消息
+
+```java
+Properties props = new Properties();
+props.put("bootstrap.servers", "localhost:9092");
+props.put("group.id", "order-group");
 props.put("key.deserializer", "io.confluent.kafka.serializers.KafkaAvroDeserializer");
 props.put("value.deserializer", "io.confluent.kafka.serializers.KafkaAvroDeserializer");
 props.put("schema.registry.url", "http://localhost:8081");
-props.put("specific.avro.reader", true);  // 用生成的 Java 类反序列化
+props.put("specific.avro.reader", true);
+
+try (KafkaConsumer<String, Order> consumer = new KafkaConsumer<>(props)) {
+    consumer.subscribe(Collections.singletonList("orders"));
+    while (true) {
+        for (ConsumerRecord<String, Order> record : consumer.poll(Duration.ofMillis(100))) {
+            Order order = record.value();
+            System.out.println(order.getOrderId() + " -> " + order.getAmount());
+        }
+    }
+}
 ```
+
+### 6.5 两个关键配置项
+
+| 配置项 | 作用 | 说明 |
+| :-- | :-- | :-- |
+| `schema.registry.url` | Registry 地址 | 生产、消费两端都要配 |
+| `specific.avro.reader` | 反序列化是否用生成类 | `true` 返回 `Order` 类型（Specific）；`false` 返回 `GenericRecord`，适合 Schema 动态变化、不想维护生成类的场景 |
