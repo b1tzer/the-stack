@@ -14,7 +14,7 @@
 
 三种场景对应三种 ACK 模式。Kafka 把选择权交给了你——你可以根据业务对可靠性的要求，选择愿意付出多少代价。
 
-## 2. 三种 ACK 模式
+## 2. 三种 ACK 模式 {#ack-modes}
 
 ### acks=0：发完即忘
 
@@ -54,13 +54,13 @@ Leader → Producer：返回 ACK
 
 代价：吞吐最低（必须等最慢的 Follower），但可靠性最高。
 
-### 为什么 acks=all 还需要 min.insync.replicas
+### 为什么 acks=all 还需要 min.insync.replicas {#min-insync-replicas}
 
 `acks=all` 保证消息写入所有 ISR 副本。但如果 ISR 只剩 Leader 一个呢？`acks=all` 退化成了 `acks=1`——只写一个副本就返回确认。
 
 `min.insync.replicas=2` 保证 ISR 中至少有 2 个副本。如果 ISR 收缩到只剩 Leader，Broker 会拒绝 `acks=all` 的写入，返回 `NotEnoughReplicasException`。这是一条硬红线：**宁可拒绝写入，也不允许单副本写入被当作"可靠写入"**。
 
-## 3. 幂等生产者：重试导致的重复
+## 3. 幂等生产者：重试导致的重复 {#idempotent-producer}
 
 `acks=all` 消除了"丢消息"的问题，但引入了"重复消息"的问题。
 
@@ -92,7 +92,19 @@ Broker 侧维护：每个 PID 的期望 Sequence Number
 
 关键设计：Broker 不需要保存所有已处理消息的 ID，只需要为每个 PID 保存一个"期望的下一个 Sequence Number"。空间开销极小，但能精确去重。
 
-### 为什么 max.in.flight.requests.per.connection 限制在 5
+开启幂等只需 `enable.idempotence=true`，PID 与 Sequence Number 由 Kafka 自动维护：
+
+```java
+props.put("enable.idempotence", true);
+```
+
+Spring Boot 配置：
+
+```properties
+spring.kafka.producer.properties.enable.idempotence=true
+```
+
+### 为什么 max.in.flight.requests.per.connection 限制在 5 {#max-in-flight}
 
 幂等生产者允许多个请求同时在途（`max.in.flight.requests.per.connection > 1`），但有乱序风险：
 
@@ -107,7 +119,7 @@ Broker 收到的顺序：Seq=1, Seq=2, Seq=0
 
 Kafka 内部维护了一个重排序缓冲区，能对最多 5 个在途请求进行重排序。超过 5 个就无法保证去重。这个数字是性能和正确性的平衡点。
 
-## 4. 事务：跨分区的 Exactly Once
+## 4. 事务：跨分区的 Exactly Once {#transactions}
 
 幂等生产者只能保证**单分区**内的去重。如果你需要"写入 Topic A 和 Topic B 要么都成功要么都失败"——这就是事务的场景。
 
@@ -132,15 +144,17 @@ Consumer（read_committed）: 看到 COMMIT 标记后，msg1 和 msg2 才可见
 最常见的 Exactly Once 场景：消费 Topic A → 处理 → 写入 Topic B，同时提交 Offset。
 
 ```java
-producer.initTransactions();
+producer.initTransactions();   // ⭐ 只执行一次：向 Transaction Coordinator 注册，获取 PID + Epoch
 while (true) {
-    ConsumerRecords records = consumer.poll(Duration.ofMillis(100));
-    producer.beginTransaction();
+    ConsumerRecords records = consumer.poll(Duration.ofMillis(100));  // ① 从输入 Topic 拉取一批消息
+    producer.beginTransaction();  // ② 开启一个新事务
     for (ConsumerRecord record : records) {
+        // ③ 逐条处理并写入输出 Topic；此刻消息带「未提交」标记，下游 read_committed 消费者不可见
         producer.send(new ProducerRecord<>("output-topic", process(record)));
     }
+    // ④ 把「本批消费到的 Offset」也登记进当前事务，交给 Coordinator 一并提交
     producer.sendOffsetsToTransaction(offsets, consumer.groupMetadata());
-    producer.commitTransaction();
+    producer.commitTransaction();  // ⑤ 提交：输出消息与 Offset 同时生效
 }
 ```
 
@@ -148,13 +162,13 @@ while (true) {
 
 ## 6. 消费端去重
 
-Kafka 的事务只保证生产端。消费端的去重需要在业务层实现：
+Kafka 的事务只保证生产端。消费端的重复无法靠 Kafka 消除——它的来源是"处理完消息但还没提交 Offset 就宕机"或 Rebalance，重启后同一批消息会被重新消费。所以消费端去重只能靠业务层，让"重复处理"不产生副作用。
 
-| 方案 | 原理 | 适用场景 |
+| 方案 | 原理 | 核心边界 |
 | :-- | :-- | :-- |
-| 数据库唯一键 | INSERT 时冲突则忽略 | 写数据库 |
-| Redis SETNX | 设置成功才算新消息 | 高频去重 |
-| 版本号 | 比较消息版本和当前版本 | 状态更新 |
+| 数据库唯一键 | 靠主键/唯一索引兜底，重复 INSERT 撞唯一键冲突即视为已处理 | 要求业务实体有天然唯一键（订单号、流水号）；对"累加计数"这类非幂等操作无效 |
+| Redis SETNX | `SETNX` 是"不存在才设置"的原子操作，用消息 ID 做 key，设置成功才算第一次来 | 必须设过期时间，否则死 key 永久占位；Redis 与数据库是两套存储，需自行兜底一致性 |
+| 版本号 | 业务数据带版本号，只处理版本号更高的消息，旧版本丢弃 | 要求业务有版本语义；只适合"状态更新"，不适合"事件累加" |
 
 详见 [消息去重](../03-reliability/chapter-02-message-dedup.md)。
 
@@ -162,18 +176,18 @@ Kafka 的事务只保证生产端。消费端的去重需要在业务层实现�
 
 ```java
 // 生产者：可靠性优先
-props.put("acks", "all");
-props.put("enable.idempotence", true);
-props.put("retries", Integer.MAX_VALUE);
-props.put("delivery.timeout.ms", 120000);
-props.put("max.in.flight.requests.per.connection", 5);
+props.put("acks", "all");                              // 所有 ISR 副本确认后才返回成功，不丢消息
+props.put("enable.idempotence", true);                 // 开启幂等，重试不产生重复消息
+props.put("retries", Integer.MAX_VALUE);               // 网络异常时无限重试，实际时长由 delivery.timeout.ms 封顶
+props.put("delivery.timeout.ms", 120000);              // 单条消息发送总超时 120 秒，超时放弃并回调异常
+props.put("max.in.flight.requests.per.connection", 5); // 幂等在途请求上限，保证乱序可重排去重
 ```
 
 ```properties
 # Broker：配合生产者
-min.insync.replicas=2
-unclean.leader.election.enable=false
-default.replication.factor=3
+min.insync.replicas=2                # ISR 至少 2 个副本，防止 acks=all 退化为单副本写入
+unclean.leader.election.enable=false # 禁止落后副本当选 Leader，杜绝已确认消息丢失
+default.replication.factor=3         # 新建 Topic 默认 3 副本
 ```
 
 ## 8. 一句话总结
