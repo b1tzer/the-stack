@@ -39,7 +39,7 @@ features:
   - icon: 📨
     title: Kafka
     details: 整体架构、消息可靠性、高吞吐原理、存储机制与 KRaft。
-    link: /kafka/01-basics/chapter-01-overview
+    link: /kafka/01-intro/chapter-01-what-is-kafka
   - icon: 🔍
     title: Elasticsearch
     details: 倒排索引、Mapping 设计、查询 DSL、聚合与中文分词。
@@ -55,7 +55,7 @@ features:
   - icon: 🤖
     title: AI 工程
     details: LLM 与提示词、RAG、Function Calling、Spring AI 与 MCP。
-    link: /ai/01-LLM接口与提示词工程
+    link: /ai/01-导论
   - icon: 🧭
     title: 场景实战
     details: 按业务场景组织的端到端实战：缓存、并发、消息、数据访问与综合案例。
