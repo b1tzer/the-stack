@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 697 442" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1565c0"/>
+    </marker>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color: #1565c0;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color: #1565c0;stop-opacity:1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Left: Java Object Graph -->
+  <rect x="17" y="17" width="221" height="41" rx="5" fill="url(#headerGrad)"/>
+  <text x="128" y="42" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="bold">Java 对象图</text>
+
+  <rect x="26" y="72" width="102" height="34" rx="4" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="76" y="94" text-anchor="middle" fill="#333333" font-size="12" font-weight="bold">Order</text>
+
+  <!-- buyer → User -->
+  <line x1="128" y1="89" x2="166" y2="89" stroke="#1565c0" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <rect x="166" y="72" width="60" height="34" rx="4" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="196" y="94" text-anchor="middle" fill="#333333" font-size="11">User</text>
+
+  <!-- Order → address (via User) -->
+  <line x1="196" y1="106" x2="196" y2="132" stroke="#1565c0" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <text x="211" y="123" fill="#666666" font-size="9">address</text>
+  <rect x="166" y="132" width="60" height="34" rx="4" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="196" y="153" text-anchor="middle" fill="#333333" font-size="10">Address</text>
+
+  <!-- Order → items -->
+  <line x1="76" y1="106" x2="76" y2="132" stroke="#1565c0" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <text x="92" y="123" fill="#666666" font-size="9">items</text>
+  <rect x="34" y="132" width="85" height="34" rx="4" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="76" y="153" text-anchor="middle" fill="#333333" font-size="10">List&lt;OrderItem&gt;</text>
+
+  <rect x="42" y="178" width="68" height="27" rx="3" fill="#f8f9fa" stroke="#bdbdbd" stroke-width="0.8"/>
+  <text x="76" y="196" text-anchor="middle" fill="#666666" font-size="9">OrderItem</text>
+  <rect x="42" y="212" width="68" height="27" rx="3" fill="#f8f9fa" stroke="#bdbdbd" stroke-width="0.8"/>
+  <text x="76" y="230" text-anchor="middle" fill="#666666" font-size="9">OrderItem</text>
+
+  <!-- Right: Database Tables -->
+  <rect x="323" y="17" width="357" height="41" rx="5" fill="url(#headerGrad)"/>
+  <text x="502" y="42" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="bold">关系数据库表结构</text>
+
+  <!-- orders table -->
+  <rect x="323" y="72" width="170" height="20" rx="3" fill="#1565c0"/>
+  <text x="408" y="87" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="bold">orders 表</text>
+  <rect x="323" y="93" width="170" height="64" rx="0" fill="#f8f9fa" stroke="#bdbdbd" stroke-width="0.8"/>
+  <text x="344" y="109" fill="#333333" font-size="10">┌────┬──────────┬────────┐</text>
+  <text x="344" y="123" fill="#333333" font-size="10">│ id │ buyer_id │ status │</text>
+  <text x="344" y="138" fill="#333333" font-size="10">│ 1  │   100    │ PAID   │</text>
+  <text x="344" y="150" fill="#333333" font-size="10">└────┴──────────┴────────┘</text>
+
+  <!-- FK arrow -->
+  <line x1="408" y1="156" x2="408" y2="178" stroke="#c62828" stroke-width="1.7" marker-end="url(#arrow)"/>
+  <text x="423" y="170" fill="#c62828" font-size="9" font-weight="bold">外键关联</text>
+
+  <!-- users table -->
+  <rect x="323" y="183" width="170" height="20" rx="3" fill="#1565c0"/>
+  <text x="408" y="197" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="bold">users 表</text>
+  <rect x="323" y="203" width="170" height="64" rx="0" fill="#f8f9fa" stroke="#bdbdbd" stroke-width="0.8"/>
+  <text x="344" y="219" fill="#333333" font-size="10">┌────┬──────┬─────┐</text>
+  <text x="344" y="234" fill="#333333" font-size="10">│ id │ name │addr │</text>
+  <text x="344" y="248" fill="#333333" font-size="10">│100 │ 张三 │  5  │</text>
+  <text x="344" y="261" fill="#333333" font-size="10">└────┴──────┴─────┘</text>
+
+  <!-- FK arrow -->
+  <line x1="408" y1="267" x2="408" y2="289" stroke="#c62828" stroke-width="1.7" marker-end="url(#arrow)"/>
+  <text x="423" y="280" fill="#c62828" font-size="9" font-weight="bold">外键关联</text>
+
+  <!-- addresses table -->
+  <rect x="323" y="293" width="170" height="20" rx="3" fill="#1565c0"/>
+  <text x="408" y="308" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="bold">addresses 表</text>
+  <rect x="323" y="314" width="170" height="64" rx="0" fill="#f8f9fa" stroke="#bdbdbd" stroke-width="0.8"/>
+  <text x="344" y="330" fill="#333333" font-size="10">┌────┬──────┬──────┐</text>
+  <text x="344" y="344" fill="#333333" font-size="10">│ id │ city │ ...  │</text>
+  <text x="344" y="359" fill="#333333" font-size="10">│  5 │ 北京 │ ...  │</text>
+  <text x="344" y="371" fill="#333333" font-size="10">└────┴──────┴──────┘</text>
+
+  <!-- Mapping label -->
+  <rect x="255" y="136" width="68" height="31" rx="15" fill="#fff3e0" stroke="#e65100" stroke-width="1.3"/>
+  <text x="289" y="156" text-anchor="middle" fill="#e65100" font-size="10" font-weight="bold">ORM 映射</text>
+
+  <!-- Dashed mapping lines -->
+  <line x1="110" y1="89" x2="255" y2="89" stroke="#e65100" stroke-width="0.8" stroke-dasharray="5,3"/>
+  <line x1="110" y1="144" x2="255" y2="212" stroke="#e65100" stroke-width="0.8" stroke-dasharray="5,3"/>
+  <line x1="196" y1="149" x2="255" y2="238" stroke="#e65100" stroke-width="0.8" stroke-dasharray="5,3"/>
+</svg>

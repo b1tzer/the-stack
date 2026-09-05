@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="120" viewBox="0 0 1080 120" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#57606a"/>
+    </marker>
+  </defs>
+  <rect width="1080" height="120" fill="#ffffff"/>
+
+  <rect x="20" y="36" width="100" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="70" y="58" text-anchor="middle" font-size="13" fill="#24292f">网络字节流</text>
+
+  <rect x="210" y="36" width="140" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="280" y="58" text-anchor="middle" font-size="13" fill="#24292f">读入客户端缓冲区</text>
+
+  <rect x="440" y="36" width="130" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="505" y="58" text-anchor="middle" font-size="13" fill="#24292f">按 \r\n 分割</text>
+
+  <rect x="660" y="36" width="180" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="750" y="58" text-anchor="middle" font-size="13" fill="#24292f">解析出命令名与参数数组</text>
+
+  <rect x="930" y="36" width="130" height="44" rx="8" fill="#fff1f0" stroke="#DC382D"/>
+  <text x="995" y="58" text-anchor="middle" font-size="13" font-weight="600" fill="#DC382D">交给命令执行层</text>
+
+  <line x1="120" y1="58" x2="202" y2="58" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="350" y1="58" x2="432" y2="58" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="570" y1="58" x2="652" y2="58" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="840" y1="58" x2="922" y2="58" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+</svg>

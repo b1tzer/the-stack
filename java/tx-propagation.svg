@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 425 595" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="a1" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1565c0"/>
+    </marker>
+    <marker id="aGreen" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#2e7d32"/>
+    </marker>
+    <marker id="aRed" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#c62828"/>
+    </marker>
+    <linearGradient id="hg" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color: #1565c0"/>
+      <stop offset="100%" style="stop-color: #1565c0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Entry -->
+  <rect x="102" y="17" width="221" height="36" rx="5" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="212" y="40" text-anchor="middle" fill="#0d47a1" font-size="12" font-weight="bold">客户端调用 createOrder()</text>
+
+  <line x1="212" y1="53" x2="212" y2="70" stroke="#1565c0" stroke-width="1.7" marker-end="url(#a1)"/>
+
+  <!-- AOP Proxy -->
+  <rect x="85" y="71" width="255" height="42" rx="5" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
+  <text x="212" y="98" text-anchor="middle" fill="#1b5e20" font-size="12" font-weight="bold">AOP Proxy 拦截（JDK/CGLIB）</text>
+  <text x="348" y="98" fill="#888888" font-size="9">← Spring 生成的代理对象</text>
+
+  <line x1="212" y1="114" x2="212" y2="131" stroke="#1565c0" stroke-width="1.7" marker-end="url(#a1)"/>
+
+  <!-- TransactionInterceptor -->
+  <rect x="68" y="133" width="289" height="76" rx="5" fill="#fff3e0" stroke="#e65100" stroke-width="1.3"/>
+  <text x="212" y="153" text-anchor="middle" fill="#e65100" font-size="11" font-weight="bold">TransactionInterceptor.intercept()</text>
+  <text x="212" y="170" text-anchor="middle" fill="#666666" font-size="10">1. 获取事务属性 ← 读取 @Transactional 注解参数</text>
+  <text x="212" y="185" text-anchor="middle" fill="#666666" font-size="10">2. 获取事务管理器 ← PlatformTransactionManager</text>
+  <text x="212" y="201" text-anchor="middle" fill="#666666" font-size="10">3. 创建/加入事务 ← txManager.getTransaction()</text>
+
+  <line x1="212" y1="209" x2="212" y2="228" stroke="#1565c0" stroke-width="1.7" marker-end="url(#a1)"/>
+
+  <!-- Business Method -->
+  <rect x="85" y="230" width="255" height="42" rx="5" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.3"/>
+  <text x="212" y="255" text-anchor="middle" fill="#4a148c" font-size="12" font-weight="bold">执行真实业务方法</text>
+  <text x="348" y="255" fill="#888888" font-size="9">← orderDao.insert() 等</text>
+
+  <line x1="212" y1="272" x2="212" y2="296" stroke="#1565c0" stroke-width="1.7" marker-end="url(#a1)"/>
+
+  <!-- Decision -->
+  <polygon points="250,350 320,385 250,420 180,385" fill="#fff3e0" stroke="#e65100" stroke-width="1.3"/>
+  <text x="212" y="332" text-anchor="middle" fill="#e65100" font-size="11" font-weight="bold">成功？</text>
+
+  <!-- Yes path -->
+  <line x1="272" y1="327" x2="332" y2="327" stroke="#2e7d32" stroke-width="1.7" marker-end="url(#aGreen)"/>
+  <text x="293" y="321" fill="#2e7d32" font-size="10" font-weight="bold">Yes</text>
+  <rect x="333" y="310" width="76" height="34" rx="5" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
+  <text x="371" y="332" text-anchor="middle" fill="#1b5e20" font-size="11" font-weight="bold">commit()</text>
+
+  <!-- No path -->
+  <line x1="153" y1="327" x2="94" y2="327" stroke="#c62828" stroke-width="1.7" marker-end="url(#aRed)"/>
+  <text x="115" y="321" fill="#c62828" font-size="10" font-weight="bold">No</text>
+  <rect x="8" y="310" width="83" height="34" rx="5" fill="#ffcdd2" stroke="#c62828" stroke-width="1.3"/>
+  <text x="50" y="326" text-anchor="middle" fill="#b71c1c" font-size="10" font-weight="bold">rollback()</text>
+  <text x="50" y="338" text-anchor="middle" fill="#888888" font-size="8">RuntimeException</text>
+
+  <!-- Both converge to release -->
+  <line x1="371" y1="344" x2="371" y2="378" stroke="#666666" stroke-width="1.3" marker-end="url(#a1)"/>
+  <line x1="50" y1="344" x2="50" y2="378" stroke="#666666" stroke-width="1.3"/>
+  <line x1="50" y1="378" x2="212" y2="378" stroke="#666666" stroke-width="1.3"/>
+  <line x1="371" y1="378" x2="212" y2="378" stroke="#666666" stroke-width="1.3"/>
+  <line x1="212" y1="378" x2="212" y2="395" stroke="#666666" stroke-width="1.3" marker-end="url(#a1)"/>
+
+  <rect x="128" y="397" width="170" height="36" rx="5" fill="#eceff1" stroke="#bdbdbd" stroke-width="1.3"/>
+  <text x="212" y="419" text-anchor="middle" fill="#333333" font-size="12" font-weight="bold">释放连接</text>
+</svg>

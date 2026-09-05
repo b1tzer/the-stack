@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 300" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="10">
+<defs>
+  <marker id="arBlue" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+    <path d="M0,0 L8,4 L0,8 Z" fill="#1565c0"/>
+  </marker>
+  <marker id="arOrange" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+    <path d="M0,0 L8,4 L0,8 Z" fill="#e65100"/>
+  </marker>
+</defs>
+
+<text x="350" y="26" text-anchor="middle" font-size="14" font-weight="bold" fill="#333333">最终一致性：主从同步 + 缓存失效</text>
+
+<!-- 主库 -->
+<g transform="translate(260,50)">
+  <rect x="0" y="0" width="180" height="62" rx="5" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="90" y="26" text-anchor="middle" font-size="12" font-weight="bold" fill="#0d47a1">主库 MySQL</text>
+  <text x="90" y="46" text-anchor="middle" font-size="10" fill="#1565c0">UPDATE user SET name = 张三</text>
+</g>
+
+<!-- 从库 -->
+<g transform="translate(480,195)">
+  <rect x="0" y="0" width="180" height="62" rx="5" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
+  <text x="90" y="26" text-anchor="middle" font-size="12" font-weight="bold" fill="#1b5e20">从库 MySQL</text>
+  <text x="90" y="46" text-anchor="middle" font-size="10" fill="#2e7d32">同步后数据一致</text>
+</g>
+
+<!-- Redis 缓存 -->
+<g transform="translate(40,195)">
+  <rect x="0" y="0" width="180" height="62" rx="5" fill="#fff3e0" stroke="#e65100" stroke-width="1.3"/>
+  <text x="90" y="26" text-anchor="middle" font-size="12" font-weight="bold" fill="#bf360c">Redis 缓存</text>
+  <text x="90" y="46" text-anchor="middle" font-size="10" fill="#e65100">下次查询回填</text>
+</g>
+
+<!-- 主库 → 从库：Binlog 同步 -->
+<path d="M390,112 L390,152 L570,152 L570,193" fill="none" stroke="#1565c0" stroke-width="1.3" marker-end="url(#arBlue)"/>
+<text x="480" y="144" text-anchor="middle" font-size="10" font-weight="bold" fill="#1565c0">Binlog 同步（延迟约 100ms）</text>
+<text x="480" y="170" text-anchor="middle" font-size="9" fill="#666666">软状态 → 最终一致</text>
+
+<!-- 主库 → Redis：删除缓存 -->
+<path d="M310,112 L310,152 L130,152 L130,193" fill="none" stroke="#e65100" stroke-width="1.3" marker-end="url(#arOrange)"/>
+<text x="220" y="144" text-anchor="middle" font-size="10" font-weight="bold" fill="#e65100">删除缓存</text>
+<text x="220" y="170" text-anchor="middle" font-size="9" fill="#666666">下次查询回填最新值</text>
+</svg>

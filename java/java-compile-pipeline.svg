@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 374 391" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <text x="187" y="24" text-anchor="middle" font-size="11" font-weight="bold" fill="#333333">Java 程序的执行流程</text>
+
+  <!-- Step 1: Source -->
+  <rect x="85" y="41" width="204" height="37" rx="7" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="187" y="65" text-anchor="middle" fill="#0d47a1" font-weight="bold">Hello.java（源码）</text>
+  <line x1="187" y1="78" x2="187" y2="100" stroke="#555555" stroke-width="1.3" marker-end="url(#ar)"/>
+  <text x="201" y="94" fill="#888888" font-size="9">javac 编译</text>
+
+  <!-- Step 2: Bytecode -->
+  <rect x="85" y="104" width="204" height="37" rx="7" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
+  <text x="187" y="128" text-anchor="middle" fill="#1b5e20" font-weight="bold">Hello.class（字节码）</text>
+  <line x1="187" y1="141" x2="187" y2="163" stroke="#555555" stroke-width="1.3" marker-end="url(#ar)"/>
+  <text x="201" y="156" fill="#888888" font-size="9">JVM 加载</text>
+
+  <!-- Step 3: ClassLoader -->
+  <rect x="85" y="167" width="204" height="37" rx="7" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.3"/>
+  <text x="187" y="190" text-anchor="middle" fill="#4a148c" font-weight="bold">ClassLoader 加载字节码</text>
+  <line x1="187" y1="204" x2="187" y2="226" stroke="#555555" stroke-width="1.3" marker-end="url(#ar)"/>
+
+  <!-- Step 4: JVM verify -->
+  <rect x="85" y="230" width="204" height="37" rx="7" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.3"/>
+  <text x="187" y="253" text-anchor="middle" fill="#4a148c" font-weight="bold">JVM 验证、准备、初始化</text>
+  <line x1="187" y1="267" x2="187" y2="289" stroke="#555555" stroke-width="1.3" marker-end="url(#ar)"/>
+
+  <!-- Step 5: Interpret/JIT -->
+  <rect x="85" y="292" width="204" height="37" rx="7" fill="#fff3e0" stroke="#e65100" stroke-width="1.3"/>
+  <text x="187" y="316" text-anchor="middle" fill="#bf360c" font-weight="bold">解释执行 / JIT 编译</text>
+  <line x1="187" y1="330" x2="187" y2="352" stroke="#555555" stroke-width="1.3" marker-end="url(#ar)"/>
+
+  <!-- Step 6: CPU -->
+  <rect x="85" y="355" width="204" height="37" rx="7" fill="#ffcdd2" stroke="#c62828" stroke-width="1.3"/>
+  <text x="187" y="379" text-anchor="middle" fill="#b71c1c" font-weight="bold">CPU 执行机器码</text>
+
+  <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#555555"/></marker></defs>
+</svg>

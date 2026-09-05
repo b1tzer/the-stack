@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 612 527" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#555555"/>
+    </marker>
+  </defs>
+  <style>
+    text{font-size:14px;fill:#333333}
+    .title{font-size:16px;font-weight:bold;fill:#333333}
+    .label-yes{fill:#2e7d32;font-size:13px;font-weight:bold}
+    .label-no{fill:#c62828;font-size:13px;font-weight:bold}
+    .hint{fill:#888888;font-size:12px}
+    .note{fill:#1565c0;font-size:13px;font-style:italic}
+  </style>
+
+  <!-- Title -->
+  <text x="306" y="26" text-anchor="middle" class="title">提交一个任务 —— ThreadPoolExecutor 执行流程</text>
+
+  <!-- Start -->
+  <ellipse cx="360" cy="60" rx="60" ry="19" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="306" y="55" text-anchor="middle" fill="#0d47a1">提交一个任务</text>
+
+  <!-- Arrow down -->
+  <line x1="306" y1="70" x2="306" y2="89" stroke="#555555" stroke-width="1.3" marker-end="url(#arrow)"/>
+
+  <!-- Decision 1 -->
+  <polygon points="360,105 530,150 360,195 190,150" fill="#fff3e0" stroke="#e65100" stroke-width="1.3"/>
+  <text x="306" y="124" text-anchor="middle" class="title">活跃线程 &lt; corePoolSize？</text>
+
+  <!-- Yes branch -->
+  <line x1="162" y1="128" x2="85" y2="128" stroke="#555555" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <text x="128" y="121" class="label-yes">是</text>
+  <rect x="17" y="110" rx="5" width="102" height="34" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
+  <text x="68" y="125" text-anchor="middle" fill="#1b5e20">创建核心线程</text>
+  <text x="68" y="139" text-anchor="middle" fill="#1b5e20">直接执行</text>
+
+  <!-- No branch down -->
+  <line x1="306" y1="166" x2="306" y2="196" stroke="#555555" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <text x="314" y="185" class="label-no">否</text>
+
+  <!-- Decision 2 -->
+  <polygon points="360,230 530,275 360,320 190,275" fill="#fff3e0" stroke="#e65100" stroke-width="1.3"/>
+  <text x="306" y="230" text-anchor="middle" class="title">workQueue 能容纳？</text>
+
+  <!-- Yes branch -->
+  <line x1="162" y1="234" x2="85" y2="234" stroke="#555555" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <text x="128" y="227" class="label-yes">是</text>
+  <rect x="17" y="217" rx="5" width="102" height="34" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
+  <text x="68" y="237" text-anchor="middle" fill="#1b5e20">入队等待</text>
+
+  <!-- No branch down -->
+  <line x1="306" y1="272" x2="306" y2="302" stroke="#555555" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <text x="314" y="292" class="label-no">否</text>
+
+  <!-- Decision 3 -->
+  <polygon points="360,355 560,405 360,455 160,405" fill="#fff3e0" stroke="#e65100" stroke-width="1.3"/>
+  <text x="306" y="340" text-anchor="middle" class="title">活跃线程 &lt; maximumPoolSize？</text>
+
+  <!-- Yes branch -->
+  <line x1="136" y1="344" x2="85" y2="344" stroke="#555555" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <text x="119" y="337" class="label-yes">是</text>
+  <rect x="8" y="327" rx="5" width="110" height="34" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
+  <text x="64" y="342" text-anchor="middle" fill="#1b5e20">创建非核心线程</text>
+  <text x="64" y="355" text-anchor="middle" fill="#1b5e20">直接执行</text>
+
+  <!-- No branch down -->
+  <line x1="306" y1="387" x2="306" y2="416" stroke="#555555" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <text x="314" y="406" class="label-no">否</text>
+
+  <!-- Reject -->
+  <rect x="230" y="416" rx="5" width="153" height="34" fill="#ffcdd2" stroke="#c62828" stroke-width="1.3"/>
+  <text x="306" y="437" text-anchor="middle" fill="#b71c1c" font-weight="bold">走 handler 拒绝</text>
+
+  <!-- Annotation -->
+  <text x="306" y="484" text-anchor="middle" class="note">只有队列先"装不下"，才可能创建非核心线程</text>
+  <text x="306" y="502" text-anchor="middle" class="hint">无界队列会让 maximumPoolSize 形同虚设</text>
+</svg>

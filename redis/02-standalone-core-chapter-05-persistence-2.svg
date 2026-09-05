@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="230" viewBox="0 0 720 230" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#57606a"/>
+    </marker>
+  </defs>
+  <rect width="720" height="230" fill="#ffffff"/>
+
+  <rect x="80" y="20" width="170" height="44" rx="8" fill="#fff1f0" stroke="#DC382D"/>
+  <text x="165" y="42" text-anchor="middle" font-size="13" font-weight="600" fill="#DC382D">父进程（主线程继续服务）</text>
+
+  <rect x="480" y="20" width="150" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="555" y="42" text-anchor="middle" font-size="13" fill="#24292f">子进程（BGSAVE）</text>
+
+  <rect x="80" y="150" width="190" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="175" y="172" text-anchor="middle" font-size="13" fill="#24292f">COW：复制被修改的内存页</text>
+
+  <rect x="500" y="150" width="110" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="555" y="172" text-anchor="middle" font-size="13" fill="#24292f">dump.rdb</text>
+
+  <line x1="165" y1="64" x2="175" y2="142" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="200" y="102" font-size="11" fill="#57606a">写命令修改数据</text>
+
+  <line x1="555" y1="64" x2="555" y2="142" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="470" y="102" text-anchor="end" font-size="11" fill="#57606a">读旧内存页写 RDB</text>
+
+  <line x1="115" y1="150" x2="115" y2="72" stroke="#57606a" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+  <text x="100" y="105" text-anchor="end" font-size="11" fill="#57606a">父进程用新页</text>
+</svg>

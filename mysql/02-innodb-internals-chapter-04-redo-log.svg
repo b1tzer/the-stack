@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <defs>
+    <marker id="arrBlue" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#1565c0"/>
+    </marker>
+    <marker id="arrGray" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#555555"/>
+    </marker>
+  </defs>
+
+  <!-- 标题 -->
+  <text x="450" y="26" text-anchor="middle" font-size="14" font-weight="bold" fill="#333333">Redo Log 全景：Log Buffer → 循环缓冲 → 记录格式</text>
+
+  <!-- ============ Log Buffer（内存） ============ -->
+  <rect x="60" y="46" width="230" height="56" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="175" y="70" text-anchor="middle" fill="#0d47a1" font-weight="bold" font-size="12">Log Buffer（内存）</text>
+  <text x="175" y="86" text-anchor="middle" fill="#555555" font-size="9">默认 16MB · innodb_log_buffer_size</text>
+
+  <!-- fsync 刷盘箭头 -->
+  <polyline points="290,76 430,76 476,84" fill="none" stroke="#1565c0" stroke-width="1.8" marker-end="url(#arrBlue)"/>
+  <text x="340" y="66" text-anchor="middle" fill="#1565c0" font-size="9" font-weight="bold">fsync 刷盘</text>
+
+  <!-- 右侧：刷盘策略说明 -->
+  <text x="620" y="64" fill="#0d47a1" font-size="9">提交时按 innodb_flush_log_at_trx_commit</text>
+  <text x="620" y="80" fill="#0d47a1" font-size="9">决定 fsync 时机（0 / 1 / 2）</text>
+
+  <!-- ============ Redo Log 循环缓冲区（磁盘） ============ -->
+  <!-- 已刷盘（可覆盖）：绿，半圆 -->
+  <path d="M 500 84 A 96 96 0 0 1 596 180 A 96 96 0 0 1 500 276" fill="none" stroke="#c8e6c9" stroke-width="40"/>
+  <!-- 未刷盘（恢复用）：橙，四分之一 -->
+  <path d="M 500 276 A 96 96 0 0 1 404 180" fill="none" stroke="#ffcc80" stroke-width="40"/>
+  <!-- 空闲：灰，四分之一 -->
+  <path d="M 404 180 A 96 96 0 0 1 500 84" fill="none" stroke="#eceff1" stroke-width="40"/>
+
+  <!-- 环中心文字 -->
+  <text x="500" y="168" text-anchor="middle" fill="#333333" font-weight="bold" font-size="13">Redo Log</text>
+  <text x="500" y="186" text-anchor="middle" fill="#555555" font-size="10">循环缓冲区</text>
+  <text x="500" y="202" text-anchor="middle" fill="#555555" font-size="9">固定容量</text>
+  <text x="500" y="218" text-anchor="middle" fill="#888888" font-size="8">写满回到开头覆盖</text>
+
+  <!-- checkpoint LSN 标记（底部，绿橙交界） -->
+  <line x1="500" y1="298" x2="500" y2="322" stroke="#e65100" stroke-width="1.2"/>
+  <text x="512" y="316" fill="#e65100" font-size="10" font-weight="bold">checkpoint LSN（已刷盘 / 未刷盘分界）</text>
+
+  <!-- 当前 LSN 标记（左侧，橙灰交界） -->
+  <line x1="384" y1="180" x2="330" y2="180" stroke="#e65100" stroke-width="1.2"/>
+  <text x="322" y="176" text-anchor="end" fill="#e65100" font-size="10" font-weight="bold">当前 LSN（写入位置）</text>
+
+  <!-- 右侧图例 -->
+  <rect x="630" y="150" width="16" height="16" rx="2" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="654" y="163" fill="#555555" font-size="10">已刷盘，可覆盖</text>
+  <rect x="630" y="182" width="16" height="16" rx="2" fill="#ffcc80" stroke="#e65100" stroke-width="1"/>
+  <text x="654" y="195" fill="#555555" font-size="10">未刷盘，恢复时重放</text>
+  <rect x="630" y="214" width="16" height="16" rx="2" fill="#eceff1" stroke="#90a4ae" stroke-width="1"/>
+  <text x="654" y="227" fill="#555555" font-size="10">空闲</text>
+
+  <!-- ============ Checkpoint 说明 ============ -->
+  <rect x="60" y="330" width="780" height="66" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="76" y="352" fill="#bf360c" font-weight="bold" font-size="11">Checkpoint：把脏页刷盘 → 推进 checkpoint LSN → 回收可覆盖的日志空间</text>
+  <text x="76" y="370" fill="#6d4c41" font-size="9">推进越勤，崩溃恢复时需重放的日志越少，但正常运行时刷盘开销越大</text>
+  <text x="76" y="386" fill="#6d4c41" font-size="9">若脏页刷盘跟不上日志产生速度，Redo Log 写满，写入被暂停</text>
+
+  <!-- ============ 记录格式 ============ -->
+  <text x="60" y="424" fill="#333333" font-weight="bold" font-size="10">一条 Redo Log 记录 = 物理日志（哪个页哪段字节改成什么）</text>
+
+  <rect x="60" y="432" width="156" height="44" rx="3" fill="#f3e5f5" stroke="#8e24aa" stroke-width="1"/>
+  <text x="138" y="452" text-anchor="middle" fill="#6a1b9a" font-weight="bold" font-size="10">Type</text>
+  <text x="138" y="468" text-anchor="middle" fill="#555555" font-size="8">日志类型 MLOG_XXX</text>
+
+  <rect x="216" y="432" width="156" height="44" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1"/>
+  <text x="294" y="452" text-anchor="middle" fill="#0d47a1" font-weight="bold" font-size="10">Space ID</text>
+  <text x="294" y="468" text-anchor="middle" fill="#555555" font-size="8">表空间 ID</text>
+
+  <rect x="372" y="432" width="156" height="44" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="450" y="452" text-anchor="middle" fill="#1b5e20" font-weight="bold" font-size="10">Page Number</text>
+  <text x="450" y="468" text-anchor="middle" fill="#555555" font-size="8">页号</text>
+
+  <rect x="528" y="432" width="156" height="44" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1"/>
+  <text x="606" y="452" text-anchor="middle" fill="#bf360c" font-weight="bold" font-size="10">Offset</text>
+  <text x="606" y="468" text-anchor="middle" fill="#555555" font-size="8">页内偏移</text>
+
+  <rect x="684" y="432" width="156" height="44" rx="3" fill="#eceff1" stroke="#455a64" stroke-width="1"/>
+  <text x="762" y="452" text-anchor="middle" fill="#37474f" font-weight="bold" font-size="10">Data</text>
+  <text x="762" y="468" text-anchor="middle" fill="#555555" font-size="8">修改的数据</text>
+
+  <!-- ============ LSN 坐标轴 ============ -->
+  <text x="60" y="508" fill="#333333" font-weight="bold" font-size="10">LSN（Log Sequence Number）单调递增 →</text>
+
+  <line x1="60" y1="526" x2="840" y2="526" stroke="#555555" stroke-width="1.4" marker-end="url(#arrGray)"/>
+
+  <line x1="60" y1="520" x2="60" y2="532" stroke="#555555" stroke-width="1"/>
+  <text x="60" y="546" text-anchor="middle" fill="#555555" font-size="9">0</text>
+
+  <line x1="430" y1="520" x2="430" y2="532" stroke="#e65100" stroke-width="1.4"/>
+  <text x="430" y="546" text-anchor="middle" fill="#e65100" font-size="10" font-weight="bold">checkpoint LSN</text>
+
+  <line x1="840" y1="520" x2="840" y2="532" stroke="#555555" stroke-width="1"/>
+  <text x="840" y="546" text-anchor="end" fill="#555555" font-size="9">当前 LSN</text>
+
+  <text x="60" y="568" fill="#555555" font-size="9">checkpoint LSN 之前：对应数据页已刷盘，日志可覆盖</text>
+  <text x="60" y="584" fill="#555555" font-size="9">checkpoint LSN 之后：数据页可能未刷盘，崩溃恢复需重放</text>
+</svg>

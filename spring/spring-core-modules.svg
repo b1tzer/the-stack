@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420" width="900" height="420" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif">
+  <style>
+	.title { font-size: 16px; font-weight: bold; fill: #1e293b; text-anchor: middle; }
+	.group-box { fill: none; stroke: #94a3b8; stroke-width: 1.5; stroke-dasharray: 6 4; rx: 10; }
+	.group-label { font-size: 12px; font-weight: bold; fill: #1e293b; }
+	.module { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.5; rx: 6; }
+	.module-text { font-size: 12px; fill: #334155; text-anchor: middle; dominant-baseline: central; }
+	.arrow { stroke: #64748b; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+  </style>
+  <defs>
+	<marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+	  <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+	</marker>
+  </defs>
+
+  <text x="450" y="24" class="title">Spring 核心模块依赖关系</text>
+
+  <!-- Core Container -->
+  <rect x="60" y="55" width="780" height="130" class="group-box"/>
+  <text x="78" y="76" class="group-label">Core Container</text>
+  <rect x="100" y="100" width="180" height="46" class="module"/>
+  <text x="190" y="123" class="module-text">spring-core</text>
+  <rect x="360" y="100" width="180" height="46" class="module"/>
+  <text x="450" y="123" class="module-text">spring-beans</text>
+  <rect x="620" y="100" width="180" height="46" class="module"/>
+  <text x="710" y="123" class="module-text">spring-context</text>
+  <line x1="280" y1="123" x2="354" y2="123" class="arrow"/>
+  <line x1="540" y1="123" x2="614" y2="123" class="arrow"/>
+
+  <!-- 依赖箭头：Core Container -> 各组 -->
+  <line x1="170" y1="185" x2="170" y2="229" class="arrow"/>
+  <line x1="450" y1="185" x2="450" y2="229" class="arrow"/>
+  <line x1="730" y1="185" x2="730" y2="229" class="arrow"/>
+
+  <!-- AOP -->
+  <rect x="60" y="235" width="220" height="115" class="group-box"/>
+  <text x="78" y="256" class="group-label">AOP</text>
+  <rect x="90" y="276" width="160" height="46" class="module"/>
+  <text x="170" y="299" class="module-text">spring-aop</text>
+
+  <!-- Data Access -->
+  <rect x="340" y="235" width="220" height="155" class="group-box"/>
+  <text x="358" y="256" class="group-label">Data Access</text>
+  <rect x="370" y="276" width="160" height="46" class="module"/>
+  <text x="450" y="299" class="module-text">spring-tx</text>
+  <rect x="370" y="334" width="160" height="46" class="module"/>
+  <text x="450" y="357" class="module-text">spring-jdbc</text>
+
+  <!-- Web -->
+  <rect x="620" y="235" width="220" height="155" class="group-box"/>
+  <text x="638" y="256" class="group-label">Web</text>
+  <rect x="650" y="276" width="160" height="46" class="module"/>
+  <text x="730" y="299" class="module-text">spring-webmvc</text>
+  <rect x="650" y="334" width="160" height="46" class="module"/>
+  <text x="730" y="357" class="module-text">spring-webflux</text>
+</svg>

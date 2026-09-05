@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 357 493" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="ar" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1565c0"/>
+    </marker>
+    <linearGradient id="lg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color: #1565c0"/>
+      <stop offset="100%" style="stop-color: #1565c0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Entry -->
+  <rect x="94" y="17" width="170" height="37" rx="5" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="178" y="41" text-anchor="middle" fill="#0d47a1" font-size="11" font-weight="bold">浏览器 / 客户端</text>
+
+  <line x1="178" y1="54" x2="178" y2="75" stroke="#1565c0" stroke-width="1.7" marker-end="url(#ar)"/>
+
+  <!-- Controller -->
+  <rect x="76" y="76" width="204" height="44" rx="5" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
+  <text x="178" y="104" text-anchor="middle" fill="#1b5e20" font-size="12" font-weight="bold">Controller</text>
+  <text x="289" y="104" fill="#888888" font-size="9">← 参数校验、序列化</text>
+
+  <line x1="178" y1="121" x2="178" y2="141" stroke="#1565c0" stroke-width="1.7" marker-end="url(#ar)"/>
+
+  <!-- Service -->
+  <rect x="76" y="143" width="204" height="44" rx="5" fill="#fff3e0" stroke="#e65100" stroke-width="1.3"/>
+  <text x="178" y="170" text-anchor="middle" fill="#e65100" font-size="12" font-weight="bold">Service</text>
+  <text x="289" y="170" fill="#888888" font-size="9">← 业务逻辑、事务边界</text>
+
+  <line x1="178" y1="187" x2="178" y2="207" stroke="#1565c0" stroke-width="1.7" marker-end="url(#ar)"/>
+
+  <!-- DAO/Mapper -->
+  <rect x="76" y="209" width="204" height="44" rx="5" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.3"/>
+  <text x="178" y="236" text-anchor="middle" fill="#4a148c" font-size="12" font-weight="bold">DAO / Mapper</text>
+  <text x="289" y="236" fill="#888888" font-size="9">← SQL 映射、结果映射</text>
+
+  <line x1="178" y1="253" x2="178" y2="274" stroke="#1565c0" stroke-width="1.7" marker-end="url(#ar)"/>
+
+  <!-- Connection Pool -->
+  <rect x="76" y="275" width="204" height="44" rx="5" fill="#eceff1" stroke="#bdbdbd" stroke-width="1.3"/>
+  <text x="178" y="303" text-anchor="middle" fill="#333333" font-size="12" font-weight="bold">连接池</text>
+  <text x="289" y="303" fill="#888888" font-size="9">← 获取 / 归还连接</text>
+
+  <line x1="178" y1="320" x2="178" y2="340" stroke="#1565c0" stroke-width="1.7" marker-end="url(#ar)"/>
+
+  <!-- Database -->
+  <rect x="76" y="342" width="204" height="44" rx="5" fill="#ffcdd2" stroke="#c62828" stroke-width="1.3"/>
+  <text x="178" y="369" text-anchor="middle" fill="#b71c1c" font-size="12" font-weight="bold">Database</text>
+  <text x="289" y="369" fill="#888888" font-size="9">← SQL 解析、执行计划、磁盘 I/O</text>
+
+  <!-- Side note -->
+  <rect x="51" y="404" width="255" height="37" rx="7" fill="#fff3e0" stroke="#e65100" stroke-width="1.3"/>
+  <text x="178" y="421" text-anchor="middle" fill="#e65100" font-size="11" font-weight="bold">⚠ 每一层都可能是瓶颈</text>
+  <text x="178" y="435" text-anchor="middle" fill="#888888" font-size="9">不要只盯着 SQL 优化</text>
+
+  <!-- Vertical bottleneck markers on the right -->
+  <rect x="298" y="76" width="5" height="309" rx="3" fill="#1565c0" opacity="0.15"/>
+  <text x="314" y="234" fill="#1565c0" font-size="9" transform="rotate(90,370,275)" text-anchor="middle" font-weight="bold">性能瓶颈可能在任意层</text>
+</svg>

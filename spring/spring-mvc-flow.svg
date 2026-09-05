@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 637 680" width="638" height="680" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+<style>
+  text { text-anchor: middle; dominant-baseline: central; }
+  .title { font-size: 15px; font-weight: bold; fill: #333333; }
+  .label { font-size: 12px; fill: #333333; }
+  .note { font-size: 11px; fill: #666666; }
+  .arrow { stroke: #7b1fa2; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+  .box { rx: 8; ry: 8; }
+  .phase { fill: #eceff1; stroke: #666666; stroke-width: 1.5; }
+  .highlight { fill: #fff3e0; stroke: #e65100; stroke-width: 1.5; }
+  .action { fill: #e8f5e9; stroke: #2e7d32; stroke-width: 1.5; }
+  .important { fill: #ffcdd2; stroke: #e65100; stroke-width: 1.5; }
+  .step { fill: #e1bee7; stroke: #7b1fa2; stroke-width: 1.5; }
+  .note-box { fill: #f8f9fa; stroke: #bdbdbd; stroke-width: 1; }
+  .cache { fill: #e65100; stroke: #e65100; stroke-width: 1.5; }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+    <polygon points="0 0, 10 3.5, 0 7" fill="#7b1fa2"/>
+  </marker>
+  <marker id="arrowhead-green" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+    <polygon points="0 0, 10 3.5, 0 7" fill="#2e7d32"/>
+  </marker>
+  <marker id="arrowhead-orange" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+    <polygon points="0 0, 10 3.5, 0 7" fill="#e65100"/>
+  </marker>
+</defs>
+<text x="319" y="24" class="title">Spring MVC 请求处理流程</text>
+<rect x="125.0" y="42" width="425" height="46" class="box phase"/>
+<text x="319" y="58" class="label" font-weight="bold">HTTP Request</text>
+<text x="319" y="75" class="note">DispatcherServlet#doDispatch()</text>
+<line x1="319" y1="88" x2="319" y2="132" class="arrow"/><rect x="125.0" y="132" width="425" height="61" class="box step"/>
+<text x="319" y="147" class="label" font-weight="bold">① HandlerMapping.findHandler()</text>
+<text x="319" y="164" class="note">返回 HandlerExecutionChain</text>
+<text x="319" y="179" class="note">→ Handler + HandlerInterceptor[]</text>
+<line x1="319" y1="193" x2="319" y2="221" class="arrow"/><rect x="125.0" y="221" width="425" height="76" class="box action"/>
+<text x="319" y="236" class="label" font-weight="bold">② HandlerAdapter 选择</text>
+<text x="319" y="253" class="note">RequestMappingHandlerAdapter</text>
+<text x="319" y="269" class="note">HttpRequestHandlerAdapter</text>
+<text x="319" y="284" class="note">SimpleControllerHandlerAdapter</text>
+<line x1="319" y1="298" x2="319" y2="310" class="arrow"/><rect x="125.0" y="310" width="425" height="46" class="box highlight"/>
+<text x="319" y="326" class="label" font-weight="bold">③ Interceptor.preHandle()</text>
+<text x="319" y="343" class="note">按顺序执行，任一返回 false 则中断</text>
+<line x1="319" y1="356" x2="319" y2="400" class="arrow"/><rect x="125.0" y="400" width="425" height="61" class="box important"/>
+<text x="319" y="415" class="label" font-weight="bold">④ HandlerAdapter.handle()</text>
+<text x="319" y="432" class="note">参数解析 → 执行 Controller → 返回值处理</text>
+<text x="319" y="447" class="note">→ ModelAndView / @ResponseBody → HttpMessageConverter</text>
+<line x1="319" y1="461" x2="319" y2="489" class="arrow"/><rect x="125.0" y="489" width="425" height="31" class="box highlight"/>
+<text x="319" y="504" class="label" font-weight="bold">⑤ Interceptor.postHandle()</text>
+<line x1="319" y1="519" x2="319" y2="578" class="arrow"/><rect x="125.0" y="578" width="425" height="61" class="box step"/>
+<text x="319" y="593" class="label" font-weight="bold">⑥ processDispatchResult()</text>
+<text x="319" y="610" class="note">渲染视图（ViewResolver → View.render）</text>
+<text x="319" y="626" class="note">或直接返回（@ResponseBody 已在步骤④写入）</text>
+
+</svg>

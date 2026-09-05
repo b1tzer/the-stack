@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 595 612" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <defs>
+    <marker id="arDown" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#555555"/>
+    </marker>
+    <marker id="arRight" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#7b1fa2"/>
+    </marker>
+  </defs>
+
+  <text x="298" y="24" text-anchor="middle" font-size="12" font-weight="bold" fill="#333333">Buffer 的内存布局与核心操作</text>
+
+  <!-- ===== Step 1: put() 写入 3 字节 ===== -->
+  <text x="34" y="53" font-size="12" font-weight="bold" fill="#1565c0">① put() 写入 3 字节后</text>
+
+  <!-- cells -->
+  <g transform="translate(40, 74)">
+    <rect x="0" y="0" width="48" height="34" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.3"/>
+    <text x="24" y="22" text-anchor="middle" fill="#1b5e20" font-weight="bold">A</text>
+    <rect x="48" y="0" width="48" height="34" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.3"/>
+    <text x="71" y="22" text-anchor="middle" fill="#1b5e20" font-weight="bold">B</text>
+    <rect x="95" y="0" width="48" height="34" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.3"/>
+    <text x="119" y="22" text-anchor="middle" fill="#1b5e20" font-weight="bold">C</text>
+    <rect x="143" y="0" width="48" height="34" fill="#ffffff" stroke="#bdbdbd" stroke-width="0.8"/>
+    <rect x="190" y="0" width="48" height="34" fill="#ffffff" stroke="#bdbdbd" stroke-width="0.8"/>
+    <rect x="238" y="0" width="48" height="34" fill="#ffffff" stroke="#bdbdbd" stroke-width="0.8"/>
+    <rect x="286" y="0" width="48" height="34" fill="#ffffff" stroke="#bdbdbd" stroke-width="0.8"/>
+    <rect x="333" y="0" width="48" height="34" fill="#ffffff" stroke="#bdbdbd" stroke-width="0.8"/>
+  </g>
+  <!-- position marker -->
+  <line x1="180" y1="97" x2="180" y2="110" stroke="#e65100" stroke-width="1.7"/>
+  <polygon points="208,130 216,130 212,138" fill="#e65100"/>
+  <text x="180" y="128" text-anchor="middle" fill="#e65100" font-size="10" font-weight="bold">position=3</text>
+  <!-- limit marker -->
+  <line x1="418" y1="97" x2="418" y2="110" stroke="#c62828" stroke-width="1.7"/>
+  <polygon points="488,130 496,130 492,138" fill="#c62828"/>
+  <text x="418" y="128" text-anchor="middle" fill="#c62828" font-size="10" font-weight="bold">limit=8</text>
+  <!-- capacity label -->
+  <text x="398" y="143" fill="#888888" font-size="9">capacity=8</text>
+
+  <!-- ===== Step 2: flip() ===== -->
+  <line x1="212" y1="151" x2="212" y2="175" stroke="#555555" stroke-width="1.3" marker-end="url(#arDown)"/>
+  <text x="226" y="167" fill="#7b1fa2" font-size="10" font-weight="bold">flip()</text>
+
+  <text x="34" y="192" font-size="12" font-weight="bold" fill="#1565c0">② flip() 后（准备读）</text>
+
+  <g transform="translate(40, 238)">
+    <rect x="0" y="0" width="48" height="34" fill="#bbdefb" stroke="#1565c0" stroke-width="1.3"/>
+    <text x="24" y="22" text-anchor="middle" fill="#0d47a1" font-weight="bold">A</text>
+    <rect x="48" y="0" width="48" height="34" fill="#bbdefb" stroke="#1565c0" stroke-width="1.3"/>
+    <text x="71" y="22" text-anchor="middle" fill="#0d47a1" font-weight="bold">B</text>
+    <rect x="95" y="0" width="48" height="34" fill="#bbdefb" stroke="#1565c0" stroke-width="1.3"/>
+    <text x="119" y="22" text-anchor="middle" fill="#0d47a1" font-weight="bold">C</text>
+    <rect x="143" y="0" width="48" height="34" fill="#eceff1" stroke="#bdbdbd" stroke-width="0.8"/>
+    <rect x="190" y="0" width="48" height="34" fill="#eceff1" stroke="#bdbdbd" stroke-width="0.8"/>
+    <rect x="238" y="0" width="48" height="34" fill="#eceff1" stroke="#bdbdbd" stroke-width="0.8"/>
+    <rect x="286" y="0" width="48" height="34" fill="#eceff1" stroke="#bdbdbd" stroke-width="0.8"/>
+    <rect x="333" y="0" width="48" height="34" fill="#eceff1" stroke="#bdbdbd" stroke-width="0.8"/>
+  </g>
+  <!-- position=0 -->
+  <line x1="44" y1="236" x2="44" y2="250" stroke="#e65100" stroke-width="1.7"/>
+  <polygon points="48,294 56,294 52,302" fill="#e65100"/>
+  <text x="44" y="267" text-anchor="middle" fill="#e65100" font-size="10" font-weight="bold">position=0</text>
+  <!-- limit=3 -->
+  <line x1="180" y1="236" x2="180" y2="250" stroke="#c62828" stroke-width="1.7"/>
+  <polygon points="208,294 216,294 212,302" fill="#c62828"/>
+  <text x="180" y="267" text-anchor="middle" fill="#c62828" font-size="10" font-weight="bold">limit=3</text>
+  <!-- 可读区域标注 -->
+  <line x1="36" y1="279" x2="182" y2="279" stroke="#1565c0" stroke-width="0.8"/>
+  <text x="109" y="292" text-anchor="middle" fill="#1565c0" font-size="9">可读数据 [position, limit)</text>
+
+  <!-- ===== Step 3: get() ===== -->
+  <line x1="212" y1="298" x2="212" y2="321" stroke="#555555" stroke-width="1.3" marker-end="url(#arDown)"/>
+  <text x="226" y="313" fill="#7b1fa2" font-size="10" font-weight="bold">get()</text>
+
+  <text x="34" y="338" font-size="12" font-weight="bold" fill="#1565c0">③ get() 读取 1 字节后</text>
+
+  <g transform="translate(40, 410)">
+    <rect x="0" y="0" width="48" height="34" fill="#eceff1" stroke="#bdbdbd" stroke-width="0.8"/>
+    <text x="24" y="22" text-anchor="middle" fill="#888888">A</text>
+    <rect x="48" y="0" width="48" height="34" fill="#bbdefb" stroke="#1565c0" stroke-width="1.3"/>
+    <text x="71" y="22" text-anchor="middle" fill="#0d47a1" font-weight="bold">B</text>
+    <rect x="95" y="0" width="48" height="34" fill="#bbdefb" stroke="#1565c0" stroke-width="1.3"/>
+    <text x="119" y="22" text-anchor="middle" fill="#0d47a1" font-weight="bold">C</text>
+    <rect x="143" y="0" width="48" height="34" fill="#eceff1" stroke="#bdbdbd" stroke-width="0.8"/>
+    <rect x="190" y="0" width="48" height="34" fill="#eceff1" stroke="#bdbdbd" stroke-width="0.8"/>
+    <rect x="238" y="0" width="48" height="34" fill="#eceff1" stroke="#bdbdbd" stroke-width="0.8"/>
+    <rect x="286" y="0" width="48" height="34" fill="#eceff1" stroke="#bdbdbd" stroke-width="0.8"/>
+    <rect x="333" y="0" width="48" height="34" fill="#eceff1" stroke="#bdbdbd" stroke-width="0.8"/>
+  </g>
+  <!-- position=1 -->
+  <line x1="92" y1="382" x2="92" y2="396" stroke="#e65100" stroke-width="1.7"/>
+  <polygon points="104,466 112,466 108,474" fill="#e65100"/>
+  <text x="92" y="416" text-anchor="middle" fill="#e65100" font-size="10" font-weight="bold">position=1</text>
+  <!-- limit=3 -->
+  <line x1="180" y1="382" x2="180" y2="396" stroke="#c62828" stroke-width="1.7"/>
+  <polygon points="208,466 216,466 212,474" fill="#c62828"/>
+  <text x="180" y="416" text-anchor="middle" fill="#c62828" font-size="10" font-weight="bold">limit=3</text>
+
+  <!-- ===== Step 4: compact() ===== -->
+  <line x1="212" y1="422" x2="212" y2="445" stroke="#555555" stroke-width="1.3" marker-end="url(#arDown)"/>
+  <text x="226" y="437" fill="#7b1fa2" font-size="10" font-weight="bold">compact()</text>
+
+  <text x="34" y="462" font-size="12" font-weight="bold" fill="#1565c0">④ compact() 后（保留未读，准备继续写）</text>
+
+  <g transform="translate(40, 556)">
+    <rect x="0" y="0" width="48" height="34" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.3"/>
+    <text x="24" y="22" text-anchor="middle" fill="#1b5e20" font-weight="bold">B</text>
+    <rect x="48" y="0" width="48" height="34" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.3"/>
+    <text x="71" y="22" text-anchor="middle" fill="#1b5e20" font-weight="bold">C</text>
+    <rect x="95" y="0" width="48" height="34" fill="#ffffff" stroke="#bdbdbd" stroke-width="0.8"/>
+    <rect x="143" y="0" width="48" height="34" fill="#ffffff" stroke="#bdbdbd" stroke-width="0.8"/>
+    <rect x="190" y="0" width="48" height="34" fill="#ffffff" stroke="#bdbdbd" stroke-width="0.8"/>
+    <rect x="238" y="0" width="48" height="34" fill="#ffffff" stroke="#bdbdbd" stroke-width="0.8"/>
+    <rect x="286" y="0" width="48" height="34" fill="#ffffff" stroke="#bdbdbd" stroke-width="0.8"/>
+    <rect x="333" y="0" width="48" height="34" fill="#ffffff" stroke="#bdbdbd" stroke-width="0.8"/>
+  </g>
+  <!-- position=2 -->
+  <line x1="139" y1="507" x2="139" y2="520" stroke="#e65100" stroke-width="1.7"/>
+  <polygon points="160,612 168,612 164,620" fill="#e65100"/>
+  <text x="139" y="542" text-anchor="middle" fill="#e65100" font-size="10" font-weight="bold">position=2</text>
+  <!-- limit=8 -->
+  <line x1="418" y1="507" x2="418" y2="520" stroke="#c62828" stroke-width="1.7"/>
+  <polygon points="488,612 496,612 492,620" fill="#c62828"/>
+  <text x="418" y="542" text-anchor="middle" fill="#c62828" font-size="10" font-weight="bold">limit=8</text>
+
+  <!-- 图例 -->
+  <rect x="34" y="561" width="527" height="37" rx="5" fill="#ffffff" stroke="#e0e0e0" stroke-width="0.8"/>
+  <rect x="48" y="571" width="14" height="14" fill="#c8e6c9" stroke="#2e7d32" stroke-width="0.8"/>
+  <text x="66" y="582" fill="#333333" font-size="10">已写入 / 可写</text>
+  <rect x="144" y="571" width="14" height="14" fill="#bbdefb" stroke="#1565c0" stroke-width="0.8"/>
+  <text x="163" y="582" fill="#333333" font-size="10">可读数据</text>
+  <rect x="233" y="571" width="14" height="14" fill="#eceff1" stroke="#bdbdbd" stroke-width="0.8"/>
+  <text x="252" y="582" fill="#333333" font-size="10">已读 / 不可访问</text>
+  <text x="374" y="582" fill="#e65100" font-size="10">▼ position</text>
+  <text x="459" y="582" fill="#c62828" font-size="10">▼ limit</text>
+</svg>

@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 527 527" width="527" height="527">
+  <defs>
+    <style>
+      text { font-family: 'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif; }
+    </style>
+    <linearGradient id="chipBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e3f2fd"/>
+      <stop offset="100%" stop-color="#eceff1"/>
+    </linearGradient>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="104%">
+      <feDropShadow dx="1" dy="2" stdDeviation="3" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <!-- CPU Chip outer box -->
+  <rect x="13" y="8" width="502" height="348" rx="12" fill="url(#chipBg)" stroke="#1565c0" stroke-width="1.7" filter="url(#shadow)"/>
+  <text x="264" y="36" text-anchor="middle" font-size="12" font-weight="bold" fill="#0d47a1">CPU 芯片</text>
+
+  <!-- Core 0 -->
+  <rect x="34" y="51" width="208" height="280" rx="8" fill="#ffffff" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="138" y="72" text-anchor="middle" font-size="12" font-weight="bold" fill="#0d47a1">Core 0</text>
+
+  <!-- L1 Cache 0 -->
+  <rect x="51" y="85" width="170" height="60" rx="7" fill="#e3f2fd" stroke="#1565c0" stroke-width="1"/>
+  <text x="136" y="109" text-anchor="middle" font-size="11" font-weight="bold" fill="#0d47a1">L1 Cache</text>
+  <text x="136" y="128" text-anchor="middle" font-size="10" fill="#1565c0">（私有）</text>
+
+  <!-- L2 Cache 0 -->
+  <rect x="51" y="162" width="170" height="60" rx="7" fill="#bbdefb" stroke="#1565c0" stroke-width="1"/>
+  <text x="136" y="185" text-anchor="middle" font-size="11" font-weight="bold" fill="#0d47a1">L2 Cache</text>
+  <text x="136" y="204" text-anchor="middle" font-size="10" fill="#1565c0">（私有）</text>
+
+  <!-- Core 1 -->
+  <rect x="259" y="51" width="208" height="280" rx="8" fill="#ffffff" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="363" y="72" text-anchor="middle" font-size="12" font-weight="bold" fill="#0d47a1">Core 1</text>
+
+  <!-- L1 Cache 1 -->
+  <rect x="276" y="85" width="170" height="60" rx="7" fill="#e3f2fd" stroke="#1565c0" stroke-width="1"/>
+  <text x="361" y="109" text-anchor="middle" font-size="11" font-weight="bold" fill="#0d47a1">L1 Cache</text>
+  <text x="361" y="128" text-anchor="middle" font-size="10" fill="#1565c0">（私有）</text>
+
+  <!-- L2 Cache 1 -->
+  <rect x="276" y="162" width="170" height="60" rx="7" fill="#bbdefb" stroke="#1565c0" stroke-width="1"/>
+  <text x="361" y="185" text-anchor="middle" font-size="11" font-weight="bold" fill="#0d47a1">L2 Cache</text>
+  <text x="361" y="204" text-anchor="middle" font-size="10" fill="#1565c0">（私有）</text>
+
+  <!-- Connector lines from cores to shared bus -->
+  <line x1="138" y1="238" x2="138" y2="264" stroke="#555555" stroke-width="1.3" stroke-dasharray="4,3"/>
+  <line x1="363" y1="238" x2="363" y2="264" stroke="#555555" stroke-width="1.3" stroke-dasharray="4,3"/>
+
+  <!-- Horizontal bus -->
+  <line x1="138" y1="264" x2="363" y2="264" stroke="#555555" stroke-width="1.3" stroke-dasharray="4,3"/>
+
+  <!-- Bus label -->
+  <text x="251" y="258" text-anchor="middle" font-size="8" fill="#555555">总线</text>
+
+  <!-- L3 Cache (shared) -->
+  <rect x="102" y="272" width="298" height="47" rx="7" fill="#fff3e0" stroke="#e65100" stroke-width="1.3"/>
+  <text x="251" y="293" text-anchor="middle" font-size="11" font-weight="bold" fill="#bf360c">L3 Cache</text>
+  <text x="251" y="310" text-anchor="middle" font-size="10" fill="#e65100">（共享）</text>
+
+  <!-- Arrow from L3 down to DRAM -->
+  <line x1="251" y1="319" x2="251" y2="374" stroke="#555555" stroke-width="1.7"/>
+  <polygon points="295,440 289,432 301,432" fill="#555555"/>
+
+  <!-- Main Memory (DRAM) -->
+  <rect x="123" y="382" width="255" height="47" rx="7" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.3"/>
+  <text x="251" y="404" text-anchor="middle" font-size="12" font-weight="bold" fill="#4a148c">主内存（DRAM）</text>
+
+  <!-- Annotation: visibility problem -->
+  <rect x="51" y="450" width="408" height="60" rx="7" fill="#fff3e0" stroke="#e65100" stroke-width="0.8" stroke-dasharray="5,3"/>
+  <text x="255" y="469" text-anchor="middle" font-size="10" fill="#bf360c">Core 0 写 x = 1 到 L1，不会立刻写回主内存</text>
+  <text x="255" y="486" text-anchor="middle" font-size="10" fill="#bf360c">→ Core 1 从 L1 读到的可能仍是旧值 0</text>
+  <text x="255" y="503" text-anchor="middle" font-size="10" font-weight="bold" fill="#bf360c">可见性问题的硬件根源就在这里</text>
+</svg>

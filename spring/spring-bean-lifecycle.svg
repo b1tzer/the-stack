@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 700" width="800" height="700" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="12">
+  <style>
+    text { text-anchor: middle; dominant-baseline: central; }
+    .title { font-size: 15px; font-weight: bold; fill: #333333; }
+    .footnote { font-size: 10px; fill: #999999; }
+    .stage { font-size: 13px; font-weight: bold; }
+    .card-label { font-size: 12px; font-weight: bold; fill: #333333; }
+    .card-label-emph { font-size: 12px; font-weight: bold; fill: #7b1fa2; }
+    .card-note { font-size: 11px; fill: #666666; }
+    .arrow { stroke: #7b1fa2; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+    .box { rx: 8; ry: 8; stroke-width: 1.5; }
+    .marker-arrow { fill: #7b1fa2; }
+    .stage-instantiate { fill: #e3f2fd; stroke: #1565c0; }
+    .stage-populate { fill: #e0f2f1; stroke: #00796b; }
+    .stage-init { fill: #ede7f6; stroke: #6a1b9a; }
+    .stage-ready { fill: #eceff1; stroke: #666666; }
+    .stage-destroy { fill: #fff3e0; stroke: #e65100; }
+    .stage-text-instantiate { fill: #1565c0; }
+    .stage-text-populate { fill: #00796b; }
+    .stage-text-init { fill: #6a1b9a; }
+    .stage-text-ready { fill: #555555; }
+    .stage-text-destroy { fill: #e65100; }
+    .card-instantiate { fill: #e3f2fd; stroke: #1565c0; }
+    .card-populate { fill: #e0f2f1; stroke: #00796b; }
+    .card-aware { fill: #ede7f6; stroke: #6a1b9a; }
+    .card-before { fill: #ede7f6; stroke: #6a1b9a; }
+    .card-init { fill: #ede7f6; stroke: #6a1b9a; }
+    .card-after { fill: #e1bee7; stroke: #7b1fa2; }
+    .card-ready { fill: #eceff1; stroke: #666666; }
+    .card-destroy { fill: #fff3e0; stroke: #e65100; }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 9 3.5, 0 7" class="marker-arrow"/>
+    </marker>
+  </defs>
+
+  <text x="400" y="26" class="title">Spring Bean 生命周期全流程</text>
+
+  <rect x="20" y="58" width="140" height="40" class="box stage-instantiate"/>
+  <text x="90" y="78" class="stage stage-text-instantiate">实例化</text>
+
+  <rect x="20" y="138" width="140" height="40" class="box stage-populate"/>
+  <text x="90" y="158" class="stage stage-text-populate">属性填充</text>
+
+  <rect x="20" y="330" width="140" height="56" class="box stage-init"/>
+  <text x="90" y="358" class="stage stage-text-init">初始化</text>
+
+  <rect x="20" y="530" width="140" height="40" class="box stage-ready"/>
+  <text x="90" y="550" class="stage stage-text-ready">就绪</text>
+
+  <rect x="20" y="602" width="140" height="40" class="box stage-destroy"/>
+  <text x="90" y="622" class="stage stage-text-destroy">销毁</text>
+
+  <rect x="180" y="50" width="590" height="56" class="box card-instantiate"/>
+  <text x="475" y="71" class="card-label">① 实例化 · createBeanInstance()</text>
+  <text x="475" y="92" class="card-note">构造器 / 工厂方法 new 出对象，字段全空</text>
+
+  <line x1="475" y1="106" x2="475" y2="130" class="arrow"/>
+
+  <rect x="180" y="130" width="590" height="56" class="box card-populate"/>
+  <text x="475" y="151" class="card-label">② 属性填充 · populateBean()</text>
+  <text x="475" y="172" class="card-note">@Autowired 在此注入依赖</text>
+
+  <line x1="475" y1="186" x2="475" y2="210" class="arrow"/>
+
+  <rect x="180" y="210" width="590" height="56" class="box card-aware"/>
+  <text x="475" y="231" class="card-label">③ Aware 回调 · invokeAwareMethods()</text>
+  <text x="475" y="252" class="card-note">BeanNameAware → BeanClassLoaderAware → BeanFactoryAware</text>
+
+  <line x1="475" y1="266" x2="475" y2="290" class="arrow"/>
+
+  <rect x="180" y="290" width="590" height="56" class="box card-before"/>
+  <text x="475" y="311" class="card-label">④ 初始化前 · postProcessBeforeInitialization()</text>
+  <text x="475" y="332" class="card-note">@PostConstruct 在此执行</text>
+
+  <line x1="475" y1="346" x2="475" y2="370" class="arrow"/>
+
+  <rect x="180" y="370" width="590" height="56" class="box card-init"/>
+  <text x="475" y="391" class="card-label">⑤ 初始化 · invokeInitMethods()</text>
+  <text x="475" y="412" class="card-note">InitializingBean#afterPropertiesSet() → init-method</text>
+
+  <line x1="475" y1="426" x2="475" y2="450" class="arrow"/>
+
+  <rect x="180" y="450" width="590" height="56" class="box card-after"/>
+  <text x="475" y="471" class="card-label-emph">⑥ 初始化后 · postProcessAfterInitialization()</text>
+  <text x="475" y="492" class="card-note">AOP 代理在此生成（关键时机）</text>
+
+  <line x1="475" y1="506" x2="475" y2="530" class="arrow"/>
+
+  <rect x="180" y="530" width="590" height="40" class="box card-ready"/>
+  <text x="475" y="550" class="card-label">⑦ Bean 就绪，可注入使用</text>
+
+  <line x1="475" y1="570" x2="475" y2="594" class="arrow"/>
+
+  <rect x="180" y="594" width="590" height="56" class="box card-destroy"/>
+  <text x="475" y="615" class="card-label">⑧ 销毁 · DisposableBeanAdapter#destroy()</text>
+  <text x="475" y="636" class="card-note">@PreDestroy → destroy() → destroy-method</text>
+
+  <text x="400" y="680" class="footnote">完整链路还含 MergedBeanDefinitionPostProcessor 等进阶钩子，正文 §3 有完整源码</text>
+</svg>
