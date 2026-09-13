@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="top" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a5b4fc"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+    <linearGradient id="left" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3730a3"/>
+      <stop offset="100%" stop-color="#4338ca"/>
+    </linearGradient>
+    <linearGradient id="right" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 底层方块 -->
+  <polygon points="24,46 6,36 6,28 24,38" fill="url(#left)" opacity="0.45"/>
+  <polygon points="24,46 42,36 42,28 24,38" fill="url(#right)" opacity="0.45"/>
+  <polygon points="24,38 6,28 24,18 42,28" fill="url(#top)" opacity="0.45"/>
+
+  <!-- 中层方块 -->
+  <polygon points="24,38 6,28 6,20 24,30" fill="url(#left)" opacity="0.72"/>
+  <polygon points="24,38 42,28 42,20 24,30" fill="url(#right)" opacity="0.72"/>
+  <polygon points="24,30 6,20 24,10 42,20" fill="url(#top)" opacity="0.72"/>
+
+  <!-- 顶层方块 -->
+  <polygon points="24,30 6,20 6,12 24,22" fill="url(#left)"/>
+  <polygon points="24,30 42,20 42,12 24,22" fill="url(#right)"/>
+  <polygon points="24,22 6,12 24,2 42,12" fill="url(#top)"/>
+</svg>

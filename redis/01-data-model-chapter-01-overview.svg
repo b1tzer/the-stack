@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1530" height="300" viewBox="0 0 1530 300" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif">
+  <rect width="1530" height="300" fill="#ffffff"/>
+  <text x="765" y="42" text-anchor="middle" font-size="20" font-weight="700" fill="#DC382D">Redis 版本发展</text>
+  <line x1="80" y1="118" x2="1450" y2="118" stroke="#DC382D" stroke-width="2"/>
+
+  <g font-size="14" font-weight="600" fill="#57606a" text-anchor="middle">
+    <text x="85" y="104">2009</text>
+    <text x="245" y="104">2012</text>
+    <text x="405" y="104">2013</text>
+    <text x="565" y="104">2015</text>
+    <text x="725" y="104">2017</text>
+    <text x="885" y="104">2018</text>
+    <text x="1045" y="104">2020</text>
+    <text x="1205" y="104">2022</text>
+    <text x="1365" y="104">2024</text>
+  </g>
+
+  <g fill="#DC382D">
+    <circle cx="85" cy="118" r="5"/><circle cx="245" cy="118" r="5"/><circle cx="405" cy="118" r="5"/>
+    <circle cx="565" cy="118" r="5"/><circle cx="725" cy="118" r="5"/><circle cx="885" cy="118" r="5"/>
+    <circle cx="1045" cy="118" r="5"/><circle cx="1205" cy="118" r="5"/><circle cx="1365" cy="118" r="5"/>
+  </g>
+
+  <g font-size="13" text-anchor="middle">
+    <g>
+      <rect x="0" y="142" width="170" height="116" rx="10" fill="#ffffff" stroke="#e3e6ea"/>
+      <text x="85" y="162" font-weight="700" fill="#DC382D">Redis 1.0</text>
+      <text x="85" y="186" fill="#57606a">五种基本数据结构</text>
+      <text x="85" y="208" fill="#57606a">单线程模型</text>
+    </g>
+    <g>
+      <rect x="160" y="142" width="170" height="116" rx="10" fill="#ffffff" stroke="#e3e6ea"/>
+      <text x="245" y="162" font-weight="700" fill="#DC382D">Redis 2.6</text>
+      <text x="245" y="186" fill="#57606a">Lua 脚本、PEXPIRE</text>
+      <text x="245" y="208" fill="#57606a">位图操作</text>
+    </g>
+    <g>
+      <rect x="320" y="142" width="170" height="116" rx="10" fill="#ffffff" stroke="#e3e6ea"/>
+      <text x="405" y="162" font-weight="700" fill="#DC382D">Redis 2.8</text>
+      <text x="405" y="184" fill="#57606a">Sentinel 哨兵</text>
+      <text x="405" y="206" fill="#57606a">SCAN 系列</text>
+      <text x="405" y="228" fill="#57606a">PSYNC 部分同步</text>
+    </g>
+    <g>
+      <rect x="480" y="142" width="170" height="116" rx="10" fill="#ffffff" stroke="#e3e6ea"/>
+      <text x="565" y="162" font-weight="700" fill="#DC382D">Redis 3.0</text>
+      <text x="565" y="186" fill="#57606a">Redis Cluster</text>
+      <text x="565" y="208" fill="#57606a">集群正式版</text>
+    </g>
+    <g>
+      <rect x="640" y="142" width="170" height="116" rx="10" fill="#ffffff" stroke="#e3e6ea"/>
+      <text x="725" y="162" font-weight="700" fill="#DC382D">Redis 4.0</text>
+      <text x="725" y="184" fill="#57606a">混合持久化、UNLINK</text>
+      <text x="725" y="206" fill="#57606a">异步删除、Modules</text>
+      <text x="725" y="228" fill="#57606a">模块系统、LFU 淘汰</text>
+    </g>
+    <g>
+      <rect x="800" y="142" width="170" height="116" rx="10" fill="#ffffff" stroke="#e3e6ea"/>
+      <text x="885" y="162" font-weight="700" fill="#DC382D">Redis 5.0</text>
+      <text x="885" y="186" fill="#57606a">Stream 数据类型</text>
+      <text x="885" y="208" fill="#57606a">有序集合弹出操作</text>
+    </g>
+    <g>
+      <rect x="960" y="142" width="170" height="116" rx="10" fill="#ffffff" stroke="#e3e6ea"/>
+      <text x="1045" y="162" font-weight="700" fill="#DC382D">Redis 6.0</text>
+      <text x="1045" y="184" fill="#57606a">多线程网络 IO</text>
+      <text x="1045" y="206" fill="#57606a">ACL 权限控制、RESP3</text>
+      <text x="1045" y="228" fill="#57606a">客户端缓存</text>
+    </g>
+    <g>
+      <rect x="1120" y="142" width="170" height="116" rx="10" fill="#ffffff" stroke="#e3e6ea"/>
+      <text x="1205" y="162" font-weight="700" fill="#DC382D">Redis 7.0</text>
+      <text x="1205" y="184" fill="#57606a">Redis Functions</text>
+      <text x="1205" y="206" fill="#57606a">ACL v2、分片</text>
+      <text x="1205" y="228" fill="#57606a">Pub/Sub、MP-AOF</text>
+    </g>
+    <g>
+      <rect x="1280" y="142" width="170" height="116" rx="10" fill="#ffffff" stroke="#e3e6ea"/>
+      <text x="1365" y="162" font-weight="700" fill="#DC382D">Redis 7.2</text>
+      <text x="1365" y="184" fill="#57606a">哨兵 TLS</text>
+      <text x="1365" y="206" fill="#57606a">listpack 全面替代</text>
+      <text x="1365" y="228" fill="#57606a">ziplist</text>
+    </g>
+  </g>
+</svg>

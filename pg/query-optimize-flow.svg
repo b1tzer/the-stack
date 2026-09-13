@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 750 400" font-family="system-ui, -apple-system, sans-serif">
+  <defs>
+    <marker id="arrow-opt" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#6b7280"/>
+    </marker>
+  </defs>
+  <rect x="270" y="10" width="210" height="36" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+  <text x="375" y="33" text-anchor="middle" font-size="12" font-weight="600" fill="#991b1b">发现慢查询</text>
+  <line x1="375" y1="46" x2="375" y2="68" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arrow-opt)"/>
+  <rect x="260" y="68" width="230" height="36" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1"/>
+  <text x="375" y="91" text-anchor="middle" font-size="11" fill="#1e40af">pg_stat_statements 找最耗时 SQL</text>
+  <line x1="375" y1="104" x2="375" y2="126" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arrow-opt)"/>
+  <rect x="250" y="126" width="250" height="36" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1"/>
+  <text x="375" y="149" text-anchor="middle" font-size="11" fill="#1e40af">EXPLAIN ANALYZE 分析执行计划</text>
+  <line x1="375" y1="162" x2="375" y2="184" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arrow-opt)"/>
+  <!-- Decision 1 -->
+  <polygon points="375,184 475,210 375,236 275,210" fill="#f3f4f6" stroke="#9ca3af" stroke-width="1"/>
+  <text x="375" y="214" text-anchor="middle" font-size="10" fill="#374151">Seq Scan 全表扫描？</text>
+  <line x1="275" y1="210" x2="120" y2="210" stroke="#16a34a" stroke-width="1.5" marker-end="url(#arrow-opt)"/>
+  <text x="198" y="203" font-size="9" fill="#16a34a">是</text>
+  <rect x="20" y="190" width="100" height="40" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="1"/>
+  <text x="70" y="210" text-anchor="middle" font-size="10" fill="#166534">添加索引</text>
+  <line x1="475" y1="210" x2="560" y2="210" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arrow-opt)"/>
+  <text x="518" y="203" font-size="9" fill="#6b7280">否</text>
+  <!-- Decision 2 -->
+  <polygon points="560,210 660,236 560,262 460,236" fill="#f3f4f6" stroke="#9ca3af" stroke-width="1"/>
+  <text x="560" y="240" text-anchor="middle" font-size="9" fill="#374151">行数差异大？</text>
+  <line x1="460" y1="236" x2="370" y2="236" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow-opt)"/>
+  <text x="415" y="229" font-size="9" fill="#f59e0b">是</text>
+  <rect x="270" y="216" width="100" height="40" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1"/>
+  <text x="320" y="236" text-anchor="middle" font-size="10" fill="#92400e">ANALYZE</text>
+  <text x="320" y="250" text-anchor="middle" font-size="9" fill="#6b7280">更新统计信息</text>
+  <line x1="660" y1="236" x2="700" y2="236" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arrow-opt)"/>
+  <text x="680" y="229" font-size="9" fill="#6b7280">否</text>
+  <rect x="700" y="216" width="40" height="40" rx="6" fill="#f3f4f6" stroke="#9ca3af" stroke-width="1"/>
+  <text x="720" y="240" text-anchor="middle" font-size="18" fill="#6b7280">↓</text>
+  <!-- Decision 3 -->
+  <polygon points="375,280 475,306 375,332 275,306" fill="#f3f4f6" stroke="#9ca3af" stroke-width="1"/>
+  <text x="375" y="310" text-anchor="middle" font-size="9" fill="#374151">Sort/Hash 溢出磁盘？</text>
+  <line x1="275" y1="306" x2="120" y2="306" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#arrow-opt)"/>
+  <text x="198" y="299" font-size="9" fill="#8b5cf6">是</text>
+  <rect x="20" y="286" width="100" height="40" rx="6" fill="#ede9fe" stroke="#8b5cf6" stroke-width="1"/>
+  <text x="70" y="306" text-anchor="middle" font-size="10" fill="#6d28d9">增大 work_mem</text>
+  <line x1="475" y1="306" x2="560" y2="306" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arrow-opt)"/>
+  <text x="518" y="299" font-size="9" fill="#6b7280">否</text>
+  <rect x="560" y="286" width="140" height="40" rx="6" fill="#f3f4f6" stroke="#9ca3af" stroke-width="1"/>
+  <text x="630" y="306" text-anchor="middle" font-size="10" fill="#374151">应用层优化</text>
+  <text x="630" y="320" text-anchor="middle" font-size="9" fill="#6b7280">N+1 / 批量操作</text>
+</svg>

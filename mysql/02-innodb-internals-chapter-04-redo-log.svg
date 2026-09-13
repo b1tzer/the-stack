@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 380" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <defs>
+    <marker id="arrBlue" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#1565c0"/>
+    </marker>
+    <marker id="arrOrange" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#e65100"/>
+    </marker>
+  </defs>
+
+  <!-- 标题 -->
+  <text x="450" y="26" text-anchor="middle" font-size="14" font-weight="bold" fill="#333333">Redo Log 循环缓冲区：两个 LSN 游标把环切成三段</text>
+
+  <!-- ============ Log Buffer（内存） ============ -->
+  <rect x="60" y="128" width="200" height="48" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="160" y="157" text-anchor="middle" fill="#0d47a1" font-weight="bold" font-size="12">Log Buffer（内存）</text>
+
+  <!-- fsync 刷盘：指向环的写入位置 -->
+  <polyline points="260,156 380,156 414,174" fill="none" stroke="#1565c0" stroke-width="1.8" marker-end="url(#arrBlue)"/>
+  <text x="320" y="146" text-anchor="middle" fill="#1565c0" font-size="9" font-weight="bold">fsync 刷盘</text>
+
+  <!-- ============ Redo Log 循环缓冲区 ============ -->
+  <!-- 已刷盘（可覆盖）：绿，半圆（顶部→右侧→底部） -->
+  <path d="M 500 84 A 96 96 0 0 1 596 180 A 96 96 0 0 1 500 276" fill="none" stroke="#c8e6c9" stroke-width="40"/>
+  <!-- 未刷盘（恢复用）：橙，四分之一（底部→左侧） -->
+  <path d="M 500 276 A 96 96 0 0 1 404 180" fill="none" stroke="#ffcc80" stroke-width="40"/>
+  <!-- 空闲：灰，四分之一（左侧→顶部） -->
+  <path d="M 404 180 A 96 96 0 0 1 500 84" fill="none" stroke="#eceff1" stroke-width="40"/>
+
+  <!-- 环中心 -->
+  <text x="500" y="186" text-anchor="middle" fill="#333333" font-weight="bold" font-size="14">Redo Log</text>
+
+  <!-- 写入方向（顺时针，LSN 递增），与圆环同圆心、半径略大于环外半径 -->
+  <path d="M 500 52 A 128 128 0 0 1 611 116" fill="none" stroke="#e65100" stroke-width="2.2" marker-end="url(#arrOrange)"/>
+  <text x="622" y="132" fill="#e65100" font-size="9">写入方向（LSN 递增）</text>
+
+  <!-- checkpoint LSN 游标（绿橙交界，底部） -->
+  <line x1="500" y1="298" x2="500" y2="330" stroke="#e65100" stroke-width="1.4"/>
+  <text x="500" y="346" text-anchor="middle" fill="#e65100" font-size="10" font-weight="bold">checkpoint LSN</text>
+  <text x="500" y="360" text-anchor="middle" fill="#8d6e63" font-size="9">已刷盘 / 未刷盘分界</text>
+
+  <!-- 当前 LSN 游标（橙灰交界，左侧） -->
+  <line x1="384" y1="180" x2="336" y2="180" stroke="#e65100" stroke-width="1.4"/>
+  <text x="330" y="188" text-anchor="end" fill="#e65100" font-size="10" font-weight="bold">当前 LSN</text>
+  <text x="330" y="204" text-anchor="end" fill="#8d6e63" font-size="9">写入位置</text>
+
+  <!-- 图例 -->
+  <rect x="630" y="150" width="16" height="16" rx="2" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="654" y="163" fill="#555555" font-size="10">已刷盘，可覆盖</text>
+  <rect x="630" y="182" width="16" height="16" rx="2" fill="#ffcc80" stroke="#e65100" stroke-width="1"/>
+  <text x="654" y="195" fill="#555555" font-size="10">未刷盘，恢复时重放</text>
+  <rect x="630" y="214" width="16" height="16" rx="2" fill="#eceff1" stroke="#90a4ae" stroke-width="1"/>
+  <text x="654" y="227" fill="#555555" font-size="10">空闲</text>
+</svg>

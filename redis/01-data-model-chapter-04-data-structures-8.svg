@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="260" viewBox="0 0 920 260" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#DC382D"/>
+    </marker>
+  </defs>
+  <rect width="920" height="260" fill="#ffffff"/>
+
+  <!-- 上半：升级前 16 位 -->
+  <text x="40" y="34" font-size="14" font-weight="700" fill="#24292f">升级前：encoding=16 位，每元素 2 字节</text>
+
+  <rect x="40" y="48" width="120" height="40" rx="6" fill="#f6f8fa" stroke="#9aa4af"/>
+  <text x="100" y="73" text-anchor="middle" font-size="12" fill="#57606a">encoding=16</text>
+
+  <rect x="180" y="48" width="120" height="40" rx="6" fill="#f6f8fa" stroke="#9aa4af"/>
+  <text x="240" y="73" text-anchor="middle" font-size="12" fill="#57606a">length=3</text>
+
+  <rect x="320" y="48" width="540" height="40" rx="6" fill="#ffffff" stroke="#9aa4af"/>
+  <g stroke="#c0c8d0" stroke-width="1">
+    <line x1="500" y1="48" x2="500" y2="88"/>
+    <line x1="680" y1="48" x2="680" y2="88"/>
+  </g>
+  <text x="410" y="73" text-anchor="middle" font-size="15" fill="#DC382D">1</text>
+  <text x="590" y="73" text-anchor="middle" font-size="15" fill="#DC382D">3</text>
+  <text x="770" y="73" text-anchor="middle" font-size="15" fill="#DC382D">5</text>
+
+  <!-- 升级箭头 -->
+  <line x1="460" y1="98" x2="460" y2="132" stroke="#DC382D" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="476" y="120" font-size="13" font-weight="600" fill="#DC382D">SADD 70000（超出 16 位范围）→ 整体升级为 32 位</text>
+
+  <!-- 下半：升级后 32 位 -->
+  <text x="40" y="172" font-size="14" font-weight="700" fill="#24292f">升级后：encoding=32 位，每元素 4 字节</text>
+
+  <rect x="40" y="186" width="120" height="40" rx="6" fill="#f6f8fa" stroke="#9aa4af"/>
+  <text x="100" y="211" text-anchor="middle" font-size="12" fill="#57606a">encoding=32</text>
+
+  <rect x="180" y="186" width="120" height="40" rx="6" fill="#f6f8fa" stroke="#9aa4af"/>
+  <text x="240" y="211" text-anchor="middle" font-size="12" fill="#57606a">length=4</text>
+
+  <rect x="320" y="186" width="540" height="40" rx="6" fill="#ffffff" stroke="#9aa4af"/>
+  <g stroke="#c0c8d0" stroke-width="1">
+    <line x1="455" y1="186" x2="455" y2="226"/>
+    <line x1="590" y1="186" x2="590" y2="226"/>
+    <line x1="725" y1="186" x2="725" y2="226"/>
+  </g>
+  <text x="387" y="211" text-anchor="middle" font-size="15" fill="#DC382D">1</text>
+  <text x="522" y="211" text-anchor="middle" font-size="15" fill="#DC382D">3</text>
+  <text x="657" y="211" text-anchor="middle" font-size="15" fill="#DC382D">5</text>
+  <text x="792" y="211" text-anchor="middle" font-size="15" font-weight="600" fill="#DC382D">70000</text>
+
+  <!-- 降级说明 -->
+  <text x="460" y="252" text-anchor="middle" font-size="12" fill="#57606a">即使后来删掉 70000，encoding 仍保持 32 位——只升级、不降级</text>
+</svg>

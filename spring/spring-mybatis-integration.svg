@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 637" width="680" height="638" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+<style>
+  text { text-anchor: middle; dominant-baseline: central; }
+  .title { font-size: 15px; font-weight: bold; fill: #333333; }
+  .label { font-size: 12px; fill: #333333; }
+  .note { font-size: 11px; fill: #666666; }
+  .arrow { stroke: #7b1fa2; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+  .box { rx: 8; ry: 8; }
+  .phase { fill: #eceff1; stroke: #666666; stroke-width: 1.5; }
+  .step { fill: #e1bee7; stroke: #7b1fa2; stroke-width: 1.5; }
+  .action { fill: #e8f5e9; stroke: #2e7d32; stroke-width: 1.5; }
+  .highlight { fill: #fff3e0; stroke: #e65100; stroke-width: 1.5; }
+  .important { fill: #ffcdd2; stroke: #e65100; stroke-width: 1.5; }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+    <polygon points="0 0, 10 3.5, 0 7" fill="#7b1fa2"/>
+  </marker>
+</defs>
+
+<text x="340" y="24" class="title">Spring 容器启动 → MyBatis Mapper 注册</text>
+
+<!-- Root: Spring 容器启动 -->
+<rect x="187" y="41" width="306" height="31" class="box important"/>
+<text x="340" y="56" class="label" font-weight="bold">Spring 容器启动</text>
+
+<!-- Three branches -->
+<line x1="340" y1="71" x2="136" y2="94" class="arrow"/>
+<line x1="340" y1="71" x2="340" y2="94" class="arrow"/>
+<line x1="340" y1="71" x2="544" y2="94" class="arrow"/>
+
+<!-- Branch 1: @MapperScan -->
+<rect x="26" y="94" width="221" height="27" class="box step"/>
+<text x="136" y="107" class="label" font-weight="bold">1. 处理 @MapperScan</text>
+
+<line x1="136" y1="121" x2="136" y2="136" class="arrow"/>
+<rect x="26" y="136" width="221" height="24" class="box action"/>
+<text x="136" y="148" class="note">MapperScannerRegistrar</text>
+
+<line x1="136" y1="160" x2="136" y2="175" class="arrow"/>
+<rect x="26" y="175" width="221" height="24" class="box action"/>
+<text x="136" y="187" class="note">ClassPathMapperScanner.doScan()</text>
+
+<line x1="136" y1="199" x2="136" y2="214" class="arrow"/>
+<rect x="26" y="214" width="221" height="61" class="box phase"/>
+<text x="136" y="228" class="label">找到 Mapper 接口：</text>
+<text x="136" y="245" class="note">UserMapper</text>
+<text x="136" y="260" class="note">OrderMapper</text>
+<text x="136" y="272" class="note">ProductMapper</text>
+
+<!-- Branch 2: 注册 BeanDefinition -->
+<rect x="246" y="94" width="187" height="27" class="box highlight"/>
+<text x="340" y="107" class="label" font-weight="bold">2. 注册 BeanDefinition</text>
+
+<line x1="340" y1="121" x2="340" y2="136" class="arrow"/>
+<rect x="246" y="136" width="187" height="68" class="box phase"/>
+<text x="340" y="151" class="note">UserMapper → MapperFactoryBean</text>
+<text x="340" y="168" class="note">OrderMapper → MapperFactoryBean</text>
+<text x="340" y="185" class="note">ProductMapper → MapperFactoryBean</text>
+
+<!-- Branch 3: 创建 Bean -->
+<rect x="450" y="94" width="204" height="27" class="box important"/>
+<text x="552" y="107" class="label" font-weight="bold">3. 创建 Bean</text>
+
+<line x1="552" y1="121" x2="552" y2="136" class="arrow"/>
+<rect x="450" y="136" width="204" height="44" class="box action"/>
+<text x="552" y="151" class="note">MapperFactoryBean</text>
+<text x="552" y="167" class="note">.getObject()</text>
+
+<line x1="552" y1="180" x2="552" y2="197" class="arrow"/>
+<rect x="450" y="197" width="204" height="34" class="box action"/>
+<text x="552" y="209" class="note">SqlSession.getMapper()</text>
+<text x="552" y="223" class="note">(UserMapper.class)</text>
+
+<!-- Converge to result -->
+<line x1="136" y1="275" x2="340" y2="314" class="arrow"/>
+<line x1="340" y1="204" x2="340" y2="314" class="arrow"/>
+<line x1="552" y1="231" x2="340" y2="314" class="arrow"/>
+
+<rect x="153" y="314" width="374" height="37" class="box important"/>
+<text x="340" y="328" class="label" font-weight="bold">返回 MapperProxy 代理对象</text>
+<text x="340" y="342" class="note">→ 注册到 Spring 容器</text>
+
+</svg>

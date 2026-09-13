@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 663 442" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <text x="332" y="22" text-anchor="middle" font-size="12" font-weight="bold" fill="#333333">三种 Reactor 模式变体</text>
+
+  <!-- ===== Variant 1: 单 Reactor 单线程 ===== -->
+  <text x="110" y="48" text-anchor="middle" font-size="12" font-weight="bold" fill="#1565c0">单 Reactor 单线程</text>
+  <rect x="26" y="56" width="170" height="170" rx="7" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="110" y="73" text-anchor="middle" font-size="10" fill="#333333" font-weight="bold">Reactor Thread</text>
+  <rect x="47" y="82" width="128" height="119" rx="3" fill="#ffffff" stroke="#bbdefb" stroke-width="0.8"/>
+  <text x="110" y="100" text-anchor="middle" font-size="10" fill="#1565c0">accept()</text>
+  <text x="110" y="119" text-anchor="middle" font-size="10" fill="#1565c0">read / write()</text>
+  <text x="110" y="138" text-anchor="middle" font-size="10" fill="#1565c0">decode / encode</text>
+  <text x="110" y="156" text-anchor="middle" font-size="10" fill="#1565c0">business()</text>
+  <rect x="26" y="235" width="170" height="24" rx="3" fill="#ffcdd2" stroke="#c62828" stroke-width="0.8"/>
+  <text x="110" y="250" text-anchor="middle" font-size="9" fill="#c62828">⚠ 任何阻塞都会影响所有连接</text>
+
+  <!-- ===== Variant 2: 单 Reactor 多线程 ===== -->
+  <text x="332" y="48" text-anchor="middle" font-size="12" font-weight="bold" fill="#2e7d32">单 Reactor 多线程</text>
+  <rect x="246" y="56" width="170" height="110" rx="7" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
+  <text x="332" y="73" text-anchor="middle" font-size="10" fill="#333333" font-weight="bold">Reactor Thread</text>
+  <text x="332" y="92" text-anchor="middle" font-size="10" fill="#2e7d32">accept()</text>
+  <text x="332" y="109" text-anchor="middle" font-size="10" fill="#2e7d32">read / write()</text>
+  <!-- arrow to worker pool -->
+  <line x1="416" y1="110" x2="442" y2="110" stroke="#2e7d32" stroke-width="1.3" marker-end="url(#arG)"/>
+  <rect x="445" y="68" width="136" height="85" rx="7" fill="#e8f5e9" stroke="#2e7d32" stroke-width="0.8"/>
+  <text x="513" y="85" text-anchor="middle" font-size="10" fill="#333333" font-weight="bold">Worker Pool (N threads)</text>
+  <text x="513" y="104" text-anchor="middle" font-size="9" fill="#2e7d32">decode / encode</text>
+  <text x="513" y="119" text-anchor="middle" font-size="9" fill="#2e7d32">business()</text>
+  <text x="513" y="134" text-anchor="middle" font-size="9" fill="#2e7d32">...</text>
+  <rect x="246" y="175" width="170" height="24" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="0.8"/>
+  <text x="332" y="190" text-anchor="middle" font-size="9" fill="#e65100">⚠ Reactor 单线程仍是瓶颈</text>
+
+  <!-- ===== Variant 3: 主从 Reactor (Netty 采用) ===== -->
+  <text x="332" y="238" text-anchor="middle" font-size="12" font-weight="bold" fill="#7b1fa2">主从 Reactor（Netty 采用）</text>
+
+  <!-- Boss Group -->
+  <rect x="238" y="252" width="187" height="60" rx="7" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.3"/>
+  <text x="332" y="270" text-anchor="middle" font-size="10" fill="#333333" font-weight="bold">Boss Group（1 thread）</text>
+  <text x="332" y="287" text-anchor="middle" font-size="10" fill="#7b1fa2">accept 新连接 → 分配给 Worker</text>
+  <text x="332" y="301" text-anchor="middle" font-size="9" fill="#7b1fa2">accept() + Selector</text>
+
+  <!-- arrow down -->
+  <line x1="332" y1="311" x2="332" y2="332" stroke="#7b1fa2" stroke-width="1.7" marker-end="url(#arP)"/>
+  <text x="337" y="326" font-size="9" fill="#7b1fa2">分配 Channel</text>
+
+  <!-- Worker Group -->
+  <rect x="204" y="337" width="255" height="85" rx="7" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.3"/>
+  <text x="332" y="355" text-anchor="middle" font-size="10" fill="#333333" font-weight="bold">Worker Group（N threads）</text>
+  <rect x="218" y="364" width="110" height="46" rx="3" fill="#ffffff" stroke="#e1bee7" stroke-width="0.8"/>
+  <text x="273" y="379" text-anchor="middle" font-size="9" fill="#7b1fa2">NioEventLoop-1</text>
+  <text x="273" y="394" text-anchor="middle" font-size="8" fill="#4a148c">Channel A, B, C</text>
+  <rect x="337" y="364" width="110" height="46" rx="3" fill="#ffffff" stroke="#e1bee7" stroke-width="0.8"/>
+  <text x="392" y="379" text-anchor="middle" font-size="9" fill="#7b1fa2">NioEventLoop-N</text>
+  <text x="392" y="394" text-anchor="middle" font-size="8" fill="#4a148c">Channel D, E, F</text>
+
+  <!-- Legend at bottom -->
+  <rect x="204" y="427" width="255" height="12" rx="2" fill="#f3e5f5"/>
+  <text x="332" y="436" text-anchor="middle" font-size="8" fill="#7b1fa2">read / write I/O + decode / encode + 执行 Handler</text>
+
+  <defs>
+    <marker id="arG" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#2e7d32"/>
+    </marker>
+    <marker id="arP" markerWidth="8" markerHeight="8" refX="4" refY="8" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#7b1fa2"/>
+    </marker>
+  </defs>
+</svg>

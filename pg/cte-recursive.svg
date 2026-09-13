@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 320" font-family="system-ui, -apple-system, sans-serif">
+  <defs>
+    <marker id="arrow-cte" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#6b7280"/>
+    </marker>
+  </defs>
+  <rect x="100" y="15" width="200" height="40" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="200" y="40" text-anchor="middle" font-size="11" font-weight="600" fill="#1e40af">第1次：锚点查询</text>
+  <text x="200" y="52" text-anchor="middle" font-size="9" fill="#6b7280">找到 id=1 的员工</text>
+  <line x1="200" y1="55" x2="200" y2="80" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arrow-cte)"/>
+  <rect x="100" y="80" width="200" height="40" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="200" y="105" text-anchor="middle" font-size="11" font-weight="600" fill="#1e40af">第2次：递归</text>
+  <text x="200" y="117" text-anchor="middle" font-size="9" fill="#6b7280">找 manager_id=1 的员工</text>
+  <line x1="200" y1="120" x2="200" y2="145" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arrow-cte)"/>
+  <rect x="100" y="145" width="200" height="40" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="200" y="170" text-anchor="middle" font-size="11" font-weight="600" fill="#1e40af">第3次：递归</text>
+  <text x="200" y="182" text-anchor="middle" font-size="9" fill="#6b7280">找上一步结果的下属</text>
+  <line x1="200" y1="185" x2="200" y2="210" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arrow-cte)"/>
+  <rect x="100" y="210" width="200" height="36" rx="6" fill="#f3f4f6" stroke="#9ca3af" stroke-width="1"/>
+  <text x="200" y="233" text-anchor="middle" font-size="11" fill="#6b7280">...直到没有更多下属</text>
+  <line x1="200" y1="246" x2="200" y2="268" stroke="#6b7280" stroke-width="1.5" marker-end="url(#arrow-cte)"/>
+  <rect x="100" y="268" width="200" height="36" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="200" y="291" text-anchor="middle" font-size="11" font-weight="600" fill="#166534">合并所有结果返回</text>
+</svg>

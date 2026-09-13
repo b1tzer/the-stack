@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="660" height="120" viewBox="0 0 660 120" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#57606a"/>
+    </marker>
+  </defs>
+  <rect width="660" height="120" fill="#ffffff"/>
+
+  <rect x="20" y="38" width="90" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="65" y="60" text-anchor="middle" font-size="13" fill="#24292f">内存数据</text>
+
+  <rect x="220" y="38" width="170" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="305" y="60" text-anchor="middle" font-size="13" fill="#24292f">dump.rdb 二进制文件</text>
+
+  <rect x="500" y="38" width="140" height="44" rx="8" fill="#fff1f0" stroke="#DC382D"/>
+  <text x="570" y="60" text-anchor="middle" font-size="13" font-weight="600" fill="#DC382D">恢复后的内存数据</text>
+
+  <line x1="110" y1="60" x2="212" y2="60" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="161" y="50" text-anchor="middle" font-size="11" fill="#57606a">序列化快照</text>
+
+  <line x1="390" y1="60" x2="492" y2="60" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="441" y="50" text-anchor="middle" font-size="11" fill="#57606a">重启时加载</text>
+</svg>

@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 640" width="980" height="640" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="12">
+  <style>
+    text { text-anchor: middle; dominant-baseline: central; }
+    .title { font-size: 16px; font-weight: bold; fill: #1a1a2e; }
+    .subtitle { font-size: 12px; fill: #666666; }
+    .footnote { font-size: 11px; fill: #999999; }
+    .stage-label { font-size: 13px; font-weight: bold; fill: #333333; }
+    .card-title { font-size: 12px; font-weight: bold; fill: #333333; }
+    .card-note { font-size: 11px; fill: #666666; }
+    .code { font-family: 'Consolas','Monaco',monospace; font-size: 11px; fill: #444444; }
+    .box { rx: 8; ry: 8; stroke-width: 1.5; }
+
+    .src-fill  { fill: #e3f2fd; stroke: #1565c0; }
+    .src-text  { fill: #1565c0; }
+    .cand-fill { fill: #ede7f6; stroke: #6a1b9a; }
+    .cand-text { fill: #6a1b9a; }
+    .gate-fill { fill: #fff3e0; stroke: #e65100; }
+    .gate-text { fill: #e65100; }
+    .pass-fill { fill: #e0f2f1; stroke: #00796b; }
+    .pass-text { fill: #00796b; }
+    .skip-fill { fill: #fce4ec; stroke: #ad1457; }
+    .skip-text { fill: #ad1457; }
+    .user-fill { fill: #fffde7; stroke: #f9a825; }
+    .user-text { fill: #ef6c00; }
+
+    .arrow-pass { stroke: #00796b; stroke-width: 2; fill: none; marker-end: url(#arrow-pass); }
+    .arrow-skip { stroke: #ad1457; stroke-width: 2; fill: none; marker-end: url(#arrow-skip); stroke-dasharray: 5 3; }
+    .arrow-main { stroke: #6a1b9a; stroke-width: 2; fill: none; marker-end: url(#arrow-main); }
+    .arrow-user { stroke: #ef6c00; stroke-width: 2; fill: none; marker-end: url(#arrow-user); }
+  </style>
+
+  <defs>
+    <marker id="arrow-main" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 9 3.5, 0 7" fill="#6a1b9a"/>
+    </marker>
+    <marker id="arrow-pass" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 9 3.5, 0 7" fill="#00796b"/>
+    </marker>
+    <marker id="arrow-skip" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 9 3.5, 0 7" fill="#ad1457"/>
+    </marker>
+    <marker id="arrow-user" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 9 3.5, 0 7" fill="#ef6c00"/>
+    </marker>
+  </defs>
+
+  <text x="490" y="26" class="title">Spring Boot 自动配置的核心流程</text>
+  <text x="490" y="46" class="subtitle">从 imports 清单到容器 Bean：条件闸门决定去留，用户定义永远优先</text>
+
+  <!-- Stage labels (top row) -->
+  <text x="140" y="78" class="stage-label">① 收集候选</text>
+  <text x="400" y="78" class="stage-label">② 条件闸门</text>
+  <text x="675" y="78" class="stage-label">③ 判定去向</text>
+  <text x="900" y="78" class="stage-label">④ 容器</text>
+
+  <!-- ① imports source -->
+  <rect x="30" y="100" width="220" height="70" class="box src-fill"/>
+  <text x="140" y="122" class="card-title src-text">AutoConfiguration.imports</text>
+  <text x="140" y="140" class="card-note">META-INF/spring/…</text>
+  <text x="140" y="157" class="code">上百个候选配置类</text>
+
+  <!-- Candidate cards stack -->
+  <rect x="30" y="200" width="220" height="34" class="box cand-fill"/>
+  <text x="140" y="217" class="code">DataSourceAutoConfiguration</text>
+
+  <rect x="30" y="242" width="220" height="34" class="box cand-fill"/>
+  <text x="140" y="259" class="code">WebMvcAutoConfiguration</text>
+
+  <rect x="30" y="284" width="220" height="34" class="box cand-fill"/>
+  <text x="140" y="301" class="code">RedisAutoConfiguration</text>
+
+  <rect x="30" y="326" width="220" height="34" class="box cand-fill"/>
+  <text x="140" y="343" class="code">JacksonAutoConfiguration</text>
+
+  <text x="140" y="370" class="card-note">…（逐个送入闸门）</text>
+
+  <!-- Arrow: imports → candidates -->
+  <line x1="140" y1="170" x2="140" y2="196" class="arrow-main"/>
+
+  <!-- Arrow: candidates → gate -->
+  <path d="M 255 285 C 275 285, 285 285, 300 285" class="arrow-main"/>
+
+  <!-- ② Condition gate (rectangle with rounded corners) -->
+  <rect x="300" y="210" width="200" height="110" rx="10" ry="10" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+  <text x="400" y="232" class="card-title gate-text">@Conditional 家族</text>
+  <text x="400" y="256" class="code gate-text">@ConditionalOnClass</text>
+  <text x="400" y="277" class="code gate-text">@ConditionalOnMissingBean</text>
+  <text x="400" y="298" class="code gate-text">@ConditionalOnProperty</text>
+  <text x="400" y="336" class="card-note gate-text">逐条评估条件</text>
+
+  <!-- Branch: pass (upper) — from gate right-edge (500,265) to register left-edge (580,155) -->
+  <path d="M 500 265 C 540 265, 540 155, 580 155" class="arrow-pass"/>
+  <text x="540" y="195" class="pass-text" font-weight="bold">✅ 条件满足</text>
+
+  <!-- Branch: skip (lower) — from gate right-edge (500,265) to skip left-edge (580,385) -->
+  <path d="M 500 265 C 540 265, 540 385, 580 385" class="arrow-skip"/>
+  <text x="540" y="335" class="skip-text" font-weight="bold">❌ 条件不满足</text>
+
+  <!-- ③ Decision: register -->
+  <rect x="580" y="115" width="190" height="80" class="box pass-fill"/>
+  <text x="675" y="138" class="card-title pass-text">注册 Bean</text>
+  <text x="675" y="158" class="card-note">走完整 Bean 生命周期</text>
+  <text x="675" y="177" class="code">registerBeanDefinition()</text>
+
+  <!-- ③ Decision: skip -->
+  <rect x="580" y="345" width="190" height="80" class="box skip-fill"/>
+  <text x="675" y="368" class="card-title skip-text">跳过，不注册</text>
+  <text x="675" y="388" class="card-note">日志：ConditionEvaluationReport</text>
+  <text x="675" y="407" class="code">彻底从容器中消失</text>
+
+  <!-- ④ Container -->
+  <rect x="830" y="100" width="140" height="220" class="box" fill="#f5f5f5" stroke="#555555" stroke-width="1.5"/>
+  <text x="900" y="122" class="stage-label">IoC 容器</text>
+  <rect x="840" y="140" width="120" height="26" class="box pass-fill"/>
+  <text x="900" y="153" class="code pass-text">DataSource</text>
+  <rect x="840" y="174" width="120" height="26" class="box pass-fill"/>
+  <text x="900" y="187" class="code pass-text">DispatcherServlet</text>
+  <rect x="840" y="208" width="120" height="26" class="box pass-fill"/>
+  <text x="900" y="221" class="code pass-text">ObjectMapper</text>
+  <rect x="840" y="242" width="120" height="26" class="box pass-fill"/>
+  <text x="900" y="255" class="code pass-text">…</text>
+  <text x="900" y="295" class="card-note">最终由条件筛出的 Bean</text>
+
+  <!-- Arrow: register → container -->
+  <line x1="770" y1="155" x2="828" y2="155" class="arrow-pass"/>
+
+  <!-- ============ Bottom emphasis: user override ============ -->
+  <rect x="30" y="460" width="920" height="150" rx="10" ry="10" fill="#fffde7" stroke="#f9a825" stroke-width="1.5"/>
+  <text x="490" y="482" class="card-title user-text">🔑 关键语义：@ConditionalOnMissingBean 让自动配置"让路"</text>
+
+  <!-- User bean card -->
+  <rect x="55" y="500" width="230" height="90" class="box user-fill"/>
+  <text x="170" y="520" class="card-title user-text">开发者已注册</text>
+  <text x="170" y="542" class="code">@Bean DataSource myDs()</text>
+  <text x="170" y="562" class="card-note">在 @Configuration 中声明</text>
+  <text x="170" y="580" class="card-note">或引入第三方 Starter</text>
+
+  <!-- Arrow into gate check -->
+  <path d="M 290 545 C 340 545, 360 545, 400 545" class="arrow-user"/>
+
+  <!-- Missing bean check -->
+  <rect x="405" y="510" width="230" height="70" class="box gate-fill"/>
+  <text x="520" y="530" class="card-title gate-text">@ConditionalOnMissingBean</text>
+  <text x="520" y="550" class="card-note">容器已有 DataSource？</text>
+  <text x="520" y="568" class="code gate-text">answer: YES</text>
+
+  <!-- Arrow to auto-config -->
+  <path d="M 640 545 C 680 545, 700 545, 735 545" class="arrow-skip"/>
+
+  <!-- Auto-config skipped -->
+  <rect x="740" y="500" width="210" height="90" class="box skip-fill"/>
+  <text x="845" y="520" class="card-title skip-text">DataSourceAutoConfiguration</text>
+  <text x="845" y="542" class="skip-text" font-weight="bold">主动让路 → 跳过</text>
+  <text x="845" y="562" class="card-note">用户 Bean 独占容器</text>
+  <text x="845" y="580" class="card-note">「兜底，而非强制」</text>
+
+  <text x="490" y="626" class="footnote">图中箭头颜色：紫=主流程 · 绿=注册通过 · 红=跳过 · 橙=用户覆盖</text>
+
+</svg>

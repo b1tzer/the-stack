@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" font-size="13">
+  <text x="400" y="28" text-anchor="middle" font-size="18" font-weight="bold" fill="#1a1a2e">案例8：多线程下 @Transactional 失效</text>
+
+  <!-- Main thread -->
+  <rect x="30" y="50" width="340" height="330" rx="12" fill="#ebf8ff" stroke="#3182ce" stroke-width="2"/>
+  <text x="200" y="78" text-anchor="middle" font-size="15" font-weight="bold" fill="#2b6cb0">主线程（Thread-main）</text>
+
+  <!-- TransactionManager -->
+  <rect x="55" y="95" width="140" height="40" rx="6" fill="#bee3f8" stroke="#3182ce"/>
+  <text x="125" y="115" text-anchor="middle" font-weight="bold" fill="#2b6cb0">@Transactional</text>
+  <text x="125" y="130" text-anchor="middle" fill="#2b6cb0" font-size="11">开启事务</text>
+
+  <!-- ThreadLocal -->
+  <rect x="220" y="95" width="130" height="40" rx="6" fill="#e9d8fd" stroke="#805ad5"/>
+  <text x="285" y="115" text-anchor="middle" fill="#553c9a" font-size="12">ThreadLocal</text>
+  <text x="285" y="130" text-anchor="middle" fill="#553c9a" font-size="11">tx-context-main</text>
+  <line x1="195" y1="115" x2="220" y2="115" stroke="#805ad5" stroke-width="1.5" marker-end="url(#arrowP)"/>
+
+  <!-- Submit tasks -->
+  <line x1="125" y1="135" x2="125" y2="165" stroke="#3182ce" stroke-width="2" marker-end="url(#arrowB)"/>
+  <text x="140" y="155" fill="#3182ce" font-size="11">executor.submit()</text>
+
+  <!-- Three child tasks -->
+  <rect x="55" y="170" width="80" height="30" rx="4" fill="#fefcbf" stroke="#d69e2e"/>
+  <text x="95" y="190" text-anchor="middle" fill="#975a16" font-size="11">子任务1</text>
+
+  <rect x="145" y="170" width="80" height="30" rx="4" fill="#fefcbf" stroke="#d69e2e"/>
+  <text x="185" y="190" text-anchor="middle" fill="#975a16" font-size="11">子任务2</text>
+
+  <rect x="235" y="170" width="80" height="30" rx="4" fill="#fefcbf" stroke="#d69e2e"/>
+  <text x="275" y="190" text-anchor="middle" fill="#975a16" font-size="11">子任务3</text>
+
+  <!-- Wait -->
+  <line x1="125" y1="200" x2="125" y2="230" stroke="#3182ce" stroke-width="2" marker-end="url(#arrowB)"/>
+  <text x="140" y="220" fill="#3182ce" font-size="11">f.get() 等待</text>
+
+  <!-- Exception in child -->
+  <rect x="55" y="235" width="260" height="35" rx="6" fill="#fed7d7" stroke="#e53e3e"/>
+  <text x="185" y="250" text-anchor="middle" fill="#c53030" font-size="12">子线程3 抛异常 → 主线程 catch</text>
+  <text x="185" y="265" text-anchor="middle" fill="#c53030" font-size="11">主线程事务回滚...</text>
+
+  <!-- Main rollback -->
+  <rect x="55" y="280" width="260" height="35" rx="6" fill="#c6f6d5" stroke="#38a169"/>
+  <text x="185" y="300" text-anchor="middle" fill="#276749" font-weight="bold">主线程：回滚 ✅（自己的操作）</text>
+
+  <!-- But children already committed -->
+  <text x="200" y="335" text-anchor="middle" fill="#e53e3e" font-weight="bold" font-size="14">但子线程已提交的数据不会回滚！</text>
+
+  <!-- Child threads -->
+  <rect x="420" y="50" width="360" height="330" rx="12" fill="#fff5f5" stroke="#e53e3e" stroke-width="2"/>
+  <text x="600" y="78" text-anchor="middle" font-size="15" font-weight="bold" fill="#e53e3e">子线程（独立事务）</text>
+
+  <!-- Child thread 1 -->
+  <rect x="440" y="95" width="150" height="80" rx="8" fill="#fefcbf" stroke="#d69e2e"/>
+  <text x="515" y="115" text-anchor="middle" font-weight="bold" fill="#975a16">Thread-1</text>
+  <rect x="450" y="125" width="70" height="22" rx="3" fill="#e9d8fd" stroke="#805ad5"/>
+  <text x="485" y="141" text-anchor="middle" fill="#553c9a" font-size="10">独立事务</text>
+  <rect x="530" y="125" width="50" height="22" rx="3" fill="#c6f6d5" stroke="#38a169"/>
+  <text x="555" y="141" text-anchor="middle" fill="#276749" font-size="10">已提交</text>
+  <text x="515" y="165" text-anchor="middle" fill="#975a16" font-size="11">insert order1 ✅</text>
+
+  <!-- Child thread 2 -->
+  <rect x="440" y="185" width="150" height="80" rx="8" fill="#fefcbf" stroke="#d69e2e"/>
+  <text x="515" y="205" text-anchor="middle" font-weight="bold" fill="#975a16">Thread-2</text>
+  <rect x="450" y="215" width="70" height="22" rx="3" fill="#e9d8fd" stroke="#805ad5"/>
+  <text x="485" y="231" text-anchor="middle" fill="#553c9a" font-size="10">独立事务</text>
+  <rect x="530" y="215" width="50" height="22" rx="3" fill="#c6f6d5" stroke="#38a169"/>
+  <text x="555" y="231" text-anchor="middle" fill="#276749" font-size="10">已提交</text>
+  <text x="515" y="255" text-anchor="middle" fill="#975a16" font-size="11">insert order2 ✅</text>
+
+  <!-- Child thread 3 -->
+  <rect x="440" y="275" width="150" height="80" rx="8" fill="#fed7d7" stroke="#e53e3e"/>
+  <text x="515" y="295" text-anchor="middle" font-weight="bold" fill="#c53030">Thread-3</text>
+  <rect x="450" y="305" width="70" height="22" rx="3" fill="#e9d8fd" stroke="#805ad5"/>
+  <text x="485" y="321" text-anchor="middle" fill="#553c9a" font-size="10">独立事务</text>
+  <rect x="530" y="305" width="50" height="22" rx="3" fill="#fed7d7" stroke="#e53e3e"/>
+  <text x="555" y="321" text-anchor="middle" fill="#c53030" font-size="10">已提交</text>
+  <text x="515" y="345" text-anchor="middle" fill="#c53030" font-size="11">insert order3 ❌ 不回滚</text>
+
+  <!-- No connection between threads -->
+  <line x1="610" y1="135" x2="610" y2="230" stroke="#e53e3e" stroke-width="2" stroke-dasharray="6,4"/>
+  <text x="625" y="180" fill="#e53e3e" font-size="11">ThreadLocal</text>
+  <text x="625" y="195" fill="#e53e3e" font-size="11">不跨线程</text>
+
+  <!-- ThreadLocal isolation -->
+  <rect x="610" y="95" width="130" height="35" rx="4" fill="#e9d8fd" stroke="#805ad5" stroke-dasharray="4,3"/>
+  <text x="675" y="117" text-anchor="middle" fill="#553c9a" font-size="11">tx-context-1</text>
+
+  <rect x="610" y="185" width="130" height="35" rx="4" fill="#e9d8fd" stroke="#805ad5" stroke-dasharray="4,3"/>
+  <text x="675" y="207" text-anchor="middle" fill="#553c9a" font-size="11">tx-context-2</text>
+
+  <rect x="610" y="275" width="130" height="35" rx="4" fill="#e9d8fd" stroke="#805ad5" stroke-dasharray="4,3"/>
+  <text x="675" y="297" text-anchor="middle" fill="#553c9a" font-size="11">tx-context-3</text>
+
+  <defs>
+    <marker id="arrowB" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#3182ce"/>
+    </marker>
+    <marker id="arrowP" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#805ad5"/>
+    </marker>
+  </defs>
+</svg>

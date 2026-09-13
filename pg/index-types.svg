@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 300" font-family="system-ui, -apple-system, sans-serif">
+  <rect x="300" y="10" width="200" height="40" rx="20" fill="#3b82f6"/>
+  <text x="400" y="35" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">PG 索引类型</text>
+  <!-- B-tree -->
+  <line x1="350" y1="50" x2="120" y2="85" stroke="#94a3b8" stroke-width="1.5"/>
+  <rect x="20" y="85" width="200" height="55" rx="8" fill="#dbeafe" stroke="#3b82f6" stroke-width="1"/>
+  <text x="120" y="105" text-anchor="middle" font-size="12" font-weight="600" fill="#1e40af">B-tree</text>
+  <text x="120" y="120" text-anchor="middle" font-size="9" fill="#6b7280">默认 | 等值/范围/排序</text>
+  <text x="120" y="133" text-anchor="middle" font-size="9" fill="#6b7280">大多数场景首选</text>
+  <!-- Hash -->
+  <line x1="370" y1="50" x2="300" y2="85" stroke="#94a3b8" stroke-width="1.5"/>
+  <rect x="220" y="85" width="160" height="55" rx="8" fill="#f3f4f6" stroke="#9ca3af" stroke-width="1"/>
+  <text x="300" y="105" text-anchor="middle" font-size="12" font-weight="600" fill="#374151">Hash</text>
+  <text x="300" y="120" text-anchor="middle" font-size="9" fill="#6b7280">仅等值查询</text>
+  <text x="300" y="133" text-anchor="middle" font-size="9" fill="#6b7280">比 B-tree 更快</text>
+  <!-- GIN -->
+  <line x1="420" y1="50" x2="500" y2="85" stroke="#94a3b8" stroke-width="1.5"/>
+  <rect x="420" y="85" width="160" height="55" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="1"/>
+  <text x="500" y="105" text-anchor="middle" font-size="12" font-weight="600" fill="#92400e">GIN 广义倒排</text>
+  <text x="500" y="120" text-anchor="middle" font-size="9" fill="#6b7280">JSONB / 全文检索 / 数组</text>
+  <text x="500" y="133" text-anchor="middle" font-size="9" fill="#6b7280">多值字段索引</text>
+  <!-- GiST -->
+  <line x1="450" y1="50" x2="680" y2="85" stroke="#94a3b8" stroke-width="1.5"/>
+  <rect x="600" y="85" width="160" height="55" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="1"/>
+  <text x="680" y="105" text-anchor="middle" font-size="12" font-weight="600" fill="#166534">GiST 广义搜索树</text>
+  <text x="680" y="120" text-anchor="middle" font-size="9" fill="#6b7280">地理信息 / 范围类型</text>
+  <text x="680" y="133" text-anchor="middle" font-size="9" fill="#6b7280">几何图形查询</text>
+  <!-- BRIN -->
+  <line x1="400" y1="50" x2="400" y2="175" stroke="#94a3b8" stroke-width="1.5"/>
+  <rect x="300" y="175" width="200" height="55" rx="8" fill="#fae8ff" stroke="#a855f7" stroke-width="1"/>
+  <text x="400" y="195" text-anchor="middle" font-size="12" font-weight="600" fill="#7e22ce">BRIN 块范围索引</text>
+  <text x="400" y="210" text-anchor="middle" font-size="9" fill="#6b7280">超大表 | 数据物理有序</text>
+  <text x="400" y="223" text-anchor="middle" font-size="9" fill="#6b7280">索引体积极小</text>
+  <!-- Legend -->
+  <rect x="20" y="260" width="760" height="30" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+  <circle cx="50" cy="275" r="5" fill="#3b82f6"/><text x="60" y="279" font-size="9" fill="#374151">通用</text>
+  <circle cx="130" cy="275" r="5" fill="#f59e0b"/><text x="140" y="279" font-size="9" fill="#374151">JSONB/全文</text>
+  <circle cx="250" cy="275" r="5" fill="#16a34a"/><text x="260" y="279" font-size="9" fill="#374151">地理/范围</text>
+  <circle cx="370" cy="275" r="5" fill="#a855f7"/><text x="380" y="279" font-size="9" fill="#374151">超大时序表</text>
+</svg>

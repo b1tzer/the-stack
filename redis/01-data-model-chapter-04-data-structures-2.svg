@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="260" viewBox="0 0 880 260" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#57606a"/>
+    </marker>
+  </defs>
+  <rect width="880" height="260" fill="#ffffff"/>
+
+  <!-- 竖直虚线：同一值在不同层的塔 -->
+  <g stroke="#c0c8d0" stroke-width="1.5" stroke-dasharray="4 4">
+    <line x1="210" y1="94" x2="210" y2="190"/>
+    <line x1="450" y1="164" x2="450" y2="190"/>
+    <line x1="690" y1="94" x2="690" y2="190"/>
+  </g>
+
+  <!-- 头节点与尾节点 -->
+  <rect x="40" y="50" width="70" height="184" rx="8" fill="#fff1f0" stroke="#DC382D"/>
+  <text x="75" y="142" text-anchor="middle" font-size="13" font-weight="600" fill="#DC382D">头节点</text>
+  <rect x="800" y="50" width="70" height="184" rx="8" fill="#fff1f0" stroke="#DC382D"/>
+  <text x="835" y="142" text-anchor="middle" font-size="13" font-weight="600" fill="#DC382D">尾节点</text>
+
+  <!-- 第 3 层（最高层） -->
+  <rect x="180" y="50" width="60" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="210" y="72" text-anchor="middle" font-size="13" fill="#24292f">10</text>
+  <rect x="660" y="50" width="60" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="690" y="72" text-anchor="middle" font-size="13" fill="#24292f">50</text>
+
+  <!-- 第 2 层 -->
+  <rect x="180" y="120" width="60" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="210" y="142" text-anchor="middle" font-size="13" fill="#24292f">10</text>
+  <rect x="420" y="120" width="60" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="450" y="142" text-anchor="middle" font-size="13" fill="#24292f">30</text>
+  <rect x="660" y="120" width="60" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="690" y="142" text-anchor="middle" font-size="13" fill="#24292f">50</text>
+
+  <!-- 第 1 层（最底层） -->
+  <rect x="180" y="190" width="60" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="210" y="212" text-anchor="middle" font-size="13" fill="#24292f">10</text>
+  <rect x="300" y="190" width="60" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="330" y="212" text-anchor="middle" font-size="13" fill="#24292f">20</text>
+  <rect x="420" y="190" width="60" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="450" y="212" text-anchor="middle" font-size="13" fill="#24292f">30</text>
+  <rect x="540" y="190" width="60" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="570" y="212" text-anchor="middle" font-size="13" fill="#24292f">40</text>
+  <rect x="660" y="190" width="60" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="690" y="212" text-anchor="middle" font-size="13" fill="#24292f">50</text>
+
+  <!-- 横向箭头（第 3 层） -->
+  <g stroke="#57606a" stroke-width="1.5" fill="none" marker-end="url(#arrow)">
+    <line x1="110" y1="72" x2="172" y2="72"/>
+    <line x1="240" y1="72" x2="652" y2="72"/>
+    <line x1="720" y1="72" x2="792" y2="72"/>
+  </g>
+  <!-- 横向箭头（第 2 层） -->
+  <g stroke="#57606a" stroke-width="1.5" fill="none" marker-end="url(#arrow)">
+    <line x1="110" y1="142" x2="172" y2="142"/>
+    <line x1="240" y1="142" x2="412" y2="142"/>
+    <line x1="480" y1="142" x2="652" y2="142"/>
+    <line x1="720" y1="142" x2="792" y2="142"/>
+  </g>
+  <!-- 横向箭头（第 1 层） -->
+  <g stroke="#57606a" stroke-width="1.5" fill="none" marker-end="url(#arrow)">
+    <line x1="110" y1="212" x2="172" y2="212"/>
+    <line x1="240" y1="212" x2="292" y2="212"/>
+    <line x1="360" y1="212" x2="412" y2="212"/>
+    <line x1="480" y1="212" x2="532" y2="212"/>
+    <line x1="600" y1="212" x2="652" y2="212"/>
+    <line x1="720" y1="212" x2="792" y2="212"/>
+  </g>
+</svg>

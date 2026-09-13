@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 300" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="10">
+<defs>
+  <marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+    <path d="M0,0 L8,4 L0,8 Z" fill="#666666"/>
+  </marker>
+</defs>
+
+<text x="520" y="26" text-anchor="middle" font-size="14" font-weight="bold" fill="#333333">软件架构演进路径</text>
+
+<!-- 1 单体架构 -->
+<g transform="translate(20,60)">
+  <rect x="0" y="0" width="160" height="90" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="80" y="28" text-anchor="middle" font-size="12" font-weight="bold" fill="#0d47a1">单体架构</text>
+  <text x="80" y="48" text-anchor="middle" font-size="10" fill="#1565c0">Monolith</text>
+  <line x1="20" y1="58" x2="140" y2="58" stroke="#90caf9" stroke-width="0.6"/>
+  <text x="80" y="76" text-anchor="middle" font-size="9" fill="#666666">👥 1-5 人</text>
+</g>
+
+<!-- 2 垂直拆分 -->
+<g transform="translate(240,60)">
+  <rect x="0" y="0" width="160" height="90" rx="6" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
+  <text x="80" y="28" text-anchor="middle" font-size="12" font-weight="bold" fill="#1b5e20">垂直拆分</text>
+  <text x="80" y="48" text-anchor="middle" font-size="10" fill="#2e7d32">按业务线拆分</text>
+  <line x1="20" y1="58" x2="140" y2="58" stroke="#a5d6a7" stroke-width="0.6"/>
+  <text x="80" y="76" text-anchor="middle" font-size="9" fill="#666666">👥 5-15 人</text>
+</g>
+
+<!-- 3 SOA -->
+<g transform="translate(460,60)">
+  <rect x="0" y="0" width="160" height="90" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.3"/>
+  <text x="80" y="28" text-anchor="middle" font-size="12" font-weight="bold" fill="#bf360c">SOA</text>
+  <text x="80" y="48" text-anchor="middle" font-size="10" fill="#e65100">面向服务架构</text>
+  <line x1="20" y1="58" x2="140" y2="58" stroke="#ffcc80" stroke-width="0.6"/>
+  <text x="80" y="76" text-anchor="middle" font-size="9" fill="#666666">👥 15-50 人</text>
+</g>
+
+<!-- 4 微服务 -->
+<g transform="translate(680,60)">
+  <rect x="0" y="0" width="160" height="90" rx="6" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.3"/>
+  <text x="80" y="28" text-anchor="middle" font-size="12" font-weight="bold" fill="#4a148c">微服务</text>
+  <text x="80" y="48" text-anchor="middle" font-size="10" fill="#7b1fa2">Microservices</text>
+  <line x1="20" y1="58" x2="140" y2="58" stroke="#ce93d8" stroke-width="0.6"/>
+  <text x="80" y="76" text-anchor="middle" font-size="9" fill="#666666">👥 50+ 人</text>
+</g>
+
+<!-- 5 云原生/Serverless -->
+<g transform="translate(900,60)">
+  <rect x="0" y="0" width="160" height="90" rx="6" fill="#ffcdd2" stroke="#c62828" stroke-width="1.3"/>
+  <text x="80" y="28" text-anchor="middle" font-size="12" font-weight="bold" fill="#b71c1c">云原生</text>
+  <text x="80" y="48" text-anchor="middle" font-size="10" fill="#c62828">Serverless</text>
+  <line x1="20" y1="58" x2="140" y2="58" stroke="#ef9a9a" stroke-width="0.6"/>
+  <text x="80" y="76" text-anchor="middle" font-size="9" fill="#666666">👥 按需</text>
+</g>
+
+<!-- 箭头 + 驱动力 -->
+<line x1="180" y1="105" x2="238" y2="105" stroke="#666666" stroke-width="1.3" marker-end="url(#ar)"/>
+<text x="209" y="126" text-anchor="middle" font-size="8" fill="#666666">模块增多</text>
+<text x="209" y="138" text-anchor="middle" font-size="8" fill="#666666">代码耦合</text>
+
+<line x1="400" y1="105" x2="458" y2="105" stroke="#666666" stroke-width="1.3" marker-end="url(#ar)"/>
+<text x="429" y="126" text-anchor="middle" font-size="8" fill="#666666">能力重复</text>
+<text x="429" y="138" text-anchor="middle" font-size="8" fill="#666666">需要复用</text>
+
+<line x1="620" y1="105" x2="678" y2="105" stroke="#666666" stroke-width="1.3" marker-end="url(#ar)"/>
+<text x="649" y="126" text-anchor="middle" font-size="8" fill="#666666">ESB 瓶颈</text>
+<text x="649" y="138" text-anchor="middle" font-size="8" fill="#666666">轻量通信</text>
+
+<line x1="840" y1="105" x2="898" y2="105" stroke="#666666" stroke-width="1.3" marker-end="url(#ar)"/>
+<text x="869" y="126" text-anchor="middle" font-size="8" fill="#666666">运维复杂</text>
+<text x="869" y="138" text-anchor="middle" font-size="8" fill="#666666">极致弹性</text>
+
+<text x="520" y="180" text-anchor="middle" font-size="10" fill="#666666">演进驱动力：团队规模增长 + 业务复杂度提升</text>
+</svg>

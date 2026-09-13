@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 340" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" font-size="13">
+  <text x="400" y="28" text-anchor="middle" font-size="18" font-weight="bold" fill="#1a1a2e">案例7：prototype Bean 的 @PreDestroy 不触发</text>
+
+  <!-- Left: singleton -->
+  <rect x="20" y="50" width="370" height="270" rx="12" fill="#f0fff4" stroke="#38a169" stroke-width="2"/>
+  <text x="205" y="78" text-anchor="middle" font-size="15" font-weight="bold" fill="#38a169">@Scope("singleton")</text>
+
+  <!-- Container -->
+  <rect x="45" y="95" width="130" height="120" rx="8" fill="#e2e8f0" stroke="#a0aec0"/>
+  <text x="110" y="115" text-anchor="middle" font-weight="bold" fill="#4a5568">Spring 容器</text>
+  <rect x="55" y="125" width="110" height="30" rx="4" fill="#c6f6d5" stroke="#38a169"/>
+  <text x="110" y="145" text-anchor="middle" fill="#276749" font-size="12">Bean 实例</text>
+  <text x="110" y="175" text-anchor="middle" fill="#38a169" font-size="11">持有引用 ✅</text>
+
+  <!-- Lifecycle arrows -->
+  <line x1="200" y1="120" x2="260" y2="120" stroke="#38a169" stroke-width="2" marker-end="url(#arrowG2)"/>
+  <text x="230" y="112" text-anchor="middle" fill="#38a169" font-size="11">创建</text>
+
+  <rect x="265" y="100" width="100" height="30" rx="4" fill="#c6f6d5" stroke="#38a169"/>
+  <text x="315" y="120" text-anchor="middle" fill="#276749" font-size="12">@PostConstruct ✅</text>
+
+  <line x1="265" y1="145" x2="200" y2="145" stroke="#38a169" stroke-width="2" marker-end="url(#arrowG2)"/>
+  <text x="230" y="160" text-anchor="middle" fill="#38a169" font-size="11">容器关闭</text>
+
+  <rect x="265" y="165" width="100" height="30" rx="4" fill="#c6f6d5" stroke="#38a169"/>
+  <text x="315" y="185" text-anchor="middle" fill="#276749" font-size="12">@PreDestroy ✅</text>
+
+  <text x="205" y="230" text-anchor="middle" fill="#276749" font-size="12">容器持有引用</text>
+  <text x="205" y="248" text-anchor="middle" fill="#276749" font-size="12">关闭时逐一回调销毁</text>
+  <text x="205" y="295" text-anchor="middle" fill="#276749" font-weight="bold">生命周期完整 ✅</text>
+
+  <!-- Right: prototype -->
+  <rect x="410" y="50" width="370" height="270" rx="12" fill="#fff5f5" stroke="#e53e3e" stroke-width="2"/>
+  <text x="595" y="78" text-anchor="middle" font-size="15" font-weight="bold" fill="#e53e3e">@Scope("prototype")</text>
+
+  <!-- Container -->
+  <rect x="435" y="95" width="130" height="120" rx="8" fill="#e2e8f0" stroke="#a0aec0"/>
+  <text x="500" y="115" text-anchor="middle" font-weight="bold" fill="#4a5568">Spring 容器</text>
+  <text x="500" y="145" text-anchor="middle" fill="#e53e3e" font-size="12">不持有引用 ❌</text>
+  <text x="500" y="165" text-anchor="middle" fill="#a0aec0" font-size="11">创建后就交出去了</text>
+
+  <!-- Create arrow -->
+  <line x1="565" y1="120" x2="625" y2="120" stroke="#38a169" stroke-width="2" marker-end="url(#arrowG2)"/>
+  <text x="595" y="112" text-anchor="middle" fill="#38a169" font-size="11">创建</text>
+
+  <rect x="630" y="100" width="120" height="30" rx="4" fill="#c6f6d5" stroke="#38a169"/>
+  <text x="690" y="120" text-anchor="middle" fill="#276749" font-size="12">@PostConstruct ✅</text>
+
+  <!-- Bean floats away -->
+  <line x1="690" y1="130" x2="690" y2="180" stroke="#e53e3e" stroke-width="2" marker-end="url(#arrowR2)"/>
+  <text x="705" y="158" fill="#e53e3e" font-size="11">交出去了</text>
+
+  <rect x="630" y="185" width="120" height="40" rx="6" fill="#fed7d7" stroke="#e53e3e"/>
+  <text x="690" y="205" text-anchor="middle" fill="#c53030" font-size="12">Bean（外部持有）</text>
+  <text x="690" y="220" text-anchor="middle" fill="#c53030" font-size="11">容器不管了</text>
+
+  <!-- No destroy -->
+  <line x1="630" y1="240" x2="565" y2="240" stroke="#e53e3e" stroke-width="2" stroke-dasharray="6,4"/>
+  <text x="595" y="255" text-anchor="middle" fill="#e53e3e" font-size="11">容器关闭时</text>
+
+  <rect x="435" y="240" width="120" height="30" rx="4" fill="#fed7d7" stroke="#e53e3e"/>
+  <text x="495" y="260" text-anchor="middle" fill="#c53030" font-size="12">@PreDestroy ❌</text>
+
+  <text x="595" y="295" text-anchor="middle" fill="#c53030" font-weight="bold">资源泄漏：连接/文件/锁未释放 ❌</text>
+
+  <defs>
+    <marker id="arrowG2" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#38a169"/>
+    </marker>
+    <marker id="arrowR2" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#e53e3e"/>
+    </marker>
+  </defs>
+</svg>

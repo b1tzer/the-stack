@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="200" viewBox="0 0 920 200" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif">
+  <rect width="920" height="200" fill="#ffffff"/>
+
+  <!-- 结构体外框 -->
+  <rect x="30" y="70" width="860" height="70" rx="8" fill="#f6f8fa" stroke="#9aa4af"/>
+
+  <!-- 字段名 -->
+  <text x="75" y="58" text-anchor="middle" font-size="14" font-weight="700" fill="#24292f">len</text>
+  <text x="155" y="58" text-anchor="middle" font-size="14" font-weight="700" fill="#24292f">alloc</text>
+  <text x="235" y="58" text-anchor="middle" font-size="14" font-weight="700" fill="#24292f">flags</text>
+  <text x="580" y="58" text-anchor="middle" font-size="14" font-weight="700" fill="#24292f">buf[]（实际字节内容）</text>
+
+  <!-- 字段分隔竖线 -->
+  <g stroke="#c0c8d0" stroke-width="1.5">
+    <line x1="110" y1="70" x2="110" y2="140"/>
+    <line x1="190" y1="70" x2="190" y2="140"/>
+    <line x1="270" y1="70" x2="270" y2="140"/>
+  </g>
+
+  <!-- buf 内容小格分隔线 -->
+  <g stroke="#c0c8d0" stroke-width="1">
+    <line x1="373" y1="70" x2="373" y2="140"/>
+    <line x1="476" y1="70" x2="476" y2="140"/>
+    <line x1="579" y1="70" x2="579" y2="140"/>
+    <line x1="682" y1="70" x2="682" y2="140"/>
+    <line x1="785" y1="70" x2="785" y2="140"/>
+  </g>
+
+  <!-- 字段值 -->
+  <text x="75" y="112" text-anchor="middle" font-size="15" fill="#24292f">5</text>
+  <text x="155" y="112" text-anchor="middle" font-size="15" fill="#24292f">5</text>
+  <text x="235" y="112" text-anchor="middle" font-size="13" fill="#24292f">8</text>
+
+  <!-- buf 内容字符 -->
+  <text x="321" y="112" text-anchor="middle" font-size="15" fill="#DC382D">h</text>
+  <text x="424" y="112" text-anchor="middle" font-size="15" fill="#DC382D">e</text>
+  <text x="527" y="112" text-anchor="middle" font-size="15" fill="#DC382D">l</text>
+  <text x="630" y="112" text-anchor="middle" font-size="15" fill="#DC382D">l</text>
+  <text x="733" y="112" text-anchor="middle" font-size="15" fill="#DC382D">o</text>
+  <text x="837" y="112" text-anchor="middle" font-size="13" fill="#57606a">\0</text>
+
+  <!-- 字节说明 -->
+  <text x="75" y="168" text-anchor="middle" font-size="12" fill="#57606a">1 字节</text>
+  <text x="155" y="168" text-anchor="middle" font-size="12" fill="#57606a">1 字节</text>
+  <text x="235" y="168" text-anchor="middle" font-size="12" fill="#57606a">1 字节</text>
+  <text x="580" y="168" text-anchor="middle" font-size="12" fill="#57606a">末尾 \0 仅为兼容 C 库，实际长度由 len 决定</text>
+</svg>
