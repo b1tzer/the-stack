@@ -115,6 +115,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '竞争消费者', link: '/scenarios/03-messaging/chapter-03-competing-consumers' },
             { text: '发布订阅', link: '/scenarios/03-messaging/chapter-04-pub-sub' },
             { text: '消息去重', link: '/scenarios/03-messaging/chapter-05-deduplication' },
+            { text: '高可用实战', link: '/scenarios/03-messaging/chapter-06-high-availability' },
           ],
         },
         {
@@ -1128,10 +1129,11 @@ export default withOpenInEditor(withMermaid(defineConfig({
           items: [
             { text: '分布式锁', link: '/spring/09-distributed/chapter-01-distributed-lock' },
             { text: '分布式事务', link: '/spring/09-distributed/chapter-02-distributed-transaction' },
-            { text: '服务调用', link: '/spring/09-distributed/chapter-03-service-call' },
-            { text: '服务容错', link: '/spring/09-distributed/chapter-04-circuit-breaker' },
-            { text: '配置中心', link: '/spring/09-distributed/chapter-05-config-center' },
-            { text: 'API 网关', link: '/spring/09-distributed/chapter-06-api-gateway' },
+            { text: '服务注册与发现', link: '/spring/09-distributed/chapter-03-service-discovery' },
+            { text: '服务调用', link: '/spring/09-distributed/chapter-04-service-call' },
+            { text: '服务容错', link: '/spring/09-distributed/chapter-05-circuit-breaker' },
+            { text: '配置中心', link: '/spring/09-distributed/chapter-06-config-center' },
+            { text: 'API 网关', link: '/spring/09-distributed/chapter-07-api-gateway' },
           ],
         },
         {

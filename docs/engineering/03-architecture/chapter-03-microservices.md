@@ -33,7 +33,7 @@ REST 调用：客户端声明接口，声明降级回调；超时或异常时走
 gRPC 调用：先定义 proto 接口，再生成客户端与服务端代码，适合内部高频调用。
 ```
 
-同步通信的落地代码见 [Spring 服务调用](../../spring/09-distributed/chapter-03-service-call)。
+同步通信的落地代码见 [Spring 服务调用](../../spring/09-distributed/chapter-04-service-call)。
 
 ### 2.2 异步通信（消息队列）
 
