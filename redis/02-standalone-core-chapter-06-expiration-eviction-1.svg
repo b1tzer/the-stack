@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="180" viewBox="0 0 760 180" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#57606a"/>
+    </marker>
+  </defs>
+  <rect width="760" height="180" fill="#ffffff"/>
+
+  <rect x="20" y="68" width="130" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="85" y="90" text-anchor="middle" font-size="13" fill="#24292f">客户端 GET key</text>
+
+  <rect x="250" y="68" width="150" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="325" y="90" text-anchor="middle" font-size="13" fill="#24292f">检查 key 是否过期</text>
+
+  <rect x="500" y="20" width="170" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="585" y="42" text-anchor="middle" font-size="13" fill="#24292f">删除 key，返回 null</text>
+
+  <rect x="500" y="116" width="110" height="44" rx="8" fill="#fff1f0" stroke="#DC382D"/>
+  <text x="555" y="138" text-anchor="middle" font-size="13" font-weight="600" fill="#DC382D">返回 value</text>
+
+  <line x1="150" y1="90" x2="242" y2="90" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <line x1="400" y1="90" x2="492" y2="42" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="420" y="56" font-size="11" fill="#57606a">已过期</text>
+
+  <line x1="400" y1="90" x2="492" y2="138" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="420" y="130" font-size="11" fill="#57606a">未过期</text>
+</svg>

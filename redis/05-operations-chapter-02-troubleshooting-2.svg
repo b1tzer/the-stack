@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="380" viewBox="0 0 640 380" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#57606a"/>
+    </marker>
+  </defs>
+  <rect width="640" height="380" fill="#ffffff"/>
+
+  <rect x="185" y="20" width="250" height="44" rx="8" fill="#fff1f0" stroke="#DC382D"/>
+  <text x="310" y="42" text-anchor="middle" font-size="13" font-weight="600" fill="#DC382D">观察现象（延迟/内存/CPU）</text>
+
+  <rect x="185" y="115" width="250" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="310" y="137" text-anchor="middle" font-size="13" fill="#24292f">收集指标（INFO/SLOWLOG）</text>
+
+  <rect x="185" y="210" width="250" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="310" y="232" text-anchor="middle" font-size="13" fill="#24292f">提出假设</text>
+
+  <rect x="185" y="305" width="250" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="310" y="327" text-anchor="middle" font-size="13" fill="#24292f">验证假设（对比指标）</text>
+
+  <rect x="470" y="305" width="150" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="545" y="327" text-anchor="middle" font-size="13" fill="#24292f">定位根因并修复</text>
+
+  <line x1="310" y1="64" x2="310" y2="107" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="310" y1="159" x2="310" y2="202" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="310" y1="254" x2="310" y2="297" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <line x1="435" y1="327" x2="462" y2="327" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="448" y="317" text-anchor="middle" font-size="11" fill="#57606a">成立</text>
+
+  <path d="M 185 327 C 105 327, 105 232, 185 232" fill="none" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="115" y="285" text-anchor="middle" font-size="11" fill="#57606a">不成立</text>
+</svg>

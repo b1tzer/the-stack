@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 663 527" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="10">
+  <defs>
+    <marker id="arC1" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#666666"/>
+    </marker>
+  </defs>
+
+  <text x="332" y="24" text-anchor="middle" font-size="12" font-weight="bold" fill="#333333">高并发架构分层图</text>
+
+  <!-- User request -->
+  <g transform="translate(310,44)">
+    <rect x="0" y="0" width="136" height="31" rx="15" fill="#1565c0" stroke="none"/>
+    <text x="68" y="20" text-anchor="middle" font-size="11" font-weight="bold" fill="#ffffff">用户请求</text>
+  </g>
+  <line x1="332" y1="71" x2="332" y2="90" stroke="#666666" stroke-width="1.3" marker-end="url(#arC1)"/>
+
+  <!-- CDN Layer -->
+  <g transform="translate(60,110)">
+    <rect x="0" y="0" width="561" height="48" rx="5" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+    <text x="280" y="19" text-anchor="middle" font-size="12" font-weight="bold" fill="#0d47a1">CDN（静态资源缓存）</text>
+    <text x="280" y="36" text-anchor="middle" font-size="9" fill="#1565c0">缓存图片、JS、CSS，不回源 — 消除 60-80% 静态请求</text>
+  </g>
+  <line x1="332" y1="144" x2="332" y2="163" stroke="#666666" stroke-width="1.3" marker-end="url(#arC1)"/>
+  <text x="343" y="157" font-size="8" fill="#666666">动态请求</text>
+
+  <!-- Gateway Layer -->
+  <g transform="translate(60,196)">
+    <rect x="0" y="0" width="561" height="48" rx="5" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
+    <text x="280" y="19" text-anchor="middle" font-size="12" font-weight="bold" fill="#1b5e20">网关层（Gateway）</text>
+    <text x="280" y="36" text-anchor="middle" font-size="9" fill="#2e7d32">限流、鉴权、路由、协议转换 — 拦截超量请求，保护后端</text>
+  </g>
+  <line x1="332" y1="218" x2="332" y2="236" stroke="#666666" stroke-width="1.3" marker-end="url(#arC1)"/>
+
+  <!-- Application Layer -->
+  <g transform="translate(60,282)">
+    <rect x="0" y="0" width="561" height="68" rx="5" fill="#fff3e0" stroke="#e65100" stroke-width="1.3"/>
+    <text x="280" y="19" text-anchor="middle" font-size="12" font-weight="bold" fill="#bf360c">应用服务层</text>
+    <rect x="34" y="29" width="144" height="31" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="0.8"/>
+    <text x="106" y="48" text-anchor="middle" font-size="9" fill="#bf360c">订单服务</text>
+    <rect x="208" y="29" width="144" height="31" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="0.8"/>
+    <text x="280" y="48" text-anchor="middle" font-size="9" fill="#bf360c">商品服务</text>
+    <rect x="382" y="29" width="144" height="31" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="0.8"/>
+    <text x="455" y="48" text-anchor="middle" font-size="9" fill="#bf360c">用户服务</text>
+  </g>
+
+  <!-- Three arrows down -->
+  <line x1="106" y1="311" x2="106" y2="337" stroke="#666666" stroke-width="1" marker-end="url(#arC1)"/>
+  <line x1="332" y1="311" x2="332" y2="337" stroke="#666666" stroke-width="1" marker-end="url(#arC1)"/>
+  <line x1="455" y1="311" x2="455" y2="337" stroke="#666666" stroke-width="1" marker-end="url(#arC1)"/>
+
+  <!-- Cache Layer -->
+  <g transform="translate(60,400)">
+    <rect x="0" y="0" width="561" height="48" rx="5" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.3"/>
+    <text x="280" y="19" text-anchor="middle" font-size="12" font-weight="bold" fill="#4a148c">缓存层（Redis / 本地缓存）</text>
+    <text x="280" y="36" text-anchor="middle" font-size="9" fill="#7b1fa2">热点数据缓存，拦截 80%+ 的读请求</text>
+  </g>
+  <line x1="332" y1="391" x2="332" y2="410" stroke="#666666" stroke-width="1.3" marker-end="url(#arC1)"/>
+  <text x="343" y="404" font-size="8" fill="#666666">缓存未命中</text>
+
+  <!-- Database Layer -->
+  <g transform="translate(60,486)">
+    <rect x="0" y="0" width="561" height="48" rx="5" fill="#ffcdd2" stroke="#c62828" stroke-width="1.3"/>
+    <text x="280" y="19" text-anchor="middle" font-size="12" font-weight="bold" fill="#b71c1c">数据库层</text>
+    <text x="280" y="36" text-anchor="middle" font-size="9" fill="#c62828">主从分离、分库分表、读写分离 — 最终承受的请求量大幅减少</text>
+  </g>
+
+  <!-- Peak reduction annotation -->
+  <g transform="translate(730,110)">
+    <line x1="0" y1="0" x2="0" y2="366" stroke="#c62828" stroke-width="0.8" stroke-dasharray="4,3"/>
+    <path d="M-6,0 L6,0 L0,10 Z" fill="#c62828"/>
+    <path d="M-6,430 L6,430 L0,420 Z" fill="#c62828"/>
+    <text x="0" y="187" text-anchor="middle" font-size="9" fill="#c62828" transform="rotate(-90,0,220)" font-weight="bold">逐层消峰 ↑</text>
+  </g>
+</svg>

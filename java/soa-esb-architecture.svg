@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 260" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="10">
+<defs>
+  <marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+    <path d="M0,0 L8,4 L0,8 Z" fill="#666666"/>
+  </marker>
+</defs>
+
+<text x="320" y="26" text-anchor="middle" font-size="14" font-weight="bold" fill="#333333">SOA：以 ESB 为中心的服务集成</text>
+
+<!-- 应用 A -->
+<g transform="translate(30,45)">
+  <rect x="0" y="0" width="130" height="44" rx="5" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="65" y="27" text-anchor="middle" font-size="11" font-weight="bold" fill="#0d47a1">应用 A</text>
+</g>
+
+<!-- 应用 B -->
+<g transform="translate(30,135)">
+  <rect x="0" y="0" width="130" height="44" rx="5" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="65" y="27" text-anchor="middle" font-size="11" font-weight="bold" fill="#0d47a1">应用 B</text>
+</g>
+
+<!-- ESB -->
+<g transform="translate(245,70)">
+  <rect x="0" y="0" width="190" height="90" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+  <text x="95" y="30" text-anchor="middle" font-size="12" font-weight="bold" fill="#bf360c">ESB</text>
+  <text x="95" y="50" text-anchor="middle" font-size="10" fill="#e65100">企业服务总线</text>
+  <text x="95" y="70" text-anchor="middle" font-size="9" fill="#666666">协议转换 / 路由 / 编排</text>
+</g>
+
+<!-- 用户服务 -->
+<g transform="translate(490,30)">
+  <rect x="0" y="0" width="130" height="44" rx="5" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
+  <text x="65" y="27" text-anchor="middle" font-size="11" font-weight="bold" fill="#1b5e20">用户服务</text>
+</g>
+
+<!-- 支付服务 -->
+<g transform="translate(490,105)">
+  <rect x="0" y="0" width="130" height="44" rx="5" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
+  <text x="65" y="27" text-anchor="middle" font-size="11" font-weight="bold" fill="#1b5e20">支付服务</text>
+</g>
+
+<!-- 消息服务 -->
+<g transform="translate(490,180)">
+  <rect x="0" y="0" width="130" height="44" rx="5" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
+  <text x="65" y="27" text-anchor="middle" font-size="11" font-weight="bold" fill="#1b5e20">消息服务</text>
+</g>
+
+<!-- 应用 → ESB -->
+<line x1="160" y1="67" x2="243" y2="100" stroke="#666666" stroke-width="1.3" marker-end="url(#ar)"/>
+<line x1="160" y1="157" x2="243" y2="130" stroke="#666666" stroke-width="1.3" marker-end="url(#ar)"/>
+
+<!-- ESB → 服务 -->
+<line x1="435" y1="92" x2="488" y2="62" stroke="#666666" stroke-width="1.3" marker-end="url(#ar)"/>
+<line x1="435" y1="115" x2="488" y2="127" stroke="#666666" stroke-width="1.3" marker-end="url(#ar)"/>
+<line x1="435" y1="138" x2="488" y2="192" stroke="#666666" stroke-width="1.3" marker-end="url(#ar)"/>
+</svg>
