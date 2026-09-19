@@ -206,7 +206,7 @@ public class OrderService {
 }
 ```
 
-> 服务集群与负载均衡落地见 [Spring 服务调用](../../spring/09-distributed/chapter-03-service-call)。
+> 服务集群与负载均衡落地见 [Spring 服务调用](../../spring/09-distributed/chapter-04-service-call)。
 
 ### 3.3 多副本一致性
 
@@ -379,7 +379,7 @@ resilience4j:
         automatic-transition-from-open-to-half-open-enabled: true
 ```
 
-> 熔断器落地见 [Spring 熔断降级](../../spring/09-distributed/chapter-04-circuit-breaker)。
+> 熔断器落地见 [Spring 熔断降级](../../spring/09-distributed/chapter-05-circuit-breaker)。
 
 ### 5.4 降级策略对比总览
 
