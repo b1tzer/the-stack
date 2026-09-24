@@ -1,6 +1,6 @@
 # SQL 规范与最佳实践
 
-规范回答「SQL 该怎么写」，性能回答「SQL 怎么写得快」。本篇只讲规范；索引失效、分页、子查询等性能优化见 [SQL 优化技巧](../05-query-optimization/chapter-02-sql-optimization.md)。
+规范回答「SQL 该怎么写」，性能回答「SQL 怎么写得快」。本篇只讲规范；索引失效、分页、子查询等性能优化见 [SQL 优化技巧](../04-query-optimization/chapter-02-sql-optimization.md)。
 
 ## 1. 命名规范
 

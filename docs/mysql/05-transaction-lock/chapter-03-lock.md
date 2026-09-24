@@ -2,7 +2,7 @@
 
 > 一条 `SELECT * FROM t WHERE id = 7 FOR UPDATE`，表里根本没有 `id=7` 这一行，却能阻塞住别人 `INSERT id=8`。锁住的不是一条存在的记录，而是记录之间的「空隙」。InnoDB 的行锁，锁的其实是**索引**，而不是行。
 
-![MySQL 锁全景：MDL 与 InnoDB 锁的关联，及行锁判断路线](/mysql/04-transaction-lock-chapter-03-lock-algorithms.svg)
+![MySQL 锁全景：MDL 与 InnoDB 锁的关联，及行锁判断路线](/mysql/05-transaction-lock-chapter-03-lock-algorithms.svg)
 
 ## 1. 锁的层次与加锁对象
 

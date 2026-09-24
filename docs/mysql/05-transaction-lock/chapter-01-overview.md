@@ -15,7 +15,7 @@ ACID 四项承诺里，隔离性（Isolation）要回答：两个事务并发读
 
 ## 2. 一条 SQL 的路径分叉
 
-![事务与锁：一条 SQL 的路径分叉](/mysql/04-transaction-lock-overview.svg)
+![事务与锁：一条 SQL 的路径分叉](/mysql/05-transaction-lock-overview.svg)
 
 每一句 SQL 进来，先分「读」还是「写」，读再分两条：
 

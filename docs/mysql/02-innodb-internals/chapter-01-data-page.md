@@ -76,7 +76,7 @@ slot 数组本身按主键**严格有序**（因为每组最后一条是递增�
 └─────────────────────┘
 ```
 
-记录头里的 `next_record` 就是上一节串链表的那个指针——它存的是「下一条记录相对本记录的偏移量」，指向逻辑上的下一条，而非物理相邻的下一条。隐藏列 `DB_TRX_ID` 与 `DB_ROLL_PTR` 是 MVCC 版本链的载体，见 [事务与 MVCC §2.2](../04-transaction-lock/chapter-02-transaction.md#hidden-columns)。
+记录头里的 `next_record` 就是上一节串链表的那个指针——它存的是「下一条记录相对本记录的偏移量」，指向逻辑上的下一条，而非物理相邻的下一条。隐藏列 `DB_TRX_ID` 与 `DB_ROLL_PTR` 是 MVCC 版本链的载体，见 [事务与 MVCC §2.2](../05-transaction-lock/chapter-02-transaction.md#hidden-columns)。
 
 ### 2.2 行溢出：一行太大怎么办
 
