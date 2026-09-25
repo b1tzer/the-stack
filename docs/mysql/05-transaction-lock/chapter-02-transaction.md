@@ -141,7 +141,7 @@ InnoDB 的聚簇索引里，每一行记录除了你定义的列，还额外带�
 
 于是这行数据变成了：
 
-![版本链：表里的当前行与 Undo Log 历史版本的关联](/mysql/04-transaction-lock-chapter-01-transaction-version-chain.svg)
+![版本链：表里的当前行与 Undo Log 历史版本的关联](/mysql/05-transaction-lock-chapter-01-transaction-version-chain.svg)
 
 这条链就叫**版本链**。它完整记录了这行数据「从老到新」的每一次变化。Undo Log 的存储细节与 Purge 清理机制见 [Undo Log](../02-innodb-internals/chapter-05-undo-log.md)，这里只需记住：**版本链是 MVCC 的数据基础，DB_ROLL_PTR 是串起这条链的线。**
 
@@ -168,7 +168,7 @@ Read View 是一份「快照读可见性判定」的上下文。每次快照读�
 `min_trx_id` 在 InnoDB 源码里叫 `m_up_limit_id`（低水位），`max_trx_id` 叫 `m_low_limit_id`（高水位）。含义是：ID 低于低水位的事务一定已提交，ID 不低于高水位的事务一定还没开始。阅读源码或八股文时遇到这两个名字，对应到这里即可。
 :::
 
-![Read View 的内存结构、字段来源与可见性判定](/mysql/04-transaction-lock-chapter-01-transaction-read-view.svg)
+![Read View 的内存结构、字段来源与可见性判定](/mysql/05-transaction-lock-chapter-01-transaction-read-view.svg)
 
 ### 3.2 可见性判断：一条记录怎么决定「看不看得见」 {#visibility-judgment}
 

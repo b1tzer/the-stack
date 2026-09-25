@@ -726,7 +726,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
           ],
         },
         {
-          text: '索引与查询优化',
+          text: '索引',
           collapsed: true,
           items: [
             { text: 'B+ 树索引', link: '/mysql/03-index/chapter-01-btree-index' },
@@ -734,21 +734,27 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '索引失效', link: '/mysql/03-index/chapter-03-index-usage' },
             { text: '索引优化与治理', link: '/mysql/03-index/chapter-04-index-optimization' },
             { text: '全文索引', link: '/mysql/03-index/chapter-05-fulltext-index' },
-            { text: '查询执行流程与 EXPLAIN', link: '/mysql/05-query-optimization/chapter-01-execution-plan' },
-            { text: 'SQL 优化', link: '/mysql/05-query-optimization/chapter-02-sql-optimization' },
-            { text: '连接优化', link: '/mysql/05-query-optimization/chapter-03-join-optimization' },
-            { text: '子查询优化', link: '/mysql/05-query-optimization/chapter-04-subquery-optimization' },
+          ],
+        },
+        {
+          text: '查询优化',
+          collapsed: true,
+          items: [
+            { text: '查询执行流程与 EXPLAIN', link: '/mysql/04-query-optimization/chapter-01-execution-plan' },
+            { text: 'SQL 优化', link: '/mysql/04-query-optimization/chapter-02-sql-optimization' },
+            { text: '连接优化', link: '/mysql/04-query-optimization/chapter-03-join-optimization' },
+            { text: '子查询优化', link: '/mysql/04-query-optimization/chapter-04-subquery-optimization' },
           ],
         },
         {
           text: '事务与锁',
           collapsed: true,
           items: [
-            { text: '综览', link: '/mysql/04-transaction-lock/chapter-01-overview' },
-            { text: '事务与 MVCC', link: '/mysql/04-transaction-lock/chapter-02-transaction' },
-            { text: '锁机制', link: '/mysql/04-transaction-lock/chapter-03-lock' },
-            { text: '死锁', link: '/mysql/04-transaction-lock/chapter-04-deadlock' },
-            { text: '锁选型：悲观锁 vs 乐观锁', link: '/mysql/04-transaction-lock/chapter-05-lock-selection' },
+            { text: '综览', link: '/mysql/05-transaction-lock/chapter-01-overview' },
+            { text: '事务与 MVCC', link: '/mysql/05-transaction-lock/chapter-02-transaction' },
+            { text: '锁机制', link: '/mysql/05-transaction-lock/chapter-03-lock' },
+            { text: '死锁', link: '/mysql/05-transaction-lock/chapter-04-deadlock' },
+            { text: '锁选型：悲观锁 vs 乐观锁', link: '/mysql/05-transaction-lock/chapter-05-lock-selection' },
           ],
         },
         {

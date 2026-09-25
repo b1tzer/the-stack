@@ -66,7 +66,7 @@ B+ 树的每个节点在磁盘上对应一个**页（Page）**，InnoDB 默认�
 这一层的意义是：页内查找不是从头到尾逐条扫，而是「先二分定位到组，再在组内细找」。加上 B+ 树本身只有 3~4 层高（见 §3.1），一次等值查询的磁盘 IO 次数被压到了个位数。
 
 ::: info 📖 隐藏列
-页里的每行记录，除了你定义的列，还带着 `DB_ROW_ID`、`DB_TRX_ID`、`DB_ROLL_PTR` 三个隐藏列，支撑事务与 MVCC，见 [事务与 MVCC §2.2](../04-transaction-lock/chapter-02-transaction.md#hidden-columns)。
+页里的每行记录，除了你定义的列，还带着 `DB_ROW_ID`、`DB_TRX_ID`、`DB_ROLL_PTR` 三个隐藏列，支撑事务与 MVCC，见 [事务与 MVCC §2.2](../05-transaction-lock/chapter-02-transaction.md#hidden-columns)。
 :::
 
 ## 2. 二级索引与回表优化
