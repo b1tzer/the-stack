@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 500" width="640" height="500" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+<style>
+  text { text-anchor: middle; dominant-baseline: central; }
+  .title { font-size: 15px; font-weight: bold; fill: #333333; }
+  .label { font-size: 12px; font-weight: bold; fill: #333333; }
+  .note { font-size: 11px; fill: #666666; }
+  .arrow { stroke: #7b1fa2; stroke-width: 2; fill: none; }
+  .box { rx: 8; ry: 8; }
+  .action { fill: #e8f5e9; stroke: #2e7d32; stroke-width: 1.5; }
+  .highlight { fill: #fff3e0; stroke: #e65100; stroke-width: 1.5; }
+  .step { fill: #e1bee7; stroke: #7b1fa2; stroke-width: 1.5; }
+  .phase { fill: #eceff1; stroke: #666666; stroke-width: 1.5; }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#7b1fa2"/></marker>
+  <marker id="arrowtail" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto-start-reverse"><polygon points="0 0, 10 3.5, 0 7" fill="#7b1fa2"/></marker>
+</defs>
+<text x="320" y="22" class="title">Spring WebSocket 分层架构</text>
+
+<rect x="100" y="46" width="440" height="84" class="box action"/>
+<text x="320" y="72" class="label">应用层（你的代码）</text>
+<text x="320" y="100" class="note">@MessageMapping → Service → @SendTo / SimpMessagingTemplate</text>
+
+<line x1="320" y1="132" x2="320" y2="158" class="arrow" marker-start="url(#arrowtail)" marker-end="url(#arrowhead)"/>
+
+<rect x="100" y="160" width="440" height="84" class="box highlight"/>
+<text x="320" y="186" class="label">STOMP 消息协议</text>
+<text x="320" y="214" class="note">帧格式: CONNECT / SEND / SUBSCRIBE / MESSAGE / DISCONNECT</text>
+
+<line x1="320" y1="246" x2="320" y2="272" class="arrow" marker-start="url(#arrowtail)" marker-end="url(#arrowhead)"/>
+
+<rect x="100" y="274" width="440" height="84" class="box step"/>
+<text x="320" y="300" class="label">消息代理 (Broker)</text>
+<text x="320" y="328" class="note">SimpleBroker / RabbitMQ / Kafka</text>
+
+<line x1="320" y1="360" x2="320" y2="386" class="arrow" marker-start="url(#arrowtail)" marker-end="url(#arrowhead)"/>
+
+<rect x="100" y="388" width="440" height="84" class="box phase"/>
+<text x="320" y="414" class="label">WebSocket 传输层</text>
+<text x="320" y="442" class="note">原生 WebSocket / SockJS (降级: xhr-streaming / xhr-polling)</text>
+</svg>

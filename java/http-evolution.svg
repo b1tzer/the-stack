@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 663 408" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="10">
+  <defs>
+    <marker id="arD4" markerWidth="8" markerHeight="8" refX="4" refY="8" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#555555"/>
+    </marker>
+  </defs>
+
+  <text x="332" y="22" text-anchor="middle" font-size="12" font-weight="bold" fill="#333333">HTTP 版本演进：连接建立对比</text>
+
+  <!-- Column 1: TCP + TLS 1.2 -->
+  <text x="110" y="48" text-anchor="middle" font-size="12" font-weight="bold" fill="#c62828">TCP + TLS 1.2（HTTP/1.1 / HTTP/2）</text>
+  <g transform="translate(20, 68)">
+    <rect x="0" y="0" width="187" height="27" rx="3" fill="#ffcdd2" stroke="#c62828" stroke-width="0.8"/>
+    <text x="94" y="17" text-anchor="middle" fill="#b71c1c">客户端 → SYN</text>
+    <rect x="0" y="32" width="187" height="27" rx="3" fill="#ffcdd2" stroke="#c62828" stroke-width="0.8"/>
+    <text x="94" y="49" text-anchor="middle" fill="#b71c1c">客户端 ← SYN-ACK</text>
+    <rect x="0" y="65" width="187" height="27" rx="3" fill="#ffcdd2" stroke="#c62828" stroke-width="0.8"/>
+    <text x="94" y="82" text-anchor="middle" fill="#b71c1c">客户端 → ACK + ClientHello</text>
+    <rect x="0" y="97" width="187" height="27" rx="3" fill="#ffcdd2" stroke="#c62828" stroke-width="0.8"/>
+    <text x="94" y="114" text-anchor="middle" fill="#b71c1c">客户端 ← ServerHello + Cert</text>
+    <rect x="0" y="129" width="187" height="27" rx="3" fill="#ffcdd2" stroke="#c62828" stroke-width="0.8"/>
+    <text x="94" y="146" text-anchor="middle" fill="#b71c1c">客户端 → Finished</text>
+    <rect x="0" y="162" width="187" height="27" rx="3" fill="#ffcdd2" stroke="#c62828" stroke-width="0.8"/>
+    <text x="94" y="178" text-anchor="middle" fill="#b71c1c">客户端 → HTTP Request</text>
+    <rect x="0" y="194" width="187" height="27" rx="3" fill="#ffcdd2" stroke="#c62828" stroke-width="0.8"/>
+    <text x="94" y="211" text-anchor="middle" fill="#b71c1c">客户端 ← HTTP Response</text>
+    <!-- RTT labels -->
+    <rect x="194" y="0" width="42" height="60" rx="3" fill="#ffcdd2" stroke="#c62828" stroke-width="0.8"/>
+    <text x="215" y="20" text-anchor="middle" font-size="8" fill="#b71c1c" font-weight="bold">1 RTT</text>
+    <text x="215" y="34" text-anchor="middle" font-size="8" fill="#c62828">TCP</text>
+    <text x="215" y="44" text-anchor="middle" font-size="8" fill="#c62828">握手</text>
+    <rect x="194" y="65" width="42" height="60" rx="3" fill="#ffcdd2" stroke="#c62828" stroke-width="0.8"/>
+    <text x="215" y="85" text-anchor="middle" font-size="8" fill="#b71c1c" font-weight="bold">1 RTT</text>
+    <text x="215" y="99" text-anchor="middle" font-size="8" fill="#c62828">TLS</text>
+    <text x="215" y="109" text-anchor="middle" font-size="8" fill="#c62828">握手</text>
+    <rect x="194" y="129" width="42" height="60" rx="3" fill="#ffcdd2" stroke="#c62828" stroke-width="0.8"/>
+    <text x="215" y="150" text-anchor="middle" font-size="8" fill="#b71c1c" font-weight="bold">1 RTT</text>
+    <text x="215" y="163" text-anchor="middle" font-size="8" fill="#c62828">密钥</text>
+    <text x="215" y="173" text-anchor="middle" font-size="8" fill="#c62828">确认</text>
+    <rect x="0" y="228" width="238" height="20" rx="3" fill="#c62828" stroke="none"/>
+    <text x="119" y="241" text-anchor="middle" font-size="10" fill="#ffffff" font-weight="bold">总计: 3-RTT 才能拿到第一个字节</text>
+  </g>
+
+  <!-- Column 2: QUIC 首次连接 -->
+  <text x="366" y="48" text-anchor="middle" font-size="12" font-weight="bold" fill="#1565c0">QUIC 首次连接</text>
+  <g transform="translate(320, 68)">
+    <rect x="0" y="0" width="187" height="34" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="0.8"/>
+    <text x="94" y="15" text-anchor="middle" fill="#0d47a1">客户端 → Initial</text>
+    <text x="94" y="29" text-anchor="middle" font-size="8" fill="#1565c0">（含 ClientHello）</text>
+    <rect x="0" y="41" width="187" height="34" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="0.8"/>
+    <text x="94" y="56" text-anchor="middle" fill="#0d47a1">客户端 ← Handshake</text>
+    <text x="94" y="70" text-anchor="middle" font-size="8" fill="#1565c0">（ServerHello）</text>
+    <rect x="0" y="82" width="187" height="27" rx="3" fill="#bbdefb" stroke="#1565c0" stroke-width="0.8"/>
+    <text x="94" y="99" text-anchor="middle" fill="#0d47a1">客户端 → HTTP Request</text>
+    <rect x="0" y="114" width="187" height="27" rx="3" fill="#bbdefb" stroke="#1565c0" stroke-width="0.8"/>
+    <text x="94" y="131" text-anchor="middle" fill="#0d47a1">客户端 ← HTTP Response</text>
+    <!-- RTT label -->
+    <rect x="194" y="0" width="42" height="76" rx="3" fill="#bbdefb" stroke="#1565c0" stroke-width="0.8"/>
+    <text x="215" y="26" text-anchor="middle" font-size="8" fill="#0d47a1" font-weight="bold">1 RTT</text>
+    <text x="215" y="39" text-anchor="middle" font-size="8" fill="#1565c0">连接</text>
+    <text x="215" y="49" text-anchor="middle" font-size="8" fill="#1565c0">+ 加密</text>
+    <rect x="0" y="151" width="238" height="20" rx="3" fill="#1565c0" stroke="none"/>
+    <text x="119" y="165" text-anchor="middle" font-size="10" fill="#ffffff" font-weight="bold">总计: 1-RTT</text>
+  </g>
+
+  <!-- Column 3: QUIC 后续 0-RTT -->
+  <text x="578" y="48" text-anchor="middle" font-size="12" font-weight="bold" fill="#2e7d32">QUIC 后续连接（0-RTT）</text>
+  <g transform="translate(580, 68)">
+    <rect x="0" y="0" width="153" height="42" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.3"/>
+    <text x="76" y="17" text-anchor="middle" fill="#1b5e20" font-weight="bold">客户端 → Initial</text>
+    <text x="76" y="31" text-anchor="middle" font-size="8" fill="#2e7d32">+ 0-RTT Data</text>
+    <text x="76" y="41" text-anchor="middle" font-size="8" fill="#2e7d32">（含 HTTP Request）</text>
+    <line x1="76" y1="42" x2="76" y2="53" stroke="#2e7d32" stroke-width="1.3" marker-end="url(#arD4)"/>
+    <rect x="0" y="54" width="153" height="27" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="0.8"/>
+    <text x="76" y="71" text-anchor="middle" fill="#1b5e20">客户端 ← HTTP Response</text>
+    <rect x="0" y="92" width="153" height="20" rx="3" fill="#2e7d32" stroke="none"/>
+    <text x="76" y="105" text-anchor="middle" font-size="10" fill="#ffffff" font-weight="bold">0 RTT！请求和握手同时发出</text>
+  </g>
+</svg>

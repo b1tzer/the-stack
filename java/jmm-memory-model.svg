@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 460" width="620" height="460">
+  <defs>
+    <style>
+      text { font-family: 'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif; }
+    </style>
+    <linearGradient id="chipBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e3f2fd"/>
+      <stop offset="100%" stop-color="#eceff1"/>
+    </linearGradient>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="104%">
+      <feDropShadow dx="1" dy="2" stdDeviation="3" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <!-- CPU Chip outer box -->
+  <rect x="13" y="8" width="594" height="260" rx="12" fill="url(#chipBg)" stroke="#1565c0" stroke-width="1.7" filter="url(#shadow)"/>
+  <text x="310" y="36" text-anchor="middle" font-size="14" font-weight="bold" fill="#0d47a1">CPU 芯片</text>
+
+  <!-- Core 0 -->
+  <rect x="27" y="48" width="134" height="142" rx="8" fill="#ffffff" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="94" y="68" text-anchor="middle" font-size="14" font-weight="bold" fill="#0d47a1">Core 0</text>
+  <rect x="39" y="80" width="110" height="46" rx="7" fill="#e3f2fd" stroke="#1565c0" stroke-width="1"/>
+  <text x="94" y="102" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">L1 Cache</text>
+  <text x="94" y="118" text-anchor="middle" font-size="12" fill="#1565c0">（私有）</text>
+  <rect x="39" y="134" width="110" height="46" rx="7" fill="#bbdefb" stroke="#1565c0" stroke-width="1"/>
+  <text x="94" y="156" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">L2 Cache</text>
+  <text x="94" y="172" text-anchor="middle" font-size="12" fill="#1565c0">（私有）</text>
+
+  <!-- Core 1 -->
+  <rect x="171" y="48" width="134" height="142" rx="8" fill="#ffffff" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="238" y="68" text-anchor="middle" font-size="14" font-weight="bold" fill="#0d47a1">Core 1</text>
+  <rect x="183" y="80" width="110" height="46" rx="7" fill="#e3f2fd" stroke="#1565c0" stroke-width="1"/>
+  <text x="238" y="102" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">L1 Cache</text>
+  <text x="238" y="118" text-anchor="middle" font-size="12" fill="#1565c0">（私有）</text>
+  <rect x="183" y="134" width="110" height="46" rx="7" fill="#bbdefb" stroke="#1565c0" stroke-width="1"/>
+  <text x="238" y="156" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">L2 Cache</text>
+  <text x="238" y="172" text-anchor="middle" font-size="12" fill="#1565c0">（私有）</text>
+
+  <!-- Core 2 -->
+  <rect x="315" y="48" width="134" height="142" rx="8" fill="#ffffff" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="382" y="68" text-anchor="middle" font-size="14" font-weight="bold" fill="#0d47a1">Core 2</text>
+  <rect x="327" y="80" width="110" height="46" rx="7" fill="#e3f2fd" stroke="#1565c0" stroke-width="1"/>
+  <text x="382" y="102" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">L1 Cache</text>
+  <text x="382" y="118" text-anchor="middle" font-size="12" fill="#1565c0">（私有）</text>
+  <rect x="327" y="134" width="110" height="46" rx="7" fill="#bbdefb" stroke="#1565c0" stroke-width="1"/>
+  <text x="382" y="156" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">L2 Cache</text>
+  <text x="382" y="172" text-anchor="middle" font-size="12" fill="#1565c0">（私有）</text>
+
+  <!-- Core 3 -->
+  <rect x="459" y="48" width="134" height="142" rx="8" fill="#ffffff" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="526" y="68" text-anchor="middle" font-size="14" font-weight="bold" fill="#0d47a1">Core 3</text>
+  <rect x="471" y="80" width="110" height="46" rx="7" fill="#e3f2fd" stroke="#1565c0" stroke-width="1"/>
+  <text x="526" y="102" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">L1 Cache</text>
+  <text x="526" y="118" text-anchor="middle" font-size="12" fill="#1565c0">（私有）</text>
+  <rect x="471" y="134" width="110" height="46" rx="7" fill="#bbdefb" stroke="#1565c0" stroke-width="1"/>
+  <text x="526" y="156" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">L2 Cache</text>
+  <text x="526" y="172" text-anchor="middle" font-size="12" fill="#1565c0">（私有）</text>
+
+  <!-- 总线：4 核连到共享 L3 -->
+  <line x1="94" y1="190" x2="94" y2="198" stroke="#555555" stroke-width="1.3" stroke-dasharray="4,3"/>
+  <line x1="238" y1="190" x2="238" y2="198" stroke="#555555" stroke-width="1.3" stroke-dasharray="4,3"/>
+  <line x1="382" y1="190" x2="382" y2="198" stroke="#555555" stroke-width="1.3" stroke-dasharray="4,3"/>
+  <line x1="526" y1="190" x2="526" y2="198" stroke="#555555" stroke-width="1.3" stroke-dasharray="4,3"/>
+  <line x1="94" y1="198" x2="526" y2="198" stroke="#555555" stroke-width="1.3" stroke-dasharray="4,3"/>
+  <text x="310" y="196" text-anchor="middle" font-size="10" fill="#555555">总线</text>
+  <line x1="310" y1="198" x2="310" y2="210" stroke="#555555" stroke-width="1.3" stroke-dasharray="4,3"/>
+
+  <!-- L3 Cache (shared，独立于 Core) -->
+  <rect x="170" y="210" width="280" height="48" rx="7" fill="#fff3e0" stroke="#e65100" stroke-width="1.3"/>
+  <text x="310" y="232" text-anchor="middle" font-size="13" font-weight="bold" fill="#bf360c">L3 Cache</text>
+  <text x="310" y="249" text-anchor="middle" font-size="12" fill="#e65100">（共享）</text>
+
+  <!-- Arrow from L3 down to DRAM -->
+  <line x1="310" y1="258" x2="310" y2="300" stroke="#555555" stroke-width="1.7"/>
+  <polygon points="310,305 303,297 317,297" fill="#555555"/>
+
+  <!-- Main Memory (DRAM) -->
+  <rect x="170" y="305" width="280" height="48" rx="7" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.3"/>
+  <text x="310" y="335" text-anchor="middle" font-size="14" font-weight="bold" fill="#4a148c">主内存（DRAM）</text>
+
+  <!-- Annotation: visibility problem -->
+  <rect x="40" y="378" width="540" height="64" rx="7" fill="#fff3e0" stroke="#e65100" stroke-width="0.8" stroke-dasharray="5,3"/>
+  <text x="310" y="399" text-anchor="middle" font-size="12" fill="#bf360c">Core 0 写 x = 1 到 L1，不会立刻写回主内存</text>
+  <text x="310" y="417" text-anchor="middle" font-size="12" fill="#bf360c">→ Core 1 从 L1 读到的可能仍是旧值 0</text>
+  <text x="310" y="435" text-anchor="middle" font-size="12" font-weight="bold" fill="#bf360c">可见性问题的硬件根源就在这里</text>
+</svg>

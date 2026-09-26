@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 544 357" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <defs>
+    <marker id="aDown" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#555555"/>
+    </marker>
+    <marker id="aRight" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#555555"/>
+    </marker>
+  </defs>
+
+  <text x="272" y="24" text-anchor="middle" font-size="12" font-weight="bold" fill="#333333">全连接队列与半连接队列</text>
+
+  <!-- SYN queue -->
+  <text x="136" y="53" text-anchor="middle" font-size="12" font-weight="bold" fill="#e65100">半连接队列（SYN queue）</text>
+  <rect x="34" y="63" width="204" height="48" rx="5" fill="#fff3e0" stroke="#e65100" stroke-width="1.3"/>
+  <text x="51" y="82" fill="#bf360c" font-size="10">SYN_RECV 状态</text>
+  <text x="51" y="99" fill="#666666" font-size="10">客户端发了 SYN，三次握手还没完成</text>
+  <text x="238" y="99" fill="#888888" font-size="9">tcp_max_syn_backlog</text>
+
+  <!-- arrow: SYN → accept -->
+  <line x1="136" y1="110" x2="136" y2="144" stroke="#555555" stroke-width="1.3" marker-end="url(#aDown)"/>
+  <text x="150" y="132" fill="#555555" font-size="9">三次握手完成（收到客户端 ACK）</text>
+
+  <!-- accept queue -->
+  <text x="136" y="163" text-anchor="middle" font-size="12" font-weight="bold" fill="#1565c0">全连接队列（accept queue）</text>
+  <rect x="34" y="173" width="204" height="48" rx="5" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="51" y="192" fill="#0d47a1" font-size="10">ESTABLISHED 状态</text>
+  <text x="51" y="209" fill="#666666" font-size="10">连接已建立，等待 accept() 取走</text>
+  <text x="238" y="209" fill="#888888" font-size="9">listen(backlog) 参数</text>
+
+  <!-- arrow: accept → process -->
+  <line x1="136" y1="221" x2="136" y2="255" stroke="#555555" stroke-width="1.3" marker-end="url(#aDown)"/>
+  <text x="150" y="242" fill="#555555" font-size="9">应用调用 accept()</text>
+
+  <!-- process -->
+  <rect x="85" y="258" width="102" height="34" rx="5" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
+  <text x="136" y="280" text-anchor="middle" fill="#1b5e20" font-weight="bold">进程拿到 connFd</text>
+
+  <!-- 右侧：溢出说明 -->
+  <rect x="289" y="51" width="238" height="119" rx="7" fill="#ffcdd2" stroke="#c62828" stroke-width="1.3"/>
+  <text x="408" y="71" text-anchor="middle" font-size="11" font-weight="bold" fill="#b71c1c">全连接队列满时</text>
+
+  <text x="306" y="92" fill="#333333" font-size="10">默认（tcp_abort_on_overflow=0）</text>
+  <text x="306" y="107" fill="#555555" font-size="10">内核丢弃新的 ACK</text>
+  <text x="306" y="122" fill="#555555" font-size="10">客户端以为连接成功，实际服务端不知道</text>
+  <text x="306" y="144" fill="#333333" font-size="10">tcp_abort_on_overflow=1</text>
+  <text x="306" y="160" fill="#555555" font-size="10">内核直接发 RST，客户端立刻收到 reset</text>
+
+  <!-- 右侧：排查命令 -->
+  <rect x="289" y="187" width="238" height="94" rx="7" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.3"/>
+  <text x="408" y="207" text-anchor="middle" font-size="11" font-weight="bold" fill="#4a148c">排查方法</text>
+
+  <text x="306" y="228" fill="#333333" font-size="10">ss -ltn | grep 8080</text>
+  <text x="306" y="245" fill="#555555" font-size="10">Recv-Q > Send-Q → 队列溢出</text>
+  <text x="306" y="262" fill="#333333" font-size="10">netstat -s | grep "listen queue"</text>
+  <text x="306" y="275" fill="#555555" font-size="10">overflowed 数字持续增长 → 加大 backlog</text>
+
+  <!-- 底部注释 -->
+  <text x="272" y="323" text-anchor="middle" fill="#888888" font-size="10">客户端 SYN 到达 → 半连接队列 → 三次握手完成 → 全连接队列 → accept() 取走</text>
+  <text x="272" y="340" text-anchor="middle" fill="#888888" font-size="10">瓶颈不在端口数，而在队列大小和 fd 上限</text>
+</svg>

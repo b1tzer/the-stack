@@ -1,0 +1,227 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 620" width="1000" height="620" font-family="'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif">
+  <style>
+    .title { font-size: 20px; font-weight: 700; fill: #1e293b; text-anchor: middle; }
+    .subtitle { font-size: 12px; fill: #64748b; text-anchor: middle; }
+    .legend { font-size: 10px; fill: #64748b; }
+    .panel { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; rx: 10; }
+    .panel-title { font-size: 15px; font-weight: 700; text-anchor: middle; }
+    .panel-old { fill: #b91c1c; }
+    .panel-new { fill: #15803d; }
+    .broker-box { rx: 8; }
+    .broker-leader { fill: #f0f9ff; stroke: #0369a1; stroke-width: 1.6; }
+    .broker-follower { fill: #fffbeb; stroke: #b45309; stroke-width: 1.6; }
+    .broker-name { font-size: 13px; font-weight: 700; }
+    .role-tag { font-size: 11px; font-weight: 700; }
+    .leader-text { fill: #0369a1; }
+    .follower-text { fill: #b45309; }
+    .cell { stroke-width: 1.3; }
+    .cell-leader { fill: #dbeafe; stroke: #3b82f6; }
+    .cell-follower { fill: #fef3c7; stroke: #f59e0b; }
+    .cell-deleted { fill: #fee2e2; stroke: #dc2626; stroke-dasharray: 4 3; }
+    .cell-msg { font-size: 11px; font-weight: 700; text-anchor: middle; }
+    .offset { font-size: 9px; fill: #94a3b8; text-anchor: middle; }
+    .meta { font-size: 10px; fill: #475569; }
+    .hw-line { stroke-dasharray: 4 3; stroke-width: 1.5; fill: none; }
+    .hw-label { font-size: 9px; font-weight: 700; text-anchor: middle; }
+    .step { font-size: 12px; fill: #334155; text-anchor: middle; }
+    .step-reply { font-size: 11px; fill: #15803d; font-weight: 700; text-anchor: middle; }
+    .step-arrow { stroke: #64748b; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+    .result { font-size: 14px; font-weight: 700; text-anchor: middle; }
+    .result-bad { fill: #b91c1c; }
+    .result-good { fill: #15803d; }
+    .cross { stroke: #dc2626; stroke-width: 2; }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <text x="500" y="34" class="title">Leader Epoch：Follower 重启后如何对齐日志</text>
+  <text x="500" y="55" class="subtitle">Topic T · Partition 0 的两个副本：Broker B（Leader）、Broker A（Follower），B 已写入 m1~m6</text>
+  <text x="982" y="34" class="legend" text-anchor="end">蓝 = Leader 副本　橙 = Follower 副本　红虚线 = 被截断</text>
+
+  <!-- ============ 左面板：旧方案 ============ -->
+  <rect x="20" y="72" width="470" height="508" class="panel"/>
+  <text x="255" y="100" class="panel-title panel-old">旧方案：按本地 HW 截断</text>
+
+  <!-- Broker B（Leader） -->
+  <rect x="36" y="112" width="438" height="100" class="broker-box broker-leader"/>
+  <text x="52" y="132" class="broker-name leader-text">Broker B</text>
+  <text x="120" y="132" class="role-tag leader-text">Partition 0 · Leader</text>
+  <rect x="56" y="148" width="42" height="30" rx="3" class="cell cell-leader"/>
+  <text x="77" y="168" class="cell-msg" fill="#1d4ed8">m1</text>
+  <rect x="102" y="148" width="42" height="30" rx="3" class="cell cell-leader"/>
+  <text x="123" y="168" class="cell-msg" fill="#1d4ed8">m2</text>
+  <rect x="148" y="148" width="42" height="30" rx="3" class="cell cell-leader"/>
+  <text x="169" y="168" class="cell-msg" fill="#1d4ed8">m3</text>
+  <rect x="194" y="148" width="42" height="30" rx="3" class="cell cell-leader"/>
+  <text x="215" y="168" class="cell-msg" fill="#1d4ed8">m4</text>
+  <rect x="240" y="148" width="42" height="30" rx="3" class="cell cell-leader"/>
+  <text x="261" y="168" class="cell-msg" fill="#1d4ed8">m5</text>
+  <rect x="286" y="148" width="42" height="30" rx="3" class="cell cell-leader"/>
+  <text x="307" y="168" class="cell-msg" fill="#1d4ed8">m6</text>
+  <text x="77" y="196" class="offset">0</text>
+  <text x="123" y="196" class="offset">1</text>
+  <text x="169" y="196" class="offset">2</text>
+  <text x="215" y="196" class="offset">3</text>
+  <text x="261" y="196" class="offset">4</text>
+  <text x="307" y="196" class="offset">5</text>
+  <line x1="332" y1="140" x2="332" y2="194" class="hw-line" stroke="#0369a1"/>
+  <text x="332" y="136" class="hw-label" fill="#0369a1">HW=6</text>
+  <text x="348" y="168" class="meta">LEO=6</text>
+
+  <!-- Broker A（Follower） -->
+  <rect x="36" y="226" width="438" height="100" class="broker-box broker-follower"/>
+  <text x="52" y="246" class="broker-name follower-text">Broker A</text>
+  <text x="120" y="246" class="role-tag follower-text">Partition 0 · Follower</text>
+  <rect x="56" y="262" width="42" height="30" rx="3" class="cell cell-follower"/>
+  <text x="77" y="282" class="cell-msg" fill="#b45309">m1</text>
+  <rect x="102" y="262" width="42" height="30" rx="3" class="cell cell-follower"/>
+  <text x="123" y="282" class="cell-msg" fill="#b45309">m2</text>
+  <rect x="148" y="262" width="42" height="30" rx="3" class="cell cell-follower"/>
+  <text x="169" y="282" class="cell-msg" fill="#b45309">m3</text>
+  <rect x="194" y="262" width="42" height="30" rx="3" class="cell cell-follower"/>
+  <text x="215" y="282" class="cell-msg" fill="#b45309">m4</text>
+  <rect x="240" y="262" width="42" height="30" rx="3" class="cell cell-follower"/>
+  <text x="261" y="282" class="cell-msg" fill="#b45309">m5</text>
+  <rect x="286" y="262" width="42" height="30" rx="3" class="cell cell-follower"/>
+  <text x="307" y="282" class="cell-msg" fill="#b45309">m6</text>
+  <text x="77" y="310" class="offset">0</text>
+  <text x="123" y="310" class="offset">1</text>
+  <text x="169" y="310" class="offset">2</text>
+  <text x="215" y="310" class="offset">3</text>
+  <text x="261" y="310" class="offset">4</text>
+  <text x="307" y="310" class="offset">5</text>
+  <line x1="192" y1="254" x2="192" y2="314" class="hw-line" stroke="#b45309"/>
+  <text x="348" y="282" class="meta">LEO=6（已拉到 m6）</text>
+  <text x="192" y="322" class="hw-label" fill="#b45309">本地 HW=3</text>
+
+  <line x1="255" y1="336" x2="255" y2="366" class="step-arrow"/>
+  <text x="243" y="356" class="step" style="text-anchor:end">A 重启，按本地 HW=3 截断</text>
+
+  <!-- Broker A 截断后 -->
+  <rect x="36" y="378" width="438" height="100" class="broker-box broker-follower"/>
+  <text x="52" y="398" class="broker-name follower-text">Broker A</text>
+  <text x="120" y="398" class="role-tag" fill="#dc2626">截断后</text>
+  <rect x="56" y="414" width="42" height="30" rx="3" class="cell cell-follower"/>
+  <text x="77" y="434" class="cell-msg" fill="#b45309">m1</text>
+  <rect x="102" y="414" width="42" height="30" rx="3" class="cell cell-follower"/>
+  <text x="123" y="434" class="cell-msg" fill="#b45309">m2</text>
+  <rect x="148" y="414" width="42" height="30" rx="3" class="cell cell-follower"/>
+  <text x="169" y="434" class="cell-msg" fill="#b45309">m3</text>
+  <rect x="194" y="414" width="42" height="30" rx="3" class="cell cell-deleted"/>
+  <text x="215" y="434" class="cell-msg" fill="#dc2626">m4</text>
+  <rect x="240" y="414" width="42" height="30" rx="3" class="cell cell-deleted"/>
+  <text x="261" y="434" class="cell-msg" fill="#dc2626">m5</text>
+  <rect x="286" y="414" width="42" height="30" rx="3" class="cell cell-deleted"/>
+  <text x="307" y="434" class="cell-msg" fill="#dc2626">m6</text>
+  <line x1="194" y1="414" x2="236" y2="444" class="cross"/>
+  <line x1="236" y1="414" x2="194" y2="444" class="cross"/>
+  <line x1="240" y1="414" x2="282" y2="444" class="cross"/>
+  <line x1="282" y1="414" x2="240" y2="444" class="cross"/>
+  <line x1="286" y1="414" x2="328" y2="444" class="cross"/>
+  <line x1="328" y1="414" x2="286" y2="444" class="cross"/>
+  <text x="77" y="462" class="offset">0</text>
+  <text x="123" y="462" class="offset">1</text>
+  <text x="169" y="462" class="offset">2</text>
+  <text x="215" y="462" class="offset" fill="#dc2626">3</text>
+  <text x="261" y="462" class="offset" fill="#dc2626">4</text>
+  <text x="307" y="462" class="offset" fill="#dc2626">5</text>
+
+  <line x1="255" y1="488" x2="255" y2="516" class="step-arrow"/>
+  <text x="243" y="508" class="step" style="text-anchor:end">B 宕机，A 当选新 Leader</text>
+
+  <text x="255" y="540" class="result result-bad">m4 ~ m6 永久丢失 ❌</text>
+  <text x="255" y="562" class="subtitle">A 只留 m1~m3，已确认的 m4~m6 被误删</text>
+
+  <!-- ============ 右面板：新方案 ============ -->
+  <rect x="510" y="72" width="470" height="508" class="panel"/>
+  <text x="745" y="100" class="panel-title panel-new">新方案：Leader Epoch</text>
+
+  <!-- Broker B（Leader） -->
+  <rect x="526" y="112" width="438" height="100" class="broker-box broker-leader"/>
+  <text x="542" y="132" class="broker-name leader-text">Broker B</text>
+  <text x="610" y="132" class="role-tag leader-text">Partition 0 · Leader</text>
+  <rect x="546" y="148" width="42" height="30" rx="3" class="cell cell-leader"/>
+  <text x="567" y="168" class="cell-msg" fill="#1d4ed8">m1</text>
+  <rect x="592" y="148" width="42" height="30" rx="3" class="cell cell-leader"/>
+  <text x="613" y="168" class="cell-msg" fill="#1d4ed8">m2</text>
+  <rect x="638" y="148" width="42" height="30" rx="3" class="cell cell-leader"/>
+  <text x="659" y="168" class="cell-msg" fill="#1d4ed8">m3</text>
+  <rect x="684" y="148" width="42" height="30" rx="3" class="cell cell-leader"/>
+  <text x="705" y="168" class="cell-msg" fill="#1d4ed8">m4</text>
+  <rect x="730" y="148" width="42" height="30" rx="3" class="cell cell-leader"/>
+  <text x="751" y="168" class="cell-msg" fill="#1d4ed8">m5</text>
+  <rect x="776" y="148" width="42" height="30" rx="3" class="cell cell-leader"/>
+  <text x="797" y="168" class="cell-msg" fill="#1d4ed8">m6</text>
+  <text x="567" y="196" class="offset">0</text>
+  <text x="613" y="196" class="offset">1</text>
+  <text x="659" y="196" class="offset">2</text>
+  <text x="705" y="196" class="offset">3</text>
+  <text x="751" y="196" class="offset">4</text>
+  <text x="797" y="196" class="offset">5</text>
+  <line x1="822" y1="140" x2="822" y2="194" class="hw-line" stroke="#0369a1"/>
+  <text x="822" y="136" class="hw-label" fill="#0369a1">HW=6</text>
+  <text x="838" y="168" class="meta">LEO=6</text>
+
+  <!-- Broker A（Follower） -->
+  <rect x="526" y="226" width="438" height="100" class="broker-box broker-follower"/>
+  <text x="542" y="246" class="broker-name follower-text">Broker A</text>
+  <text x="610" y="246" class="role-tag follower-text">Partition 0 · Follower</text>
+  <rect x="546" y="262" width="42" height="30" rx="3" class="cell cell-follower"/>
+  <text x="567" y="282" class="cell-msg" fill="#b45309">m1</text>
+  <rect x="592" y="262" width="42" height="30" rx="3" class="cell cell-follower"/>
+  <text x="613" y="282" class="cell-msg" fill="#b45309">m2</text>
+  <rect x="638" y="262" width="42" height="30" rx="3" class="cell cell-follower"/>
+  <text x="659" y="282" class="cell-msg" fill="#b45309">m3</text>
+  <rect x="684" y="262" width="42" height="30" rx="3" class="cell cell-follower"/>
+  <text x="705" y="282" class="cell-msg" fill="#b45309">m4</text>
+  <rect x="730" y="262" width="42" height="30" rx="3" class="cell cell-follower"/>
+  <text x="751" y="282" class="cell-msg" fill="#b45309">m5</text>
+  <rect x="776" y="262" width="42" height="30" rx="3" class="cell cell-follower"/>
+  <text x="797" y="282" class="cell-msg" fill="#b45309">m6</text>
+  <text x="567" y="310" class="offset">0</text>
+  <text x="613" y="310" class="offset">1</text>
+  <text x="659" y="310" class="offset">2</text>
+  <text x="705" y="310" class="offset">3</text>
+  <text x="751" y="310" class="offset">4</text>
+  <text x="797" y="310" class="offset">5</text>
+  <line x1="682" y1="254" x2="682" y2="314" class="hw-line" stroke="#b45309"/>
+  <text x="838" y="282" class="meta">LEO=6（已拉到 m6）</text>
+  <text x="682" y="322" class="hw-label" fill="#b45309">本地 HW=3</text>
+
+  <line x1="745" y1="336" x2="745" y2="366" class="step-arrow"/>
+  <text x="733" y="352" class="step" style="text-anchor:end">A 重启，发 LeaderEpochRequest 问 B</text>
+  <text x="733" y="368" class="step-reply" style="text-anchor:end">B 答复：同代，LEO=6 → A 无需截断</text>
+
+  <!-- Broker A 保持不变 -->
+  <rect x="526" y="378" width="438" height="100" class="broker-box broker-follower"/>
+  <text x="542" y="398" class="broker-name follower-text">Broker A</text>
+  <text x="610" y="398" class="role-tag" fill="#15803d">保持不变</text>
+  <rect x="546" y="414" width="42" height="30" rx="3" class="cell cell-follower"/>
+  <text x="567" y="434" class="cell-msg" fill="#b45309">m1</text>
+  <rect x="592" y="414" width="42" height="30" rx="3" class="cell cell-follower"/>
+  <text x="613" y="434" class="cell-msg" fill="#b45309">m2</text>
+  <rect x="638" y="414" width="42" height="30" rx="3" class="cell cell-follower"/>
+  <text x="659" y="434" class="cell-msg" fill="#b45309">m3</text>
+  <rect x="684" y="414" width="42" height="30" rx="3" class="cell cell-follower"/>
+  <text x="705" y="434" class="cell-msg" fill="#b45309">m4</text>
+  <rect x="730" y="414" width="42" height="30" rx="3" class="cell cell-follower"/>
+  <text x="751" y="434" class="cell-msg" fill="#b45309">m5</text>
+  <rect x="776" y="414" width="42" height="30" rx="3" class="cell cell-follower"/>
+  <text x="797" y="434" class="cell-msg" fill="#b45309">m6</text>
+  <text x="567" y="462" class="offset">0</text>
+  <text x="613" y="462" class="offset">1</text>
+  <text x="659" y="462" class="offset">2</text>
+  <text x="705" y="462" class="offset">3</text>
+  <text x="751" y="462" class="offset">4</text>
+  <text x="797" y="462" class="offset">5</text>
+  <text x="770" y="476" class="offset" fill="#15803d">m4~m6 保留</text>
+
+  <line x1="745" y1="488" x2="745" y2="516" class="step-arrow"/>
+  <text x="733" y="508" class="step" style="text-anchor:end">B 宕机，A 当选新 Leader</text>
+
+  <text x="745" y="540" class="result result-good">m4 ~ m6 不丢 ✅</text>
+  <text x="745" y="562" class="subtitle">截断点由 Leader 用 epoch 精确给出，不盲目删</text>
+</svg>

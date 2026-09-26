@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="490" viewBox="0 0 300 490" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#57606a"/>
+    </marker>
+  </defs>
+  <rect width="300" height="490" fill="#ffffff"/>
+
+  <rect x="35" y="20" width="230" height="44" rx="8" fill="#fff1f0" stroke="#DC382D"/>
+  <text x="150" y="42" text-anchor="middle" font-size="13" font-weight="600" fill="#DC382D">延迟突增</text>
+
+  <rect x="35" y="115" width="230" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="150" y="137" text-anchor="middle" font-size="13" fill="#24292f">查慢查询</text>
+
+  <rect x="35" y="210" width="230" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="150" y="232" text-anchor="middle" font-size="13" fill="#24292f">查 fork 停顿</text>
+
+  <rect x="35" y="305" width="230" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="150" y="327" text-anchor="middle" font-size="13" fill="#24292f">查 fsync 刷盘</text>
+
+  <rect x="35" y="400" width="230" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="150" y="422" text-anchor="middle" font-size="13" fill="#24292f">查是否发生 swap</text>
+
+  <line x1="150" y1="64" x2="150" y2="107" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="150" y1="159" x2="150" y2="202" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="150" y1="254" x2="150" y2="297" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="150" y1="349" x2="150" y2="392" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+</svg>

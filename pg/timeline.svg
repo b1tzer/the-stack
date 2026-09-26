@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 200">
+<defs>
+<clipPath id="CLIPPATH_34" >
+	<rect transform="matrix(1 0 0 1 410.5 100.5)" x="-410" y="-100" rx="0" ry="0" width="820" height="200" />
+</clipPath>
+</defs>
+<g clip-path="url(#CLIPPATH_34)" >
+<rect x="0" y="0" width="100%" height="100%" fill="transparent"></rect>
+<g transform="matrix(1 0 0 1 401.9649 100)" clip-path="url(#CLIPPATH_35)"  >
+<clipPath id="CLIPPATH_35" >
+	<rect transform="matrix(1 0 0 1 8.5351 0.5)" id="CLIPPATH_0" clip-path="url(#undefined)" x="-410" y="-100" rx="0" ry="0" width="820" height="200" />
+</clipPath>
+<line style="stroke: #94A3B8; stroke-width: 2; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #000000; fill-rule: nonzero; opacity: 1;"  x1="-375" y1="0" x2="375" y2="0" />
+</g>
+<g transform="matrix(1 0 0 1 772.9649 100)" clip-path="url(#CLIPPATH_36)"  >
+<clipPath id="CLIPPATH_36" >
+	<rect transform="matrix(1 0 0 1 -362.4649 0.5)" id="CLIPPATH_0" clip-path="url(#undefined)" x="-410" y="-100" rx="0" ry="0" width="820" height="200" />
+</clipPath>
+<polygon style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #6B7280; fill-rule: nonzero; opacity: 1;"  points="4,0 -4,-3 -4,3 " />
+</g>
+<g transform="matrix(1 0 0 1 66.9649 100)" clip-path="url(#CLIPPATH_37)"  >
+<clipPath id="CLIPPATH_37" >
+	<rect transform="matrix(1 0 0 1 343.5351 0.5)" id="CLIPPATH_0" clip-path="url(#undefined)" x="-410" y="-100" rx="0" ry="0" width="820" height="200" />
+</clipPath>
+<circle style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #3B82F6; fill-rule: nonzero; opacity: 1;"  cx="0" cy="0" r="6" />
+</g>
+<text x="53.8" y="85.0" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-style="normal" font-weight="600" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #1E40AF; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >1996</text>
+<text x="57.4" y="131.8" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #374151; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >v6.0</text>
+<text x="49.0" y="147.6" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #6B7280; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >正式命名</text>
+<g transform="matrix(1 0 0 1 186.9649 100)" clip-path="url(#CLIPPATH_38)"  >
+<clipPath id="CLIPPATH_38" >
+	<rect transform="matrix(1 0 0 1 223.5351 0.5)" id="CLIPPATH_0" clip-path="url(#undefined)" x="-410" y="-100" rx="0" ry="0" width="820" height="200" />
+</clipPath>
+<circle style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #3B82F6; fill-rule: nonzero; opacity: 1;"  cx="0" cy="0" r="6" />
+</g>
+<text x="174.2" y="85.0" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-style="normal" font-weight="600" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #1E40AF; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >2010</text>
+<text x="177.5" y="131.8" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #374151; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >v9.0</text>
+<text x="173.5" y="147.6" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #6B7280; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >流复制</text>
+<g transform="matrix(1 0 0 1 286.9649 100)" clip-path="url(#CLIPPATH_39)"  >
+<clipPath id="CLIPPATH_39" >
+	<rect transform="matrix(1 0 0 1 123.5351 0.5)" id="CLIPPATH_0" clip-path="url(#undefined)" x="-410" y="-100" rx="0" ry="0" width="820" height="200" />
+</clipPath>
+<circle style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #3B82F6; fill-rule: nonzero; opacity: 1;"  cx="0" cy="0" r="6" />
+</g>
+<text x="274.2" y="85.0" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-style="normal" font-weight="600" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #1E40AF; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >2014</text>
+<text x="277.5" y="131.8" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #374151; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >v9.4</text>
+<text x="272.9" y="147.6" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #6B7280; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >JSONB</text>
+<g transform="matrix(1 0 0 1 386.9649 100)" clip-path="url(#CLIPPATH_40)"  >
+<clipPath id="CLIPPATH_40" >
+	<rect transform="matrix(1 0 0 1 23.5351 0.5)" id="CLIPPATH_0" clip-path="url(#undefined)" x="-410" y="-100" rx="0" ry="0" width="820" height="200" />
+</clipPath>
+<circle style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #3B82F6; fill-rule: nonzero; opacity: 1;"  cx="0" cy="0" r="6" />
+</g>
+<text x="374.6" y="85.0" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-style="normal" font-weight="600" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #1E40AF; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >2017</text>
+<text x="379.3" y="131.8" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #374151; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >v10</text>
+<text x="369.0" y="147.6" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #6B7280; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >逻辑复制</text>
+<g transform="matrix(1 0 0 1 506.9649 100)" clip-path="url(#CLIPPATH_41)"  >
+<clipPath id="CLIPPATH_41" >
+	<rect transform="matrix(1 0 0 1 -96.4649 0.5)" id="CLIPPATH_0" clip-path="url(#undefined)" x="-410" y="-100" rx="0" ry="0" width="820" height="200" />
+</clipPath>
+<circle style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #3B82F6; fill-rule: nonzero; opacity: 1;"  cx="0" cy="0" r="6" />
+</g>
+<text x="494.4" y="85.0" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-style="normal" font-weight="600" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #1E40AF; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >2021</text>
+<text x="491.8" y="131.8" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #374151; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >v14</text>
+<text x="457.8" y="146.5" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #6B7280; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >存储过程 INOUT</text>
+<g transform="matrix(1 0 0 1 596.9649 100)" clip-path="url(#CLIPPATH_42)"  >
+<clipPath id="CLIPPATH_42" >
+	<rect transform="matrix(1 0 0 1 -186.4649 0.5)" id="CLIPPATH_0" clip-path="url(#undefined)" x="-410" y="-100" rx="0" ry="0" width="820" height="200" />
+</clipPath>
+<circle style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #3B82F6; fill-rule: nonzero; opacity: 1;"  cx="0" cy="0" r="6" />
+</g>
+<text x="583.7" y="85.0" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-style="normal" font-weight="600" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #1E40AF; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >2022</text>
+<text x="587.4" y="129.3" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #374151; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >v15</text>
+<text x="555.5" y="145.4" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #6B7280; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >MERGE / WAL 压缩</text>
+<g transform="matrix(1 0 0 1 686.9649 100)" clip-path="url(#CLIPPATH_43)"  >
+<clipPath id="CLIPPATH_43" >
+	<rect transform="matrix(1 0 0 1 -276.4649 0.5)" id="CLIPPATH_0" clip-path="url(#undefined)" x="-410" y="-100" rx="0" ry="0" width="820" height="200" />
+</clipPath>
+<circle style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #3B82F6; fill-rule: nonzero; opacity: 1;"  cx="0" cy="0" r="6" />
+</g>
+<text x="673.6" y="85.0" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-style="normal" font-weight="600" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #1E40AF; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >2023</text>
+<text x="678.7" y="129.3" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #374151; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >v16</text>
+<text x="659.5" y="145.1" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #6B7280; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >逻辑复制增强</text>
+<g transform="matrix(1 0 0 1 766.9649 100)" clip-path="url(#CLIPPATH_44)"  >
+<clipPath id="CLIPPATH_44" >
+	<rect transform="matrix(1 0 0 1 -356.4649 0.5)" id="CLIPPATH_0" clip-path="url(#undefined)" x="-410" y="-100" rx="0" ry="0" width="820" height="200" />
+</clipPath>
+<circle style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #F59E0B; fill-rule: nonzero; opacity: 1;"  cx="0" cy="0" r="6" />
+</g>
+<text x="753.6" y="85.0" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-style="normal" font-weight="600" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #92400E; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >2024</text>
+<text x="759.1" y="129.3" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #374151; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >v17</text>
+<text x="748.5" y="145.1" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-style="normal" font-weight="normal" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #6B7280; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >增量备份</text>
+<text x="329.4" y="40.0" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-style="normal" font-weight="700" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: #111827; fill-rule: nonzero; opacity: 1; text-decoration-thickness: 6.6667%; white-space: pre;" >PostgreSQL 关键版本</text>
+</g>
+</svg>

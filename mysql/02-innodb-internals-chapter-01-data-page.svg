@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 750" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <defs>
+    <marker id="arrowNextRecord" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#ef6c00"/>
+    </marker>
+  </defs>
+
+  <!-- 标题 -->
+  <text x="400" y="26" text-anchor="middle" font-size="13" font-weight="bold" fill="#333333">InnoDB 数据页物理布局（16KB）</text>
+
+  <!-- 左侧：连续物理空间标注 -->
+  <line x1="56" y1="44" x2="56" y2="672" stroke="#9e9e9e" stroke-width="1" stroke-dasharray="5,4"/>
+  <line x1="52" y1="44" x2="60" y2="44" stroke="#9e9e9e" stroke-width="1"/>
+  <line x1="52" y1="672" x2="60" y2="672" stroke="#9e9e9e" stroke-width="1"/>
+  <text x="34" y="358" transform="rotate(-90 34 358)" text-anchor="middle" fill="#9e9e9e" font-size="11">16KB 连续物理空间（一整块内存）</text>
+
+  <!-- 页主矩形（连续空间边界） -->
+  <rect x="170" y="44" width="580" height="628" rx="6" fill="none" stroke="#455a64" stroke-width="2"/>
+
+  <!-- 1. File Header（固定） -->
+  <rect x="170" y="44" width="580" height="50" fill="#e8eaf6" stroke="#3949ab" stroke-width="1.4"/>
+  <text x="182" y="66" fill="#3949ab" font-weight="bold" font-size="11">File Header</text>
+  <text x="182" y="82" fill="#555555" font-size="9">38 字节 · 页编号 / 类型 / 表空间</text>
+  <rect x="700" y="58" width="40" height="20" rx="3" fill="#3949ab"/>
+  <text x="720" y="72" text-anchor="middle" fill="#ffffff" font-size="10">固定</text>
+
+  <!-- 2. Page Header（固定） -->
+  <rect x="170" y="94" width="580" height="50" fill="#e8eaf6" stroke="#3949ab" stroke-width="1.4"/>
+  <text x="182" y="116" fill="#3949ab" font-weight="bold" font-size="11">Page Header</text>
+  <text x="182" y="132" fill="#555555" font-size="9">56 字节 · 记录数 / 槽数 / 空闲起点</text>
+  <rect x="700" y="108" width="40" height="20" rx="3" fill="#3949ab"/>
+  <text x="720" y="122" text-anchor="middle" fill="#ffffff" font-size="10">固定</text>
+
+  <!-- 3. Infimum/Supremum 段 -->
+  <rect x="170" y="144" width="580" height="52" fill="#f3e5f5" stroke="#8e24aa" stroke-width="1.4"/>
+  <text x="182" y="168" fill="#6a1b9a" font-weight="bold" font-size="11">Infimum / Supremum</text>
+  <text x="182" y="184" fill="#555555" font-size="9">26 字节 · 两个虚拟记录：页内最小 / 最大边界</text>
+
+  <!-- 4. User Records -->
+  <rect x="170" y="196" width="580" height="280" fill="#f1f8e9" stroke="#2e7d32" stroke-width="1.4"/>
+  <text x="182" y="212" fill="#1b5e20" font-weight="bold" font-size="11">User Records（用户记录）</text>
+  <text x="750" y="212" text-anchor="end" fill="#888888" font-size="9">向下增长 ▼</text>
+
+  <!-- Infimum 方块 -->
+  <rect x="190" y="222" width="130" height="22" fill="#e1bee7" stroke="#8e24aa" stroke-width="1"/>
+  <text x="255" y="236" text-anchor="middle" fill="#4a148c" font-size="9">Infimum（最小）</text>
+
+  <!-- id=5 记录 -->
+  <rect x="190" y="252" width="340" height="40" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="200" y="276" fill="#1b5e20" font-weight="bold" font-size="10">id=5</text>
+  <rect x="492" y="261" width="32" height="22" fill="#a5d6a7" stroke="#2e7d32" stroke-width="0.8"/>
+  <text x="508" y="275" text-anchor="middle" fill="#1b5e20" font-size="8">next</text>
+
+  <!-- id=1 记录 -->
+  <rect x="190" y="302" width="340" height="40" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="200" y="326" fill="#1b5e20" font-weight="bold" font-size="10">id=1</text>
+  <rect x="492" y="311" width="32" height="22" fill="#a5d6a7" stroke="#2e7d32" stroke-width="0.8"/>
+  <text x="508" y="325" text-anchor="middle" fill="#1b5e20" font-size="8">next</text>
+
+  <!-- id=12 记录 -->
+  <rect x="190" y="352" width="340" height="40" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="200" y="376" fill="#1b5e20" font-weight="bold" font-size="10">id=12</text>
+  <rect x="492" y="361" width="32" height="22" fill="#a5d6a7" stroke="#2e7d32" stroke-width="0.8"/>
+  <text x="508" y="375" text-anchor="middle" fill="#1b5e20" font-size="8">next</text>
+
+  <!-- id=8 记录 -->
+  <rect x="190" y="402" width="340" height="40" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="200" y="426" fill="#1b5e20" font-weight="bold" font-size="10">id=8</text>
+  <rect x="492" y="411" width="32" height="22" fill="#a5d6a7" stroke="#2e7d32" stroke-width="0.8"/>
+  <text x="508" y="425" text-anchor="middle" fill="#1b5e20" font-size="8">next</text>
+
+  <!-- Supremum 方块 -->
+  <rect x="190" y="452" width="130" height="22" fill="#e1bee7" stroke="#8e24aa" stroke-width="1"/>
+  <text x="255" y="466" text-anchor="middle" fill="#4a148c" font-size="9">Supremum（最大）</text>
+
+  <!-- next_record 指针箭头：Infimum→1→5→8→12→Supremum -->
+  <polyline points="320,233 545,233 545,296 360,296 360,302" fill="none" stroke="#ef6c00" stroke-width="1.6" marker-end="url(#arrowNextRecord)"/>
+  <polyline points="524,322 565,322 565,246 360,246 360,252" fill="none" stroke="#ef6c00" stroke-width="1.6" marker-end="url(#arrowNextRecord)"/>
+  <polyline points="524,272 585,272 585,396 360,396 360,402" fill="none" stroke="#ef6c00" stroke-width="1.6" marker-end="url(#arrowNextRecord)"/>
+  <polyline points="524,422 605,422 605,346 360,346 360,352" fill="none" stroke="#ef6c00" stroke-width="1.6" marker-end="url(#arrowNextRecord)"/>
+  <polyline points="524,372 625,372 625,463 320,463" fill="none" stroke="#ef6c00" stroke-width="1.6" marker-end="url(#arrowNextRecord)"/>
+
+  <!-- 5. Free Space -->
+  <rect x="170" y="476" width="580" height="48" fill="#ffffff" stroke="#bdbdbd" stroke-width="1.2" stroke-dasharray="5,4"/>
+  <text x="460" y="504" text-anchor="middle" fill="#757575" font-size="10">Free Space（空闲空间）</text>
+
+  <!-- 6. Page Directory -->
+  <rect x="170" y="524" width="580" height="96" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="182" y="546" fill="#bf360c" font-weight="bold" font-size="11">Page Directory（页目录）</text>
+  <text x="182" y="562" fill="#8d6e63" font-size="9">slot 数组按主键有序 → 二分定位到目标组；每个 slot 指向该组最后一条记录 ▲</text>
+
+  <!-- slot 数组：slot0 ~ slot5，按主键有序 -->
+  <rect x="190" y="574" width="84" height="38" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="232" y="589" text-anchor="middle" fill="#bf360c" font-weight="bold" font-size="9">slot0</text>
+  <text x="232" y="605" text-anchor="middle" fill="#6d4c41" font-size="8">→ Infimum</text>
+
+  <rect x="282" y="574" width="84" height="38" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="324" y="589" text-anchor="middle" fill="#bf360c" font-weight="bold" font-size="9">slot1</text>
+  <text x="324" y="605" text-anchor="middle" fill="#6d4c41" font-size="8">→ id=1</text>
+
+  <rect x="374" y="574" width="84" height="38" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="416" y="589" text-anchor="middle" fill="#bf360c" font-weight="bold" font-size="9">slot2</text>
+  <text x="416" y="605" text-anchor="middle" fill="#6d4c41" font-size="8">→ id=5</text>
+
+  <rect x="466" y="574" width="84" height="38" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="508" y="589" text-anchor="middle" fill="#bf360c" font-weight="bold" font-size="9">slot3</text>
+  <text x="508" y="605" text-anchor="middle" fill="#6d4c41" font-size="8">→ id=8</text>
+
+  <rect x="558" y="574" width="84" height="38" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="600" y="589" text-anchor="middle" fill="#bf360c" font-weight="bold" font-size="9">slot4</text>
+  <text x="600" y="605" text-anchor="middle" fill="#6d4c41" font-size="8">→ id=12</text>
+
+  <rect x="650" y="574" width="84" height="38" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="692" y="589" text-anchor="middle" fill="#bf360c" font-weight="bold" font-size="9">slot5</text>
+  <text x="692" y="605" text-anchor="middle" fill="#6d4c41" font-size="8">→ Supremum</text>
+
+  <!-- 7. File Trailer（固定） -->
+  <rect x="170" y="620" width="580" height="52" fill="#e8eaf6" stroke="#3949ab" stroke-width="1.4"/>
+  <text x="182" y="642" fill="#3949ab" font-weight="bold" font-size="11">File Trailer</text>
+  <text x="182" y="658" fill="#555555" font-size="9">8 字节 · 校验和 / LSN，检测页是否写坏</text>
+  <rect x="700" y="634" width="40" height="20" rx="3" fill="#3949ab"/>
+  <text x="720" y="648" text-anchor="middle" fill="#ffffff" font-size="10">固定</text>
+
+  <!-- 图例 -->
+  <line x1="250" y1="705" x2="285" y2="705" stroke="#ef6c00" stroke-width="1.6" marker-end="url(#arrowNextRecord)"/>
+  <text x="293" y="709" fill="#555555" font-size="10">next_record 指针：把物理上乱序的记录按主键顺序串成链表（1 → 5 → 8 → 12）</text>
+</svg>

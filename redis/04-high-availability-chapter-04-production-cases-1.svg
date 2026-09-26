@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="330" viewBox="0 0 920 330" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#57606a"/>
+    </marker>
+  </defs>
+  <rect width="920" height="330" fill="#ffffff"/>
+
+  <!-- 列标题 -->
+  <text x="210" y="36" text-anchor="middle" font-size="15" font-weight="700" fill="#24292f">高可用知识点（前三章）</text>
+  <text x="710" y="36" text-anchor="middle" font-size="15" font-weight="700" fill="#24292f">对应的生产问题</text>
+
+  <!-- 左列：知识点 -->
+  <rect x="40" y="64" width="340" height="48" rx="8" fill="#f6f8fa" stroke="#9aa4af"/>
+  <text x="210" y="86" text-anchor="middle" font-size="13" fill="#24292f">全量同步（主从复制 §2）</text>
+  <text x="210" y="103" text-anchor="middle" font-size="11" fill="#57606a">chapter-01 §2</text>
+
+  <rect x="40" y="136" width="340" height="48" rx="8" fill="#f6f8fa" stroke="#9aa4af"/>
+  <text x="210" y="158" text-anchor="middle" font-size="13" fill="#24292f">故障转移（哨兵 §4 / 集群 §4.2）</text>
+  <text x="210" y="175" text-anchor="middle" font-size="11" fill="#57606a">chapter-02 §4 / chapter-03 §4.2</text>
+
+  <rect x="40" y="208" width="340" height="48" rx="8" fill="#f6f8fa" stroke="#9aa4af"/>
+  <text x="210" y="230" text-anchor="middle" font-size="13" fill="#24292f">故障转移缺陷（哨兵 §4）</text>
+  <text x="210" y="247" text-anchor="middle" font-size="11" fill="#57606a">chapter-02 §4</text>
+
+  <!-- 右列：生产问题 -->
+  <rect x="540" y="64" width="340" height="48" rx="8" fill="#fff8e1" stroke="#f0b429"/>
+  <text x="710" y="86" text-anchor="middle" font-size="13" fill="#24292f">网络分区恢复后全量重同步压垮主库</text>
+  <text x="710" y="103" text-anchor="middle" font-size="11" fill="#57606a">案例一 Twilio</text>
+
+  <rect x="540" y="136" width="340" height="48" rx="8" fill="#fff8e1" stroke="#f0b429"/>
+  <text x="710" y="158" text-anchor="middle" font-size="13" fill="#24292f">failover 后无 writable primary，全局不可写</text>
+  <text x="710" y="175" text-anchor="middle" font-size="11" fill="#57606a">案例二 GitHub Actions</text>
+
+  <rect x="540" y="208" width="340" height="48" rx="8" fill="#fff8e1" stroke="#f0b429"/>
+  <text x="710" y="230" text-anchor="middle" font-size="13" fill="#24292f">节点迁移触发 failover 缺陷，级联故障</text>
+  <text x="710" y="247" text-anchor="middle" font-size="11" fill="#57606a">案例三 Discord</text>
+
+  <!-- 连线 -->
+  <g stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)">
+    <line x1="380" y1="88" x2="536" y2="88"/>
+    <line x1="380" y1="160" x2="536" y2="160"/>
+    <line x1="380" y1="232" x2="536" y2="232"/>
+  </g>
+
+  <!-- 图例 -->
+  <text x="460" y="300" text-anchor="middle" font-size="12" fill="#57606a">左列是前三章的知识点，右列是它能在生产环境解释的现象——failover 路径未被验证，故障被放大</text>
+</svg>
