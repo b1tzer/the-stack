@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 430" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="10">
+<defs>
+  <marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+    <path d="M0,0 L8,4 L0,8 Z" fill="#666666"/>
+  </marker>
+</defs>
+
+<text x="380" y="24" text-anchor="middle" font-size="14" font-weight="bold" fill="#333333">六边形架构（端口与适配器）</text>
+
+<!-- 中心六边形：领域模型 -->
+<polygon points="380,118 454,161 454,249 380,292 306,249 306,161" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2"/>
+<text x="380" y="198" text-anchor="middle" font-size="13" font-weight="bold" fill="#4a148c">领域模型</text>
+<text x="380" y="222" text-anchor="middle" font-size="10" fill="#7b1fa2">业务逻辑（核心）</text>
+
+<!-- 上方：HTTP -->
+<g transform="translate(300,40)">
+  <rect x="0" y="0" width="160" height="40" rx="5" fill="#eceff1" stroke="#546e7a" stroke-width="1.2"/>
+  <text x="80" y="25" text-anchor="middle" font-size="11" fill="#37474f">HTTP 请求</text>
+</g>
+<g transform="translate(300,92)">
+  <rect x="0" y="0" width="160" height="40" rx="5" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.2"/>
+  <text x="80" y="25" text-anchor="middle" font-size="10" fill="#0d47a1">HTTP Adapter</text>
+</g>
+<line x1="380" y1="80" x2="380" y2="90" stroke="#666666" stroke-width="1.2" marker-end="url(#ar)"/>
+<line x1="380" y1="132" x2="380" y2="142" stroke="#666666" stroke-width="1.2" marker-end="url(#ar)"/>
+<text x="392" y="140" font-size="8" fill="#7b1fa2">端口</text>
+
+<!-- 下方：DB -->
+<g transform="translate(300,290)">
+  <rect x="0" y="0" width="160" height="40" rx="5" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.2"/>
+  <text x="80" y="25" text-anchor="middle" font-size="10" fill="#1b5e20">DB Adapter</text>
+</g>
+<g transform="translate(300,342)">
+  <rect x="0" y="0" width="160" height="40" rx="5" fill="#eceff1" stroke="#546e7a" stroke-width="1.2"/>
+  <text x="80" y="25" text-anchor="middle" font-size="11" fill="#37474f">数据库</text>
+</g>
+<line x1="380" y1="268" x2="380" y2="288" stroke="#666666" stroke-width="1.2" marker-end="url(#ar)"/>
+<text x="392" y="280" font-size="8" fill="#7b1fa2">端口</text>
+<line x1="380" y1="330" x2="380" y2="340" stroke="#666666" stroke-width="1.2" marker-end="url(#ar)"/>
+
+<!-- 左侧：MQ -->
+<g transform="translate(25,190)">
+  <rect x="0" y="0" width="130" height="40" rx="5" fill="#eceff1" stroke="#546e7a" stroke-width="1.2"/>
+  <text x="65" y="25" text-anchor="middle" font-size="11" fill="#37474f">消息队列</text>
+</g>
+<g transform="translate(170,190)">
+  <rect x="0" y="0" width="130" height="40" rx="5" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.2"/>
+  <text x="65" y="25" text-anchor="middle" font-size="10" fill="#0d47a1">MQ Adapter</text>
+</g>
+<line x1="155" y1="210" x2="168" y2="210" stroke="#666666" stroke-width="1.2" marker-end="url(#ar)"/>
+<line x1="300" y1="210" x2="313" y2="210" stroke="#666666" stroke-width="1.2" marker-end="url(#ar)"/>
+<text x="305" y="200" font-size="8" fill="#7b1fa2">端口</text>
+
+<!-- 右侧：Cache -->
+<g transform="translate(460,190)">
+  <rect x="0" y="0" width="140" height="40" rx="5" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.2"/>
+  <text x="70" y="25" text-anchor="middle" font-size="10" fill="#1b5e20">Cache Adapter</text>
+</g>
+<g transform="translate(615,190)">
+  <rect x="0" y="0" width="120" height="40" rx="5" fill="#eceff1" stroke="#546e7a" stroke-width="1.2"/>
+  <text x="60" y="25" text-anchor="middle" font-size="11" fill="#37474f">缓存</text>
+</g>
+<line x1="447" y1="210" x2="458" y2="210" stroke="#666666" stroke-width="1.2" marker-end="url(#ar)"/>
+<text x="440" y="200" font-size="8" fill="#7b1fa2">端口</text>
+<line x1="600" y1="210" x2="613" y2="210" stroke="#666666" stroke-width="1.2" marker-end="url(#ar)"/>
+
+<text x="380" y="412" text-anchor="middle" font-size="9" fill="#666666">核心思想：业务逻辑在中心，通过端口（接口）与外部交互，适配器负责技术细节</text>
+</svg>

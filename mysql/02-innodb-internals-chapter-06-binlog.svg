@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 256" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="13">
+  <defs>
+    <marker id="arrAppend" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#e65100"/>
+    </marker>
+    <marker id="arrRepl" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#1565c0"/>
+    </marker>
+    <symbol id="dbIcon" viewBox="0 0 24 24">
+      <ellipse cx="12" cy="5.5" rx="9.5" ry="3.5" fill="#1565c0"/>
+      <path d="M2.5 5.5 v12 c0 1.9 4.3 3.5 9.5 3.5 s9.5-1.6 9.5-3.5 v-12" fill="#1565c0"/>
+      <path d="M2.5 5.5 v12 c0 1.9 4.3 3.5 9.5 3.5 s9.5-1.6 9.5-3.5 v-12" fill="none" stroke="#0d47a1" stroke-width="1.2"/>
+      <path d="M2.5 11.5 c0 1.9 4.3 3.5 9.5 3.5 s9.5-1.6 9.5-3.5" fill="none" stroke="#0d47a1" stroke-width="1.2"/>
+    </symbol>
+  </defs>
+
+  <text x="360" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">Binlog：单向追加的事件序列 + 主从复制数据流</text>
+
+  <!-- ============ ① 追加序列 ============ -->
+  <text x="24" y="62" fill="#1b5e20" font-size="13" font-weight="bold">① 一个文件 = 一串事件顺序追加（append-only）</text>
+
+  <!-- 事件块 -->
+  <rect x="24" y="76" width="84" height="48" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1"/>
+  <text x="66" y="104" text-anchor="middle" fill="#bf360c" font-size="12" font-weight="bold">Format</text>
+
+  <line x1="112" y1="100" x2="124" y2="100" stroke="#e65100" stroke-width="1.6" marker-end="url(#arrAppend)"/>
+
+  <rect x="128" y="76" width="84" height="48" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1"/>
+  <text x="170" y="104" text-anchor="middle" fill="#bf360c" font-size="12" font-weight="bold">Table</text>
+
+  <line x1="216" y1="100" x2="228" y2="100" stroke="#e65100" stroke-width="1.6" marker-end="url(#arrAppend)"/>
+
+  <rect x="232" y="76" width="84" height="48" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="274" y="104" text-anchor="middle" fill="#bf360c" font-size="12" font-weight="bold">Write</text>
+
+  <line x1="320" y1="100" x2="332" y2="100" stroke="#e65100" stroke-width="1.6" marker-end="url(#arrAppend)"/>
+
+  <rect x="336" y="76" width="84" height="48" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="378" y="104" text-anchor="middle" fill="#bf360c" font-size="12" font-weight="bold">Update</text>
+
+  <line x1="424" y1="100" x2="436" y2="100" stroke="#e65100" stroke-width="1.6" marker-end="url(#arrAppend)"/>
+
+  <rect x="440" y="76" width="84" height="48" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="482" y="104" text-anchor="middle" fill="#bf360c" font-size="12" font-weight="bold">Delete</text>
+
+  <line x1="528" y1="100" x2="540" y2="100" stroke="#e65100" stroke-width="1.6" marker-end="url(#arrAppend)"/>
+
+  <rect x="544" y="76" width="84" height="48" rx="3" fill="#f3e5f5" stroke="#8e24aa" stroke-width="1.3"/>
+  <text x="586" y="104" text-anchor="middle" fill="#6a1b9a" font-size="12" font-weight="bold">XID</text>
+
+  <!-- 追加方向说明 -->
+  <text x="24" y="146" fill="#555555" font-size="11">事件从文件头到文件尾单向追加，XID 是事务提交标记（两阶段提交的分水岭）</text>
+
+  <!-- ============ ② 主从复制 ============ -->
+  <text x="24" y="188" fill="#0d47a1" font-size="13" font-weight="bold">② 主从复制：主库写，从库拉取重放</text>
+
+  <rect x="24" y="200" width="140" height="48" rx="4" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <use href="#dbIcon" x="38" y="210" width="26" height="26"/>
+  <text x="94" y="229" text-anchor="middle" fill="#0d47a1" font-size="13" font-weight="bold">主库</text>
+
+  <line x1="168" y1="224" x2="220" y2="224" stroke="#1565c0" stroke-width="1.6" marker-end="url(#arrRepl)"/>
+  <text x="194" y="214" text-anchor="middle" fill="#1565c0" font-size="11">写 Binlog</text>
+
+  <rect x="224" y="200" width="140" height="48" rx="4" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <use href="#dbIcon" x="238" y="210" width="26" height="26"/>
+  <text x="294" y="229" text-anchor="middle" fill="#0d47a1" font-size="13" font-weight="bold">Binlog</text>
+
+  <line x1="368" y1="224" x2="420" y2="224" stroke="#1565c0" stroke-width="1.6" marker-end="url(#arrRepl)"/>
+  <text x="394" y="214" text-anchor="middle" fill="#1565c0" font-size="11">拉取重放</text>
+
+  <rect x="424" y="200" width="140" height="48" rx="4" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <use href="#dbIcon" x="438" y="210" width="26" height="26"/>
+  <text x="494" y="229" text-anchor="middle" fill="#0d47a1" font-size="13" font-weight="bold">从库</text>
+</svg>

@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 663 892" width="663" height="892" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+<style>
+  text { text-anchor: middle; dominant-baseline: central; }
+  .title { font-size: 15px; font-weight: bold; fill: #333333; }
+  .label { font-size: 12px; fill: #333333; }
+  .note { font-size: 11px; fill: #666666; }
+  .arrow { stroke: #7b1fa2; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+  .box { rx: 8; ry: 8; }
+  .phase { fill: #eceff1; stroke: #666666; stroke-width: 1.5; }
+  .highlight { fill: #fff3e0; stroke: #e65100; stroke-width: 1.5; }
+  .action { fill: #e8f5e9; stroke: #2e7d32; stroke-width: 1.5; }
+  .important { fill: #ffcdd2; stroke: #e65100; stroke-width: 1.5; }
+  .step { fill: #e1bee7; stroke: #7b1fa2; stroke-width: 1.5; }
+  .note-box { fill: #f8f9fa; stroke: #bdbdbd; stroke-width: 1; }
+  .cache { fill: #e65100; stroke: #e65100; stroke-width: 1.5; }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+    <polygon points="0 0, 10 3.5, 0 7" fill="#7b1fa2"/>
+  </marker>
+  <marker id="arrowhead-green" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+    <polygon points="0 0, 10 3.5, 0 7" fill="#2e7d32"/>
+  </marker>
+  <marker id="arrowhead-orange" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+    <polygon points="0 0, 10 3.5, 0 7" fill="#e65100"/>
+  </marker>
+</defs>
+<text x="332" y="24" class="title">微服务网关请求处理流程</text>
+<rect x="178" y="38" width="306" height="31" class="box phase"/>
+<text x="390.0" y="63.0" class="label">客户端请求 GET /api/order/123</text>
+<line x1="332" y1="69" x2="332" y2="89" class="arrow"/><rect x="42" y="89" width="578" height="442" rx="10" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.7"/>
+<text x="332" y="108" class="label" font-weight="bold" font-size="11" fill="#7b1fa2">API Gateway</text>
+<rect x="68" y="123" width="238" height="24" class="box step"/>
+<text x="187" y="135" class="label" font-weight="bold">1. 路由匹配</text>
+<rect x="314" y="123" width="289" height="37" class="box note-box"/>
+<text x="327" y="137" text-anchor="start" class="note">Path=/api/order/** ✓ → order-service</text>
+<text x="327" y="152" text-anchor="start" class="note">Method=GET ✓</text>
+<rect x="68" y="171" width="238" height="24" class="box action"/>
+<text x="187" y="183" class="label" font-weight="bold">2. 全局过滤器链</text>
+<rect x="314" y="171" width="289" height="53" class="box note-box"/>
+<text x="327" y="184" text-anchor="start" class="note">AuthGlobalFilter → JWT 验证通过</text>
+<text x="327" y="200" text-anchor="start" class="note">LogGlobalFilter → 记录请求日志</text>
+<text x="327" y="215" text-anchor="start" class="note">RateLimitFilter → 限流检查通过</text>
+<rect x="68" y="234" width="238" height="24" class="box highlight"/>
+<text x="187" y="246" class="label" font-weight="bold">3. 路由过滤器链</text>
+<rect x="314" y="234" width="289" height="37" class="box note-box"/>
+<text x="327" y="247" text-anchor="start" class="note">StripPrefix=1 → /api/order/123 → /order/123</text>
+<text x="327" y="263" text-anchor="start" class="note">AddRequestHeader → 添加自定义头</text>
+<rect x="68" y="281" width="238" height="24" class="box cache"/>
+<text x="187" y="293" class="label" font-weight="bold">4. 负载均衡选择实例</text>
+<rect x="314" y="281" width="289" height="37" class="box note-box"/>
+<text x="327" y="295" text-anchor="start" class="note">order-service: 3 个实例</text>
+<text x="327" y="310" text-anchor="start" class="note">选择 192.168.1.20:8082</text>
+<rect x="68" y="329" width="238" height="24" class="box important"/>
+<text x="187" y="341" class="label" font-weight="bold">5. 转发请求</text>
+<rect x="314" y="329" width="289" height="37" class="box note-box"/>
+<text x="327" y="343" text-anchor="start" class="note">GET http://192.168.1.20:8082/order/123</text>
+<text x="327" y="358" text-anchor="start" class="note">Header: X-User-Id: 1001</text>
+<line x1="332" y1="531" x2="332" y2="548" class="arrow"/><rect x="212" y="548" width="238" height="31" class="box action"/>
+<text x="390.0" y="663.0" class="label">order-service 处理并返回响应</text>
+<line x1="332" y1="579" x2="332" y2="599" class="arrow"/><rect x="85" y="599" width="493" height="102" rx="10" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.7"/>
+<text x="332" y="618" class="label" font-weight="bold" fill="#2e7d32">响应处理</text>
+<text x="110" y="642" text-anchor="start" class="note">6. 响应过滤器链: LogGlobalFilter → 记录响应日志</text>
+<text x="110" y="660" text-anchor="start" class="note">7. 响应头添加: X-Response-Time: 45ms</text>
+<text x="110" y="679" text-anchor="start" class="note">8. 返回响应给客户端</text>
+
+</svg>

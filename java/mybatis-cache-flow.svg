@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 476 374" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <defs>
+    <marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#555555"/></marker>
+  </defs>
+  <text x="238" y="24" text-anchor="middle" font-size="11" font-weight="bold" fill="#333333">MyBatis 一级/二级缓存协作流程</text>
+
+  <!-- SqlSession A -->
+  <rect x="34" y="42" width="196" height="238" rx="8" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="132" y="65" text-anchor="middle" fill="#0d47a1" font-weight="bold" font-size="12">SqlSession A</text>
+
+  <rect x="48" y="78" width="168" height="27" rx="3" fill="#ffffff" stroke="#bdbdbd" stroke-width="0.8"/>
+  <text x="132" y="97" text-anchor="middle" fill="#333333" font-size="10">query(UserMapper.getById)</text>
+
+  <rect x="48" y="112" width="168" height="24" rx="3" fill="#f8f9fa" stroke="#bdbdbd" stroke-width="0.8"/>
+  <text x="132" y="129" text-anchor="middle" fill="#c62828" font-size="10">查一级缓存 → 未命中</text>
+
+  <rect x="48" y="143" width="168" height="24" rx="3" fill="#f8f9fa" stroke="#bdbdbd" stroke-width="0.8"/>
+  <text x="132" y="160" text-anchor="middle" fill="#c62828" font-size="10">查二级缓存 → 未命中</text>
+
+  <rect x="48" y="173" width="168" height="24" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="0.8"/>
+  <text x="132" y="190" text-anchor="middle" fill="#2e7d32" font-size="10">查数据库 → 返回 User</text>
+
+  <rect x="48" y="204" width="168" height="24" rx="3" fill="#f8f9fa" stroke="#bdbdbd" stroke-width="0.8"/>
+  <text x="132" y="221" text-anchor="middle" fill="#666666" font-size="10">写入一级缓存</text>
+
+  <rect x="48" y="235" width="168" height="27" rx="3" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="0.8"/>
+  <text x="132" y="253" text-anchor="middle" fill="#4a148c" font-size="10">commit() → 刷入二级缓存</text>
+
+  <!-- SqlSession B -->
+  <rect x="246" y="42" width="196" height="170" rx="8" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
+  <text x="344" y="65" text-anchor="middle" fill="#1b5e20" font-weight="bold" font-size="12">SqlSession B</text>
+
+  <rect x="260" y="78" width="168" height="27" rx="3" fill="#ffffff" stroke="#bdbdbd" stroke-width="0.8"/>
+  <text x="344" y="97" text-anchor="middle" fill="#333333" font-size="10">query(UserMapper.getById)</text>
+
+  <rect x="260" y="112" width="168" height="24" rx="3" fill="#f8f9fa" stroke="#bdbdbd" stroke-width="0.8"/>
+  <text x="344" y="129" text-anchor="middle" fill="#c62828" font-size="10">查一级缓存 → 未命中</text>
+
+  <rect x="260" y="143" width="168" height="24" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="0.8"/>
+  <text x="344" y="160" text-anchor="middle" fill="#2e7d32" font-weight="bold" font-size="10">查二级缓存 → 命中！</text>
+
+  <rect x="260" y="173" width="168" height="24" rx="3" fill="#eceff1" stroke="#bdbdbd" stroke-width="0.8"/>
+  <text x="344" y="190" text-anchor="middle" fill="#999999" font-size="10">直接返回，不查数据库</text>
+
+  <!-- Flow arrow from A commit to B cache hit -->
+  <path d="M238,292 Q280,292 280,182 Q280,182 304,182" fill="none" stroke="#7b1fa2" stroke-width="1.3" stroke-dasharray="6,3" marker-end="url(#ar)"/>
+
+  <!-- Footer -->
+  <text x="238" y="306" text-anchor="middle" fill="#888888" font-size="10">一级缓存：SqlSession 级别，默认开启</text>
+  <text x="238" y="323" text-anchor="middle" fill="#888888" font-size="10">二级缓存：Mapper 级别（跨 SqlSession），需手动配置</text>
+  <text x="238" y="340" text-anchor="middle" fill="#888888" font-size="10">commit() 后一级缓存数据才会刷入二级缓存</text>
+</svg>

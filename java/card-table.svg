@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" viewBox="0 0 800 460" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="arRef" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#e65100"/></marker>
+    <marker id="arBarrier" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#7b1fa2"/></marker>
+    <marker id="arGc" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#2e7d32"/></marker>
+  </defs>
+
+  <text x="400" y="30" text-anchor="middle" font-size="16" font-weight="bold" fill="#333333">卡表：用 1 字节标记 512 字节的堆块</text>
+
+  <!-- 堆外层框（左侧） -->
+  <rect x="30" y="48" width="500" height="216" rx="7" fill="#fafafa" stroke="#666666" stroke-width="1.4"/>
+  <text x="44" y="72" fill="#333333" font-weight="bold" font-size="14">堆 Heap（JVM 管理的内存区）</text>
+
+  <!-- 新生代 -->
+  <rect x="46" y="84" width="90" height="166" rx="5" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="91" y="104" text-anchor="middle" fill="#0d47a1" font-weight="bold" font-size="13">新生代 Young</text>
+  <rect x="52" y="118" width="78" height="44" rx="4" fill="#ffffff" stroke="#1565c0" stroke-width="1.2"/>
+  <text x="91" y="138" text-anchor="middle" fill="#0d47a1" font-size="12" font-weight="bold">新生代对象 Y</text>
+  <text x="91" y="154" text-anchor="middle" fill="#888888" font-size="11">存活待判定</text>
+
+  <!-- 老年代 -->
+  <rect x="150" y="84" width="368" height="166" rx="5" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.4"/>
+  <text x="334" y="104" text-anchor="middle" fill="#1b5e20" font-weight="bold" font-size="13">老年代 Old Gen（按 512B 切成卡页）</text>
+
+  <!-- 卡页 6 格 -->
+  <g stroke="#2e7d32" stroke-width="1">
+    <rect x="158" y="114" width="55" height="124" rx="3" fill="#ffffff"/>
+    <rect x="218" y="114" width="55" height="124" rx="3" fill="#ffffff"/>
+    <rect x="278" y="114" width="55" height="124" rx="3" fill="#fff3e0"/>
+    <rect x="338" y="114" width="55" height="124" rx="3" fill="#ffffff"/>
+    <rect x="398" y="114" width="55" height="124" rx="3" fill="#ffffff"/>
+    <rect x="458" y="114" width="55" height="124" rx="3" fill="#ffffff"/>
+  </g>
+  <g text-anchor="middle" font-size="12" fill="#555555">
+    <text x="185.5" y="132">卡页1</text>
+    <text x="245.5" y="132">卡页2</text>
+    <text x="305.5" y="132">卡页3</text>
+    <text x="365.5" y="132">卡页4</text>
+    <text x="425.5" y="132">卡页5</text>
+    <text x="485.5" y="132">卡页6</text>
+  </g>
+
+  <!-- 老年代对象 O（卡页3内） -->
+  <rect x="286" y="150" width="39" height="48" rx="4" fill="#ffffff" stroke="#e65100" stroke-width="1.4"/>
+  <text x="305.5" y="170" text-anchor="middle" fill="#bf360c" font-size="11" font-weight="bold">老年代</text>
+  <text x="305.5" y="185" text-anchor="middle" fill="#bf360c" font-size="11" font-weight="bold">对象 O</text>
+
+  <!-- 跨代引用箭头 O → Y -->
+  <line x1="286" y1="174" x2="124" y2="140" stroke="#e65100" stroke-width="1.6" marker-end="url(#arRef)"/>
+  <text x="190" y="192" text-anchor="middle" fill="#bf360c" font-size="12">O 引用 Y（跨代引用）</text>
+
+  <!-- GC 线程区（堆外，独立） -->
+  <rect x="560" y="48" width="210" height="216" rx="8" fill="#f1f8e9" stroke="#2e7d32" stroke-width="1.4" stroke-dasharray="6,4"/>
+  <text x="665" y="74" text-anchor="middle" fill="#1b5e20" font-weight="bold" font-size="14">GC 线程</text>
+
+  <!-- 线程 icon：胶囊头 + 虚线生命线 + 激活期 -->
+  <rect x="635" y="88" width="60" height="26" rx="13" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.4"/>
+  <text x="665" y="105" text-anchor="middle" fill="#1b5e20" font-size="12" font-weight="bold">线程</text>
+  <line x1="665" y1="114" x2="665" y2="198" stroke="#2e7d32" stroke-width="1.3" stroke-dasharray="4,3"/>
+  <rect x="650" y="138" width="30" height="48" rx="2" fill="#a5d6a7" stroke="#2e7d32" stroke-width="1"/>
+  <text x="665" y="215" text-anchor="middle" fill="#1b5e20" font-size="12">执行 Minor GC 时</text>
+  <text x="665" y="233" text-anchor="middle" fill="#1b5e20" font-size="12">只扫 dirty 卡页</text>
+
+  <!-- 卡表（堆外） -->
+  <rect x="30" y="316" width="500" height="104" rx="7" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.4"/>
+  <text x="280" y="410" text-anchor="middle" fill="#4a148c" font-weight="bold" font-size="13">卡表 Card Table（堆外的独立数组，1 字节对应 1 卡页）</text>
+
+  <g stroke="#7b1fa2" stroke-width="1">
+    <rect x="158" y="352" width="55" height="40" rx="3" fill="#ffffff"/>
+    <rect x="218" y="352" width="55" height="40" rx="3" fill="#ffffff"/>
+    <rect x="278" y="352" width="55" height="40" rx="3" fill="#ffcdd2"/>
+    <rect x="338" y="352" width="55" height="40" rx="3" fill="#ffffff"/>
+    <rect x="398" y="352" width="55" height="40" rx="3" fill="#ffffff"/>
+    <rect x="458" y="352" width="55" height="40" rx="3" fill="#ffffff"/>
+  </g>
+  <g text-anchor="middle" font-size="12" font-weight="bold">
+    <text x="185.5" y="377" fill="#9e9e9e">0</text>
+    <text x="245.5" y="377" fill="#9e9e9e">0</text>
+    <text x="305.5" y="377" fill="#c62828">1 dirty</text>
+    <text x="365.5" y="377" fill="#9e9e9e">0</text>
+    <text x="425.5" y="377" fill="#9e9e9e">0</text>
+    <text x="485.5" y="377" fill="#9e9e9e">0</text>
+  </g>
+
+  <!-- 写屏障箭头：O 的赋值 → 卡表第3字节 -->
+  <line x1="305.5" y1="198" x2="305.5" y2="352" stroke="#7b1fa2" stroke-width="1.4" stroke-dasharray="5,3" marker-end="url(#arBarrier)"/>
+  <text x="318" y="278" fill="#7b1fa2" font-size="12">写屏障把对应卡页置 dirty</text>
+
+  <!-- GC 线程扫 dirty 卡页箭头 -->
+  <line x1="650" y1="138" x2="333" y2="352" stroke="#2e7d32" stroke-width="1.4" marker-end="url(#arGc)"/>
+  <text x="460" y="300" text-anchor="middle" fill="#1b5e20" font-size="12">只扫 dirty 卡页</text>
+
+  <!-- 卡页层级说明 -->
+  <text x="280" y="442" text-anchor="middle" fill="#888888" font-size="12">卡页在堆内，卡表在堆外；卡表每个字节记录对应卡页是否含跨代引用</text>
+</svg>

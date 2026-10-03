@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 660" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <defs>
+    <marker id="rvOrange" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#e65100"/>
+    </marker>
+    <marker id="rvGray" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#757575"/>
+    </marker>
+    <marker id="rvBlue" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#1565c0"/>
+    </marker>
+  </defs>
+
+  <text x="480" y="26" text-anchor="middle" font-size="14" font-weight="bold" fill="#333333">Read View：快照读的「时间标尺」——内存结构 + 可见性判定</text>
+
+  <!-- ① Read View 内存结构 -->
+  <rect x="24" y="46" width="330" height="228" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="36" y="68" fill="#bf360c" font-weight="bold" font-size="12">① Read View（内存中的结构体）</text>
+
+  <rect x="36" y="84" width="306" height="34" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="46" y="106" fill="#bf360c" font-weight="bold" font-size="10">creator_trx_id</text>
+  <text x="330" y="106" text-anchor="end" fill="#555555" font-size="10">= 101（事务 A）</text>
+
+  <rect x="36" y="126" width="306" height="34" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="46" y="148" fill="#bf360c" font-weight="bold" font-size="10">m_ids</text>
+  <text x="330" y="148" text-anchor="end" fill="#555555" font-size="10">= {101}（未提交集合）</text>
+
+  <rect x="36" y="168" width="306" height="34" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="46" y="190" fill="#bf360c" font-weight="bold" font-size="10">min_trx_id</text>
+  <text x="330" y="190" text-anchor="end" fill="#555555" font-size="10">= 101（低水位）</text>
+
+  <rect x="36" y="210" width="306" height="34" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="46" y="232" fill="#bf360c" font-weight="bold" font-size="10">max_trx_id</text>
+  <text x="330" y="232" text-anchor="end" fill="#555555" font-size="10">= 102（高水位）</text>
+
+  <!-- ① 字段来源 -->
+  <rect x="420" y="46" width="516" height="228" rx="6" fill="#fafafa" stroke="#bdbdbd" stroke-width="1.4"/>
+  <text x="432" y="68" fill="#424242" font-weight="bold" font-size="12">每个字段从哪来（Read View 创建那一刻）</text>
+
+  <text x="432" y="106" fill="#555555" font-size="10">谁创建了这个 Read View → 事务 A 自己</text>
+  <text x="432" y="122" fill="#888888" font-size="9">事务 ID 在首次写操作时分配，单调递增</text>
+
+  <text x="432" y="148" fill="#555555" font-size="10">那一刻哪些事务还没提交 → 活跃事务列表</text>
+  <text x="432" y="164" fill="#888888" font-size="9">只记录 ID 集合，不关心它们改了什么</text>
+
+  <text x="432" y="190" fill="#555555" font-size="10">未提交事务里最小的 ID → 取 min(m_ids)</text>
+  <text x="432" y="206" fill="#888888" font-size="9">低于它的版本，都已在 Read View 之前提交</text>
+
+  <text x="432" y="232" fill="#555555" font-size="10">系统下一个要发出去的 ID → 全局递增计数</text>
+  <text x="432" y="248" fill="#888888" font-size="9">达到或超过它的，都是 Read View 之后才开始</text>
+
+  <line x1="342" y1="101" x2="420" y2="101" stroke="#e65100" stroke-width="1.4" marker-end="url(#rvOrange)"/>
+  <line x1="342" y1="143" x2="420" y2="143" stroke="#e65100" stroke-width="1.4" marker-end="url(#rvOrange)"/>
+  <line x1="342" y1="185" x2="420" y2="185" stroke="#e65100" stroke-width="1.4" marker-end="url(#rvOrange)"/>
+  <line x1="342" y1="227" x2="420" y2="227" stroke="#e65100" stroke-width="1.4" marker-end="url(#rvOrange)"/>
+
+  <!-- ② 可见性判定流水线 -->
+  <text x="36" y="306" fill="#333333" font-weight="bold" font-size="12">② 用这四个字段判定：一个版本「看不看得见」</text>
+
+  <rect x="80" y="320" width="170" height="30" rx="3" fill="#eceff1" stroke="#546e7a" stroke-width="1.2"/>
+  <text x="165" y="340" text-anchor="middle" fill="#37474f" font-size="10" font-weight="bold">一个版本 trx_id</text>
+  <line x1="165" y1="350" x2="165" y2="370" stroke="#757575" stroke-width="1.4" marker-end="url(#rvGray)"/>
+
+  <rect x="60" y="370" width="300" height="34" rx="3" fill="#ffffff" stroke="#546e7a" stroke-width="1.2"/>
+  <text x="72" y="392" fill="#37474f" font-size="10">① trx_id == creator_trx_id ?</text>
+  <text x="368" y="392" fill="#1b5e20" font-weight="bold" font-size="10">是 → ✅ 可见</text>
+  <text x="360" y="415" text-anchor="end" fill="#888888" font-size="9">否 ↓</text>
+
+  <line x1="210" y1="404" x2="210" y2="422" stroke="#757575" stroke-width="1.4" marker-end="url(#rvGray)"/>
+
+  <rect x="60" y="422" width="300" height="34" rx="3" fill="#ffffff" stroke="#546e7a" stroke-width="1.2"/>
+  <text x="72" y="444" fill="#37474f" font-size="10">② trx_id &lt; min_trx_id ?</text>
+  <text x="368" y="444" fill="#1b5e20" font-weight="bold" font-size="10">是 → ✅ 可见</text>
+  <text x="360" y="467" text-anchor="end" fill="#888888" font-size="9">否 ↓</text>
+
+  <line x1="210" y1="456" x2="210" y2="474" stroke="#757575" stroke-width="1.4" marker-end="url(#rvGray)"/>
+
+  <rect x="60" y="474" width="300" height="34" rx="3" fill="#ffffff" stroke="#546e7a" stroke-width="1.2"/>
+  <text x="72" y="496" fill="#37474f" font-size="10">③ trx_id &gt;= max_trx_id ?</text>
+  <text x="368" y="496" fill="#b71c1c" font-weight="bold" font-size="10">是 → ❌ 不可见</text>
+  <text x="360" y="519" text-anchor="end" fill="#888888" font-size="9">否 ↓</text>
+
+  <line x1="210" y1="508" x2="210" y2="526" stroke="#757575" stroke-width="1.4" marker-end="url(#rvGray)"/>
+
+  <rect x="60" y="526" width="300" height="34" rx="3" fill="#ffffff" stroke="#546e7a" stroke-width="1.2"/>
+  <text x="72" y="548" fill="#37474f" font-size="10">④ trx_id ∈ m_ids ?</text>
+  <text x="368" y="548" fill="#b71c1c" font-weight="bold" font-size="10">是 → ❌ 不可见</text>
+  <text x="360" y="571" text-anchor="end" fill="#888888" font-size="9">否 ↓</text>
+
+  <line x1="210" y1="560" x2="210" y2="578" stroke="#757575" stroke-width="1.4" marker-end="url(#rvGray)"/>
+
+  <rect x="60" y="578" width="300" height="34" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.2"/>
+  <text x="72" y="600" fill="#1b5e20" font-size="10">都不满足 → 可见（已提交且不是自己）</text>
+  <text x="368" y="600" fill="#1b5e20" font-weight="bold" font-size="10">✅ 可见</text>
+
+  <!-- ③ 示例对照 -->
+  <rect x="560" y="320" width="376" height="292" rx="6" fill="#e8eaf6" stroke="#3949ab" stroke-width="1.4"/>
+  <text x="572" y="344" fill="#1a237e" font-weight="bold" font-size="12">回到开头的例子（事务 A 复用同一个 Read View）</text>
+
+  <rect x="576" y="360" width="150" height="54" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="651" y="380" text-anchor="middle" fill="#1b5e20" font-weight="bold" font-size="10">当前行</text>
+  <text x="651" y="398" text-anchor="middle" fill="#555555" font-size="10">trx_id = 102</text>
+
+  <line x1="726" y1="387" x2="778" y2="387" stroke="#1565c0" stroke-width="1.4" marker-end="url(#rvBlue)"/>
+
+  <rect x="782" y="360" width="142" height="54" rx="3" fill="#bbdefb" stroke="#1565c0" stroke-width="1"/>
+  <text x="853" y="380" text-anchor="middle" fill="#0d47a1" font-weight="bold" font-size="10">undo 旧版本</text>
+  <text x="853" y="398" text-anchor="middle" fill="#555555" font-size="10">trx_id = 101</text>
+
+  <rect x="576" y="434" width="348" height="70" rx="3" fill="#ffcdd2" stroke="#c62828" stroke-width="1"/>
+  <text x="588" y="456" fill="#b71c1c" font-weight="bold" font-size="10">102 走到 ③ 被拦下</text>
+  <text x="588" y="474" fill="#555555" font-size="9">①✗ ②✗ ③✓（102 &gt;= 102）→ 不可见</text>
+  <text x="588" y="490" fill="#555555" font-size="9">沿 DB_ROLL_PTR 回溯到旧版本</text>
+
+  <rect x="576" y="516" width="348" height="70" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="588" y="538" fill="#1b5e20" font-weight="bold" font-size="10">101 在 ① 就通过</text>
+  <text x="588" y="556" fill="#555555" font-size="9">①✓（101 == creator_trx_id）→ 可见</text>
+  <text x="588" y="572" fill="#555555" font-size="9">读到 balance = 500 ✓</text>
+
+  <!-- 底部图例 -->
+  <rect x="24" y="628" width="912" height="26" rx="4" fill="#f5f5f5" stroke="#e0e0e0" stroke-width="1"/>
+  <text x="36" y="645" fill="#888888" font-size="9">❌ 不可见的版本：沿 DB_ROLL_PTR 继续往回找，用同一套规则判定旧版本，直到命中 ✅ 可见版本</text>
+</svg>

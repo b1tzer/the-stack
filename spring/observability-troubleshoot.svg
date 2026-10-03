@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 748" width="680" height="748" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+<style>
+  text { text-anchor: middle; dominant-baseline: central; }
+  .title { font-size: 15px; font-weight: bold; fill: #333333; }
+  .label { font-size: 12px; fill: #333333; }
+  .note { font-size: 11px; fill: #666666; }
+  .arrow { stroke: #7b1fa2; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+  .box { rx: 8; ry: 8; }
+  .phase { fill: #eceff1; stroke: #666666; stroke-width: 1.5; }
+  .highlight { fill: #fff3e0; stroke: #e65100; stroke-width: 1.5; }
+  .action { fill: #e8f5e9; stroke: #2e7d32; stroke-width: 1.5; }
+  .important { fill: #ffcdd2; stroke: #e65100; stroke-width: 1.5; }
+  .step { fill: #e1bee7; stroke: #7b1fa2; stroke-width: 1.5; }
+  .note-box { fill: #f8f9fa; stroke: #bdbdbd; stroke-width: 1; }
+  .cache { fill: #e65100; stroke: #e65100; stroke-width: 1.5; }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+    <polygon points="0 0, 10 3.5, 0 7" fill="#7b1fa2"/>
+  </marker>
+  <marker id="arrowhead-green" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+    <polygon points="0 0, 10 3.5, 0 7" fill="#2e7d32"/>
+  </marker>
+  <marker id="arrowhead-orange" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+    <polygon points="0 0, 10 3.5, 0 7" fill="#e65100"/>
+  </marker>
+</defs>
+<text x="340" y="24" class="title">可观测性排障流程：Trace 追踪示例</text>
+<rect x="42" y="42" width="595" height="34" class="box phase"/>
+<text x="400.0" y="70.0" class="label">① Grafana 发现 order-service 的 P99 从 200ms 升到 2s（14:00 开始）</text>
+<line x1="340" y1="76" x2="340" y2="94" class="arrow"/><rect x="42" y="94" width="595" height="34" class="box step"/>
+<text x="400.0" y="130.0" class="label">② 登录 Jaeger，选择 order-service，时间范围 14:00-14:10，找到 2.1s 的 Trace</text>
+<line x1="340" y1="128" x2="340" y2="144" class="arrow"/><text x="68" y="157" text-anchor="start" class="label" font-weight="bold">③ 查看 Trace 的 Span 树：</text>
+<rect x="42" y="170" width="595" height="20" rx="3" class="box important"/>
+<text x="49" y="180" text-anchor="start" class="note">order-service [GET /api/order/10086]</text>
+<text x="631" y="180" text-anchor="end" class="note" font-weight="bold">2100ms</text>
+<rect x="68" y="204" width="255" height="20" rx="3" class="box phase"/>
+<text x="75" y="214" text-anchor="start" class="note">Controller.getOrder</text>
+<text x="316" y="214" text-anchor="end" class="note" font-weight="bold">5ms</text>
+<rect x="68" y="230" width="255" height="20" rx="3" class="box phase"/>
+<text x="75" y="240" text-anchor="start" class="note">MyBatis: selectOrder</text>
+<text x="316" y="240" text-anchor="end" class="note" font-weight="bold">15ms</text>
+<rect x="68" y="255" width="255" height="20" rx="3" class="box important"/>
+<text x="75" y="265" text-anchor="start" class="note">Feign: payment-service</text>
+<text x="316" y="265" text-anchor="end" class="note" font-weight="bold">1800ms</text>
+<rect x="94" y="280" width="238" height="20" rx="3" class="box highlight"/>
+<text x="100" y="291" text-anchor="start" class="note">POST /api/payment/query</text>
+<text x="325" y="291" text-anchor="end" class="note" font-weight="bold">1780ms</text>
+<rect x="119" y="306" width="212" height="20" rx="3" class="box phase"/>
+<text x="126" y="316" text-anchor="start" class="note">MyBatis: selectPayment</text>
+<text x="325" y="316" text-anchor="end" class="note" font-weight="bold">20ms</text>
+<rect x="119" y="332" width="212" height="20" rx="3" class="box important"/>
+<text x="126" y="342" text-anchor="start" class="note">Feign: account-service</text>
+<text x="325" y="342" text-anchor="end" class="note" font-weight="bold">1750ms</text>
+<rect x="144" y="357" width="196" height="20" rx="3" class="box highlight"/>
+<text x="151" y="367" text-anchor="start" class="note">POST /api/account/balance</text>
+<text x="333" y="367" text-anchor="end" class="note" font-weight="bold">1740ms</text>
+<rect x="170" y="382" width="170" height="20" rx="3" class="box important"/>
+<text x="177" y="393" text-anchor="start" class="note">Redis: get</text>
+<text x="333" y="393" text-anchor="end" class="note" font-weight="bold">1730ms ← 根因!</text>
+<rect x="68" y="408" width="255" height="20" rx="3" class="box phase"/>
+<text x="75" y="418" text-anchor="start" class="note">MyBatis: selectItems</text>
+<text x="316" y="418" text-anchor="end" class="note" font-weight="bold">10ms</text>
+<rect x="42" y="425" width="595" height="34" class="box step"/>
+<text x="400.0" y="520.0" class="label">④ 用 TraceID 到 Kibana 搜索日志</text>
+<text x="68" y="476" text-anchor="start" class="note">account-service 日志：Redis connection timeout after 1730ms, host: redis-cluster:6379</text>
+<line x1="340" y1="459" x2="340" y2="493" class="arrow"/><rect x="42" y="493" width="595" height="51" class="box important"/>
+<text x="400.0" y="602.0" class="label">⑤ 根因：Redis 集群某个节点网络抖动，导致连接超时</text>
+<text x="400.0" y="618.0" class="label">修复：Redis 集群增加节点 + 应用层增加 Redis 读超时兜底</text>
+
+</svg>

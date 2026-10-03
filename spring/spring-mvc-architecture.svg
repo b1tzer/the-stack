@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 520" width="640" height="520" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif">
+<style>
+  text { dominant-baseline: central; }
+  .title { font-size: 15px; font-weight: bold; fill: #333333; }
+  .label { font-size: 13px; font-weight: bold; fill: #333333; }
+  .note { font-size: 11px; fill: #666666; }
+  .app { fill: #eceff1; stroke: #666666; stroke-width: 1.5; }
+  .tomcat { fill: #fff3e0; stroke: #e65100; stroke-width: 1.5; }
+  .dispatcher { fill: #f3e5f5; stroke: #7b1fa2; stroke-width: 1.7; }
+  .comp { fill: #e8f5e9; stroke: #2e7d32; stroke-width: 1.5; }
+</style>
+<text x="320" y="24" class="title" text-anchor="middle">Spring MVC 在 Spring Boot 中的组织层次</text>
+<rect x="20" y="46" width="600" height="450" rx="12" class="app"/>
+<text x="320" y="68" class="label" text-anchor="middle">Spring Boot 应用（ApplicationContext）</text>
+<text x="320" y="86" class="note" text-anchor="middle">负责装配并启动下面一切，Tomcat 与 DispatcherServlet 都是它管理的 Bean</text>
+<rect x="48" y="102" width="544" height="376" rx="12" class="tomcat"/>
+<text x="320" y="124" class="label" text-anchor="middle">内嵌 Tomcat（Servlet 容器）</text>
+<text x="320" y="142" class="note" text-anchor="middle">只认 Servlet 规范（Servlet / Filter / Listener），不认识 Spring</text>
+<rect x="76" y="158" width="488" height="300" rx="12" class="dispatcher"/>
+<text x="320" y="180" class="label" text-anchor="middle">DispatcherServlet</text>
+<text x="320" y="200" class="note" text-anchor="middle">注册进 Tomcat 的唯一一个 Servlet；下面四个组件是它的私有对象，Tomcat 看不到</text>
+<rect x="104" y="218" width="432" height="44" rx="8" class="comp"/>
+<text x="320" y="240" class="label" text-anchor="middle">HandlerMapping</text>
+<rect x="104" y="272" width="432" height="44" rx="8" class="comp"/>
+<text x="320" y="294" class="label" text-anchor="middle">HandlerAdapter</text>
+<rect x="104" y="326" width="432" height="44" rx="8" class="comp"/>
+<text x="320" y="348" class="label" text-anchor="middle">ViewResolver</text>
+<rect x="104" y="380" width="432" height="44" rx="8" class="comp"/>
+<text x="320" y="402" class="label" text-anchor="middle">HandlerExceptionResolver</text>
+</svg>

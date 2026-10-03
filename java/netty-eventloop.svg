@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 476 323" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <defs>
+    <marker id="arD2" markerWidth="8" markerHeight="8" refX="4" refY="8" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#555555"/>
+    </marker>
+  </defs>
+
+  <text x="238" y="22" text-anchor="middle" font-size="12" font-weight="bold" fill="#333333">EventLoop 生命周期</text>
+
+  <!-- 启动 -->
+  <rect x="178" y="37" width="119" height="34" rx="17" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.3"/>
+  <text x="238" y="58" text-anchor="middle" font-size="11" fill="#1b5e20" font-weight="bold">启动</text>
+  <line x1="238" y1="71" x2="238" y2="90" stroke="#555555" stroke-width="1.3" marker-end="url(#arD2)"/>
+
+  <!-- Event Loop body -->
+  <rect x="68" y="94" width="340" height="136" rx="8" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.7"/>
+  <text x="238" y="114" text-anchor="middle" font-size="12" fill="#0d47a1" font-weight="bold">for (;;) {</text>
+
+  <!-- Step 1 -->
+  <rect x="94" y="124" width="289" height="27" rx="5" fill="#ffffff" stroke="#1565c0" stroke-width="0.8"/>
+  <text x="107" y="141" fill="#1565c0" font-weight="bold">1.</text>
+  <text x="122" y="141" fill="#333333">select() — 阻塞等待就绪事件</text>
+
+  <!-- Step 2 -->
+  <rect x="94" y="158" width="289" height="27" rx="5" fill="#ffffff" stroke="#1565c0" stroke-width="0.8"/>
+  <text x="107" y="175" fill="#1565c0" font-weight="bold">2.</text>
+  <text x="122" y="175" fill="#333333">processSelectedKeys() — 处理 I/O 事件</text>
+
+  <!-- Step 3 -->
+  <rect x="94" y="192" width="289" height="27" rx="5" fill="#ffffff" stroke="#1565c0" stroke-width="0.8"/>
+  <text x="107" y="209" fill="#1565c0" font-weight="bold">3.</text>
+  <text x="122" y="209" fill="#333333">runAllTasks() — 执行任务队列中的任务</text>
+
+  <text x="238" y="223" text-anchor="middle" font-size="12" fill="#0d47a1" font-weight="bold">}</text>
+
+  <!-- Loop-back arrow -->
+  <path d="M 480,190 Q 520,190 520,140 Q 520,90 480,90" fill="none" stroke="#1565c0" stroke-width="1.3" stroke-dasharray="4,3" marker-end="url(#arD2)"/>
+  <text x="450" y="119" font-size="8" fill="#1565c0">循环</text>
+
+  <!-- Arrow down to 关闭 -->
+  <line x1="238" y1="230" x2="238" y2="252" stroke="#555555" stroke-width="1.3" marker-end="url(#arD2)"/>
+
+  <!-- 关闭 -->
+  <rect x="178" y="255" width="119" height="34" rx="17" fill="#ffcdd2" stroke="#c62828" stroke-width="1.3"/>
+  <text x="238" y="275" text-anchor="middle" font-size="11" fill="#b71c1c" font-weight="bold">关闭</text>
+
+  <!-- 3 queues annotation -->
+  <g transform="translate(100, 350)">
+    <rect x="0" y="0" width="94" height="20" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="0.8"/>
+    <text x="47" y="14" text-anchor="middle" font-size="8" fill="#2e7d32">普通任务队列</text>
+    <rect x="102" y="0" width="94" height="20" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="0.8"/>
+    <text x="149" y="14" text-anchor="middle" font-size="8" fill="#e65100">定时任务队列</text>
+    <rect x="204" y="0" width="94" height="20" rx="3" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="0.8"/>
+    <text x="251" y="14" text-anchor="middle" font-size="8" fill="#7b1fa2">尾部任务队列</text>
+  </g>
+</svg>

@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 480" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <defs>
+    <marker id="mvccRoll" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#1565c0"/>
+    </marker>
+  </defs>
+
+  <text x="480" y="26" text-anchor="middle" font-size="14" font-weight="bold" fill="#333333">版本链：表里的「当前行」与 Undo Log 里的「历史版本」</text>
+
+  <!-- 左：表 -->
+  <rect x="24" y="46" width="352" height="300" rx="6" fill="#f1f8e9" stroke="#2e7d32" stroke-width="1.4"/>
+  <text x="36" y="68" fill="#1b5e20" font-weight="bold" font-size="12">① 表（聚簇索引叶子页）</text>
+  <rect x="36" y="84" width="328" height="150" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="48" y="106" fill="#1b5e20" font-size="10" font-weight="bold">一行记录 = 当前版本</text>
+  <text x="48" y="130" fill="#555555" font-size="10">用户列　balance = 1000</text>
+  <line x1="48" y1="142" x2="352" y2="142" stroke="#a5d6a7" stroke-width="1"/>
+  <text x="48" y="162" fill="#555555" font-size="9">DB_ROW_ID　行 ID（有主键时用主键代替）</text>
+  <text x="48" y="184" fill="#555555" font-size="9">DB_TRX_ID = 102　最后修改这行的事务</text>
+  <text x="48" y="210" fill="#1565c0" font-weight="bold" font-size="10">DB_ROLL_PTR ──────────▶</text>
+  <text x="48" y="226" fill="#888888" font-size="9">指向 Undo Log 里的旧版本</text>
+  <text x="36" y="266" fill="#555555" font-size="10">表中永远只有「最新一版」</text>
+  <text x="36" y="286" fill="#888888" font-size="9">旧版本被写进 Undo Log</text>
+
+  <!-- 右：Undo Log -->
+  <rect x="408" y="46" width="528" height="300" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="420" y="68" fill="#0d47a1" font-weight="bold" font-size="12">② Undo Log（历史版本）</text>
+  <rect x="420" y="84" width="504" height="96" rx="3" fill="#bbdefb" stroke="#1565c0" stroke-width="1"/>
+  <text x="432" y="106" fill="#0d47a1" font-size="10" font-weight="bold">undo 记录 = 旧版本</text>
+  <text x="432" y="128" fill="#555555" font-size="9">旧值 balance = 500</text>
+  <text x="432" y="148" fill="#555555" font-size="9">DB_TRX_ID = 101（最初插入时的事务）</text>
+  <text x="432" y="168" fill="#555555" font-size="9">DB_ROLL_PTR = NULL（链尾）</text>
+
+  <text x="420" y="212" fill="#0d47a1" font-size="10" font-weight="bold">多次修改后，旧版本串成一条链（由新到老）：</text>
+  <rect x="420" y="226" width="104" height="44" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="472" y="244" text-anchor="middle" fill="#1b5e20" font-size="9" font-weight="bold">当前行</text>
+  <text x="472" y="260" text-anchor="middle" fill="#555555" font-size="8">trx=105</text>
+
+  <line x1="524" y1="248" x2="548" y2="248" stroke="#1565c0" stroke-width="1.4" marker-end="url(#mvccRoll)"/>
+
+  <rect x="552" y="226" width="104" height="44" rx="3" fill="#bbdefb" stroke="#1565c0" stroke-width="1"/>
+  <text x="604" y="244" text-anchor="middle" fill="#0d47a1" font-size="9" font-weight="bold">undo v3</text>
+  <text x="604" y="260" text-anchor="middle" fill="#555555" font-size="8">trx=104</text>
+
+  <line x1="656" y1="248" x2="680" y2="248" stroke="#1565c0" stroke-width="1.4" marker-end="url(#mvccRoll)"/>
+
+  <rect x="684" y="226" width="104" height="44" rx="3" fill="#bbdefb" stroke="#1565c0" stroke-width="1"/>
+  <text x="736" y="244" text-anchor="middle" fill="#0d47a1" font-size="9" font-weight="bold">undo v2</text>
+  <text x="736" y="260" text-anchor="middle" fill="#555555" font-size="8">trx=102</text>
+
+  <line x1="788" y1="248" x2="812" y2="248" stroke="#1565c0" stroke-width="1.4" marker-end="url(#mvccRoll)"/>
+
+  <rect x="816" y="226" width="104" height="44" rx="3" fill="#bbdefb" stroke="#1565c0" stroke-width="1"/>
+  <text x="868" y="244" text-anchor="middle" fill="#0d47a1" font-size="9" font-weight="bold">undo v1</text>
+  <text x="868" y="260" text-anchor="middle" fill="#555555" font-size="8">trx=101</text>
+
+  <text x="420" y="300" fill="#888888" font-size="9">链头是表里的「当前行」，链身都在 Undo Log 里</text>
+  <text x="420" y="320" fill="#888888" font-size="9">快照读：从当前行出发，沿 DB_ROLL_PTR 一路往回找可见版本</text>
+
+  <!-- 关联箭头：当前行的 DB_ROLL_PTR → undo 旧版本 -->
+  <polyline points="364,210 386,210 386,110 420,110" fill="none" stroke="#1565c0" stroke-width="1.8" marker-end="url(#mvccRoll)"/>
+
+  <!-- 底部图例 -->
+  <rect x="24" y="372" width="912" height="80" rx="6" fill="#f5f5f5" stroke="#bdbdbd" stroke-width="1.2"/>
+  <line x1="36" y1="398" x2="76" y2="398" stroke="#1565c0" stroke-width="1.8" marker-end="url(#mvccRoll)"/>
+  <text x="88" y="402" fill="#555555" font-size="10">DB_ROLL_PTR 指针：把「表里的当前行」与「Undo Log 里的旧版本」串成一条版本链</text>
+  <text x="88" y="422" fill="#555555" font-size="10">读一行时先看当前版本；不可见就沿蓝色箭头往回走，直到找到可见的旧版本</text>
+  <text x="88" y="442" fill="#888888" font-size="9">事务 ID 与余额为示意，实际编号随事务分配顺序变化</text>
+</svg>
