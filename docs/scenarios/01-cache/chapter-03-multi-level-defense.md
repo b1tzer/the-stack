@@ -126,6 +126,14 @@ public class MultiLevelCacheService {
     }
 
     /**
+     * 仅查询本地缓存，不触发回源，供降级路径使用
+     */
+    public User getLocal(Long userId) {
+        String cached = localCache.getIfPresent("user:" + userId);
+        return cached != null ? JSON.parseObject(cached, User.class) : null;
+    }
+
+    /**
      * 获取 L1 命中率统计
      */
     public CacheStats getLocalCacheStats() {
@@ -178,15 +186,26 @@ public class CacheMonitorController {
 
 ```java
 @Component
-public class LocalCacheEvictionListener {
+public class LocalCacheEvictionListener implements MessageListener {
 
     private final Cache<String, String> localCache;
+
+    public LocalCacheEvictionListener(Cache<String, String> localCache,
+                                      RedisConnectionFactory connectionFactory) {
+        this.localCache = localCache;
+
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        container.setConnectionFactory(connectionFactory);
+        container.addMessageListener(this, new ChannelTopic("cache:evict"));
+        container.start();
+    }
 
     /**
      * 监听 Redis Pub/Sub 的缓存清除消息
      */
-    @RedisListener(channel = "cache:evict")
-    public void onEvict(String key) {
+    @Override
+    public void onMessage(Message message, byte[] pattern) {
+        String key = new String(message.getBody(), StandardCharsets.UTF_8);
         localCache.invalidate(key);
     }
 }
@@ -207,7 +226,9 @@ public void updateUser(Long userId, User user) {
 
 ## 5. 自定义 Spring CacheManager
 
-如果项目使用 Spring 的 `@Cacheable` 注解，可以自定义 `CacheManager` 实现多级缓存：
+如果项目使用 `@Cacheable` 注解，可以把多级缓存封装进自定义 `CacheManager`，让注解自动走「L1 → L2」链路。
+
+先澄清一个常见误区。Spring 自带的 `CompositeCacheManager` 做不了多级缓存，它的职责是聚合多个 `CacheManager`，`getCache(name)` 时按顺序返回第一个命中该 name 的 `Cache`。当 L1 和 L2 注册了同一个 name，它永远只返回 L1，根本不会级联到 L2。真正的多级缓存需要自定义 `Cache`，在内部先查 L1，未命中再查 L2 并回填 L1。
 
 ```java
 @Configuration
@@ -216,25 +237,106 @@ public class CacheConfig {
 
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory factory) {
-        // L1：Caffeine
-        CaffeineCache caffeineCache = new CaffeineCache("users",
-            Caffeine.newBuilder()
-                .maximumSize(5000)
-                .expireAfterWrite(2, TimeUnit.MINUTES)
-                .build());
+        // L1：Caffeine 本地缓存
+        CaffeineCacheManager l1 = new CaffeineCacheManager("users");
+        l1.setCaffeine(Caffeine.newBuilder()
+            .maximumSize(5000)
+            .expireAfterWrite(2, TimeUnit.MINUTES));
 
-        // L2：Redis
+        // L2：Redis 分布式缓存
         RedisCacheConfiguration redisConfig = RedisCacheConfiguration.defaultCacheConfig()
             .entryTtl(Duration.ofMinutes(5))
             .serializeValuesWith(RedisSerializationContext.SerializationPair
                 .fromSerializer(new GenericJackson2JsonRedisSerializer()));
+        CacheManager l2 = RedisCacheManager.builder(factory)
+            .cacheDefaults(redisConfig)
+            .build();
 
-        RedisCache redisCache = new RedisCache("users",
-            RedisCacheWriter.nonLockingRedisCacheWriter(factory),
-            redisConfig);
+        return new MultiLevelCacheManager(l1, l2);
+    }
+}
+```
 
-        // 组合：先查 Caffeine，再查 Redis
-        return new CompositeCacheManager(caffeineCache, redisCache);
+自定义 `CacheManager` 和包装 `Cache`：
+
+```java
+public class MultiLevelCacheManager implements CacheManager {
+
+    private final CacheManager l1;
+    private final CacheManager l2;
+
+    public MultiLevelCacheManager(CacheManager l1, CacheManager l2) {
+        this.l1 = l1;
+        this.l2 = l2;
+    }
+
+    @Override
+    public Cache getCache(String name) {
+        return new MultiLevelCache(name, l1.getCache(name), l2.getCache(name));
+    }
+
+    @Override
+    public Collection<String> getCacheNames() {
+        return l1.getCacheNames();
+    }
+}
+
+class MultiLevelCache implements Cache {
+
+    private final String name;
+    private final Cache l1;
+    private final Cache l2;
+
+    MultiLevelCache(String name, Cache l1, Cache l2) {
+        this.name = name;
+        this.l1 = l1;
+        this.l2 = l2;
+    }
+
+    @Override
+    public ValueWrapper get(Object key) {
+        ValueWrapper v = l1.get(key);
+        if (v != null) return v;
+        v = l2.get(key);
+        if (v != null) l1.put(key, v.get());
+        return v;
+    }
+
+    @Override
+    public <T> T get(Object key, Class<T> type) {
+        T value = l1.get(key, type);
+        if (value != null) return value;
+        value = l2.get(key, type);
+        if (value != null) l1.put(key, value);
+        return value;
+    }
+
+    @Override
+    public void put(Object key, Object value) {
+        l1.put(key, value);
+        l2.put(key, value);
+    }
+
+    @Override
+    public void evict(Object key) {
+        l1.evict(key);
+        l2.evict(key);
+    }
+
+    @Override
+    public void clear() {
+        l1.clear();
+        l2.clear();
+    }
+
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public Object getNativeCache() {
+        return this;
     }
 }
 ```
@@ -248,7 +350,7 @@ public User getUser(Long userId) {
 }
 ```
 
-> `CompositeCacheManager` 按顺序查询，命中即返回。需要注意的是 Spring 的 `CompositeCacheManager` 不会自动回填上层缓存，如果需要自动回填，建议使用前面的手动实现。
+> 这个自定义 `Cache` 才是真正意义上的多级缓存。读时先查 L1，未命中查 L2 并回填 L1；写和删除时两层同时处理。相比 §3.2 的手动实现，它的好处是业务代码只需 `@Cacheable` 注解，代价是要维护一套 `Cache` 接口的委托方法。二选一即可，不必两套都上。
 
 ## 6. 纵深防御：把多级缓存变成完整防线
 
@@ -363,8 +465,8 @@ public class RedisHealthChecker {
 
     @Scheduled(fixedRate = 5000)
     public void check() {
-        try {
-            redis.getConnectionFactory().getConnection().ping();
+        try (RedisConnection connection = redis.getConnectionFactory().getConnection()) {
+            connection.ping();
             redisHealthy = true;
         } catch (Exception e) {
             redisHealthy = false;

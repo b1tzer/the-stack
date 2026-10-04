@@ -87,39 +87,9 @@ public class UserService {
 
 ## 4. 分布式 ID 生成
 
-```java
-// 雪花算法（Snowflake）
-public class SnowflakeIdGenerator {
-    private final long datacenterId;
-    private final long workerId;
-    private long sequence = 0;
-    private long lastTimestamp = -1;
-    
-    // 时间戳 | 数据中心 | 机器ID | 序列号
-    // 41 bit  | 5 bit    | 5 bit  | 12 bit
-    
-    public synchronized long nextId() {
-        long timestamp = System.currentTimeMillis();
-        if (timestamp == lastTimestamp) {
-            sequence = (sequence + 1) & 0xFFF;  // 4096
-            if (sequence == 0) timestamp = waitNextMillis();
-        } else {
-            sequence = 0;
-        }
-        lastTimestamp = timestamp;
-        return ((timestamp - 1288834974657L) << 22) |
-               (datacenterId << 17) |
-               (workerId << 12) |
-               sequence;
-    }
-    
-    private long waitNextMillis() {
-        long ts = System.currentTimeMillis();
-        while (ts <= lastTimestamp) ts = System.currentTimeMillis();
-        return ts;
-    }
-}
-```
+分库分表之后自增主键失效，需要全局唯一的 ID。UUID、雪花算法、号段模式三种方案的原理与选型见 [分布式 ID 生成](../../scenarios/04-data-access/chapter-04-distributed-id.md)。
+
+方法论上只有一条，ID 生成逻辑要封装在独立的发号服务里，别散落在业务代码各处。散落之后想换方案，就是一场全量改造。
 
 ## 5. 扩展策略选择
 

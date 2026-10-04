@@ -67,31 +67,7 @@ if (locked) {
 
 ## 3. Redisson
 
-Redisson 是 Java 的 Redis 客户端，封装了分布式锁，提供可重入锁、自动续期等能力。
-
-```xml
-<dependency>
-    <groupId>org.redisson</groupId>
-    <artifactId>redisson-spring-boot-starter</artifactId>
-    <version>3.27.0</version>
-</dependency>
-```
-
-```java
-RLock lock = redisson.getLock("lock:order");
-try {
-    // 阻塞等待，最多等 10 秒，锁自动续期
-    if (lock.tryLock(10, TimeUnit.SECONDS)) {
-        try {
-            // 业务逻辑
-        } finally {
-            lock.unlock();
-        }
-    }
-} catch (InterruptedException e) {
-    Thread.currentThread().interrupt();
-}
-```
+Redisson 是 Java 的 Redis 客户端，封装了分布式锁，提供可重入锁、自动续期等能力。它的依赖配置、基础用法、注解方式与 AOP 封装，见 [Spring 分布式锁](../../spring/09-distributed/chapter-01-distributed-lock.md)。
 
 ### 3.1 相比手写 SET NX PX 的改进
 
@@ -144,44 +120,7 @@ lock.tryLock(10, 30, TimeUnit.SECONDS); // leaseTime=30，不续期
 
 ## 5. 其他锁类型
 
-### 5.1 可重入锁
-
-同一线程可以多次获取同一把锁（计数器递增），释放时计数器递减，归零后真正释放。
-
-```java
-RLock lock = redisson.getLock("lock:order");
-lock.lock();      // 第一次加锁，计数器=1
-lock.lock();      // 重入，计数器=2
-lock.unlock();    // 计数器=1
-lock.unlock();    // 计数器=0，真正释放
-```
-
-### 5.2 读写锁
-
-读锁共享，写锁互斥。多个读可以并发，写与读和写都互斥。
-
-```java
-RReadWriteLock rwLock = redisson.getReadWriteLock("rwlock:data");
-RLock readLock = rwLock.readLock();
-RLock writeLock = rwLock.writeLock();
-
-// 读操作
-readLock.lock();
-try { /* 读 */ } finally { readLock.unlock(); }
-
-// 写操作
-writeLock.lock();
-try { /* 写 */ } finally { writeLock.unlock(); }
-```
-
-### 5.3 公平锁
-
-按请求顺序获取锁，避免饥饿。
-
-```java
-RLock fairLock = redisson.getFairLock("lock:order");
-fairLock.lock();
-```
+除了普通互斥锁，Redisson 还提供可重入锁、读写锁、公平锁、联锁、红锁，具体用法见 [Spring 分布式锁](../../spring/09-distributed/chapter-01-distributed-lock.md) 第 3 节。选型依据不变，读写锁用于读多写少的场景，公平锁用于需要排队公平、不能饥饿的场景，红锁用于跨机房容错，其争议见 §6.4。
 
 ## 6. 单节点锁的失效
 

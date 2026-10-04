@@ -54,36 +54,9 @@ spring:
 
 ### 2.2 分布式 ID 方案
 
-```java
-// 雪花算法 (Snowflake)
-public class SnowflakeIdGenerator {
-    private final long epoch = 1609459200000L; // 2021-01-01
-    private final long datacenterIdBits = 5L;
-    private final long workerIdBits = 5L;
-    private final long sequenceBits = 12L;
-    
-    private final long datacenterId;
-    private final long workerId;
-    private long sequence = 0L;
-    private long lastTimestamp = -1L;
-    
-    public synchronized long nextId() {
-        long timestamp = System.currentTimeMillis();
-        if (timestamp == lastTimestamp) {
-            sequence = (sequence + 1) & ((1 << sequenceBits) - 1);
-            if (sequence == 0) timestamp = waitNextMillis(lastTimestamp);
-        } else {
-            sequence = 0;
-        }
-        lastTimestamp = timestamp;
-        return ((timestamp - epoch) << 22) | (datacenterId << 17) | (workerId << 12) | sequence;
-    }
-}
+分库分表后自增 ID 会冲突，需要全局唯一的 ID 生成方案。雪花算法、号段模式、UUID 三种方案的原理与选型见 [分布式 ID 生成](../../scenarios/04-data-access/chapter-04-distributed-id.md)。
 
-// 使用 Leaf / UidGenerator 等成熟方案
-// 美团 Leaf: https://github.com/Meituan-Dianping/Leaf
-// 百度 UidGenerator: https://github.com/baidu/uid-generator
-```
+生产环境优先用成熟实现，如美团 Leaf、百度 UidGenerator，不要自己手写雪花算法。
 
 ## 3. 中间件实战
 

@@ -92,7 +92,6 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '缓存失效：穿透·击穿·雪崩', link: '/scenarios/01-cache/chapter-01-cache-invalidation' },
             { text: '缓存写路径：四种模式与一致性', link: '/scenarios/01-cache/chapter-02-cache-write-patterns' },
             { text: '多级缓存与纵深防御', link: '/scenarios/01-cache/chapter-03-multi-level-defense' },
-            { text: '大 Key 与热 Key', link: '/scenarios/01-cache/chapter-04-big-hot-key' },
           ],
         },
         {
@@ -111,11 +110,11 @@ export default withOpenInEditor(withMermaid(defineConfig({
           items: [
             { text: '消息场景首页', link: '/scenarios/03-messaging/' },
             { text: '延迟任务', link: '/scenarios/03-messaging/chapter-01-delayed-task' },
-            { text: 'RPC over MQ', link: '/scenarios/03-messaging/chapter-02-rpc-over-mq' },
-            { text: '竞争消费者', link: '/scenarios/03-messaging/chapter-03-competing-consumers' },
-            { text: '发布订阅', link: '/scenarios/03-messaging/chapter-04-pub-sub' },
-            { text: '消息去重', link: '/scenarios/03-messaging/chapter-05-deduplication' },
-            { text: '高可用实战', link: '/scenarios/03-messaging/chapter-06-high-availability' },
+            { text: '消息模式综述', link: '/scenarios/03-messaging/chapter-02-messaging-patterns' },
+            { text: '消息去重', link: '/scenarios/03-messaging/chapter-03-deduplication' },
+            { text: '高可用实战', link: '/scenarios/03-messaging/chapter-04-high-availability' },
+            { text: '分布式事务', link: '/scenarios/03-messaging/chapter-05-distributed-transaction' },
+            { text: '消息顺序性', link: '/scenarios/03-messaging/chapter-06-message-ordering' },
           ],
         },
         {
@@ -124,7 +123,9 @@ export default withOpenInEditor(withMermaid(defineConfig({
           items: [
             { text: '数据访问首页', link: '/scenarios/04-data-access/' },
             { text: '读写分离', link: '/scenarios/04-data-access/chapter-01-read-write-split' },
-            { text: '多租户', link: '/scenarios/04-data-access/chapter-02-multi-tenant' },
+            { text: '多租户数据隔离', link: '/scenarios/04-data-access/chapter-02-multi-tenant' },
+            { text: '分库分表', link: '/scenarios/04-data-access/chapter-03-sharding' },
+            { text: '分布式 ID 生成', link: '/scenarios/04-data-access/chapter-04-distributed-id' },
           ],
         },
         {
@@ -132,13 +133,12 @@ export default withOpenInEditor(withMermaid(defineConfig({
           collapsed: true,
           items: [
             { text: '综合案例首页', link: '/scenarios/05-cases/' },
-            { text: '电商订单系统', link: '/scenarios/05-cases/chapter-01-ecommerce' },
+            { text: '库存扣减并发控制', link: '/scenarios/05-cases/chapter-01-inventory-deduction' },
             { text: '排行榜', link: '/scenarios/05-cases/chapter-02-leaderboard' },
-            { text: '缓存系统实战', link: '/scenarios/05-cases/chapter-03-cache-system' },
-            { text: '日志分析', link: '/scenarios/05-cases/chapter-04-log-analysis' },
-            { text: '搜索引擎', link: '/scenarios/05-cases/chapter-05-search-engine' },
-            { text: '数据同步', link: '/scenarios/05-cases/chapter-06-data-sync' },
-            { text: '电商订单（消息驱动）', link: '/scenarios/05-cases/chapter-07-order-system' },
+            { text: '订单状态流转', link: '/scenarios/05-cases/chapter-03-order-state-machine' },
+            { text: '高并发计数', link: '/scenarios/05-cases/chapter-04-counter' },
+            { text: '短链系统', link: '/scenarios/05-cases/chapter-05-short-url' },
+            { text: '秒杀', link: '/scenarios/05-cases/chapter-06-seckill' },
           ],
         },
       ],
@@ -1008,6 +1008,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '排障', link: '/redis/05-operations/chapter-02-troubleshooting' },
             { text: '监控', link: '/redis/05-operations/chapter-03-monitoring' },
             { text: '踩坑', link: '/redis/05-operations/chapter-04-pitfalls' },
+            { text: '大 Key 与热 Key', link: '/redis/05-operations/chapter-05-big-hot-key' },
           ],
         },
         {

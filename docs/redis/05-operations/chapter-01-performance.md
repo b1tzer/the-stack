@@ -131,19 +131,7 @@ maxmemory-samples 10             # 采样数
 
 ## 6. 大 Key 治理
 
-大 Key 是性能问题的常见根因：
-
-```bash
-# 发现大 Key
-redis-cli --bigkeys
-
-# 拆分大 Hash
-HGETALL user:1001:profile  # 100 个 field
-# 拆为：user:1001:basic、user:1001:extra、...
-
-# 异步删除大 Key
-UNLINK bigkey   # 而非 DEL
-```
+大 Key 是性能问题的常见根因。大 Key 与热 Key 的定义、危害、发现与处理的完整方案见 [大 Key 与热 Key](./chapter-05-big-hot-key.md)。性能视角的结论只有一句，删除大 Key 用 `UNLINK` 而非 `DEL`，避免阻塞主线程。
 
 ## 7. 生产调优清单
 

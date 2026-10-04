@@ -106,7 +106,7 @@ channel.basicConsume("order.queue", false, new DefaultConsumer(channel) {
 
 ### 3.3 幂等是最后一道
 
-Confirm 重发、nack 重投、消费者崩溃，都会让同一消息被处理多次。队列层保证的是「不丢」，不是「不重复」。去重方案（Redis 去重、唯一约束、乐观锁）见本专题[消息去重](./chapter-05-deduplication.md)，这里不重复。
+Confirm 重发、nack 重投、消费者崩溃，都会让同一消息被处理多次。队列层保证的是「不丢」，不是「不重复」。去重方案（Redis 去重、唯一约束、乐观锁）见本专题[消息去重](./chapter-03-deduplication.md)，这里不重复。
 
 ## 4. 消费不中断：堆积与流控
 
@@ -124,7 +124,7 @@ channel.basicQos(50);  // 最多 50 条未确认
 
 ### 4.2 横向扩容
 
-单个消费者处理不过来时，加消费者实例，竞争消费同一个队列。扩容不需要改队列配置，新实例挂上即生效。分配策略见本专题[竞争消费者](./chapter-03-competing-consumers.md)。
+单个消费者处理不过来时，加消费者实例，竞争消费同一个队列。扩容不需要改队列配置，新实例挂上即生效。分配策略见本专题[竞争消费者](./chapter-02-messaging-patterns.md#competing-consumers)。
 
 ### 4.3 防死循环
 
