@@ -102,6 +102,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '分布式锁', link: '/scenarios/02-concurrency/chapter-01-distributed-lock' },
             { text: '限流器', link: '/scenarios/02-concurrency/chapter-02-rate-limiting' },
             { text: '幂等控制', link: '/scenarios/02-concurrency/chapter-03-idempotency' },
+            { text: '熔断降级', link: '/scenarios/02-concurrency/chapter-04-circuit-breaker' },
           ],
         },
         {
@@ -139,6 +140,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '高并发计数', link: '/scenarios/05-cases/chapter-04-counter' },
             { text: '短链系统', link: '/scenarios/05-cases/chapter-05-short-url' },
             { text: '秒杀', link: '/scenarios/05-cases/chapter-06-seckill' },
+            { text: '分布式定时调度', link: '/scenarios/05-cases/chapter-07-scheduled-task' },
           ],
         },
       ],
