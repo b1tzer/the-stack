@@ -320,7 +320,7 @@ Tomcat 8.5 起全面改用 NIO。网络 I/O 的"等待"和业务逻辑的"执行
 <Connector port="8080"
            protocol="org.apache.coyote.http11.Http11NioProtocol"
            maxThreads="200"
-           maxConnections="10000"
+           maxConnections="8192"
            acceptCount="100"
            connectionTimeout="20000" />
 ```
@@ -328,7 +328,7 @@ Tomcat 8.5 起全面改用 NIO。网络 I/O 的"等待"和业务逻辑的"执行
 | 参数 | 含义 | 线上出问题的表现 | 排查命令 |
 | :-- | :-- | :-- | :-- |
 | `maxThreads` | Worker 线程池最大值 | 所有请求卡住不响应 | `jstack <pid> \| grep "catalina-exec" \| wc -l` |
-| `maxConnections` | 可同时处理的连接上限（NIO 默认 10000） | 超出的连接被阻塞在 OS 层 | `ss -ant \| grep 8080 \| wc -l` |
+| `maxConnections` | 可同时处理的连接上限（默认值随版本变化） | 达到上限后，新连接停留在 OS backlog 中 | `ss -ant \| grep 8080 \| wc -l` |
 | `acceptCount` | Worker 满后，允许排队的请求数 | 发起连接时直接 refused | 日志搜 `Too many open files` 或 `accept failed` |
 | `connectionTimeout` | 连接超时（ms） | 客户端报 `Read timed out` | 看业务侧监控：P99 延迟是否接近该值 |
 

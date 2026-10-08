@@ -143,14 +143,14 @@ String result = pipeline.join();
 | 写法 | 执行线程 |
 | :-- | :-- |
 | `thenApply(fn)` | 谁完成上一个 CF，谁执行 `fn`（可能是提交线程，也可能是上一个 stage 的线程） |
-| `thenApplyAsync(fn)` | 提交到 `ForkJoinPool.commonPool` |
+| `thenApplyAsync(fn)` | 默认使用 `ForkJoinPool.commonPool()`；其并行度低于 2 时，为每个任务创建新线程 |
 | `thenApplyAsync(fn, executor)` | 提交到指定的 `executor` |
 
 **同步版本 `thenApply` 的"急切执行"**：如果上一个 CF 在调用 `thenApply` 时已经完成，回调**立即在当前线程运行**——不再是异步。这是很多"看起来应该异步、实际在业务线程上跑了阻塞任务"的根源。
 
 ### 3.2 `commonPool` 的默认坑
 
-`supplyAsync(fn)` / `thenApplyAsync(fn)` 不传 executor 时，默认走 `ForkJoinPool.commonPool()`（第 10 章 §10.7.2 讨论过）。这个池全局共享，线程数 = `CPU 核数 - 1`。
+`supplyAsync(fn)` / `thenApplyAsync(fn)` 不传 executor 时，默认使用 `ForkJoinPool.commonPool()`（第 10 章 §10.7.2 讨论过）。这个池由 JVM 中的任务共享；常见配置下并行度为可用处理器数减 1，但也可能被 `java.util.concurrent.ForkJoinPool.common.parallelism` 覆盖。并行度低于 2 时，JDK 会为每个任务创建新线程。
 
 ```java
 // ❌ 阻塞 IO 塞进 commonPool：一整个 JVM 的 CompletableFuture / parallelStream 陪葬
@@ -173,7 +173,7 @@ CompletableFuture.supplyAsync(() -> httpClient.get(url), ioPool);
 看到方法名带 `Async` 后缀就要问自己两个问题：
 
 - **上一个 stage 的执行线程是否适合承担这一步？** 不适合就用 `Async` 换线程
-- **需要指定线程池吗？** 需要就传 executor，不传的默认落在 `commonPool`
+- **需要指定线程池吗？** 需要就传 executor；不传时遵循默认执行器规则
 
 ```java
 // 假设 dbPool 用于数据库、cpuPool 用于计算
@@ -260,22 +260,26 @@ future
 
 线上 `CompletableFuture` 的 bug 高度集中在这五种模式上。
 
-### 5.1 链尾忘记 `.join()`
+### 5.1 链尾忘记处理结果
 
 ```java
-// ❌ 链末端没人消费，任务被 GC 掉
+// ❌ 没人观察完成状态、异常和取消结果
 CompletableFuture.supplyAsync(() -> queryDB(id))
     .thenAccept(this::process);
-// 方法返回，没有引用了
+// 调用方不保存返回的 future，也无法在业务边界判断是否完成
 
-// ✅ 保留返回值或显式等待
-CompletableFuture<Void> f = CompletableFuture
+// ✅ 需要等待结果时，保留返回值并显式处理
+CompletableFuture<Void> future = CompletableFuture
     .supplyAsync(() -> queryDB(id))
     .thenAccept(this::process);
-f.join();
+try {
+    future.join();
+} catch (CompletionException ex) {
+    // 记录 ex.getCause()，再决定重试、回滚或降级
+}
 ```
 
-`CompletableFuture` 本身不保证任务一定被执行到底——只要没人引用它，也没人等它，JVM 完全可以回收。生产上表现是"任务提交了，日志里也没报错，就是从没执行过"。
+不能根据调用方是否持有返回值，断言任务会因失去引用而被 GC 掉。异步链提交后通常仍由其内部依赖关系驱动。这里真正的问题是调用方没有消费结果：任务完成、失败或取消后，业务边界既无法及时获知，也无法一致地处理异常。若调用必须等待链完成，应 `join()`；若确实采用 fire-and-forget，应显式管理执行器、异常、超时和任务生命周期。
 
 ### 5.2 在回调里做阻塞 IO
 
@@ -356,6 +360,6 @@ Actor 与前述所有模型的分野在**编程思维**：从"共享内存 + 加
 | 得到 `CF<CF<R>>` 嵌套 | `thenApply` 用错 | 改 `thenCompose` |
 | `allOf` 后拿不到各自结果 | `allOf` 返回 `Void` | 手动 `join` 每个 CF |
 | 阻塞 IO 拖垮 `commonPool` | 默认走 `ForkJoinPool.commonPool` | 显式传 executor |
-| 链尾任务从未执行 | 链末端没人 `join` | 保留引用或显式等待 |
+| 链尾完成或失败状态不可见 | 链末端没有消费 future | 按需要 `join()`，或补齐异常、监控和生命周期处理 |
 | 异常总是显示成 `CompletionException` | 未 unwrap `getCause()` | 处理异常时取 `ex.getCause()` |
 | 异步超时 | JDK 9 之前没原生 API | `orTimeout` / `completeOnTimeout` |

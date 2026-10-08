@@ -435,9 +435,12 @@ socket.setSoTimeout(60000); // 读超时
 socket.setTcpNoDelay(true); // 禁用 Nagle 算法，减少延迟
 
 // NIO 方式
-ServerSocketChannel channel = ServerSocketChannel.open();
-channel.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
-channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
+ServerSocketChannel serverChannel = ServerSocketChannel.open();
+serverChannel.bind(new InetSocketAddress(8080));
+
+SocketChannel socketChannel = serverChannel.accept();
+socketChannel.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
+socketChannel.setOption(StandardSocketOptions.TCP_NODELAY, true);
 ```
 
 ### 4.4 重连策略

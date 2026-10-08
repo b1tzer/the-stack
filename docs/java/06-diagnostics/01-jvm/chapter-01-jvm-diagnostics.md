@@ -263,7 +263,7 @@ JFR 是 JDK 内置的低开销性能分析工具，可以在生产环境持续�
 jcmd <pid> JFR.start duration=60s filename=recording.jfr
 
 # 持续录制（手动停止）
-jcmd <pid> JFR.start settings=profile filename=continuous.jfr
+jcmd <pid> JFR.start settings=default filename=continuous.jfr
 jcmd <pid> JFR.stop
 
 # 查看正在录制的任务
@@ -288,7 +288,7 @@ jcmd <pid> JFR.check
 jmc
 ```
 
-JMC 提供自动分析功能，能标记出潜在的性能问题（如"方法编译时间过长"、"GC 停顿过长"）。JFR 的优势是开销极低（< 1%），适合生产环境 7×24 持续录制。
+JMC 提供自动分析功能，能标记出潜在的性能问题（如“方法编译时间过长”、“GC 停顿过长”）。JDK 21 官方配置 `default.jfc` 推荐用于持续录制，通常开销低于 1%；`profile.jfc` 会记录更多事件，适用于短时性能分析，不能套用同样的开销保证。
 
 ### 6.1 JFR 分析实战
 
@@ -356,12 +356,17 @@ jstat -gcutil <pid> 1000
 **第二步：找到老年代中的大对象**
 
 ```bash
-# 生成 dump（线上慎用，会触发 Full GC）
+# 生成包含全部对象的堆快照；不使用 live，避免为筛选存活对象而强制 Full GC
 jmap -dump:format=b,file=heap.hprof <pid>
 
-# 或用 Arthas（不触发 GC）
+# 只保留存活对象时可加 live，但会先执行 Full GC，线上慎用
+# jmap -dump:live,format=b,file=heap-live.hprof <pid>
+
+# 或用 Arthas 导出默认全堆快照
 heapdump /tmp/heap.hprof
 ```
+
+无论使用哪种工具，导出过程都可能触发安全点停顿并产生大量磁盘 I/O。线上应预留足够的磁盘空间，优先在低峰期执行。
 
 **第三步：MAT 分析**
 

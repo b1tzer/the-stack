@@ -349,7 +349,7 @@ private static final Semaphore DB_SEMAPHORE = new Semaphore(4); // 小于 carrie
 | `VirtualThreadPinned` 持续时间 > 1s | 严重 pinning | JFR |
 | carrier 数 = pinning VT 数 | 可能已死锁 | `-Djdk.virtualThreadScheduler.parallelism` 或 Semaphore |
 
-**教训：** 虚拟线程的 pinning 和死锁在常规监控中完全不可见。唯一的诊断窗口是 JFR 的 `jdk.VirtualThreadPinned` 事件。迁移到虚拟线程前，必须确保第三方库不依赖 `synchronized` + 阻塞操作的组合。
+**教训：** 常规 CPU 和线程监控可能看不到虚拟线程的调度问题。`Thread.dump_to_file` 用于查看当前虚拟线程状态，JFR 的 `jdk.VirtualThreadPinned` 事件用于记录 pinning 发生及持续时间，两者用途不同。迁移到虚拟线程前，还必须确保第三方库不依赖 `synchronized` 与阻塞操作的组合。
 
 ## 8. 案例 8：RestTemplate 无超时 —— 一个下游挂了 10 秒，整个系统瘫痪 3 小时
 

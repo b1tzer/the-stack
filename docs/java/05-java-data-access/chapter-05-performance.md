@@ -330,7 +330,7 @@ public void goodExample() {
 | 内存溢出 | 大量数据一次性加载 | 查看 ResultSet 大小 | 分页查询或流式处理 |
 | 数据库 CPU 高 | 缺少索引 | 慢查询日志 + EXPLAIN | 补索引或改写 SQL |
 | 数据库 CPU 高 | 复杂 JOIN | 执行计划分析 | 拆分查询或反范式化 |
-| 连接抖动 | maxLifetime 太大 | 数据库 wait_timeout 对比 | 设为 wait_timeout 的 80% |
+| 连接抖动 | maxLifetime 超过基础设施限制 | 对比数据库、代理和 NAT 的空闲/连接超时 | 比最早触发的限制提前数秒 |
 
 ## 5. 数据访问最佳实践总结
 

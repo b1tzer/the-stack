@@ -96,7 +96,7 @@ server:
     max-connections: 10   # ← 谁加的？为什么是 10？
 ```
 
-Tomcat NIO 模式下 `max-connections` 默认值是 10000。这里被改成了 10。而前方的 Nginx 配置了 `worker_processes 16`——16 个 worker 每个维护一个到后端的 keep-alive 长连接，理论上 16 个连接就超过了 Tomcat 的上限 10。
+本案例使用 Tomcat 8.5，NIO 模式下 `max-connections` 默认值是 10000；Tomcat 9.0.122、10.0.27 和 10.1.59 的默认值则是 8192。无论采用哪个默认值，这里被显式改成了 10。而前方的 Nginx 配置了 `worker_processes 16`——16 个 worker 每个维护一个到后端的 keep-alive 长连接，理论上 16 个连接就超过了 Tomcat 的上限 10。
 
 但正常运行时为什么没有立即出问题？因为 keep-alive 连接不是始终占满的——有些连接处于空闲状态，Tomcat 的连接计数在请求处理间隙会短暂回落。所以不是所有请求都超时，而是间歇性的：当第 11 个 Nginx worker 恰好发起请求时，Acceptor 被阻塞，新连接只能在 `backlog` 队列里等，等的时间就是某个现有连接释放的间隔——最多可以长达 keep-alive timeout（默认 20 秒）。
 
@@ -123,7 +123,8 @@ Acceptor 线程**只负责 `accept()` 新连接**。它不处理请求，不解�
 
 ```yaml
 # 删除 server.tomcat.max-connections: 10
-# Tomcat NIO 模式下默认 10000，足够绝大多数场景使用
+# 删除后使用部署版本的默认值；Tomcat 8.5 NIO 为 10000，
+# Tomcat 9.0.122、10.0.27、10.1.59 为 8192
 ```
 
 或者，如果确实有连接数管控需求，至少要知道基准：
@@ -131,7 +132,7 @@ Acceptor 线程**只负责 `accept()` 新连接**。它不处理请求，不解�
 ```yaml
 server:
   tomcat:
-    max-connections: 10000     # 连接数上限（默认 10000）
+    max-connections: 8192      # 连接数上限；默认值随 Tomcat 版本变化
     accept-count: 200           # backlog 队列长度（默认 100）
     max-threads: 200            # worker 线程数（默认 200）
 ```

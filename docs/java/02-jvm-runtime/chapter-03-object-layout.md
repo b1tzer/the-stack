@@ -36,7 +36,7 @@ Mark Word 是对象头的核心，存储了：
 
 - **hashCode**：对象的哈希码（首次调用 `hashCode()` 时计算并存储）
 - **GC 年龄**：对象经历的 Minor GC 次数（达到阈值晋升老年代）
-- **锁状态**：无锁、偏向锁、轻量级锁、重量级锁
+- **锁状态**：无锁、偏向锁（启用时）、轻量级锁、重量级锁
 
 ### 2.2 Klass Pointer
 
@@ -48,7 +48,7 @@ Mark Word 是对象头的核心，存储了：
 
 Mark Word 不是固定不变的。当对象被同步操作时，Mark Word 的内容会根据锁状态变化。
 
-64 位 JVM 中 Mark Word 的位布局：
+64 位 HotSpot JVM 在**启用偏向锁**时的 Mark Word 位布局：
 
 ```txt
 64 位 Mark Word（共 64 bit）:
@@ -69,18 +69,17 @@ hash: 对象的 hashCode (首次调用 hashCode() 时计算并存储)
 
 | 锁状态 | Mark Word 内容 | 标志位 |
 | :-- | :-- | :-- |
-| 无锁 | hashCode + 分代年龄 | 01 |
-| 偏向锁 | ThreadID(54bit) + Epoch(2bit) + 分代年龄 | 01 |
+| 无锁（默认） | hashCode + 分代年龄，`biased_lock=0` | 01 |
+| 偏向锁（启用时） | ThreadID(54bit) + Epoch(2bit) + 分代年龄 | 01 |
 | 轻量级锁 | 指向栈中锁记录的指针 | 00 |
 | 重量级锁 | 指向 Monitor 的指针 | 10 |
 | GC 标记 | 空 | 11 |
 
-这是第三卷 `synchronized` 锁升级机制的关键前置知识。锁升级的过程就是 Mark Word 内容不断变化的过程：
+这是第三卷 `synchronized` 锁升级机制的关键前置知识。是否经过偏向锁取决于 JVM 版本和配置；JDK 17 已默认关闭 `-XX:+UseBiasedLocking`。Mark Word 的变化过程如下：
 
 ```txt
-无锁 → 偏向锁（同一线程反复获取）
-     → 轻量级锁（CAS 竞争失败但自旋可期）
-     → 重量级锁（自旋超时，依赖 OS Mutex）
+启用偏向锁：无锁 → 偏向锁 → 轻量级锁 → 重量级锁
+JDK 17 默认：无锁 → 轻量级锁 → 重量级锁
 ```
 
 ### 3.1 Monitor（监视器）
@@ -137,7 +136,7 @@ synchronized (obj) {
 }
 ```
 
-Monitor 是重量级的数据结构，依赖操作系统的 Mutex 实现。这就是为什么 JVM 默认不直接使用它，而是先尝试偏向锁和轻量级锁——只有在竞争激烈时才升级到重量级锁。第三卷 `synchronized` 章节会详细展开锁升级的完整过程。
+Monitor 是重量级的数据结构，依赖操作系统的 Mutex 实现。JVM 通常先尝试轻量级锁；启用偏向锁的配置才会先经过偏向锁阶段，只有竞争持续存在时才升级到重量级锁。第三卷 `synchronized` 章节会详细展开锁升级的完整过程。
 
 ## 4. TLAB（线程本地分配缓冲）
 

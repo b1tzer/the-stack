@@ -429,7 +429,7 @@ Linux 内核会自动在 `tcp_rmem` / `tcp_wmem` 范围内调整缓冲区大小�
 | `SO_RCVBUF` | `setReceiveBufferSize(n)` | `setReceiveBufferSize(n)` | `setOption(SO_RCVBUF, n)` |
 | `SO_SNDBUF` | — | `setSendBufferSize(n)` | `setOption(SO_SNDBUF, n)` |
 
-> **注意**：Socket 选项必须在 `connect()` / `bind()` **之前**设置，部分选项在连接建立后修改不生效。
+> **注意**：Channel 列依赖具体实现。`SO_KEEPALIVE` 和 `TCP_NODELAY` 只能在已连接的 `SocketChannel` 上设置；JDK 21 的 `ServerSocketChannel` 仅支持 `SO_RCVBUF` 和 `SO_REUSEADDR`。`SO_REUSEADDR`、`SO_REUSEPORT` 应在 `bind()` 前设置；其他选项能否在连接后修改，需查阅对应 API 和目标操作系统的行为。
 
 ## 5. 动手：用 Java Socket 跑通一个 Echo
 
