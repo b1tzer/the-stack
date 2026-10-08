@@ -1,5 +1,7 @@
 # WebSocket 实时通信
 
+> 本页聚焦 Spring 的握手配置、STOMP、认证、集群和生产参数。协议帧、原生 Java 实现和通用保活策略见 [长连接协议与保活](../../java/04-java-network/chapter-09-long-connection-protocols.md)。
+
 > HTTP 是请求-响应模型，服务端无法主动向客户端推送消息。聊天、实时通知、股票行情这些场景需要双向通信。WebSocket 在单个 TCP 连接上提供全双工通信，Spring 通过 STOMP 协议把它从原始字节流提升为应用级消息通信。
 
 ## 1. 为什么需要 WebSocket

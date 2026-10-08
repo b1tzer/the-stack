@@ -10,7 +10,7 @@ hero:
   actions:
     - theme: brand
       text: 开始阅读
-      link: /java/01-java-language/chapter-01-type-system
+      link: /java/
     - theme: alt
       text: 在 GitHub 上查看
       link: https://github.com/b1tzer/the-stack
@@ -19,7 +19,7 @@ features:
   - icon: ☕
     title: Java
     details: 语言基石、JVM、并发编程、网络编程与数据访问。
-    link: /java/01-java-language/chapter-01-type-system
+    link: /java/
   - icon: 🍃
     title: Spring
     details: IoC 容器与 AOP、Spring MVC、Boot、数据集成与微服务。

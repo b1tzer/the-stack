@@ -1,10 +1,10 @@
-# Java Web 通信模型：Servlet 到 Spring MVC
+# Servlet 与 Tomcat 请求链
 
 > 你每天写 `@GetMapping("/{id}")`，然后 `return userService.findById(id)`。哪天线上出了 Bug，日志里只有 `Broken pipe` 或 `Connection reset by peer`，连在哪一层报的都不确定。这一章从你每天在写的 Controller 出发，一层层往回拆：Spring MVC → Servlet → Tomcat → Socket——拆到你看到一个 HTTP 请求从网卡到代码的完整路径为止。
 
-> **📖 阅读建议**：如果你正在排查问题，可以从遇到的那层开始读。只想理解 Spring MVC 原理的，§7.1 和 §7.2 已经足够。§7.3（Servlet 规范）是 Java Web 的基石，建议过一遍生命周期和 Filter 链。§7.4-§7.6 是 Tomcat 内部机制——时间不够可跳过，等你线上遇到 `Broken pipe` 或线程池满的时候再回来查。
+> **📖 阅读建议**：如果你正在排查问题，可以从遇到的那层开始读。先确认请求是否进入 Servlet，再检查 Tomcat 的 Container 路由、Connector 协议解析和 Worker 线程状态。
 
-## 1. 第 1 层拆开：Spring MVC 框架
+## 1. 请求如何进入 Java Web 层
 
 这是你最熟悉的代码。每天写几十遍，闭着眼都能敲出来：
 
@@ -47,160 +47,15 @@ public class UserController {
       TCP 连接 → read()/write() → 四次挥手
 ```
 
-下面从你每天写的代码出发，一层层往回拆。
+下面从 Servlet 规范开始，一层层向下拆。
 
-### 1.1 doDispatch 内部：一个请求的七步处理
+Spring MVC 的 `doDispatch()`、参数解析和返回值序列化属于框架层，见 [Spring MVC](../../spring/03-web/chapter-01-spring-mvc.md)。本章从 `DispatcherServlet` 之下的 Servlet 规范开始，继续向下拆到 Tomcat 和 Socket。
 
-`DispatcherServlet` 的核心调度逻辑在 `doDispatch()` 里。它把一次 HTTP 请求切成了七个步骤：
-
-```java
-protected void doDispatch(HttpServletRequest request,
-                          HttpServletResponse response) throws Exception {
-
-    // 第1步：找到谁处理这个 URL
-    HandlerExecutionChain chain = getHandler(request);
-
-    // 第2步：找到能执行这个 Handler 的适配器
-    HandlerAdapter adapter = getHandlerAdapter(chain.getHandler());
-
-    // 第3步：执行所有拦截器的 preHandle
-    if (!chain.applyPreHandle(request, response)) return;
-
-    // 第4步：通过适配器调用 Controller 方法
-    ModelAndView mv = adapter.handle(request, response, chain.getHandler());
-
-    // 第5步：执行所有拦截器的 postHandle
-    chain.applyPostHandle(request, response, mv);
-
-    // 第6步：处理返回值（视图渲染或 JSON 序列化）
-    processDispatchResult(request, response, chain, mv);
-}
-```
-
-```txt
-HTTP Request (GET /api/users/1)
-│
-▼ doDispatch()
-│
-├─ ① getHandler(request)
-│   遍历所有 HandlerMapping，用 URL 匹配 Controller 方法
-│   返回: HandlerMethod(UserController.getUser) + 拦截器链
-│
-├─ ② getHandlerAdapter(handler)
-│   找到能执行 @RequestMapping 方法的适配器
-│   返回: RequestMappingHandlerAdapter
-│
-├─ ③ applyPreHandle()
-│   依次执行拦截器：CorsInterceptor → AuthInterceptor → LoggerInterceptor
-│   任一个返回 false 就中断，404 或 403
-│
-├─ ④ adapter.handle(request, response, handler)
-│   真正调用 Controller 方法（详见 §7.1.2 + §7.1.3）
-│
-├─ ⑤ applyPostHandle()
-│   Controller 执行完后，拦截器的后处理
-│
-└─ ⑥ processDispatchResult()
-     处理返回值
-     @ResponseBody → Jackson → JSON → 写入 response.getOutputStream()
-     ModelAndView  → ViewResolver → 渲染页面
-```
-
-### 1.2 参数是怎么到你方法里的
-
-`HandlerAdapter.handle()` 调用 Controller 方法前，要先解决一个问题：方法的参数去哪拿？
-
-Spring MVC 用一组 `HandlerMethodArgumentResolver` 串起来处理。每个 Resolver 处理一种特定类型的参数：
-
-```txt
-@RequestMapping("/{id}")  ← URL 模板
-GET /api/users/1?trace=true   ← 实际请求
-
-Controller 方法参数:
-  @PathVariable Long id          → 从 URL 路径提取 → 1
-  @RequestParam boolean trace    → 从 Query String 提取 → true
-  @RequestBody CreateUserDTO dto → 从请求体 JSON 反序列化
-  HttpServletRequest request     → 直接注入原始请求对象
-  @RequestHeader("Authorization") String token → 从请求头提取
-```
-
-**每类注解对应一个 Resolver**：
-
-| 注解 | Resolver | 数据来源 |
-| :-- | :-- | :-- |
-| `@PathVariable` | `PathVariableMethodArgumentResolver` | URL 模板变量 |
-| `@RequestParam` | `RequestParamMethodArgumentResolver` | Query String 或 Form Data |
-| `@RequestBody` | `RequestResponseBodyMethodProcessor` | 请求体（JSON/XML） |
-| `@RequestHeader` | `RequestHeaderMethodArgumentResolver` | HTTP 请求头 |
-| `HttpServletRequest` | `ServletRequestMethodArgumentResolver` | 原始 Servlet 请求对象 |
-| （无注解，自定义类型） | `ServletModelAttributeMethodProcessor` | 参数名匹配 Query String |
-
-每个 Resolver 的判断逻辑很直接：
-```java
-// PathVariableMethodArgumentResolver.supportsParameter():
-// 检查参数上有没有 @PathVariable 注解 → 有就交给它处理 → 没有就跳过，让下一个 Resolver 判断
-```
-
-`@RequestBody` 稍微特殊——它还涉及 `HttpMessageConverter`（Jackson），§7.1.3 一起讲。
-
-### 1.3 返回值是怎么变成 JSON 的
-
-Controller 方法执行完毕，返回一个 Java 对象。下一个问题是：怎么把这个对象变成浏览器能读的 JSON？
-
-Spring MVC 用 `HandlerMethodReturnValueHandler` 处理返回值，用 `HttpMessageConverter` 执行序列化：
-
-```txt
-Controller 方法 return User{id:1, name:"张三"}
-│
-▼ 选 ReturnValueHandler
-├─ 返回值上有 @ResponseBody 注解
-│   → RequestResponseBodyMethodProcessor
-│     → MappingJackson2HttpMessageConverter
-│       → Jackson: User 对象 → {"id":1,"name":"张三"}
-│       → 写入 HttpServletResponse.getOutputStream()
-│
-└─ 返回 ModelAndView（传统页面渲染，JSON API 已很少用）
-    → ViewResolver → JSP/Thymeleaf → HTML
-```
-
-**序列化链路中有两个常见坑**：
-
-```java
-// ❌ 循环引用导致 StackOverflowError
-class Order { User user; }
-class User { List<Order> orders; }  // 你查 Order，它带 User，User 又带 Orders...
-
-// ✅ 用 @JsonIgnore 或 @JsonManagedReference/@JsonBackReference 打断循环
-
-// ❌ 日期返回时间戳而非可读格式
-class User { LocalDateTime createdAt; }  // → "createdAt": 1680000000.000000000
-
-// ✅ 全局配置 Jackson 日期格式
-// spring.jackson.date-format=yyyy-MM-dd HH:mm:ss
-// 或字段上加 @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-```
-
-## 2. 第 2 层拆开：DispatcherServlet 本身就是 Servlet
-
-`DispatcherServlet` 不是魔法——它自己就是一个 `HttpServlet`，继承了 `HttpServlet → HttpServletBean → FrameworkServlet → DispatcherServlet`：
-
-```java
-// 继承链
-HttpServlet
-  └── HttpServletBean
-        └── FrameworkServlet
-              └── DispatcherServlet  ← 你的请求最终落在这里
-```
-
-Spring Boot 的 `@SpringBootApplication` 自动创建了一个 `DispatcherServlet` 实例，注册到 Tomcat，拦截所有 `/*` 路径。接下来发生的都是标准的 Servlet 流程：Tomcat 把 HTTP 请求包装成 `HttpServletRequest`，调用 `DispatcherServlet.service()`。`service()` 内部按 HTTP 方法分发：`GET → doGet()`、`POST → doPost()`。`FrameworkServlet` 重写了所有 `doXxx()`，全部汇入 `processRequest()`，最终进入 `doDispatch()`。
-
-这就是 `DispatcherServlet` 的全部职责——它是 Spring MVC 和 Servlet 规范之间的适配层。往下，全是 Servlet 规范的地盘。
-
-## 3. 第 3 层拆开：Servlet 规范——Java Web 的基石
+## 2. Servlet 规范：Java Web 的执行契约
 
 Spring MVC 再强大，也跑在 Servlet 之上。Spring Boot 只是替你做了 Servlet 注册和配置，底层运行的仍然是 `javax.servlet` 定义的接口和生命周期。
 
-### 3.1 HttpServlet 如何按 HTTP 方法分发
+### 2.1 HttpServlet 如何按 HTTP 方法分发
 
 所有 Servlet 的老祖宗是 `javax.servlet.http.HttpServlet`。它做的事情非常朴实——按 HTTP 方法分派到不同的处理方法：
 
@@ -225,7 +80,7 @@ public abstract class HttpServlet extends GenericServlet {
 
 这就是你熟悉的 `@GetMapping`、`@PostMapping` 注解的**物理起源**——Spring 把这个 `switch-case` 变成了注解层级的声明式分发。
 
-### 3.2 Servlet 生命周期：什么时候创建，怎么被销毁
+### 2.2 Servlet 生命周期：什么时候创建，怎么被销毁
 
 每个 Servlet 在 Tomcat 中的一生只有三个时刻：
 
@@ -259,7 +114,7 @@ public class BadServlet extends HttpServlet {
 // ✅ 请求状态放在方法局部变量或 ThreadLocal 中
 ```
 
-### 3.3 Filter 链：请求在进入 Servlet 之前经过了什么
+### 2.3 Filter 链：请求在进入 Servlet 之前经过了什么
 
 Filter 运行在 Servlet 之前——它比 Spring 的拦截器更底层，在 Tomcat 调用 `Servlet.service()` 之前就已经执行了。每个请求都要穿过 Filter 链才能到达 Servlet：
 
@@ -286,7 +141,7 @@ HTTP Request 到达 Tomcat
 | 配置方式 | `@WebFilter` 或 `FilterRegistrationBean` | `addInterceptors()` 或 `@Configuration` |
 | 典型用途 | 编码、CORS、安全认证 | 日志、权限校验、性能统计 |
 
-### 3.4 Servlet 异步：请求不一定占着线程
+### 2.4 Servlet 异步：请求不一定占着线程
 
 上面的章节描绘了"一个请求 = 一条 Worker 线程"的完整路径。大多数场景这个模式没问题——Response 写完，线程归还。但有一种情况例外：
 
@@ -326,11 +181,11 @@ public Callable<Order> getOrder(@PathVariable Long id) {
 
 Spring WebFlux 把这个思路做到了极致——全链路非阻塞。但代价是代码从命令式变成响应式（`Mono`/`Flux`），调试和排查都更难。JDK 21 虚拟线程提供了一个折中方案：代码保持同步写法，但底层线程由 JVM 调度而非 OS 调度，阻塞不再占用昂贵的 OS 线程。
 
-## 4. 第 4 层拆开：Tomcat Container——请求在容器内部怎么路由
+## 3. Tomcat Container：请求如何在容器内路由
 
 Filter 和 Servlet 处理的都是 `HttpServletRequest` 对象。这个对象穿过 Filter 链后，要路由到具体的 Servlet。做这件事的是 **Container**。
 
-### 4.1 Connector 造对象，Container 做路由
+### 3.1 Connector 创建对象，Container 负责路由
 
 Tomcat 的架构只分两块，职责边界非常清晰：
 
@@ -350,9 +205,9 @@ Tomcat 的架构只分两块，职责边界非常清晰：
 └─────────────────────────────────────────────────────────────┘
 ```
 
-Connector 只负责"通信"（把字节流变成 Java 对象），Container 只负责"路由"（把 Request 交给正确的 Servlet）。两者互不越界。这一节只看 Container——Connector 在 §7.5。
+Connector 只负责"通信"（把字节流变成 Java 对象），Container 只负责"路由"（把 Request 交给正确的 Servlet）。两者互不越界。这一节只看 Container，Connector 见下文“Tomcat Connector：字节流如何变成 HttpServletRequest”。
 
-### 4.2 四层嵌套，逐级找到你的 Servlet
+### 3.2 四层嵌套，逐级找到你的 Servlet
 
 Container 按四层嵌套结构，逐级找到该处理这个请求的 Servlet：
 
@@ -387,7 +242,7 @@ engine.invoke(request, response)
 
 四层中每一层都是一个独立的阀门（Valve），可以插入自定义逻辑。最常见的扩展点是 Context 层——Spring Boot 就是在这里注册 `DispatcherServlet` 的。
 
-## 5. 第 5 层拆开：Tomcat Connector——字节流怎么变成 HttpServletRequest
+## 4. Tomcat Connector：字节流如何变成 HttpServletRequest
 
 Container 处理的都是 `HttpServletRequest`。但这个对象不是凭空生成的——Tomcat 先要从 Socket 里读出原始 HTTP 字节流，解析请求行、请求头、请求体，才能构造成一个对象。
 
@@ -421,11 +276,11 @@ Socket 收到字节流
 
 **三道工序各司其职**：Endpoint 管连接（NIO Selector、accept、read/write），ProtocolHandler 管协议（HTTP/1.1、HTTP/2、AJP），CoyoteAdapter 管适配（把 Tomcat 内部对象翻译成 Servlet 规范对象）。改 I/O 模型只改 Endpoint，改协议支持只改 ProtocolHandler，互不影响。
 
-## 6. 第 6 层拆开：Tomcat 的线程模型——你的请求在谁手上
+## 5. Tomcat 线程模型：请求在哪个线程上执行
 
 你已经知道请求经过 DispatcherServlet → Servlet 规范 → Container 路由 → Connector 解析。但还有一个关键问题：**整个链路中，代码在哪个线程上执行的？谁创建了这个线程？一个线程能同时处理几个请求？**
 
-### 6.1 NioEndpoint 的三线程模型
+### 5.1 NioEndpoint 的三线程模型
 
 Tomcat 8.5 起全面改用 NIO。网络 I/O 的"等待"和业务逻辑的"执行"分离到三个线程角色上：
 
@@ -458,7 +313,7 @@ Tomcat 8.5 起全面改用 NIO。网络 I/O 的"等待"和业务逻辑的"执行
 
 **关键事实**：你的 Controller 代码永远在 Worker 线程池的某条线程上执行。Worker 线程总数由 `maxThreads` 决定——一旦所有 Worker 都在忙，新请求就会被 Tomcat 排进 `acceptCount` 队列等待。排队排满了，连接直接拒绝。
 
-### 6.2 线程池参数：线上排查的核心依据
+### 5.2 线程池参数：线上排查的核心依据
 
 ```xml
 <!-- server.xml 配置 -->
@@ -492,7 +347,7 @@ jstack <pid> | grep -A 2 "BLOCKED" | sort | uniq -c | sort -rn | head -10
 
 排查线程池问题的逻辑很简单：工人都在忙 → 看他们在忙什么 → 如果都在等下游，调大超时或加缓存；如果确实计算太慢，加机器。
 
-### 6.3 BIO 时代 vs NIO 时代
+### 5.3 BIO 时代 vs NIO 时代
 
 Tomcat 7 默认用 BIO。BIO 模型下，**一个连接占一条线程**，不管这条连接上有没有数据传输。1000 个空闲长连接 = 1000 条线程白白挂着（~1GB 栈内存）。NIO 把这个绑定打破了——连接归 Acceptor/Poller 管，只有"有数据可读"的请求才分配 Worker 线程：
 
@@ -503,7 +358,7 @@ NIO (Tomcat 8.5+):  连接 ←→ Worker =  N:1  → 10000 连接，只有活跃
 
 > 这就是为什么 Tomcat 8.0 是最后一个支持 BIO 的版本，8.5 直接砍掉了 BIO Connector。
 
-## 7. 第 7 层：全链路回看
+## 6. 全链路回看
 
 把七层抽象串起来，一个请求的完整旅程：
 

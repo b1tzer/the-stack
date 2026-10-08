@@ -1,5 +1,7 @@
 # ORM 深入：对象与关系如何转换
 
+> 本页比较 ORM 的映射机制和常见性能问题。Spring Data JPA 的 Repository、Specification 和审计用法见 [Spring Data JPA](../../spring/04-data-access/chapter-03-jpa.md)。
+
 > 你写了个 `save(user)`，控制台却打了 3 条 SQL：INSERT、UPDATE 外键、再 INSERT 关联表。你以为 ORM 就是自动映射，但它在幕后做的远比你想的多——脏检查、延迟加载、缓存策略、N+1 问题。本章拆解 ORM 框架在"自动"与"可控"之间到底做了什么取舍。
 
 ## 1. MyBatis vs Hibernate/JPA

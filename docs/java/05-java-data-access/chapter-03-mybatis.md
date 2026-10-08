@@ -1,5 +1,7 @@
 # MyBatis：SQL 映射框架
 
+> 本页解释 MyBatis 的核心流程、动态代理、缓存和插件机制。Spring Boot 中的配置、事务集成与 `SqlSessionTemplate` 用法见 [MyBatis 集成](../../spring/04-data-access/chapter-02-mybatis-integration.md)。
+
 > 当 JDBC 的模板代码淹没了业务逻辑，当手写 ResultSet 映射成为机械劳动，我们是否可以找到一种方式——**让开发者专注于 SQL 本身，而把繁琐的映射和连接管理交给框架**？MyBatis 的答案是：SQL 由你写，映射由我做。
 
 ## 1. 为什么需要 MyBatis
@@ -587,4 +589,3 @@ MyBatis 的动态 SQL 并非简单的字符串拼接。它使用 **OGNL 表达�
 | 二级缓存 | Mapper 级别，跨 SqlSession，需手动开启 |
 | 插件机制 | 责任链模式，四个拦截点，分页/监控/加密的基础设施 |
 | 动态 SQL | OGNL + SqlNode 树，一个 XML 适配多种查询条件 |
-

@@ -1,6 +1,6 @@
 # JVM 运行时数据区
 
-> `-Xmx4g` 设完，你以为安全了。`docker stats` 一看，容器 RSS 已经 7.2G——堆才用了 3G。多出来的 4.2G 在哪？线程栈（一个线程 1MB，800 个就是 800MB）、Metaspace（类元数据不归堆管）、CodeCache（JIT 编译后的机器码）、堆外内存（Direct Buffer）。OOM Killer 杀进程时你在查堆——方向错了。JVM 内存不只堆和栈，记不住这一点，线上排查必走弯路。
+> `-Xmx4g` 设完，你以为安全了。`docker stats` 一看，容器 RSS 已经 7.2G——堆才用了 3G。多出来的 4.2G 在哪？线程栈（一个线程 1MB，800 个就是 800MB）、Metaspace（类元数据不归堆管）、CodeCache（JIT 编译后的机器码）、堆外内存（Direct Buffer）。OOM Killer 杀进程时你在查堆——方向错了。JVM 内存不只堆和栈，记不住这一点，线上排查必走弯路。堆外内存不在本页的规范数据区范围内，分配与释放机制见 [堆外内存](./chapter-06-offheap-memory.md)。
 
 ## 1. 全景图
 
@@ -440,110 +440,9 @@ jstat -gcmetacapacity <pid>
 jcmd <pid> VM.metaspace
 ```
 
-## 7. 堆外内存：JVM 规范之外的灰色地带
+## 7. StringTable：字符串驻留的代价
 
-堆外内存（Direct Memory）不在 JVM 运行时数据区的规范中，但在实际工程中经常成为 OOM 的元凶。
-
-### 7.1 什么是堆外内存
-
-普通 Java 对象分配在堆上，由 GC 自动回收。堆外内存是通过 `Unsafe.allocateMemory()` 或 `ByteBuffer.allocateDirect()` 分配的**本地内存**，不受 GC 直接管理。
-
-```txt
-普通对象:
-  new byte[1024]  →  分配在 Eden  →  GC 自动回收
-
-堆外内存:
-  ByteBuffer.allocateDirect(1024)  →  分配在本地内存  →  DirectByteBuffer 被 GC 时通过 Cleaner 释放
-```
-
-Cleaner 的工作原理基于**虚引用（PhantomReference）**——[第四章](./chapter-04-gc)会详细讲四种引用类型，这里先建立直觉：
-
-```txt
-DirectByteBuffer（堆上，小对象）
-  └─ 持有一个 Cleaner 对象
-       └─ Cleaner 关联一个虚引用 + 回收动作（释放本地内存）
-
-当 DirectByteBuffer 不再被任何 GC Root 引用 → GC 回收它
-  → 虚引用被放入 ReferenceQueue
-  → Cleaner 线程从队列中取出虚引用
-  → 执行回收动作：Unsafe.freeMemory(address)
-```
-
-关键点：堆外内存的释放依赖 GC 触发。如果 GC 不频繁，大量 DirectByteBuffer 堆积在堆中，对应的堆外内存就一直不释放。这就是为什么 NIO 框架（如 Netty）会主动管理堆外内存，而不是依赖 GC。
-
-### 7.2 为什么 NIO 需要堆外内存
-
-传统的 I/O 操作需要在用户空间（堆）和内核空间之间拷贝数据：
-
-```txt
-传统 I/O（两次拷贝）:
-  磁盘 → 内核缓冲区 → 用户缓冲区(堆) → 内核缓冲区 → 网卡
-         read()         write()
-```
-
-使用堆外内存后，可以避免一次用户空间的拷贝：
-
-```txt
-Direct I/O（一次拷贝）:
-  磁盘 → 内核缓冲区(直接内存) → 网卡
-         sendfile() 系统调用
-```
-
-这就是 Netty 和 NIO 使用 `DirectByteBuffer` 的原因——减少一次内存拷贝，对高吞吐场景意义重大。
-
-### 7.3 堆外内存的坑
-
-**坑一：不受 Xmx 限制**
-
-`-Xmx4g` 只限制堆大小。堆外内存另外计算。一个应用可能堆只用了 2GB，但堆外内存用了 3GB，总内存 5GB。
-
-```bash
-# 查看总内存使用
-jcmd <pid> VM.native_memory summary
-
-# 输出示例:
-#                    Total:  reserved=6GB  +  committed=4GB
-#        Java Heap (reserved=2GB, committed=2GB)
-#        Class (reserved=1GB, committed=500MB)
-#        Thread (reserved=500MB, committed=500MB)
-#        Internal (reserved=1GB, committed=1GB)   ← 这里包含堆外内存
-```
-
-**坑二：回收延迟**
-
-`DirectByteBuffer` 本身是堆上的小对象，但它关联的堆外内存可能很大。只有当 `DirectByteBuffer` 被 GC 回收时，堆外内存才通过 Cleaner 释放。如果 GC 不频繁，堆外内存可能长时间不释放。
-
-```java
-// 危险：在循环中分配大量 DirectByteBuffer
-while (true) {
-    ByteBuffer buf = ByteBuffer.allocateDirect(10 * 1024 * 1024);  // 10MB
-    // buf 在下次 GC 前不会被释放
-    // 如果循环速度快于 GC → 堆外内存持续增长 → OOM
-}
-```
-
-**坑三：监控困难**
-
-`jstat` 看不到堆外内存。`jmap -histo` 只能看到堆上的 `DirectByteBuffer` 对象（很小），看不到实际分配的堆外内存大小。
-
-```bash
-# 正确的监控方式
-jcmd <pid> VM.native_memory summary
-
-# 或者使用 NMT（Native Memory Tracking）
-# 启动时加参数: -XX:NativeMemoryTracking=summary
-```
-
-### 7.4 堆外内存参数
-
-| 参数 | 说明 |
-| :-- | :-- |
-| `-XX:MaxDirectMemorySize=256m` | 限制堆外内存大小（默认等于 `-Xmx`） |
-| `-XX:NativeMemoryTracking=summary` | 开启 NMT 监控 |
-
-## 8. StringTable：字符串驻留的代价
-
-### 8.1 字符串常量池的工作原理
+### 7.1 字符串常量池的工作原理
 
 ```java
 String a = "hello";
@@ -555,7 +454,7 @@ JVM 维护一个**字符串常量池（StringTable）**，存储所有字面量�
 
 StringTable 本质上是一个 HashTable，通过字符串的 hashCode 定位桶。`-XX:StringTableSize` 控制桶数（默认 60013），桶数越多，哈希冲突越少，查找越快。
 
-### 8.2 intern() 的行为与陷阱
+### 7.2 intern() 的行为与陷阱
 
 ```java
 String a = new String("hello");  // 堆上新对象（a ≠ "hello"）
@@ -574,7 +473,7 @@ b == c  // true
 
 JDK 7+ 的变化意味着：`intern()` 不再往永久代塞数据，而是把堆中已有对象的引用记录到 StringTable。这大幅降低了 `intern()` 的内存风险。
 
-### 8.3 G1 字符串去重
+### 7.3 G1 字符串去重
 
 G1 收集器提供了一个专门的字符串去重优化：`-XX:+UseStringDeduplication`。它的原理是在 GC 过程中，发现多个 `String` 对象的 `char[]` 内容相同，就让它们共享同一个 `char[]`。
 
@@ -592,7 +491,7 @@ G1 收集器提供了一个专门的字符串去重优化：`-XX:+UseStringDedup
 
 适合场景：应用中存在大量重复字符串（如从数据库读取的枚举值、城市名、状态码），且使用 G1 收集器。
 
-### 8.4 intern() 的正确使用场景
+### 7.4 intern() 的正确使用场景
 
 **适合：大量重复字符串的去重**
 
@@ -614,7 +513,7 @@ for (int i = 0; i < 1_000_000; i++) {
 }
 ```
 
-### 8.5 字符串常量池的内存模型
+### 7.5 字符串常量池的内存模型
 
 ```txt
 堆（Heap）
@@ -638,4 +537,4 @@ for (int i = 0; i < 1_000_000; i++) {
 
 如果没找到，创建一个新的 String 对象，放入 StringTable。
 
-> 本章覆盖了 JVM 各内存区域的职责、内部工作方式和出问题时的表现。下一章将深入对象模型——从 `new` 到对象消亡，覆盖对象创建、内存布局、Mark Word，这些知识直接服务于 GC（[第四章](./chapter-04-gc)）和并发锁（第三卷 synchronized）。
+> 本章覆盖了 JVM 各内存区域的职责、内部工作方式和出问题时的表现。[HotSpot 对象布局](./chapter-03-object-layout.md)继续解释对象创建、字段排列和 Mark Word，这些知识直接服务于 [GC](./chapter-04-gc.md) 和并发锁。

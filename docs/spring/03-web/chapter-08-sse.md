@@ -1,5 +1,7 @@
 # Server-Sent Events (SSE)
 
+> 本页聚焦 Spring MVC、WebFlux 和客户端接入。SSE 协议原理、原生 Java 实现与 WebSocket 对比见 [长连接协议与保活](../../java/04-java-network/chapter-09-long-connection-protocols.md)。
+
 > 很多场景只需要服务端单向推送：进度条、通知、实时日志流。SSE 基于 HTTP 长连接，比 WebSocket 轻量，浏览器原生支持自动重连。类比：广播电台——电台单向发射信号，你打开收音机就能听。你不能通过收音机跟电台说话，想说话得打电话（HTTP 请求）。
 
 ## 1. SSE 是什么
@@ -508,4 +510,3 @@ emitter.send(imageBytes);  // 会抛异常
 emitter.send(Base64.getEncoder().encodeToString(imageBytes));
 // 或者用 WebSocket 传输二进制
 ```
-

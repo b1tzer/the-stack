@@ -1,4 +1,4 @@
-# 线上排查与诊断
+# JVM 线上诊断
 
 > 凌晨三点 CPU 100% 告警。`top` 看 pid → `jstack` dump 线程栈 → 几百个 `RUNNABLE` 线程栈顶全是 `HashMap.get()`——你以为找到了根因。但再看 `vmstat`，context switch 每秒才 200——不是业务线程在烧 CPU，是所有线程在 `while(true)` 自旋等锁。排查方向从「慢查询」180 度转向「锁竞争」——只差一个 `vmstat`。线上排障最怕的不是查不到，是查对了方向但看了错误的数据。
 
@@ -399,26 +399,30 @@ jad com.example.ReportGenerator
 
 以上内容是诊断工具和方法的速查手册。以下案例集从生产环境真实事故中精挑细选，每个案例都包含完整的事故背景、排查链路、根因定位和修复验证：
 
-- **[案例集（一）：CPU 飙升与内存泄漏实战](./chapter-06-diagnostics-cases-part1)**
+- **[CPU 与内存泄漏案例](./chapter-02-cases-cpu-memory.md)**
   - 正则灾难性回溯（ReDoS）—— 一行正则烧了银行的支付网关
   - 本地缓存无上限 —— 把整个订单表装进内存
   - CGLIB 动态代理未复用 —— 爆掉 256MB Metaspace
 
-- **[案例集（二）：GC 调优与综合诊断实战](./chapter-06-diagnostics-cases-part2)**
+- **[GC、资源与综合诊断案例](./chapter-03-cases-gc-resources.md)**
   - 背靠背 Full GC —— 双十一订单服务的蜕变
   - 连接池耗尽 —— 200 个线程全卡在 getConnection()
   - Arthas + JFR 综合诊断 —— 接口从 50ms 变成 3000ms 的全链路追踪
 
-- **[案例集（三）：低内存低 CPU 下的 GC 疑难杂症](./chapter-06-diagnostics-cases-part3)**
+- **[GC 延迟与分配异常案例](./chapter-04-cases-gc-latency.md)**
   - 支付回调的 Young GC 风暴 —— 日志拼接每秒造 300MB 垃圾
   - 索引热更新的 Survivor 复制风暴 —— 500MB 对象在新生代来回搬家
   - SafePoint 同步延迟 —— GC 只花了 0.14 秒，线程却停了 2.26 秒
   - Log4j2 + PretenureSizeThreshold 组合技 —— 2MB 的"日志炸弹"直冲老年代
 
-> 第二卷到此结束。从字节码 → 类加载 → 内存模型 → 对象模型 → GC → JIT → 线上排查，读者已经建立起 Java 代码从源码到机器执行的完整心智模型。
+- **[TCP 层与堆外内存案例](./chapter-05-cases-offheap-network.md)**
+  - Tomcat LimitLatch —— 连接数配置导致服务间歇性假死
+  - Netty 直接内存泄漏 —— 堆正常但容器被 OOMKilled
+
+> JVM 诊断专题到此结束。从字节码 → 类加载 → 运行时数据区 → 对象布局 → GC → JIT → 线上排查，读者已经建立起 Java 代码从源码到机器执行的完整心智模型。
 >
-> **与后续卷的连接：**
+> **与后续专题的连接：**
 >
-> - 第三卷并发：AQS 依赖对象头和 Monitor，synchronized 依赖 Mark Word 锁升级
-> - 第六卷 Spring：反射依赖 Class 元数据，CGLIB 依赖字节码操作
-> - 第七卷性能：GC 调优依赖分代模型和收集器特性的理解
+> - Java 并发：AQS 依赖对象头和 Monitor，synchronized 依赖 Mark Word 锁升级
+> - Spring：反射依赖 Class 元数据，CGLIB 依赖字节码操作
+> - 性能优化：GC 调优依赖分代模型和收集器特性的理解

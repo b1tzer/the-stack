@@ -2,7 +2,7 @@
 
 > 系统卡住了：CPU 空转、请求堆积、Thread Dump 里满屏 `BLOCKED`。这些症状分别对应什么问题？定位到哪一行代码才算根因？找到之后怎么修才不是治标？
 
-并发 bug 的痛点不是"难修"，而是"难复现"。测试环境稳跑一整月，上生产两分钟就死锁。原因是并发问题的暴露时机取决于线程调度的微秒级顺序——你写的每一行同步代码，都是在替 JVM 和 CPU 打赌。**这一章不重讲通用 Thread Dump 语法**（那是第二卷第 6 章的内容），只讨论并发场景下的特化视角：症状识别、根因定位、修复策略。
+并发 bug 的痛点不是"难修"，而是"难复现"。测试环境稳跑一整月，上生产两分钟就死锁。原因是并发问题的暴露时机取决于线程调度的微秒级顺序——你写的每一行同步代码，都是在替 JVM 和 CPU 打赌。**这一章不重讲通用 Thread Dump 语法**（见 [JVM 线上诊断](../01-jvm/chapter-01-jvm-diagnostics.md)），只讨论并发场景下的特化视角：症状识别、根因定位、修复策略。
 
 ## 1. 并发问题的四种典型症状
 
@@ -223,7 +223,7 @@ try {
 
 ## 3. Thread Dump 的并发特化视角
 
-Thread Dump 的通用获取方式（`jstack` / `jcmd Thread.print` / `kill -3` / VisualVM）和格式解析，已经在第二卷第 6 章"线上排查与诊断"讲过。**这一节只讨论并发场景下的读法**——同样一份 dump，通用视角看的是"哪条线程栈异常"，并发视角看的是"整体的锁竞争与阻塞形态"。
+Thread Dump 的通用获取方式（`jstack` / `jcmd Thread.print` / `kill -3` / VisualVM）和格式解析，已经在 [JVM 线上诊断](../01-jvm/chapter-01-jvm-diagnostics.md)中讲过。**这一节只讨论并发场景下的读法**——同样一份 dump，通用视角看的是"哪条线程栈异常"，并发视角看的是"整体的锁竞争与阻塞形态"。
 
 ### 3.1 线程状态分布：先看总盘
 
@@ -625,12 +625,13 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 
 以上内容是并发诊断方法、工具和优化策略的速查手册。以下案例集从生产环境真实事故中精挑细选，每个案例都包含完整的事故背景、排查链路、根因定位和修复验证：
 
-- **[案例集（一）：死锁、线程池与并发集合实战](./chapter-14-diagnostics-cases.md#case-1)**
-  - [双十一的死锁 —— 订单与库存的锁序之战](./chapter-14-diagnostics-cases.md#case-1)
-  - [618 的雪崩 —— CallerRunsPolicy 把 Tomcat 线程全拖下水](./chapter-14-diagnostics-cases.md#case-2)
-  - [ConcurrentHashMap 去重失效 —— 可变 key 的 hashCode 陷阱](./chapter-14-diagnostics-cases.md#case-3)
+- **[锁与执行模型案例](./chapter-02-cases-lock-execution.md)**
+  - [双十一的死锁 —— 订单与库存的锁序之战](./chapter-02-cases-lock-execution.md#case-1)
+  - [618 的雪崩 —— CallerRunsPolicy 把 Tomcat 线程全拖下水](./chapter-02-cases-lock-execution.md#case-2)
+  - [ConcurrentHashMap 去重失效 —— 可变 key 的 hashCode 陷阱](./chapter-02-cases-lock-execution.md#case-3)
+  - [虚拟线程 pinning —— 同步锁让 5000 QPS 跌到 800](./chapter-02-cases-lock-execution.md#case-4)
 
-- **[案例集（二）：虚拟线程与综合并发诊断实战](./chapter-14-diagnostics-cases.md#case-4)**
-  - [虚拟线程 pinning —— 同步锁让 5000 QPS 跌到 800](./chapter-14-diagnostics-cases.md#case-4)
-  - [CompletableFuture + DiscardPolicy —— 静默丢弃任务导致永久阻塞](./chapter-14-diagnostics-cases.md#case-5)
-  - [线程池 core = max + 无界队列 —— maxPoolSize 永远不触发](./chapter-14-diagnostics-cases.md#case-6)
+- **[异步任务与下游超时案例](./chapter-03-cases-async-timeout.md)**
+  - [CompletableFuture + DiscardPolicy —— 静默丢弃任务导致永久阻塞](./chapter-03-cases-async-timeout.md#case-5)
+  - [线程池 core = max + 无界队列 —— maxPoolSize 永远不触发](./chapter-03-cases-async-timeout.md#case-6)
+  - [虚拟线程静默死锁与下游无超时](./chapter-03-cases-async-timeout.md)

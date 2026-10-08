@@ -382,9 +382,9 @@ graph TD
 | [第10章](./chapter-10-thread-pool) | 线程池 | 线程太多怎么办？如何复用和管理线程？ | [第8章](./chapter-08-locksupport-aqs)、[第9章](./chapter-09-concurrent-collections) |
 | [第11章](./chapter-11-async-model) | 异步编程 | 从 `Future` 到 `CompletableFuture`，有哪些异步范式？ | [第10章](./chapter-10-thread-pool) |
 | [第12章](./chapter-12-virtual-thread) | 虚拟线程与结构化并发 | JDK 21 之后，并发模型如何被重塑？ | [第2章](./chapter-02-thread-model)、[第10章](./chapter-10-thread-pool)、[第11章](./chapter-11-async-model) |
-| [第13章](./chapter-13-diagnostics) | 诊断与优化 | 并发问题怎么查？性能怎么优化？ | 全部前置 |
+| [诊断与案例](../06-diagnostics/02-concurrency/chapter-01-concurrency-diagnostics.md) | 并发诊断与优化 | 并发问题怎么查？性能怎么优化？ | 全部前置 |
 
-**学习建议：** [第2章](./chapter-02-thread-model) 至 [第4章](./chapter-04-jmm) 是地基，必须扎实。[第5章](./chapter-05-volatile) 至 [第8章](./chapter-08-locksupport-aqs) 是核心同步机制，理解它们才能读懂 `java.util.concurrent` 的源码。[第9章](./chapter-09-concurrent-collections) 至 [第10章](./chapter-10-thread-pool) 是应用层，日常开发中用得最多。[第11章](./chapter-11-async-model) 至 [第12章](./chapter-12-virtual-thread) 是范式扩展，[第13章](./chapter-13-diagnostics)是工程实践。
+**学习建议：** [第2章](./chapter-02-thread-model) 至 [第4章](./chapter-04-jmm) 是地基，必须扎实。[第5章](./chapter-05-volatile) 至 [第8章](./chapter-08-locksupport-aqs) 是核心同步机制，理解它们才能读懂 `java.util.concurrent` 的源码。[第9章](./chapter-09-concurrent-collections) 至 [第10章](./chapter-10-thread-pool) 是应用层，日常开发中用得最多。[第11章](./chapter-11-async-model) 至 [第12章](./chapter-12-virtual-thread) 是范式扩展，[诊断与案例](../06-diagnostics/02-concurrency/chapter-01-concurrency-diagnostics.md)用于把机制用于生产排查。
 
 ### 4.3 Java 并发的历史里程碑
 

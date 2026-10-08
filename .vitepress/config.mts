@@ -43,7 +43,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
     },
     
     nav: [
-      { text: 'Java', link: '/java/01-java-language/chapter-01-type-system', activeMatch: '^/java/' },
+      { text: 'Java', link: '/java/', activeMatch: '^/java/' },
       { text: 'Spring', link: '/spring/01-core/chapter-01-spring-overview', activeMatch: '^/spring/' },
       { text: 'Redis', link: '/redis/01-data-model/chapter-01-overview', activeMatch: '^/redis/' },
       {
@@ -457,78 +457,156 @@ export default withOpenInEditor(withMermaid(defineConfig({
       ],
       '/java/': [
         {
-          text: 'Java 语言',
-          collapsed: true,
+          text: '总览',
           items: [
-            { text: '类型系统', link: '/java/01-java-language/chapter-01-type-system' },
-            { text: '面向对象', link: '/java/01-java-language/chapter-02-oop' },
-            { text: '泛型', link: '/java/01-java-language/chapter-03-generics' },
-            { text: '注解', link: '/java/01-java-language/chapter-04-annotation' },
-            { text: 'Lambda 与函数式编程', link: '/java/01-java-language/chapter-05-lambda' },
+            { text: 'Java 知识库', link: '/java/' },
           ],
         },
         {
-          text: 'JVM Runtime',
+          text: 'Java 语言核心',
+          collapsed: true,
+          items: [
+            { text: '为什么是 Java', link: '/java/01-java-language/chapter-01-why-java' },
+            { text: '类型系统', link: '/java/01-java-language/chapter-02-type-system' },
+            { text: '对象与值语义', link: '/java/01-java-language/chapter-03-object-values' },
+            { text: '面向对象', link: '/java/01-java-language/chapter-04-oop' },
+            { text: '泛型', link: '/java/01-java-language/chapter-05-generics' },
+            { text: '注解', link: '/java/01-java-language/chapter-06-annotation' },
+            { text: 'Lambda 与函数式编程', link: '/java/01-java-language/chapter-07-lambda' },
+          ],
+        },
+        {
+          text: 'JVM 运行时',
           collapsed: true,
           items: [
             { text: '字节码到 ClassLoader', link: '/java/02-jvm-runtime/chapter-01-bytecode-classloading' },
-            { text: 'JVM 运行时数据区', link: '/java/02-jvm-runtime/chapter-02-memory-model' },
-            { text: '对象模型', link: '/java/02-jvm-runtime/chapter-03-object-model' },
+            { text: 'JVM 运行时数据区', link: '/java/02-jvm-runtime/chapter-02-runtime-data-areas' },
+            { text: 'HotSpot 对象布局', link: '/java/02-jvm-runtime/chapter-03-object-layout' },
             { text: '垃圾回收', link: '/java/02-jvm-runtime/chapter-04-gc' },
             { text: 'JIT 编译', link: '/java/02-jvm-runtime/chapter-05-jit' },
-            { text: '线上排查与诊断', link: '/java/02-jvm-runtime/chapter-06-diagnostics' },
-            { text: '案例集（一）：CPU 飙升与内存泄漏', link: '/java/02-jvm-runtime/chapter-06-diagnostics-cases-part1' },
-            { text: '案例集（二）：低内存低 CPU 的 GC 疑难', link: '/java/02-jvm-runtime/chapter-06-diagnostics-cases-part2' },
-            { text: '案例集（三）：低内存低 CPU 的 GC 疑难', link: '/java/02-jvm-runtime/chapter-06-diagnostics-cases-part3' },
-            { text: '案例集（四）：TCP 层与堆外内存', link: '/java/02-jvm-runtime/chapter-06-diagnostics-cases-part4' },
+            { text: '堆外内存', link: '/java/02-jvm-runtime/chapter-06-offheap-memory' },
           ],
         },
         {
           text: 'Java 并发',
           collapsed: true,
           items: [
-            { text: '并发的本质', link: '/java/03-java-concurrency/chapter-01-why-concurrency' },
-            { text: '线程：Java 的执行单元', link: '/java/03-java-concurrency/chapter-02-thread-model' },
-            { text: '线程封闭：ThreadLocal', link: '/java/03-java-concurrency/chapter-03-threadlocal' },
-            { text: 'Java 内存模型（JMM）', link: '/java/03-java-concurrency/chapter-04-jmm' },
-            { text: 'volatile', link: '/java/03-java-concurrency/chapter-05-volatile' },
-            { text: 'synchronized', link: '/java/03-java-concurrency/chapter-06-synchronized' },
-            { text: 'CAS 与原子类', link: '/java/03-java-concurrency/chapter-07-cas-atomic' },
-            { text: 'LockSupport 与 AQS', link: '/java/03-java-concurrency/chapter-08-locksupport-aqs' },
-            { text: '并发集合', link: '/java/03-java-concurrency/chapter-09-concurrent-collections' },
-            { text: '线程池', link: '/java/03-java-concurrency/chapter-10-thread-pool' },
-            { text: '异步编程', link: '/java/03-java-concurrency/chapter-11-async-model' },
-            { text: '虚拟线程与结构化并发', link: '/java/03-java-concurrency/chapter-12-virtual-thread' },
-            { text: '诊断与优化', link: '/java/03-java-concurrency/chapter-13-diagnostics' },
-            { text: '案例集：死锁、线程池与虚拟线程', link: '/java/03-java-concurrency/chapter-14-diagnostics-cases' },
+            {
+              text: '基础模型',
+              items: [
+                { text: '并发的本质', link: '/java/03-java-concurrency/chapter-01-why-concurrency' },
+                { text: '线程：Java 的执行单元', link: '/java/03-java-concurrency/chapter-02-thread-model' },
+                { text: '线程封闭：ThreadLocal', link: '/java/03-java-concurrency/chapter-03-threadlocal' },
+                { text: 'Java 内存模型（JMM）', link: '/java/03-java-concurrency/chapter-04-jmm' },
+              ],
+            },
+            {
+              text: '同步机制',
+              items: [
+                { text: 'volatile', link: '/java/03-java-concurrency/chapter-05-volatile' },
+                { text: 'synchronized', link: '/java/03-java-concurrency/chapter-06-synchronized' },
+                { text: 'CAS 与原子类', link: '/java/03-java-concurrency/chapter-07-cas-atomic' },
+                { text: 'LockSupport 与 AQS', link: '/java/03-java-concurrency/chapter-08-locksupport-aqs' },
+              ],
+            },
+            {
+              text: '并发工具',
+              items: [
+                { text: '并发集合', link: '/java/03-java-concurrency/chapter-09-concurrent-collections' },
+                { text: '线程池', link: '/java/03-java-concurrency/chapter-10-thread-pool' },
+                { text: '异步编程', link: '/java/03-java-concurrency/chapter-11-async-model' },
+                { text: '虚拟线程与结构化并发', link: '/java/03-java-concurrency/chapter-12-virtual-thread' },
+              ],
+            },
           ],
         },
         {
           text: '网络与通信',
           collapsed: true,
           items: [
-            { text: '网络通信基础', link: '/java/04-java-network/chapter-01-network-basics' },
-            { text: 'TCP/IP', link: '/java/04-java-network/chapter-02-tcp-ip' },
-            { text: 'Socket 编程', link: '/java/04-java-network/chapter-03-socket' },
-            { text: 'Java NIO', link: '/java/04-java-network/chapter-04-nio' },
-            { text: 'Netty', link: '/java/04-java-network/chapter-05-netty' },
-            { text: 'HTTP 协议', link: '/java/04-java-network/chapter-06-http' },
-            { text: 'Servlet 到 Spring MVC', link: '/java/04-java-network/chapter-07-servlet-springmvc' },
-            { text: 'RPC 与微服务', link: '/java/04-java-network/chapter-08-rpc' },
-            { text: '长连接与实时通信', link: '/java/04-java-network/chapter-09-long-connection' },
-            { text: '网络诊断', link: '/java/04-java-network/chapter-10-network-diagnostics' },
+            {
+              text: '协议基础',
+              items: [
+                { text: '网络通信基础', link: '/java/04-java-network/chapter-01-network-basics' },
+                { text: 'TCP/IP', link: '/java/04-java-network/chapter-02-tcp-ip' },
+                { text: 'HTTP 协议', link: '/java/04-java-network/chapter-06-http' },
+              ],
+            },
+            {
+              text: 'Java I/O 与框架',
+              items: [
+                { text: 'Socket 编程', link: '/java/04-java-network/chapter-03-socket' },
+                { text: 'Java NIO', link: '/java/04-java-network/chapter-04-nio' },
+                { text: 'Netty', link: '/java/04-java-network/chapter-05-netty' },
+              ],
+            },
+            {
+              text: 'Web、RPC 与长连接',
+              items: [
+                { text: 'Servlet 与 Tomcat 请求链', link: '/java/04-java-network/chapter-07-servlet-tomcat-request-chain' },
+                { text: 'RPC 与微服务', link: '/java/04-java-network/chapter-08-rpc' },
+                { text: '长连接协议与保活', link: '/java/04-java-network/chapter-09-long-connection-protocols' },
+                { text: 'IM 系统设计', link: '/java/04-java-network/chapter-10-im-system-design' },
+              ],
+            },
           ],
         },
         {
           text: '数据访问与持久化',
           collapsed: true,
           items: [
-            { text: '持久化思想', link: '/java/05-java-data-access/chapter-01-persistence-thought' },
-            { text: 'JDBC', link: '/java/05-java-data-access/chapter-02-jdbc' },
-            { text: 'MyBatis', link: '/java/05-java-data-access/chapter-03-mybatis' },
-            { text: 'ORM 深入', link: '/java/05-java-data-access/chapter-04-orm-deep' },
-            { text: '性能优化', link: '/java/05-java-data-access/chapter-05-performance' },
-            { text: 'Druid 连接池', link: '/java/05-java-data-access/chapter-06-druid' },
+            {
+              text: '概念与接口',
+              items: [
+                { text: '持久化思想', link: '/java/05-java-data-access/chapter-01-persistence-thought' },
+                { text: 'JDBC', link: '/java/05-java-data-access/chapter-02-jdbc' },
+              ],
+            },
+            {
+              text: '映射框架',
+              items: [
+                { text: 'MyBatis', link: '/java/05-java-data-access/chapter-03-mybatis' },
+                { text: 'ORM 深入', link: '/java/05-java-data-access/chapter-04-orm-deep' },
+              ],
+            },
+            {
+              text: '性能与连接池',
+              items: [
+                { text: '性能优化', link: '/java/05-java-data-access/chapter-05-performance' },
+                { text: 'Druid 连接池', link: '/java/05-java-data-access/chapter-06-druid' },
+              ],
+            },
+          ],
+        },
+        {
+          text: '诊断与案例',
+          collapsed: true,
+          items: [
+            { text: '诊断总览', link: '/java/06-diagnostics/' },
+            {
+              text: 'JVM',
+              items: [
+                { text: 'JVM 线上诊断', link: '/java/06-diagnostics/01-jvm/chapter-01-jvm-diagnostics' },
+                { text: 'CPU 与内存泄漏案例', link: '/java/06-diagnostics/01-jvm/chapter-02-cases-cpu-memory' },
+                { text: 'GC、资源与综合诊断案例', link: '/java/06-diagnostics/01-jvm/chapter-03-cases-gc-resources' },
+                { text: 'GC 延迟与分配异常案例', link: '/java/06-diagnostics/01-jvm/chapter-04-cases-gc-latency' },
+                { text: 'TCP 层与堆外内存案例', link: '/java/06-diagnostics/01-jvm/chapter-05-cases-offheap-network' },
+              ]
+            },
+            {
+              text: '并发',
+              items: [
+                { text: '并发诊断与优化', link: '/java/06-diagnostics/02-concurrency/chapter-01-concurrency-diagnostics' },
+                { text: '锁与执行模型案例', link: '/java/06-diagnostics/02-concurrency/chapter-02-cases-lock-execution' },
+                { text: '异步任务与下游超时案例', link: '/java/06-diagnostics/02-concurrency/chapter-03-cases-async-timeout' },
+              ]
+            },
+            {
+              text: '网络',
+              items: [
+                { text: '网络性能分析与故障排查', link: '/java/06-diagnostics/03-network/chapter-01-network-diagnostics' },
+              ]
+            },
           ],
         },
       ],

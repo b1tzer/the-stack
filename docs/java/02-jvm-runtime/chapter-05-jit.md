@@ -195,7 +195,7 @@ parser.parse(data);  // invokeinterface
 
 ## 4. 逃逸分析与相关优化
 
-[第三章](./chapter-03-object-model)对象模型已经介绍了逃逸分析的概念。JIT 编译器利用逃逸分析的结果做三种优化：
+[HotSpot 对象布局](./chapter-03-object-layout.md)已经介绍了逃逸分析的概念。JIT 编译器利用逃逸分析的结果做三种优化：
 
 ### 4.1 栈上分配
 
@@ -390,7 +390,7 @@ JIT 在生产环境中可能引发三类隐蔽问题：
 
 ### 7.1 问题一：CodeCache 满
 
-JIT 编译的机器码存储在 CodeCache 中（[第二章](./chapter-02-memory-model) 2.4 节）。如果 CodeCache 满了（默认 240MB~480MB），JVM 会停止 JIT 编译，所有代码退回解释执行。
+JIT 编译的机器码存储在 CodeCache 中（[JVM 运行时数据区](./chapter-02-runtime-data-areas.md) 6.2 节）。如果 CodeCache 满了（默认 240MB~480MB），JVM 会停止 JIT 编译，所有代码退回解释执行。
 
 **症状：** 服务运行一段时间后突然变慢，没有 OOM、没有 GC 问题、CPU 使用率正常——但响应时间骤增。
 

@@ -412,7 +412,8 @@ HttpResponse<String> response = client.send(request,
 | [第4章](./chapter-04-nio) | Java NIO 深入 | Channel、Buffer、Selector 的底层原理是什么？ |
 | [第5章](./chapter-05-netty) | Netty 框架 | 为什么 Netty 是 Java 网络编程的事实标准？ |
 | [第6章](./chapter-06-http) | HTTP 协议与 Java 实现 | HTTP/1.1、HTTP/2、HTTP/3 有什么区别？ |
-| [第7章](./chapter-07-servlet-springmvc) | RPC 与序列化 | 微服务之间怎么高效通信？Protobuf 比 JSON 快在哪？ |
-| [第8章](./chapter-08-rpc) | WebSocket 与实时通信 | 如何实现服务端主动推送？ |
-| [第9章](./chapter-09-long-connection) | 网络安全 | TLS/SSL 如何保护通信安全？ |
-| [第10章](./chapter-10-network-diagnostics) | 网络编程实战 | 生产环境中的网络问题排查与调优 |
+| [第7章](./chapter-07-servlet-tomcat-request-chain.md) | Servlet 与 Tomcat 请求链 | HTTP 请求如何从字节流进入应用代码？ |
+| [第8章](./chapter-08-rpc.md) | RPC 与微服务通信 | 一次远程调用经过哪些层次？ |
+| [第9章](./chapter-09-long-connection-protocols.md) | 长连接协议与保活 | WebSocket、SSE 和心跳如何维持通信？ |
+| [第10章](./chapter-10-im-system-design.md) | IM 系统设计 | 在线状态、消息路由和顺序如何保证？ |
+| [网络诊断](../06-diagnostics/03-network/chapter-01-network-diagnostics.md) | 网络排查 | 如何用抓包、线程和连接状态定位故障？ |

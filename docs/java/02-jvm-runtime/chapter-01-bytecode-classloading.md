@@ -166,7 +166,7 @@ javac com/example/Calculator.java
 javap -c com/example/Calculator.class    # -c 显示方法体，-v 显示全部元数据
 ```
 
-对 §3.2 的 `add` 方法，`javap -c` 输出的就是那四条指令。加上 `-v` 还能看到 §2 讲的常量池、`max_stack`、`max_locals`。这个工具后面会反复用到：[第五章](./chapter-05-jit.md)看 JIT 内联决策，[第六章](./chapter-06-diagnostics.md)反编译确认线上跑的代码版本。
+对 §3.2 的 `add` 方法，`javap -c` 输出的就是那四条指令。加上 `-v` 还能看到 §2 讲的常量池、`max_stack`、`max_locals`。这个工具后面会反复用到：[JIT 编译](./chapter-05-jit.md)解释内联决策，[JVM 线上诊断](../06-diagnostics/01-jvm/chapter-01-jvm-diagnostics.md)用它确认线上运行的代码版本。
 
 ## 4. .class 如何进入 JVM
 
