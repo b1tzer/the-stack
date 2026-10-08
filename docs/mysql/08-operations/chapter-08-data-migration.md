@@ -1,5 +1,7 @@
 # 数据迁移
 
+> 本页处理跨实例、跨版本和上云迁移；数据同步依赖的复制机制见[复制与架构](../07-replication-and-architecture/chapter-01-binlog-replication.md)。
+
 ## 1. 迁移工具
 
 ### 1.1 mysqldump

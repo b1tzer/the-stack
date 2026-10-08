@@ -78,7 +78,7 @@ innodb_old_blocks_time = 1000   # old 区停留阈值，单位毫秒
 - 如果业务有定期的批量扫描（报表、备份），可以临时把 `innodb_old_blocks_time` 调大（如 5000），让扫描进来的页更难晋升，进一步保护热数据；扫描结束再调回。
 :::
 
-![Buffer Pool 分区 LRU：新页落入 old 区，停留超过 1 秒再访问才晋升 young 区](/mysql/02-innodb-internals-chapter-02-buffer-pool.svg)
+![Buffer Pool 分区 LRU：新页落入 old 区，停留超过 1 秒再访问才晋升 young 区](/mysql/02-storage-and-logging-chapter-02-buffer-pool.svg)
 
 ## 3. 容量评估与配置运维
 

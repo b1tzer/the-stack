@@ -1,5 +1,7 @@
 # MySQL 数据类型速查
 
+> 类型选择会影响存储、比较和索引行为；字符集与排序规则见[字符集与排序规则](../01-basics/chapter-03-charset-collation.md)，索引设计见[索引设计](../03-index/chapter-02-index-design.md)。
+
 ## 数值类型
 
 | 类型 | 字节 | 范围 / 说明 |

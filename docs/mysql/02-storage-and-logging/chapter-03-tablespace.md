@@ -27,7 +27,7 @@ innodb_file_per_table = 1
 
 一个 `.ibd` 文件不是把数据平铺写进去，而是按「段 → 区 → 页」三级组织：
 
-![表空间三级结构：段 → 区 → 页](/mysql/02-innodb-internals-chapter-03-tablespace.svg)
+![表空间三级结构：段 → 区 → 页](/mysql/02-storage-and-logging-chapter-03-tablespace.svg)
 
 三个层级各解决一个问题：
 
@@ -59,7 +59,7 @@ WHERE table_schema = 'mydb' AND data_free > 0
 ORDER BY data_free DESC;
 ```
 
-![表空间碎片：空闲页散布与行空洞](/mysql/02-innodb-internals-chapter-03-tablespace-fragmentation.svg)
+![表空间碎片：空闲页散布与行空洞](/mysql/02-storage-and-logging-chapter-03-tablespace-fragmentation.svg)
 
 碎片主要有三个来源：
 

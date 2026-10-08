@@ -1,6 +1,12 @@
 # 性能调优实战
 
-## 1. 参数优化
+> 调优先建立基线、定位瓶颈，再一次只改一个变量。参数只是执行诊断后的手段，不应作为默认起点；完整诊断路径见[性能调优流程](#9-性能调优流程)。
+
+## 1. 先确定目标与基线
+
+先记录响应时间、吞吐、错误率、连接数、慢查询和资源使用情况，再判断瓶颈位于 SQL、锁、内存、I/O 还是架构。每个调整都应保留修改前后的同一组指标，无法验证收益的配置不进入基线。
+
+## 2. 参数优化
 
 ```ini
 # Buffer Pool
@@ -20,7 +26,7 @@ tmp_table_size = 64M
 max_heap_table_size = 64M
 ```
 
-## 2. 慢查询分析
+## 3. 慢查询分析
 
 ```sql
 -- 开启慢查询日志
@@ -31,7 +37,9 @@ SET GLOBAL long_query_time = 1;
 SELECT * FROM sys.statements_with_runtimes_in_95th_percentile LIMIT 10;
 ```
 
-## 3. 索引优化
+## 4. 索引优化
+
+索引是否被正确选择先看[执行计划](../04-query-optimization/chapter-01-execution-plan.md)；设计与治理见[索引优化与治理](../03-index/chapter-04-index-optimization.md)。
 
 ```sql
 -- 查看索引使用情况
@@ -39,14 +47,14 @@ SELECT * FROM sys.schema_unused_indexes;
 SELECT * FROM sys.schema_redundant_indexes;
 ```
 
-## 4. 架构优化
+## 5. 架构优化
 
 - 读写分离
 - 缓存（Redis）
 - 分库分表
 - 数据归档
 
-## 5. 内存优化
+## 6. 内存优化
 
 ```ini
 # Buffer Pool 配置
@@ -67,7 +75,7 @@ max_heap_table_size = 64M              # 内存表最大大小
 thread_cache_size = 64                 # 线程复用
 ```
 
-## 6. IO 优化
+## 7. I/O 优化
 
 ```ini
 # InnoDB IO 配置
@@ -86,7 +94,7 @@ innodb_flush_log_at_trx_commit = 1     # 1=安全, 2=性能
 sync_binlog = 1                        # 1=安全, 100=性能
 ```
 
-## 7. 应用层优化
+## 8. 应用层优化
 
 ```java
 // 1. 使用批量操作
@@ -129,7 +137,7 @@ public class UserService {
 List<User> findByIdAfter(@Param("lastId") Long lastId, Pageable pageable);
 ```
 
-## 8. 性能调优流程
+## 9. 性能调优流程
 
 ```
 1. 识别瓶颈
@@ -157,7 +165,7 @@ List<User> findByIdAfter(@Param("lastId") Long lastId, Pageable pageable);
    └── 回滚方案
 ```
 
-## 9. 调优工具箱
+## 10. 调优工具箱
 
 | 工具 | 用途 |
 | :-- | :-- |
@@ -172,7 +180,7 @@ List<User> findByIdAfter(@Param("lastId") Long lastId, Pageable pageable);
 | Grafana + Prometheus | 监控可视化 |
 | PMM (Percona) | 数据库监控平台 |
 
-## 10. 最佳实践总结
+## 11. 最佳实践总结
 
 | 层级 | 优化手段 | 效果 |
 | :-- | :-- | :-- |
@@ -181,4 +189,3 @@ List<User> findByIdAfter(@Param("lastId") Long lastId, Pageable pageable);
 | 参数层 | Buffer Pool、刷盘策略、连接池 | 2-10 倍 |
 | 架构层 | 读写分离、缓存、分库分表 | 10-100 倍 |
 | 硬件层 | SSD、更大内存、更快 CPU | 2-5 倍 |
-

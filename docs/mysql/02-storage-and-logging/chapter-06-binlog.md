@@ -13,7 +13,7 @@ Binlog（Binary Log，二进制日志）是 **MySQL Server 层**产生的日志�
 
 与 Redo Log 的定位差异见 [Redo Log §5.2](./chapter-04-redo-log.md#redo-vs-binlog)，这里先记住一句：**Redo Log 是 InnoDB 的私有账本，管崩溃恢复；Binlog 是 Server 层的公共账本，管复制与恢复。**
 
-![Binlog：Server 层逻辑日志 — 是什么 / 怎么做到 / 干什么](/mysql/02-innodb-internals-chapter-06-binlog.svg)
+![Binlog：Server 层逻辑日志 — 是什么 / 怎么做到 / 干什么](/mysql/02-storage-and-logging-chapter-06-binlog.svg)
 
 ### 1.2 三种记录格式：同一个事务，三种记法
 

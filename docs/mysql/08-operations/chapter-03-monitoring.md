@@ -1,5 +1,7 @@
 # 监控
 
+> 本页处理指标采集、告警和慢查询分析；`information_schema`、`performance_schema` 与 `sys` 的工作机制见[内省与可观测性](./chapter-02-observability.md)。
+
 ## 1. 内置监控工具
 
 ### 1.1 Performance Schema

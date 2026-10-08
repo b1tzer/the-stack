@@ -1,5 +1,7 @@
 # MySQL 参数速查
 
+> 本页只记录参数用途、默认值和适用范围。参数背后的机制与调优方法见[性能调优](../10-practice/chapter-05-performance-tuning.md)和[首次生产部署](../10-practice/chapter-03-first-production.md)。
+
 > 生产环境最常调整的参数，按功能分类。所有参数均基于 MySQL 8.0。
 
 ## 连接与线程

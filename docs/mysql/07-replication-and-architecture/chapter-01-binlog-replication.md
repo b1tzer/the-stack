@@ -52,7 +52,7 @@ SHOW SLAVE STATUS\G
 
 ### 2.2 复制原理详解
 
-复制的数据来源是 Binlog，其记录格式与事件类型见 [Binlog](../02-innodb-internals/chapter-06-binlog.md)。
+复制的数据来源是 Binlog，其记录格式与事件类型见 [Binlog](../02-storage-and-logging/chapter-06-binlog.md)。
 
 ```
 主库：

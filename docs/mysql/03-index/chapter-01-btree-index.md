@@ -211,7 +211,7 @@ CREATE TABLE orders (
 
 - `INSERT`：主键索引和每个二级索引都要插入一条；
 - `UPDATE`：改到索引列时，等于在旧位置删除、在新位置插入；
-- `DELETE`：主键索引和每个二级索引都要删除（InnoDB 的 `DELETE` 实际是标记删除，真正的清理交给 Purge，见 [Undo Log](../02-innodb-internals/chapter-05-undo-log.md)）。
+- `DELETE`：主键索引和每个二级索引都要删除（InnoDB 的 `DELETE` 实际是标记删除，真正的清理交给 Purge，见 [Undo Log](../02-storage-and-logging/chapter-05-undo-log.md)）。
 
 ```sql
 -- 查看某张表的索引占用空间

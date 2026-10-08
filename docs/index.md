@@ -34,8 +34,8 @@ features:
     link: /postgresql/01-pg-unique/chapter-01-pg-overview
   - icon: 🐬
     title: MySQL
-    details: InnoDB 内核、索引、事务与锁、查询优化与高可用。
-    link: /mysql/01-basics/chapter-01-overview
+    details: 存储与日志、索引与查询、事务锁、复制与生产运维。
+    link: /mysql/
   - icon: 📨
     title: Kafka
     details: 整体架构、消息可靠性、高吞吐原理、存储机制与 KRaft。

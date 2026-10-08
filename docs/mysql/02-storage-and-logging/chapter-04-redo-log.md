@@ -53,7 +53,7 @@ WAL 规则只有一条：**在把数据页刷盘之前，必须先把它对应�
 
 ## 2. 日志的物理基础
 
-![Redo Log 全景：Log Buffer / 循环缓冲 / 记录格式 / LSN / Checkpoint](/mysql/02-innodb-internals-chapter-04-redo-log.svg)
+![Redo Log 全景：Log Buffer / 循环缓冲 / 记录格式 / LSN / Checkpoint](/mysql/02-storage-and-logging-chapter-04-redo-log.svg)
 
 ### 2.1 LSN：Redo Log 的坐标轴
 

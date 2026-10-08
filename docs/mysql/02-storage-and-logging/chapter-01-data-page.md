@@ -8,7 +8,7 @@
 
 InnoDB 的磁盘 I/O 单位是**页（Page）**，默认 16KB。所有数据——表数据、索引、Undo Log——都组织成 16KB 的页。一个数据页从前往后分成七段：
 
-![InnoDB 数据页物理布局（16KB）](/mysql/02-innodb-internals-chapter-01-data-page.svg)
+![InnoDB 数据页物理布局（16KB）](/mysql/02-storage-and-logging-chapter-01-data-page.svg)
 
 两段「头」和一段「尾」是元数据，`User Records` 与 `Page Directory` 从两端向中间增长，中间夹着的 `Free Space` 是尚可使用的空间。理解这一页内部怎么组织记录、怎么快速定位，是理解 B+ 树性能的最后一块拼图——[B+ 树索引](../03-index/chapter-01-btree-index.md) 讲的是「页与页之间怎么导航」，这一章讲「页内部怎么定位一条记录」。
 
@@ -89,7 +89,7 @@ slot 数组本身按主键**严格有序**（因为每组最后一条是递增�
 | `Compact` | 大字段前 768 字节留在本页，其余进溢出页 | 768 字节 + 20 字节指针 |
 | `Dynamic`（8.0 默认） | 大字段整体进溢出页 | 仅 20 字节指针 |
 
-![行溢出：大字段如何存进溢出页](/mysql/02-innodb-internals-chapter-01-data-page-row-overflow.svg)
+![行溢出：大字段如何存进溢出页](/mysql/02-storage-and-logging-chapter-01-data-page-row-overflow.svg)
 
 `Dynamic` 把「留 768 字节」这一步也去掉了，只在本页存 20 字节指针。收益是当前页能容纳更多行，代价是读这条大字段要多一次「跳溢出页」的 IO。这也是「TEXT/BLOB 列单独拆表」的依据——把它们留在主表里，会让主表的行频繁溢出，拖慢整行扫描。
 

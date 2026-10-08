@@ -4,7 +4,7 @@
 
 ## 1. Undo Log 是什么
 
-![Undo Log 全景：逆向操作日志 + MVCC 版本链载体](/mysql/02-innodb-internals-chapter-05-undo-log.svg)
+![Undo Log 全景：逆向操作日志 + MVCC 版本链载体](/mysql/02-storage-and-logging-chapter-05-undo-log.svg)
 
 ### 1.1 从一次回滚说起
 

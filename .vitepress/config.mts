@@ -50,7 +50,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         text: '数据库',
         activeMatch: '^/(mysql|postgresql)/',
         items: [
-          { text: 'MySQL', link: '/mysql/01-basics/chapter-01-overview' },
+          { text: 'MySQL', link: '/mysql/' },
           { text: 'PostgreSQL', link: '/postgresql/01-pg-unique/chapter-01-pg-overview' },
         ],
       },
@@ -792,7 +792,14 @@ export default withOpenInEditor(withMermaid(defineConfig({
       ],
       '/mysql/': [
         {
-          text: '基础入门',
+          text: '阅读地图',
+          collapsed: false,
+          items: [
+            { text: 'MySQL 专项首页', link: '/mysql/' },
+          ],
+        },
+        {
+          text: '基础与架构',
           collapsed: true,
           items: [
             { text: 'MySQL 概览', link: '/mysql/01-basics/chapter-01-overview' },
@@ -801,15 +808,15 @@ export default withOpenInEditor(withMermaid(defineConfig({
           ],
         },
         {
-          text: 'InnoDB 内核',
+          text: '存储与日志',
           collapsed: true,
           items: [
-            { text: '数据页与行格式', link: '/mysql/02-innodb-internals/chapter-01-data-page' },
-            { text: 'Buffer Pool', link: '/mysql/02-innodb-internals/chapter-02-buffer-pool' },
-            { text: '表空间', link: '/mysql/02-innodb-internals/chapter-03-tablespace' },
-            { text: 'Redo Log', link: '/mysql/02-innodb-internals/chapter-04-redo-log' },
-            { text: 'Undo Log', link: '/mysql/02-innodb-internals/chapter-05-undo-log' },
-            { text: 'Binlog', link: '/mysql/02-innodb-internals/chapter-06-binlog' },
+            { text: '数据页与行格式', link: '/mysql/02-storage-and-logging/chapter-01-data-page' },
+            { text: 'Buffer Pool', link: '/mysql/02-storage-and-logging/chapter-02-buffer-pool' },
+            { text: '表空间', link: '/mysql/02-storage-and-logging/chapter-03-tablespace' },
+            { text: 'Redo Log', link: '/mysql/02-storage-and-logging/chapter-04-redo-log' },
+            { text: 'Undo Log', link: '/mysql/02-storage-and-logging/chapter-05-undo-log' },
+            { text: 'Binlog', link: '/mysql/02-storage-and-logging/chapter-06-binlog' },
           ],
         },
         {
@@ -845,27 +852,27 @@ export default withOpenInEditor(withMermaid(defineConfig({
           ],
         },
         {
-          text: 'SQL 高级特性',
+          text: 'SQL 与 Schema 特性',
           collapsed: true,
           items: [
-            { text: '窗口函数', link: '/mysql/06-advanced-features/chapter-01-window-function' },
-            { text: 'CTE', link: '/mysql/06-advanced-features/chapter-02-cte' },
-            { text: 'JSON', link: '/mysql/06-advanced-features/chapter-03-json' },
-            { text: '生成列', link: '/mysql/06-advanced-features/chapter-04-generated-column' },
-            { text: '分区表', link: '/mysql/06-advanced-features/chapter-05-partition' },
-            { text: '存储过程与触发器', link: '/mysql/06-advanced-features/chapter-06-stored-procedure' },
+            { text: '窗口函数', link: '/mysql/06-sql-and-schema/chapter-01-window-function' },
+            { text: 'CTE', link: '/mysql/06-sql-and-schema/chapter-02-cte' },
+            { text: 'JSON', link: '/mysql/06-sql-and-schema/chapter-03-json' },
+            { text: '生成列', link: '/mysql/06-sql-and-schema/chapter-04-generated-column' },
+            { text: '分区表', link: '/mysql/06-sql-and-schema/chapter-05-partition' },
+            { text: '存储过程与触发器', link: '/mysql/06-sql-and-schema/chapter-06-stored-procedure' },
           ],
         },
         {
-          text: '复制与高可用',
+          text: '复制与架构',
           collapsed: true,
           items: [
-            { text: '异步复制', link: '/mysql/07-replication-ha/chapter-01-binlog-replication' },
-            { text: 'GTID', link: '/mysql/07-replication-ha/chapter-02-gtid' },
-            { text: '组复制', link: '/mysql/07-replication-ha/chapter-03-group-replication' },
-            { text: '读写分离', link: '/mysql/07-replication-ha/chapter-04-read-write-split' },
-            { text: '高可用方案', link: '/mysql/07-replication-ha/chapter-05-ha-solution' },
-            { text: '分库分表', link: '/mysql/07-replication-ha/chapter-06-sharding' },
+            { text: '复制机制：异步复制', link: '/mysql/07-replication-and-architecture/chapter-01-binlog-replication' },
+            { text: '复制机制：GTID', link: '/mysql/07-replication-and-architecture/chapter-02-gtid' },
+            { text: '复制机制：组复制', link: '/mysql/07-replication-and-architecture/chapter-03-group-replication' },
+            { text: '架构扩展：读写分离', link: '/mysql/07-replication-and-architecture/chapter-04-read-write-split' },
+            { text: '架构扩展：高可用方案', link: '/mysql/07-replication-and-architecture/chapter-05-ha-solution' },
+            { text: '架构扩展：分库分表', link: '/mysql/07-replication-and-architecture/chapter-06-sharding' },
           ],
         },
         {
@@ -883,12 +890,12 @@ export default withOpenInEditor(withMermaid(defineConfig({
           ],
         },
         {
-          text: '实战',
+          text: '任务指南',
           collapsed: true,
           items: [
-            { text: '安装部署与环境配置', link: '/mysql/10-practice/chapter-01-installation' },
-            { text: '首次生产部署', link: '/mysql/10-practice/chapter-02-first-production' },
-            { text: 'Spring 集成', link: '/mysql/10-practice/chapter-03-spring-integration' },
+            { text: '版本、产品与部署选型', link: '/mysql/01-basics/chapter-04-version-and-selection' },
+            { text: '安装部署与环境配置', link: '/mysql/10-practice/chapter-02-installation' },
+            { text: '首次生产部署', link: '/mysql/10-practice/chapter-03-first-production' },
             { text: '常见问题', link: '/mysql/10-practice/chapter-04-common-issues' },
             { text: '性能调优', link: '/mysql/10-practice/chapter-05-performance-tuning' },
             { text: 'SQL 规范与最佳实践', link: '/mysql/10-practice/chapter-06-sql-best-practices' },

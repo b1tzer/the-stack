@@ -1,5 +1,7 @@
 # 在线 DDL
 
+> 本页比较结构变更的执行方式与风险；锁和事务行为见[锁机制](../05-transaction-lock/chapter-03-lock.md)，日常维护入口见[日常维护](./chapter-05-maintenance.md)。
+
 ## 1. 三种方案概览
 
 ### 1.1 原生 Online DDL

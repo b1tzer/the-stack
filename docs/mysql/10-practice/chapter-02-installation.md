@@ -1,5 +1,7 @@
 # 安装部署与配置
 
+> 本页完成开发或测试环境的安装、基础配置和一次可验证的建表查询流程。生产实例的参数、加固、备份与监控见[首次生产部署](./chapter-03-first-production.md)。
+
 ## 1. 安装方式
 
 ### 1.1 Docker
@@ -99,82 +101,9 @@ SHOW CHARACTER SET;
 CREATE DATABASE mydb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-## 5. 生产环境推荐配置
+字符集的比较规则、排序行为和常见乱码原因见[字符集与排序规则](../01-basics/chapter-03-charset-collation.md)。
 
-```ini
-[mysqld]
-# ========== 性能相关 ==========
-# Buffer Pool: 物理内存的 50%-70%
-innodb_buffer_pool_size = 8G
-innodb_buffer_pool_instances = 8
-
-# Redo Log
-innodb_log_file_size = 2G
-innodb_log_buffer_size = 64M
-innodb_flush_log_at_trx_commit = 1
-innodb_flush_method = O_DIRECT
-
-# 并发
-innodb_thread_concurrency = 0          # 自适应
-innodb_read_io_threads = 8
-innodb_write_io_threads = 8
-innodb_io_capacity = 2000              # SSD 建议 2000+
-innodb_io_capacity_max = 4000
-
-# ========== 连接相关 ==========
-max_connections = 500
-max_connect_errors = 100
-wait_timeout = 600
-interactive_timeout = 600
-thread_cache_size = 64
-
-# ========== 查询相关 ==========
-tmp_table_size = 64M
-max_heap_table_size = 64M
-sort_buffer_size = 4M
-join_buffer_size = 4M
-read_buffer_size = 2M
-read_rnd_buffer_size = 8M
-
-# ========== 日志相关 ==========
-log_error = /var/log/mysql/error.log
-slow_query_log = 1
-slow_query_log_file = /var/log/mysql/slow.log
-long_query_time = 1
-log_queries_not_using_indexes = 1
-
-# ========== Binlog ==========
-log-bin = mysql-bin
-binlog_format = ROW
-binlog_expire_logs_seconds = 604800    # 7 天
-sync_binlog = 1                        # 与 innodb_flush_log_at_trx_commit=1 配合保证双1
-```
-
-## 6. 关键参数调优说明
-
-| 参数 | 默认值 | 建议值 | 说明 |
-| :-- | :-- | :-- | :-- |
-| innodb_buffer_pool_size | 128M | 物理内存 70% | 最重要的参数，缓存数据和索引 |
-| innodb_flush_log_at_trx_commit | 1 | 1 (安全) / 2 (性能) | 1=每次提交刷盘，最安全 |
-| sync_binlog | 1 | 1 (安全) / 100 (性能) | 双1保证数据不丢失 |
-| max_connections | 151 | 根据业务量设置 | 过大浪费内存，过小连接拒绝 |
-| innodb_io_capacity | 200 | SSD: 2000 | InnoDB 后台 IO 能力 |
-
-## 7. 安装后安全加固
-
-```bash
-# 运行安全配置向导
-mysql_secure_installation
-
-# 会执行以下操作：
-# 1. 设置 root 密码
-# 2. 删除匿名用户
-# 3. 禁止 root 远程登录
-# 4. 删除测试数据库
-# 5. 刷新权限表
-```
-
-## 8. 多实例部署
+## 5. 多实例部署
 
 ```bash
 # 使用 mysqld_multi 管理多实例
@@ -192,4 +121,3 @@ port = 3307
 datadir = /var/lib/mysql2
 socket = /var/run/mysqld/mysqld2.sock
 ```
-

@@ -32,19 +32,19 @@ Tomcat 的 Acceptor 和 Poller 可以使用 Selector 管理就绪事件，但业
 
 ```txt
 ┌─────────────────────────────────────────┐
-│              Main Thread                 │
-│   serverSocket.accept()  ◄── 阻塞等待   │
+│              Main Thread                │
+│   serverSocket.accept()  ◄── 阻塞等待    │
 └──────────────┬──────────────────────────┘
                │ 新连接到达
        ┌───────▼───────┐
-       │  Thread Pool   │
+       │  Thread Pool  │
        ├───────┬───────┤
        │ T1    │ T2    │  T3 ...
        │       │       │
        │ read()│ read()│ read()
-       │ 阻塞  │ 阻塞  │ 阻塞
+       │ 阻塞   │ 阻塞  │ 阻塞
        │ write()│write()│write()
-       │ 阻塞  │ 阻塞  │ 阻塞
+       │ 阻塞   │ 阻塞  │ 阻塞
        └───────┴───────┘
 ```
 
