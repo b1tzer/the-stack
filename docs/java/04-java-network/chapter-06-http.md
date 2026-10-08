@@ -22,7 +22,7 @@ curl -w "DNS解析: %{time_namelookup}s | TCP连接: %{time_connect}s | TLS握�
 | `time_namelookup` | DNS 解析耗时 | DNS 服务器慢或缓存失效 |
 | `time_connect` | TCP 三次握手耗时 | 网络延迟高，检查 RTT |
 | `time_appconnect` | TLS 握手耗时 | SSL 证书链长或 OCSP 超时 |
-| `time_starttransfer` | 首字节时间（TTFB） | **服务端处理慢**——这是你最该查的阶段 |
+| `time_starttransfer` | 从请求开始到收到首字节（TTFB） | 服务端、代理、排队或网络链路中的一段较慢 |
 | `time_total` | 总耗时 | 前面所有阶段之和 |
 
 ```txt
@@ -41,7 +41,7 @@ DNS:0.520 | TCP:0.320 | TLS:0.850 | TTFB:0.180 | Total:1.870
 ↑ DNS+TCP+TLS 占了 1.7 秒——问题在客户端到服务器的链路
 ```
 
-**如果 TTFB 高**：问题在你的服务端（慢 SQL、锁等待、线程池满、外部依赖超时）。**如果 `time_connect` 高**：问题在链路（跨机房、防火墙、负载均衡）。工具把你的直觉变成了数字，接下来去哪查、怎么查就知道了。
+`time_starttransfer` 从计时起点算到首字节，可能包含 DNS、建连、TLS、发送请求以及服务端或代理处理时间，因此不能单独归因给服务端。可比较 `time_starttransfer - time_appconnect`，再结合应用日志、代理指标和服务端 tracing 区分排队、处理与网络。`time_connect` 异常高通常首先指向建连阶段，包括网络 RTT、防火墙、负载均衡和端口资源。
 
 ### 1.2 HTTP 在 TCP 连接上的完整生命周期
 
@@ -137,7 +137,7 @@ Location: /api/users/42
 
 ### 3.1 安全与幂等——这两个属性是你线上数据的防线
 
-HTTP 定义了 9 个方法。对 Java 后端而言，只需要记住两个核心属性就够用了：
+HTTP 定义了 9 个方法。排查请求行为时，先核对两个核心属性是否符合业务预期：
 
 | 方法 | 安全（不修改资源） | 幂等（多次调用结果相同） |
 | :-- | :--: | :--: |
@@ -251,7 +251,7 @@ HTTP/1.1：一次 TCP 握手 → 多次请求/响应（Keep-Alive）→ 最后�
 
 ### 5.2 HTTP/1.1 → HTTP/2：一个页面 20 个请求不再排队
 
-HTTP/1.1 在同一连接上请求必须按序返回（队头阻塞）。HTTP/2 引入的多路复用在一个 TCP 连接上并行传输多个请求/响应：
+HTTP/1.1 的常见实现会在上一请求响应完成前继续下一请求，较慢响应可能阻塞后续请求。HTTP/2 在一个 TCP 连接上复用多个请求/响应，减少应用层串行排队，但这些流仍共享 TCP，TCP 丢包时仍可能互相等待：
 
 ```txt
 HTTP/1.1：
@@ -264,7 +264,7 @@ HTTP/2：
 
 ### 5.3 HTTP/2 → HTTP/3：TCP 本身也别拖后腿
 
-HTTP/2 解决了应用层队头阻塞，但 TCP 层丢一个包，所有请求都得等重传。HTTP/3 用 QUIC（UDP 之上）彻底消除了这个瓶颈：
+HTTP/2 复用多个流，但这些流仍受共享 TCP 的传输层队头阻塞影响。HTTP/3 使用 QUIC，为多个流独立调度数据，降低跨流的传输层阻塞；应用依赖、流控、拥塞控制以及同一流内仍可能出现等待：
 
 ```txt
 TCP (HTTP/1.1 / HTTP/2):   丢 Packet 3 → 所有 Stream 都等
@@ -274,8 +274,8 @@ QUIC (HTTP/3):             丢 Packet 3 → 只影响 Stream 1，其他照常
 | 维度 | HTTP/1.1 | HTTP/2 | HTTP/3 |
 | :-- | :-- | :-- | :-- |
 | 传输层 | TCP | TCP | QUIC (UDP) |
-| 多路复用 | ❌ | ✅ (应用层) | ✅ (传输层，真正无阻塞) |
-| 队头阻塞 | 应用层+TCP | 仅 TCP | 无 |
-| 首连延迟 | TCP 3次 + TLS 2次 | TCP 3次 + TLS 2次 | 1-RTT（重连 0-RTT） |
+| 多路复用 | 常见实现按序等待 | 应用层流复用 | QUIC 流复用 |
+| 队头阻塞 | 应用层与 TCP | TCP 仍可能阻塞各流 | 跨流传输阻塞较少，但仍有应用与流内等待 |
+| 首连延迟 | TCP + TLS 协商 | TCP + TLS 协商 | 常为 1-RTT，0-RTT 需满足会话恢复条件 |
 
 > **本章小结：** HTTP 是你每天在用的协议——不是教科书上的 RFC 条目。502 和 504 的区别决定了你下一步是重启进程还是查慢 SQL。`curl -w` 把「这个接口慢」拆成了 6 个可量化的数字。`Content-Type` 配错导致的 415，日志里写的是 `Unsupported Media Type`，根因是 `@RequestBody` 找不到匹配的 `HttpMessageConverter`。

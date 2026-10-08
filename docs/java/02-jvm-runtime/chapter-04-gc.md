@@ -1,6 +1,6 @@
 # 垃圾回收
 
-> "Java 有 GC，不会内存泄漏"——这句话骗了太多人。GC 回收的是根不可达的对象，不是你的代码不让它回收的对象。ThreadLocal 里存了个大对象、没调 `remove()`；静态 `List` 一直在 `add()`、从未 `clear()`；短命对象被长命池引用——GC Roots 可达，GC 就不回收，OOM 迟早来。Java 的内存泄漏不是 `malloc` 没配 `free`，是引用忘断了。
+> “Java 有 GC，所以不会出现内存泄漏”并不准确。GC 只回收不再可达的对象。如果对象仍被 GC Roots 直接或间接引用，它就会继续存活；例如静态集合持续增长，或线程池中的 `ThreadLocal` 长期保留对象。Java 中的内存泄漏通常表现为可达但已无业务用途的对象持续累积。
 
 ## 1. 为什么需要 GC
 
@@ -54,9 +54,9 @@ Object F → Object G（垃圾，没有 GC Root 能到达）
 
 | 引用类型 | 回收时机 | 典型用途 |
 | :-- | :-- | :-- |
-| **强引用** | 永不回收（除非不可达） | 普通 `new` |
-| **软引用** | 内存不足时回收 | 缓存（如图片缓存） |
-| **弱引用** | 下次 GC 必定回收 | `WeakHashMap`、`ThreadLocal` |
+| **强引用** | 只要可达就保留 | 普通 `new` |
+| **软引用** | 空间压力下可回收，具体时机取决于 GC 策略 | 可重建的缓存 |
+| **弱引用** | GC 判定对象仅弱可达时可清除 | `WeakHashMap`、某些缓存 |
 | **虚引用** | 无法通过它获取对象 | 对象回收跟踪、NIO Cleaner |
 
 ```java
@@ -64,15 +64,15 @@ Object F → Object G（垃圾，没有 GC Root 能到达）
 SoftReference<byte[]> soft = new SoftReference<>(new byte[1024 * 1024]);
 byte[] data = soft.get();  // 内存充足时返回对象，不足时返回 null
 
-// 弱引用：下次 GC 一定回收
+// 弱引用：GC 判定对象仅弱可达时可清除
 WeakReference<User> weak = new WeakReference<>(new User("Tom"));
-System.gc();
-User user = weak.get();  // 很可能已经是 null
+System.gc();            // 仅是请求；JVM 可以忽略
+User user = weak.get(); // 可能仍非 null，不能用单次调用测试回收时序
 ```
 
 `WeakHashMap` 是弱引用的典型应用——当 key 不再被其他地方引用时，GC 会自动清除对应的 entry。常用于实现不影响 GC 的缓存。
 
-`ThreadLocal` 内部也使用弱引用——ThreadLocal 变量被回收后，线程的 ThreadLocalMap 中对应的 entry 的 key 变为 null，下次 GC 时 value 被回收。如果线程长期存活（如线程池），value 可能不会被及时回收，导致内存泄漏——这是 `ThreadLocal` 使用后必须调用 `remove()` 的原因。
+`ThreadLocal` 的键使用弱引用，但这不会保证关联值随下一次 GC 一起回收。键失效后，value 可能通过 entry 间接保持可达，直到 `ThreadLocalMap` 在读取、写入或清理时移除陈旧条目。线程池中的线程长期存活，陈旧条目也可能长期存在，因此应按作用域调用 `remove()`，避免保留不再需要的对象。
 
 ## 4. 垃圾回收算法
 
@@ -371,12 +371,12 @@ GC 日志是调优的第一手资料。
 | `Pause Young (Normal)` | Young GC，正常模式 |
 | `Eden: 1024M(1024M)->0B(1024M)` | Eden 从 1024M 清空到 0 |
 | `Old: 2048M->2100M` | 老年代从 2048M 增长到 2100M |
-| `real=0.08 secs` | 实际停顿时间 80ms |
+| `real=0.08 secs` | 该日志记录的墙上时间；是否直接等于应用停顿时间取决于收集器和日志字段定义 |
 | `user=0.15` | GC 线程总 CPU 时间 150ms（多线程累加） |
 
 ### 7.3 从 GC 日志发现问题：实战案例
 
-下面是一个实际的 GC 日志分析过程：
+下面以一段构造的 GC 日志演示分析步骤，字段含义和格式会随 JDK 与收集器版本变化。
 
 **现象：** 服务接口响应时间每隔几分钟飙升到 2 秒以上。
 
@@ -396,6 +396,7 @@ GC 日志是调优的第一手资料。
 **第三步：用 jmap 看哪些对象占用了老年代**
 
 ```bash
+# 可能触发 Full GC，生产环境仅在可接受额外停顿时使用
 jmap -histo:live <pid> | head -20
 
 # 输出:
@@ -427,7 +428,7 @@ jmap -histo:live <pid> | head -20
     └── Serial（单线程，简单高效）
 ```
 
-## 8. 核心 GC 参数
+## 8. 常用 GC 参数示例
 
 | 参数 | 说明 |
 | :-- | :-- |
@@ -443,5 +444,7 @@ jmap -histo:live <pid> | head -20
 | `-XX:ConcGCThreads=4` | 并发 GC 线程数 |
 | `-XX:+HeapDumpOnOutOfMemoryError` | OOM 时自动 dump |
 | `-Xlog:gc*:file=gc.log:time` | GC 日志（JDK 9+） |
+
+上表仅用于说明 G1 的部分常用参数。新生代比例、暂停目标及默认值会因收集器和 JDK 版本而异，应结合所用版本的官方参数文档与压测结果调整。
 
 > 本章覆盖了 GC 的完整理论体系。下一章将解释"Java 为什么越跑越快"——JIT 即时编译器如何在运行时优化热点代码。

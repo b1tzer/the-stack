@@ -1,6 +1,8 @@
 # JVM 案例：TCP 层与堆外内存
 
-> 监控全绿：堆 40%、CPU 30%、GC 正常。但接口每隔几秒就有一次 10 秒+ 超时，容器 `livenessProbe` 超时触发重启。`jstack` 跑了三遍——每次 Tomcat 线程都在 `WAITING`，没什么异常。直到开了 Tomcat 的 DEBUG 日志，才发现 `Acceptor` 线程卡在 `LimitLatch.countUpOrAwaitConnection()`——`server.tomcat.max-connections=10`，一条陈年配置把服务逼成了间歇性假死。另一台机器，堆也正常，但容器被 OOMKilled——`jmap -histo` 查不出问题，`-XX:NativeMemoryTracking=summary` 才揭穿：Netty 的 `PooledByteBufAllocator` 吃掉了 1.2GB 直接内存，每个 ByteBuf 的引用计数都停在 `retain() + 1`，永远不归零。这两类问题的共同特点：所有你看得见的指标都正常——真正的问题藏在你看不到的地方。
+> **案例说明：** 本页日期、业务背景、指标和工具输出均为构造或匿名化教学数据；除引用一手资料外，不应视为可核验的真实事件。排查方法与命令仍需结合目标 JDK、系统和生产变更流程验证。
+
+> 本页用两个构造场景说明：堆和 GC 正常时，连接数上限与堆外内存仍可能限制服务。前一个场景检查 Tomcat `LimitLatch` 和 accept 队列，后一个场景检查 Netty 引用计数与 Native Memory Tracking（NMT）。
 
 ## 案例 11：Tomcat LimitLatch —— 一条陈年配置让服务间歇性假死
 

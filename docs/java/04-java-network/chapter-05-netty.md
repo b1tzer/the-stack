@@ -1,6 +1,6 @@
 # Netty：Java 高性能网络框架
 
-> 面试官问 Netty 的线程模型——你说得出 Boss/Worker，但说不清为什么一个 EventLoop 绑一个 Channel 就不用加锁、dispatcher 决定「在哪跑」和 threadpool 决定「用多大池子接」之间的区别、以及 `§5.3` 那个 `Direct buffer memory` OOM 为什么堆还有空间照样炸。本章拆穿"Netty 就是 NIO 封装"这种半对半错的理解——EventLoop 不是线程池、ByteBuf 不是 Buffer、Pipeline 不是责任链那么简单。
+> Netty 不只是 NIO API 的封装。本章解释 EventLoop 如何绑定 Channel、异步任务如何分配执行线程、Pipeline 的职责边界，以及堆外内存不足为何可能在堆仍可用时失败。阅读时需要区分 NIO 核心类型与 Netty 自己的抽象。
 
 > **📖 阅读建议**：§5.1 是为什么要有 Netty（对比[第4章](./chapter-04-nio) NIO），§5.2 是核心线程模型（你线上排障最需要的部分），§5.3 ByteBuf（`Direct buffer memory` OOM 根因），§5.4 编解码（粘包/拆包解决方案），§5.5 Reactor 模式全景。删除API罗列式讲解，保留原理和排查路径。
 
@@ -116,25 +116,27 @@ Netty 的 ByteBuf 用一个独立指针 `readerIndex` 和一个独立指针 `wri
 0              readerIndex        writerIndex        capacity
 ```
 
-ByteBuf 默认使用池化的堆外内存（PooledDirectByteBuf）。堆外内存不受 JVM GC 管理，这意味着：你线上堆还有 2GB 空闲，但 Netty 的 PooledDirectByteBuf 已经把堆外内存吃了几百 MB，JVM 发现不了。
+Netty 的默认分配器通常会使用池化内存；具体是堆内还是堆外，取决于 Netty 版本、分配器配置和调用方选择。堆外 ByteBuf 不由 Java 堆 GC 直接管理，因此线上可能出现堆仍有空闲、但进程本地内存已经很高的情况。
 
 ```txt
 java.lang.OutOfMemoryError: Direct buffer memory
 ```
 
-这就是那道令无数开发者困惑的 OOM。堆里明明闲着，为什么会 OOM？因为 `-XX:MaxDirectMemorySize` 默认等于 `-Xmx`，而 Netty 的 ByteBuf 全部走堆外。
+这就是 `Direct buffer memory` OOM 的常见来源。堆里明明闲着，为什么还会 OOM？因为直接缓冲区限额独立于 Java 堆；未显式设置 `-XX:MaxDirectMemorySize` 时，其默认值通常与最大 Java 堆相同，但实际限额仍应以运行的 JDK 版本和启动参数为准。
 
 排查命令：
 
 ```bash
-# 看堆外内存使用（需要 JDK 9+）
-jcmd <pid> VM.native_memory summary | grep -A 5 "Direct"
+# 查看本地内存分类（需要 JVM 启动时开启 NMT）
+jcmd <pid> VM.native_memory summary
+# 直接缓冲区通常归入本地内存分类，具体名称以当前 JDK 输出为准
 
 # 开 Netty 内存泄漏检测
 -Dio.netty.leakDetection.level=PARANOID
+# PARANOID 会增加引用检查开销，建议用于问题复现或短时诊断，不宜长期默认开启
 ```
 
-引用计数是 ByteBuf 的另一道防线。每个 ByteBuf 创建后 `refCnt=1`，每 `retain()` 一次 +1，每 `release()` 一次 -1，归零后释放内存。Netty 的 `SimpleChannelInboundHandler` 会自动 `release()`，但自定义 Handler 里如果手动 `retain()` 了却忘记 `release()` → 永久泄漏。
+引用计数是 ByteBuf 的另一道防线。每个 ByteBuf 创建后通常 `refCnt=1`，每 `retain()` 一次 +1，每 `release()` 一次 -1，归零后释放内存。Netty 的 `SimpleChannelInboundHandler` 在默认 `autoRelease=true` 时会释放入站消息；自定义 Handler 如果手动 `retain()`，就必须在对应的生命周期内 `release()`，否则可能造成泄漏。
 
 ## 4. 编解码：TCP 粘包/拆包的工业化解决方案
 

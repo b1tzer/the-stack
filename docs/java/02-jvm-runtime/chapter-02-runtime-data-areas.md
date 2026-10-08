@@ -363,7 +363,7 @@ JDK 7 之后，`static Object obj = new Object()` 中，`obj` 这个引用本身
     └── JNI 本地代码
 ```
 
-CodeCache 有固定大小限制（`-XX:ReservedCodeCacheSize`，默认 240MB~480MB 取决于 JVM 版本）。**CodeCache 满了会怎样？** JVM 会停止 JIT 编译，所有代码退回解释执行——性能可能骤降 10~100 倍。这是生产环境中一种隐蔽的性能问题：没有 OOM、没有异常日志，但服务突然变慢。
+CodeCache 有容量上限，具体大小和缺省值取决于 JDK、CPU 与配置。容量不足时，HotSpot 会停止接受新的编译；已有已编译代码通常仍可继续执行，只有发生反优化的代码路径会退回解释执行。CodeCache 不足时未必出现 OOM，但服务可能持续变慢，因此要结合 `-Xlog:codecache`、`jstat` 或 JFR 观察。
 
 ```bash
 # 监控 CodeCache 使用情况

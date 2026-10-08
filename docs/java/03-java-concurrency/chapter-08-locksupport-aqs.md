@@ -1,6 +1,6 @@
 # `LockSupport` 与 AQS：并发工具的骨架
 
-> `ReentrantLock`、`Semaphore`、`CountDownLatch`、`CyclicBarrier`——四种表面完全不同的工具，为什么源码都藏在同一个基类里？
+> `ReentrantLock`、`Semaphore`、`CountDownLatch`——三种表面不同的工具，为什么源码都藏在同一个基类里？`CyclicBarrier` 为什么不继承它？
 
 第 6 章的 `synchronized` 把互斥锁封装在 JVM 内部。开发者只有一个开关：`synchronized`/不 `synchronized`。这一章讨论的是另一条路：**把锁的实现搬到 Java 代码层面**，让"如何挂起线程"、"如何组织等待队列"、"如何唤醒"这些机制变得可编程。这条路的起点是 `LockSupport`，终点是 AQS。走完这一章，回头再看 `java.util.concurrent.locks` 和 `java.util.concurrent` 包里绝大多数工具，会发现它们其实只有一个骨架。
 
@@ -16,7 +16,7 @@
 | "我等锁的时候允许被 `interrupt` 打断" | 做不到 |
 | "同一把锁，读线程之间不要互斥" | 做不到 |
 | "等的时间越久越优先，别让新来的插队" | 做不到 |
-| "生产者等'非满'、消费者等'非空'，两条队列别搅在一起" | 做不到（只有一个 `_WaitSet`） |
+| "生产者等'非满'、消费者等'非空'，两条队列别搅在一起" | 做不到（一个 Monitor 只有一条等待队列） |
 
 不是 `synchronized` 设计得差，而是它把选择权全部下放到了 JVM 内部——JVM 只做互斥这一种语义。任何超出互斥的诉求，都需要一套 Java 层可编程的锁基础设施。
 
@@ -98,7 +98,7 @@ public class SimpleLock {
 
 ### 2.4 底层实现的一句话交代
 
-`LockSupport.park` 最终委托到 `Unsafe.park`，Linux 上进入 `pthread_cond_wait`。挂起的线程状态在 Java 层是 `WAITING`，OS 层进入睡眠，不消耗 CPU。这也是 AQS 得以在**未拿到锁的线程上不空转**的技术底座。
+`LockSupport.park` 最终委托到 JVM 的线程挂起实现；具体系统调用会随 JDK 版本和操作系统变化，不能笼统地归结为某一个 POSIX 函数。挂起线程在 Java 层通常表现为 `WAITING`，在操作系统层面进入等待状态，不持续消耗 CPU。这也是 AQS 得以在**未拿到锁的线程上不空转**的技术底座。
 
 ## 3. AQS 的三件套
 
@@ -437,7 +437,7 @@ public E take() throws InterruptedException {
 
 | 维度 | `wait/notify` | `Condition` |
 | :-- | :-- | :-- |
-| 队列数量 | 一个（Monitor 的 `_WaitSet`） | 多个（每次 `newCondition` 一条） |
+| 队列数量 | 一个（Monitor 的等待队列） | 多个（每次 `newCondition` 一条） |
 | 唤醒精度 | `notifyAll` 惊群，`notify` 随机挑 | `signal` 只唤指定条件的线程 |
 | 可中断等待 | `wait()` 支持 | `await()` 支持，另有 `awaitUninterruptibly` |
 | 超时等待 | `wait(ms)` | `await(t, unit)` / `awaitUntil(deadline)` |
@@ -506,7 +506,7 @@ if (!lock.validate(stamp)) {         // 期间被写过？
 }
 ```
 
-乐观读完全不做 CAS，也不上屏障——只读一个版本号，读完检验期间有没有写发生过。**读多、读操作短**的场景，乐观读的成本几乎为零。
+乐观读不获取写锁，读取时只检查版本戳，读完后通过 `validate()` 判断期间是否发生写入。**读多、读操作短**的场景下，它通常比悲观读锁更轻；实际成本仍取决于架构、内存序和实现细节。
 
 限制：`StampedLock` 不可重入，也不支持 `Condition`。它是一个"高性能读写锁"，不是 `ReentrantLock` 的替代品。
 

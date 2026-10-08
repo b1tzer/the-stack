@@ -54,7 +54,7 @@ entityManager.persist(user);
 | **学习曲线** | 低（会 SQL 就行） | 高（需理解 ORM 概念、生命周期、缓存） |
 | **灵活性** | 极高（任意 SQL） | 受限于框架映射能力 |
 | **数据库迁移** | 需逐条改 SQL | HQL/JPQL 通常无需改 |
-| **复杂查询** | 天然适合（多表联查、存储过程） | 需要 `@Query` 或 Criteria API |
+| **复杂查询** | 显式编写 JOIN、聚合和存储过程调用 | 可用 `@Query` 或 Criteria API 表达 |
 | **性能调优** | 精确控制每条 SQL | 需理解框架行为才能调优 |
 | **适合场景** | 复杂报表、遗留数据库、需要精确控制 SQL | 领域模型清晰、以对象行为为主的新项目 |
 | **团队门槛** | 掌握 SQL 即可 | 需理解 Session、脏检查、Lazy 代理、缓存 |
@@ -70,7 +70,7 @@ entityManager.persist(user);
 | SQL 是否需要**逐条可见、可 Review、可被 DBA 审计**？ | ✅ | ❌ |
 | 读路径是否以**多表 JOIN、聚合、报表**为主？ | ✅ | ⚠️（HQL/Criteria 更啰嗦） |
 | 写路径是否有大量**聚合根内一致性、状态机、级联**等领域行为？ | ❌（需手写模板 SQL） | ✅ |
-| 数据库是否是**遗留库、命名不规范、无外键、分库分表**？ | ✅ | ❌（映射频繁打架） |
+| 数据库是否是**遗留库、命名不规范、无外键、分库分表**？ | ✅ | ⚠️（映射约束较多） |
 | 是否需要**跨数据库方言可移植**（同一份代码上 MySQL/PG/Oracle）？ | ❌ | ✅ |
 | 是否有大量**批量写、批量更新、复杂 upsert**？ | ✅ | ❌（批处理坑较多） |
 | 团队是否理解 Session、一级缓存、Lazy 代理、脏检查、N+1？ | 不要求 | 硬性要求 |
@@ -99,7 +99,7 @@ Hibernate/JPA 中，一个实体对象从诞生到消亡，会经历几个明确
 | 状态 | 特征 | 举例 |
 | :-- | :-- | :-- |
 | **Transient（瞬态）** | 刚 `new` 出来，数据库中无对应记录，不受 Session 管理 | `User u = new User("张三")` |
-| **Persistent（持久态）** | 已与数据库记录关联，受 Session 管理，修改属性会**自动同步到数据库** | `session.save(u)` 之后 |
+| **Persistent（持久态）** | 已与持久化上下文关联，属性变化会被跟踪；flush 或事务提交时写入数据库 | `persist()` 之后 |
 | **Detached（游离态）** | 曾经是持久态，但 Session 已关闭。对象还在，但不再自动同步 | Session 关闭后，对象仍被持有 |
 
 ### 2.2 状态转换实战
@@ -112,8 +112,8 @@ user.setName("李四");
 
 // 2. Persistent —— 被 EntityManager 管理
 entityManager.persist(user);
-// 此时 user 被纳入管理，事务提交时自动 INSERT
-// 如果修改 user.setAge(25)，事务提交时会自动 UPDATE
+// user 被持久化上下文跟踪，INSERT 会在显式 flush 或事务提交时执行
+// 修改属性后，UPDATE 同样在显式 flush 或事务提交时执行
 
 // 3. Detached —— Session 关闭后
 entityManager.close();
@@ -121,7 +121,7 @@ entityManager.close();
 
 // 4. 回到 Persistent —— 重新关联
 User merged = entityManager.merge(user);
-// merged 是新的持久态对象，修改它会再次自动同步
+// merged 被持久化上下文跟踪；后续变更在 flush 或事务提交时写入
 ```
 
 ### 2.3 踩坑提示
@@ -314,7 +314,7 @@ List<User> findAllWithOrders();
 
 ### 4.3 MyBatis 解决方案
 
-MyBatis 天然没有 N+1 问题（因为 SQL 是你写的），但如果你用了嵌套查询（`<collection select="...">`），同样会触发 N+1。
+MyBatis 不会替你自动为关联关系生成查询，因此开发者更容易从主 SQL 就看出查询数量；但使用 `<collection select="...">` 等嵌套查询时仍会产生 N+1，必须改写为 JOIN 或批量关联查询。
 
 **方案一：联合查询（推荐）**
 
@@ -362,228 +362,7 @@ MyBatis 天然没有 N+1 问题（因为 SQL 是你写的），但如果你用�
 | 联合查询 | MyBatis | 一条 SQL，手写 JOIN | 复杂关联 |
 | IN 批量查询 | MyBatis | 两条 SQL，用 IN 合并 | 一对多 |
 
-## 5. 对象-关系映射策略
 
-映射的核心问题是：**Java 中的"关系"在数据库中如何表达？**
+前面的内容解释了实体生命周期、延迟加载和 N+1 查询。接下来集中回答对象关系本身如何落到数据库结构，包括单表、一对多、多对多和继承映射。
 
-### 5.1 单表映射
-
-最简单的场景：一个类对应一张表。
-
-```java
-@Entity
-@Table(name = "products")
-public class Product {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(name = "product_name", length = 100, nullable = false)
-    private String name;
-
-    @Column(precision = 10, scale = 2)
-    private BigDecimal price;
-
-    @Enumerated(EnumType.STRING)
-    private ProductStatus status;
-
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date createdAt;
-}
-```
-
-对应的数据库表：
-
-```txt
-┌──────────────────────────────────┐
-│           products               │
-├──────────────────────────────────┤
-│ id          BIGINT    PK, AUTO  │
-│ product_name VARCHAR(100) NOT NULL│
-│ price       DECIMAL(10,2)        │
-│ status      VARCHAR(20)          │
-│ created_at  TIMESTAMP            │
-└──────────────────────────────────┘
-```
-
-### 5.2 一对多（One-to-Many）
-
-一个用户有多个订单。
-
-```java
-// === 方式一：注解（主流）===
-@Entity
-public class User {
-    @Id
-    @GeneratedValue
-    private Long id;
-    private String name;
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Order> orders = new ArrayList<>();
-}
-
-@Entity
-public class Order {
-    @Id
-    @GeneratedValue
-    private Long id;
-    private BigDecimal amount;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    private User user;
-}
-
-// === 方式二：XML 配置 ===
-```
-
-```xml
-<!-- User.hbm.xml -->
-<hibernate-mapping>
-    <class name="User" table="users">
-        <id name="id" column="id">
-            <generator class="identity"/>
-        </id>
-        <property name="name" column="name"/>
-        <bag name="orders" inverse="true" cascade="all-delete-orphan">
-            <key column="user_id"/>
-            <one-to-many class="Order"/>
-        </bag>
-    </class>
-</hibernate-mapping>
-```
-
-**注意 `mappedBy` 的含义**：它告诉 Hibernate "外键在 Order 那边"。如果不写，Hibernate 会创建一张**中间表**来维护关系，这通常不是你想要的。
-
-### 5.3 多对一（Many-to-One）
-
-多对一是多对一的反面，通常从"多"的一方看问题：
-
-```java
-@Entity
-public class Order {
-    @ManyToOne(fetch = FetchType.LAZY)  // 不要轻易改成 EAGER
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
-}
-```
-
-**fetch 策略的选择**：`@ManyToOne` 默认是 `EAGER`，但实践中建议显式写 `LAZY`。理由是：大多数场景下，你查订单时并不一定需要立即加载用户信息。真正需要时再通过 `JOIN FETCH` 显式加载。
-
-### 5.4 多对多（Many-to-Many）
-
-一个学生可以选多门课，一门课可以被多个学生选。
-
-```java
-@Entity
-public class Student {
-    @Id
-    @GeneratedValue
-    private Long id;
-    private String name;
-
-    @ManyToMany
-    @JoinTable(
-        name = "student_course",
-        joinColumns = @JoinColumn(name = "student_id"),
-        inverseJoinColumns = @JoinColumn(name = "course_id")
-    )
-    private Set<Course> courses = new HashSet<>();
-}
-
-@Entity
-public class Course {
-    @Id
-    @GeneratedValue
-    private Long id;
-    private String title;
-
-    @ManyToMany(mappedBy = "courses")
-    private Set<Student> students = new HashSet<>();
-}
-```
-
-数据库结构：
-
-```txt
-┌──────────┐     ┌────────────────┐     ┌──────────┐
-│ students │     │ student_course  │     │ courses  │
-├──────────┤     ├────────────────┤     ├──────────┤
-│ id  (PK) │←───│ student_id (FK) │     │ id  (PK) │
-│ name     │     │ course_id  (FK) │───→│ title    │
-└──────────┘     └────────────────┘     └──────────┘
-```
-
-**多对多的陷阱**：
-
-1. **中间表额外字段**：如果关系本身有属性（如选课时间、成绩），你需要把中间表提升为独立实体，改用两个 `@ManyToOne`。
-2. **Cascade 谨慎使用**：多对多上的 `CascadeType.ALL` 可能导致意外删除。
-3. **Set vs List**：多对多关联建议用 `Set` 而非 `List`，避免 Hibernate 在更新时产生不必要的删除+重插操作。
-
-### 5.5 继承映射
-
-当实体类有继承关系时，如何映射到数据库？JPA 提供三种策略：
-
-```java
-@Entity
-@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
-@DiscriminatorColumn(name = "vehicle_type")
-public abstract class Vehicle {
-    @Id @GeneratedValue
-    private Long id;
-    private String brand;
-}
-
-@Entity
-@DiscriminatorValue("CAR")
-public class Car extends Vehicle {
-    private int seatCount;
-}
-
-@Entity
-@DiscriminatorValue("TRUCK")
-public class Truck extends Vehicle {
-    private double loadCapacity;
-}
-```
-
-| 策略 | 表结构 | 优点 | 缺点 |
-| :-- | :-- | :-- | :-- |
-| `SINGLE_TABLE` | 一张表，用鉴别列区分 | 查询最快，无 JOIN | 列浪费（NULL 多） |
-| `TABLE_PER_CLASS` | 每个子类一张表 | 结构清晰 | 多态查询需 UNION |
-| `JOINED` | 父类和子类各一张表，用 JOIN 关联 | 无冗余，结构规范 | 查询需 JOIN，性能较差 |
-
-**实践建议**：默认用 `SINGLE_TABLE`，除非子类字段差异极大（超过 20 个不同列）才考虑 `JOINED`。
-
-## 6. 本章小结
-
-ORM 是一把双刃剑。它把开发者从重复的 JDBC 代码中解放出来，但也引入了新的复杂性：
-
-```txt
-┌─────────────────────────────────────────────────────────┐
-│                    ORM 的本质                             │
-│                                                         │
-│   对象世界              ORM 映射             关系世界      │
-│   ┌──────┐    ┌──────────────────┐    ┌──────────┐     │
-│   │ Class │◄──→│ 注解 / XML 配置   │◄──→│ Table    │     │
-│   │ Object│    │ 生命周期管理       │    │ Row      │     │
-│   │ Ref   │    │ 缓存 / 延迟加载    │    │ FK       │     │
-│   └──────┘    └──────────────────┘    └──────────┘     │
-│                                                         │
-│   关键权衡：                                              │
-│   • 自动化 vs 可控性                                      │
-│   • 对象模型 vs 数据模型                                   │
-│   • 开发效率 vs 运行时性能                                  │
-└─────────────────────────────────────────────────────────┘
-```
-
-**本章关键要点**：
-
-1. **MyBatis 和 JPA 不是对错之分**，而是"SQL 优先"与"对象优先"的哲学差异。根据项目特征选择。
-2. **Entity 生命周期**（Transient → Persistent → Detached）决定了 ORM 的行为边界。在事务内操作持久态对象是铁律。
-3. **延迟加载**是性能优化利器，但 `LazyInitializationException` 是每个 ORM 开发者的成人礼。用 `@Transactional` 或 `JOIN FETCH` 来避免。
-4. **N+1 问题**是 ORM 最大的性能陷阱。识别它、解决它，是中级开发者向高级迈进的必修课。
-5. **映射策略**的选择影响数据库结构。`mappedBy`、`CascadeType`、`FetchType` 这三个注解属性值值得反复推敲。
-
-> ORM 帮你省了手写 SQL 的力气，但 SQL 最终还是要发到数据库执行。数据库收到一条 SELECT 后，内部经历了什么？为什么有时候快如闪电，有时候慢得让人抓狂？下一章从 SQL 执行流程开始，拆解索引、锁、事务隔离——理解这些，你写的 SQL 才真正"懂数据库"。
+> **下一页：** [对象关系映射策略](./chapter-04-orm-mapping-strategies.md)

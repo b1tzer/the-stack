@@ -35,8 +35,10 @@
 | Redis Hash + TTL | 支持多状态，自动过期 | 内存占用稍大 | 百万级 |
 | 独立状态服务 | 可扩展，支持自定义状态 | 架构复杂 | 千万级 |
 
+下面的代码展示单连接路由的最小实现。真实 IM 系统通常同时存在多个设备和多个连接；此时应按 `connectionId` 分别保存路由，并在消息投递时向所有有效连接扇出。
+
 ```java
-// Redis 存储在线状态
+// Redis 存储在线状态（单连接示例）
 @Component
 public class PresenceService {
 
@@ -58,6 +60,8 @@ public class PresenceService {
     }
 
     public void offline(String userId) {
+        // 单连接示例：连接关闭后清除状态。
+        // 多连接场景应按 connectionId 删除对应字段，并在没有连接时再删除整个 key。
         redis.delete(PRESENCE_KEY + userId);
     }
 
@@ -132,6 +136,9 @@ public class MessageRouter {
             if (session != null && session.isOpen()) {
                 session.getBasicRemote().sendText(
                         JsonUtil.toJson(message));
+            } else {
+                // presence 可能已经过期，不能静默丢弃
+                saveOfflineMessage(message);
             }
         } else {
             // 用户在其他服务器，通过 MQ 转发
@@ -141,7 +148,9 @@ public class MessageRouter {
     }
 
     private void saveOfflineMessage(Message message) {
-        // 存入数据库或 Redis List，用户上线后拉取
+        // 持久化到数据库或 Redis List，用户上线后按游标拉取
+        // 此处假设项目已注入 offlineMessageStore
+        offlineMessageStore.save(message);
     }
 }
 ```
@@ -250,7 +259,7 @@ public class SequenceGenerator {
 | Snowflake ID | 时间戳 + 机器 + 序列号 | 分布式，大致有序，偶尔需客户端修正 |
 | 会话内序列号 | 每个会话独立自增 | 精确有序，会话间无序（可接受） |
 
-**客户端修正策略：** 当客户端收到乱序消息时，按 `sequenceNo` 排序后再展示。通常配合一个滑动窗口（如缓存 5 条消息），等待缺失消息到达后一起展示。
+序列号只负责**会话内的编号顺序**，不保证网络投递顺序；重试和多条链路仍可能让消息乱序。客户端收到消息后应按 `sequenceNo` 排序，并配合 ACK、去重和滑动窗口处理缺失消息。窗口大小和超时时间需要根据消息速率、重试策略和用户可接受延迟确定。
 
 ### 1.5 IM 系统架构总览
 

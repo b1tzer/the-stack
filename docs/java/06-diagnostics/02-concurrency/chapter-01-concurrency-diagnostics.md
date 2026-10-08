@@ -203,7 +203,7 @@ scheduler.scheduleAtFixedRate(() -> {
 
 ### 2.4 用 `tryLock(timeout)` 从代码层面消灭死锁
 
-即便统一了锁顺序，业务复杂到多个模块交叉持锁时，仍可能出现意料之外的环。终极兜底方式是**给锁获取加超时**：
+即便统一了锁顺序，业务复杂到多个模块交叉持锁时，仍可能出现意料之外的环。给锁获取增加超时可以缩短无限等待，但超时后的重试仍需保证幂等、避免活锁，也不能替代修正规约：
 
 ```java
 // ❌ 无超时：环形成后永远挂
@@ -623,13 +623,13 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 
 ## 9. 实战案例集
 
-以上内容是并发诊断方法、工具和优化策略的速查手册。以下案例集从生产环境真实事故中精挑细选，每个案例都包含完整的事故背景、排查链路、根因定位和修复验证：
+以上内容是并发诊断方法、工具和优化策略的速查手册。以下案例集均为构造或匿名化的教学案例，每个案例都包含完整的背景、排查链路、根因定位和修复验证：
 
 - **[锁与执行模型案例](./chapter-02-cases-lock-execution.md)**
   - [双十一的死锁 —— 订单与库存的锁序之战](./chapter-02-cases-lock-execution.md#case-1)
   - [618 的雪崩 —— CallerRunsPolicy 把 Tomcat 线程全拖下水](./chapter-02-cases-lock-execution.md#case-2)
-  - [ConcurrentHashMap 去重失效 —— 可变 key 的 hashCode 陷阱](./chapter-02-cases-lock-execution.md#case-3)
-  - [虚拟线程 pinning —— 同步锁让 5000 QPS 跌到 800](./chapter-02-cases-lock-execution.md#case-4)
+  - [ConcurrentHashMap 去重失效 —— 可变 key 的 hashCode 陷阱](./chapter-02-cases-mutable-key-pin.md#case-3)
+  - [虚拟线程 pinning —— 同步锁让 5000 QPS 跌到 800](./chapter-02-cases-mutable-key-pin.md#case-4)
 
 - **[异步任务与下游超时案例](./chapter-03-cases-async-timeout.md)**
   - [CompletableFuture + DiscardPolicy —— 静默丢弃任务导致永久阻塞](./chapter-03-cases-async-timeout.md#case-5)

@@ -231,9 +231,9 @@ public static ExecutorService newCachedThreadPool() {
 }
 ```
 
-`SynchronousQueue` 是零容量的"传递型"队列——**任何入队都必须有一个消费者同时等着才成功**。§10.2.2 的流程图代入：核心线程 0，`workQueue.offer` 立刻失败（因为没有消费者），于是走到"创建非核心线程"，而这一步的上限是 `Integer.MAX_VALUE`。
+`SynchronousQueue` 是零容量的“传递型”队列——**入队必须有一个消费者同时等待才成功**。§10.2.2 的流程图代入：没有空闲 worker 时，核心线程 0，`workQueue.offer` 失败，于是走到“创建非核心线程”，而这一步的上限是 `Integer.MAX_VALUE`。
 
-结果：来一个请求造一条线程。10 000 并发就是 10 000 条线程 ≈ 10 GB 栈内存。OOM 或 `OutOfMemoryError: unable to create native thread` 是必然结局。
+如果空闲 worker 不足，任务到来就可能创建新的线程；当并发同时达到 10 000 且没有 worker 可复用时，就可能创建 10 000 条线程，按每条 1 MB 栈估算约为 10 GB 虚拟地址空间。最终可能触发 `OutOfMemoryError: unable to create native thread`，但是否发生取决于平台、线程栈配置和并发峰值。
 
 ### 5.4 手写线程池的默认姿势
 
@@ -293,7 +293,7 @@ scheduler.scheduleAtFixedRate(() -> {
 scheduler.scheduleAtFixedRate(() -> {
     try {
         doWork();
-    } catch (Throwable t) {
+    } catch (Exception t) {
         log.error("scheduled task failed", t);
     }
 }, 0, 5, TimeUnit.SECONDS);
@@ -338,7 +338,7 @@ ExecutorService ioPool = ...;
 CompletableFuture.supplyAsync(() -> httpClient.get(url), ioPool);
 ```
 
-一条规则记住即可：**`ForkJoinPool` 只应承担 CPU 密集任务；任何可能阻塞的任务必须走独立线程池**。第 11 章会围绕 `CompletableFuture` 把这条规则再展开一遍。
+一条经验规则是：**默认的 `commonPool` 适合可拆分的 CPU 密集任务；可能长时间阻塞的任务应使用专门配置的线程池**。是否必须隔离，还要结合线程池参数、阻塞时长和任务隔离需求判断。第 11 章会围绕 `CompletableFuture` 把这条规则再展开一遍。
 
 ### 7.3 `ThreadPoolExecutor` vs `ForkJoinPool`
 
@@ -359,9 +359,9 @@ CompletableFuture.supplyAsync(() -> httpClient.get(url), ioPool);
 | :-- | :-- | :-- |
 | CPU 密集（加密、压缩、复杂计算） | `N_CPU + 1` | 9 |
 | IO 密集（DB / RPC / HTTP） | `N_CPU × 2` 起，实际按 IO 比例调 | 16 起 |
-| 混合任务 | 按 Little 定律：`N_CPU × (1 + W/C)` | 见下 |
+| 混合任务 | 按启发式估算：`N_CPU × (1 + W/C)` | 见下 |
 
-Little 定律的推导：
+该公式来自基于 CPU 数和等待/计算比例的容量估算，不是 Little 定律本身。Little 定律的表达是 `L = λW`，用于关联平均在系统中的任务数、到达率和平均停留时间。
 
 ```txt
 线程数 = CPU 核数 × (1 + 等待时间 / 计算时间)
@@ -397,14 +397,14 @@ public class NamedThreadFactory implements ThreadFactory {
 
 ### 8.3 生产监控的四个指标
 
-线程池提供了完备的观测 API，接入监控是必须的：
+线程池提供了可选的观测 API；是否接入监控取决于服务等级和故障风险，但生产服务通常应至少观察队列、活跃线程和拒绝事件：
 
 | 指标 | API | 告警阈值参考 |
 | :-- | :-- | :-- |
-| 活跃线程数 | `getActiveCount()` | 持续 ≥ `maximumPoolSize` × 80% |
-| 队列长度 | `getQueue().size()` | 持续 > 队列容量 × 70% |
+| 活跃线程数 | `getActiveCount()` | 示例：持续达到 `maximumPoolSize` 的 80% |
+| 队列长度 | `getQueue().size()` | 示例：持续超过队列容量的 70% |
 | 已完成任务 | `getCompletedTaskCount()` | 观察增长速率，突降=卡顿 |
-| 拒绝数 | 自定义 `RejectedExecutionHandler` 计数 | > 0 立即告警 |
+| 拒绝数 | 自定义 `RejectedExecutionHandler` 计数 | 示例：出现拒绝即告警；阈值按业务容忍度调整 |
 
 ### 8.4 业务线程池要相互隔离
 
@@ -482,7 +482,7 @@ try { f.get(); } catch (ExecutionException e) { /* 才能拿到异常 */ }
 | 核心线程满了不建非核心线程 | 队列无界 | 用有界 `ArrayBlockingQueue` |
 | `newFixedThreadPool` OOM | `LinkedBlockingQueue()` 无界 | 禁止 `Executors` 工厂，手写 |
 | `newCachedThreadPool` 线程爆炸 | `max=Integer.MAX_VALUE` | 手写并明确 max |
-| 定时任务突然不跑 | 未捕获异常导致任务被取消 | 定时任务里 `try/catch(Throwable)` |
+| 定时任务突然不跑 | 任务异常导致后续执行被取消 | 捕获并处理可预期的 `Exception`；不要静默吞掉致命 `Error` |
 | `parallelStream` / `CompletableFuture` 全局卡住 | 阻塞任务塞进 `commonPool` | 阻塞任务用独立线程池 |
 | 线上无法定位是哪个业务的线程 | 默认线程名无区分 | 自定义 `ThreadFactory` 命名 |
 | `submit` 的任务异常静默丢失 | 异常被封在 `Future` 里 | 用 `execute` 或调 `future.get` |

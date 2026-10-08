@@ -1,6 +1,6 @@
 # JIT 编译
 
-> 压测前 5 分钟 QPS 只有峰值的一半——不是你的代码有问题，是 JVM 在预热。同一段热点代码，跑 10000 次前是解释执行（一次 120ns），跑 10000 次后触发 C2 编译（一次 8ns）——15 倍的差距。更隐蔽的是：预热不充分时上线，前几分钟的慢请求会拖垮采样数据，让你把代码问题误判为性能问题。JIT 不是锦上添花——是会骗你的。
+> 服务启动初期可能仍在解释执行或较低编译层级，延迟和吞吐与预热完成后不同。性能测试若不区分解释、C1、C2 和去优化阶段，容易把运行时状态误判为业务代码问题。预热所需时长没有固定次数，应通过编译日志和目标工作负载测量。
 
 ## 1. 为什么需要 JIT
 
@@ -25,9 +25,11 @@ for (int i = 0; i < 100_000_000; i++) {
 
 | 执行方式 | 耗时（相对值） | 原因 |
 | :-- | :-- | :-- |
-| 纯解释执行 | 100x | 每次执行都要解析字节码 |
-| C1 编译 | 10x | 机器码，保守优化 |
-| C2 编译 | 1x | 机器码，激进优化（内联、逃逸分析、向量化） |
+| 纯解释执行 | 显著较慢 | 执行字节码指令 |
+| C1 编译 | 中间阶段 | 机器码，较保守优化 |
+| C2 编译 | 通常为高性能阶段 | 机器码，激进优化（内联、逃逸分析、向量化） |
+
+这些差距只能通过目标 JDK、目标 CPU 和实际负载测量，不能用固定倍数跨场景比较。
 
 ## 2. HotSpot 编译体系
 
@@ -65,10 +67,10 @@ Level 4（C2 编译，基于 Level 3 的 profiling 做激进优化）
 
 JVM 使用**方法调用计数器**和**回边计数器**来判断代码是否"热"：
 
-- **方法调用计数器**：方法被调用的次数，阈值默认 10000 次（`-XX:CompileThreshold`）
-- **回边计数器**：循环体执行的次数，阈值默认 10700 次（`-XX:OnStackReplacePercentage`）
+- **方法调用计数器**：累计方法调用热度。
+- **回边计数器**：累计循环回边热度。
 
-两个计数器任一达到阈值，就触发编译。
+HotSpot 根据计数器、执行层级和采样信息决定是否编译；开启分层编译时，各层级的触发条件并不等价于一个全局固定的“10000 次”阈值。
 
 ### 2.3 On-Stack Replacement（OSR）
 
@@ -316,13 +318,14 @@ for (int i = 0; i < arr.length; i++) {
 JIT 编译日志可以告诉你是否做了向量化：
 
 ```bash
-# 开启编译日志
--XX:+PrintCompilation
--XX:+UnlockDiagnosticVMOptions
--XX:+LogCompilation
--XX:LogFile=jit.log
+# JDK 17 与 HotSpot 的示例；输出字段与日志选项可能随版本变化
+java -XX:+UnlockDiagnosticVMOptions \
+  -XX:+PrintCompilation \
+  -XX:+LogCompilation \
+  -XX:LogFile=jit.log \
+  -jar app.jar
 
-# 在日志中搜索 "vector" 或 "SuperWord"
+# 在 jit.log 中搜索 vector 或 SuperWord 相关标记
 ```
 
 更直观的方式是使用 JMH 的 `perfasm` 集成，查看编译后的机器码：
@@ -390,18 +393,18 @@ JIT 在生产环境中可能引发三类隐蔽问题：
 
 ### 7.1 问题一：CodeCache 满
 
-JIT 编译的机器码存储在 CodeCache 中（[JVM 运行时数据区](./chapter-02-runtime-data-areas.md) 6.2 节）。如果 CodeCache 满了（默认 240MB~480MB），JVM 会停止 JIT 编译，所有代码退回解释执行。
+JIT 编译的机器码存储在 CodeCache 中（[JVM 运行时数据区](./chapter-02-runtime-data-areas.md) 6.2 节）。CodeCache 容量不足时，HotSpot 会停止接受新的编译，已有已编译代码通常仍可继续执行；只有发生特定反优化事件的路径才会退回解释执行。容量上限和缺省值取决于 JDK 版本、CPU 与配置，不能用一个固定区间概括所有环境。
 
 **症状：** 服务运行一段时间后突然变慢，没有 OOM、没有 GC 问题、CPU 使用率正常——但响应时间骤增。
 
 **排查：**
 
 ```bash
-# 检查 CodeCache 使用情况
+# JDK 17 示例；先检查已编译方法数量
 jstat -compiler <pid>
 
-# 或通过 JFR 观察 Compilation 事件
-# 如果看到 "CodeCache is full" 日志 → 确认是 CodeCache 问题
+# 再用 JFR 或 -Xlog:codecache 观察容量与停止编译事件
+jcmd <pid> JFR.start settings=profile filename=codecache.jfr duration=60s
 ```
 
 **修复：** 增大 `-XX:ReservedCodeCacheSize`（如 512MB），或检查是否有大量动态生成的代码（如 Groovy 脚本、反射代理）。
@@ -427,8 +430,8 @@ JIT 编译在后台线程中执行。当大量方法同时达到编译阈值时�
 ### 8.1 打印编译日志
 
 ```bash
-# 打印编译信息
--XX:+PrintCompilation
+# JDK 17 + HotSpot 示例
+java -XX:+PrintCompilation -jar app.jar
 
 # 输出示例:
 #   76   1       3       java.lang.String::hashCode (55 bytes)
@@ -442,13 +445,13 @@ JIT 编译在后台线程中执行。当大量方法同时达到编译阈值时�
 JITWatch 是一个 JIT 编译日志分析工具，可以查看哪些方法被内联、哪些被编译、编译后的机器码。
 
 ```bash
-# 1. 开启编译日志
--XX:+UnlockDiagnosticVMOptions
--XX:+TraceClassLoading
--XX:+LogCompilation
--XX:LogFile=jit.log
+# 1. JDK 17 + HotSpot 示例
+java -XX:+UnlockDiagnosticVMOptions \
+  -XX:+LogCompilation \
+  -XX:LogFile=jit.log \
+  -jar app.jar
 
-# 2. 使用 JITWatch 分析 jit.log
+# 2. 使用与日志格式匹配的 JITWatch 版本分析 jit.log
 ```
 
 ### 8.3 使用 JFR 观察 JIT 事件
@@ -463,4 +466,4 @@ JFR 中的 JIT 相关事件：
 - `CompilerInlining`：方法被内联
 - `Deoptimization`：去优化事件
 
-> 本章解释了 Java 为什么越跑越快。下一章将所有 JVM 理论落地为实战——线上问题排查与诊断。
+> 本章解释了热点代码可能随分层编译而改变执行性能。下一章将部分 JVM 原理应用于线上问题排查与诊断。

@@ -8,12 +8,12 @@ Druid 是阿里巴巴开源的数据库连接池。它和 HikariCP 解决同一�
 
 | 维度 | HikariCP | Druid |
 | :-- | :-- | :-- |
-| 定位 | 极致性能的连接池 | 连接池 + 监控 + 安全 |
+| 定位 | 以连接管理与轻量实现为设计取向 | 连接池 + 监控 + 安全能力 |
 | SQL 监控 | 无（需外部工具） | 内置 `StatFilter`，统计耗时、慢查询 |
 | SQL 防火墙 | 无 | 内置 `WallFilter`，防注入 |
 | Web/接口监控 | 无 | 内置 `WebStatFilter`，统计 URI / Session |
 | 监控台 | 无 | 内置 Web 页面 `/druid/` |
-| 性能 | 更高（`ConcurrentBag` 无锁） | 略低，功能更全 |
+| 性能 | 实现以 `ConcurrentBag` 为主；实际吞吐需压测 | 功能更全；实际吞吐需压测 |
 | 默认 | Spring Boot 2.x 起默认 | 需手动引入 |
 
 连接池本身的原理——为何建连昂贵、参数如何调——在 [性能优化](./chapter-05-performance.md) §1 已讲，这里不重复。本章只讲 Druid 比 HikariCP 多出来的东西。
@@ -68,8 +68,8 @@ spring:
   datasource:
     druid:
       url: jdbc:mysql://localhost:3306/mydb
-      username: root
-      password: 123456
+      username: ${DB_USERNAME}
+      password: ${DB_PASSWORD}
       driver-class-name: com.mysql.cj.jdbc.Driver
       # 连接池
       initial-size: 5
@@ -82,14 +82,21 @@ spring:
 
 ## 4. SQL 监控
 
-监控由 `StatFilter` 提供。开启方式有两种，等价：
+监控由 `StatFilter` 提供。下面两种写法都能启用统计，但属于任选其一；需要定制阈值或合并 SQL 时通常使用第二种。
 
 ```yaml
 spring:
   datasource:
     druid:
-      filters: stat,wall          # 方式一：逗号分隔，用默认配置
-      # 方式二：逐个配置，可定制（与方式一任选其一）
+      filters: stat,wall          # 方式一：逗号分隔，使用默认配置
+```
+
+如需定制统计行为，使用第二种写法，并移除 `filters` 中的 `stat`：
+
+```yaml
+spring:
+  datasource:
+    druid:
       filter:
         stat:
           enabled: true
@@ -252,18 +259,18 @@ public void createOrder(Order order) {
 }
 ```
 
-**事务内开异步线程**：`@Transactional` 方法里用线程池异步查库。主方法返回后连接随异步任务继续存活，事务上下文错乱。
+**在事务方法中启动异步任务**：Spring 的事务上下文通常绑定当前线程，普通线程池任务不会自动继承该事务和绑定连接。异步 Mapper 调用可能在独立会话中执行，无法看到主事务尚未提交的修改；任务完成时机也与主事务提交时机无确定关系。
 
 ```java
 @Transactional
 public void process(Long id) {
     User user = userMapper.selectById(id);
-    // ❌ 事务内异步查库，连接被异步线程持有到任务结束
+    // 主线程事务尚未提交，异步查询通常看不到 id 对应的新状态
     executor.submit(() -> orderMapper.selectByUserId(user.getId()));
 }
 ```
 
-这两类场景 `close()` 管不到——连接最终会归还，只是归还得太晚。Druid 的 `remove-abandoned` 按「借出时长」判定：超过阈值仍未归还就强制回收，并打印借出位置：
+这类异步使用不会自动“继承主连接”，但会引入事务隔离、任务完成时序和额外连接使用问题。建议先完成本地数据库写入和事务提交，再提交异步任务；若必须同事务处理，应设计同步执行或显式事务边界。Druid 的 `remove-abandoned` 按借出时长判定长期未归还连接，并打印借出位置：
 
 ```yaml
 spring:

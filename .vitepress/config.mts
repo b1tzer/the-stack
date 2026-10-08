@@ -466,7 +466,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
           text: 'Java 语言核心',
           collapsed: true,
           items: [
-            { text: '为什么是 Java', link: '/java/01-java-language/chapter-01-why-java' },
+            { text: 'Java 的设计目标与运行链路', link: '/java/01-java-language/chapter-01-why-java' },
             { text: '类型系统', link: '/java/01-java-language/chapter-02-type-system' },
             { text: '对象与值语义', link: '/java/01-java-language/chapter-03-object-values' },
             { text: '面向对象', link: '/java/01-java-language/chapter-04-oop' },
@@ -516,6 +516,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
                 { text: '线程池', link: '/java/03-java-concurrency/chapter-10-thread-pool' },
                 { text: '异步编程', link: '/java/03-java-concurrency/chapter-11-async-model' },
                 { text: '虚拟线程与结构化并发', link: '/java/03-java-concurrency/chapter-12-virtual-thread' },
+                { text: '虚拟线程：适用边界与迁移', link: '/java/03-java-concurrency/chapter-12-virtual-thread-migration' },
               ],
             },
           ],
@@ -529,6 +530,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
               items: [
                 { text: '网络通信基础', link: '/java/04-java-network/chapter-01-network-basics' },
                 { text: 'TCP/IP', link: '/java/04-java-network/chapter-02-tcp-ip' },
+                { text: 'TCP/IP：性能参数与 Java 实践', link: '/java/04-java-network/chapter-02-tcp-performance-java' },
                 { text: 'HTTP 协议', link: '/java/04-java-network/chapter-06-http' },
               ],
             },
@@ -560,13 +562,16 @@ export default withOpenInEditor(withMermaid(defineConfig({
               items: [
                 { text: '持久化思想', link: '/java/05-java-data-access/chapter-01-persistence-thought' },
                 { text: 'JDBC', link: '/java/05-java-data-access/chapter-02-jdbc' },
+                { text: 'JDBC：性能瓶颈与连接池', link: '/java/05-java-data-access/chapter-02-jdbc-performance-pool' },
               ],
             },
             {
               text: '映射框架',
               items: [
                 { text: 'MyBatis', link: '/java/05-java-data-access/chapter-03-mybatis' },
+                { text: 'MyBatis：插件与动态 SQL', link: '/java/05-java-data-access/chapter-03-mybatis-plugins-dynamic-sql' },
                 { text: 'ORM 深入', link: '/java/05-java-data-access/chapter-04-orm-deep' },
+                { text: 'ORM：对象关系映射策略', link: '/java/05-java-data-access/chapter-04-orm-mapping-strategies' },
               ],
             },
             {
@@ -598,6 +603,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
               items: [
                 { text: '并发诊断与优化', link: '/java/06-diagnostics/02-concurrency/chapter-01-concurrency-diagnostics' },
                 { text: '锁与执行模型案例', link: '/java/06-diagnostics/02-concurrency/chapter-02-cases-lock-execution' },
+                { text: '并发案例：可变键与 pinning', link: '/java/06-diagnostics/02-concurrency/chapter-02-cases-mutable-key-pin' },
                 { text: '异步任务与下游超时案例', link: '/java/06-diagnostics/02-concurrency/chapter-03-cases-async-timeout' },
               ]
             },
@@ -605,6 +611,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
               text: '网络',
               items: [
                 { text: '网络性能分析与故障排查', link: '/java/06-diagnostics/03-network/chapter-01-network-diagnostics' },
+                { text: '网络诊断：高并发优化与实践', link: '/java/06-diagnostics/03-network/chapter-01-network-optimization-practices' },
               ]
             },
           ],
