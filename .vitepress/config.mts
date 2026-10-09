@@ -457,10 +457,8 @@ export default withOpenInEditor(withMermaid(defineConfig({
       ],
       '/java/': [
         {
-          text: '总览',
-          items: [
-            { text: 'Java 知识库', link: '/java/' },
-          ],
+          text: 'Java 知识库',
+          link: '/java/',
         },
         {
           text: 'Java 语言核心',
