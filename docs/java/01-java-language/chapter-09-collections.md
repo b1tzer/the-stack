@@ -75,7 +75,14 @@ boolean removed = orders.remove(firstOrder);
 
 Set 根据元素的相等性判断成员资格。把对象放进 `HashSet` 后，如果参与 `hashCode` 或 `equals` 的字段发生变化，对象可能仍占据原 hash 桶，却无法被再次找到。
 
+下面的示例使用 Java 16 起引入的 `record` 表达不可变 key；如果尚未阅读[现代 Java](./chapter-11-modern-language-features.md)，可以先把它理解为一个自动生成值语义的不可变类。
+
 ```java
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Set;
+
 record UserKey(long tenantId, String email) {
     UserKey {
         Objects.requireNonNull(email);
@@ -83,9 +90,13 @@ record UserKey(long tenantId, String email) {
     }
 }
 
-Set<UserKey> activeUsers = new HashSet<>();
-activeUsers.add(new UserKey(7, "Ada@Example.com"));
-boolean exists = activeUsers.contains(new UserKey(7, "ada@example.com"));
+class SetKeyExample {
+    public static void main(String[] args) {
+        Set<UserKey> activeUsers = new HashSet<>();
+        activeUsers.add(new UserKey(7, "Ada@Example.com"));
+        boolean exists = activeUsers.contains(new UserKey(7, "ada@example.com"));
+    }
+}
 ```
 
 规则是：

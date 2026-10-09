@@ -352,11 +352,11 @@ public void processPayment(Payment payment, BigDecimal amount) {
 }
 ```
 
-这就是**开闭原则（OCP）**的体现：对扩展开放（可以新增 `Payment` 实现），对修改关闭（`processPayment` 方法不需要改）。
+这就是**开闭原则（OCP）** 的体现：对扩展开放（可以新增 `Payment` 实现），对修改关闭（`processPayment` 方法不需要改）。
 
 ### 5.3 多态的实现机制
 
-Java 的多态通过**动态绑定（Dynamic Binding）**实现。编译时，编译器只知道变量的声明类型（`Payment`）；运行时，JVM 根据对象的实际类型（`AlipayPayment`）决定调用哪个方法。
+Java 的多态通过**动态绑定（Dynamic Binding）** 实现。编译时，编译器只知道变量的声明类型（`Payment`）；运行时，JVM 根据对象的实际类型（`AlipayPayment`）决定调用哪个方法。
 
 在字节码层面，这对应 `invokevirtual` 指令——JVM 在运行时查找对象的实际类，找到正确的方法实现。[字节码与类加载](../02-jvm-runtime/chapter-01-bytecode-classloading.md)会进一步解释方法分派如何落到字节码与运行时数据结构。
 
