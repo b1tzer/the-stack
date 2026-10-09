@@ -20,7 +20,7 @@ native void oci_execute(String sql);
 native void oci_logoff();
 ```
 
-这意味着：**换数据库 = 重写数据访问层。** 对于需要支持多种数据库的企业应用来说，这是一场噩梦。
+这意味着，厂商专有 API 会让数据访问层难以跨数据库复用。迁移到另一数据库通常要同步调整驱动、SQL、类型映射和事务语义。
 
 ### 1.2 JDBC 的价值：统一抽象
 
@@ -36,12 +36,12 @@ ps.setLong(1, 1001L);
 ResultSet rs = ps.executeQuery();
 ```
 
-这就是经典的**面向接口编程**——应用代码只依赖 JDBC 标准接口（`java.sql.*`），具体实现由各厂商的 JDBC 驱动（Driver）提供。换数据库？只需要换个驱动 JAR 包和连接 URL，业务代码一行不动。
+这就是典型的**面向接口编程**：应用代码主要依赖 JDBC 标准接口（`java.sql.*`），具体实现由各厂商的 JDBC 驱动（Driver）提供。切换数据库通常要更换驱动和连接 URL，但还可能涉及 SQL 方言、类型映射、事务隔离、批量语义与错误码差异，不能假定业务代码完全不变。
 
 | 维度 | 没有 JDBC | 有了 JDBC |
 | :-- | :-- | :-- |
 | API 统一性 | 每个数据库一套 API | 一套 `java.sql.*` 接口 |
-| 换数据库成本 | 重写数据访问层 | 换驱动 + 换 URL |
+| 换数据库成本 | 重写数据访问层 | 更换驱动和 URL，并验证 SQL 与行为差异 |
 | 代码可移植性 | 几乎为零 | 高（SQL 方言除外） |
 | 驱动管理 | 厂商各自为政 | 标准化 Driver 接口 |
 
@@ -59,7 +59,7 @@ JDBC 的 API 设计围绕四个核心接口展开，每个接口有明确的职�
 
 ### 2.1 DataSource——连接的工厂
 
-`DataSource` 是获取数据库连接的入口。它的职责很简单：**知道怎么连接数据库，能给你一个 Connection。**
+`DataSource` 是获取数据库连接的标准入口。它描述如何创建或借出 `Connection`，但池化、异步初始化、监控和 XA 等能力取决于具体实现。
 
 ```java
 // 方式一：DriverManager（早期方式，硬编码连接信息）
@@ -75,7 +75,7 @@ ds.setPassword("password");
 Connection conn = ds.getConnection();
 ```
 
-为什么推荐 `DataSource`？因为它支持连接池、支持 JNDI 查找、支持分布式事务。在实际生产环境中，你几乎不会直接 `new MysqlDataSource()`，而是使用连接池框架（如 HikariCP）提供的 `DataSource` 实现。这一点我们在 2.6 节详细展开。
+为什么推荐 `DataSource`？因为它支持连接池、支持 JNDI 查找、支持分布式事务。在实际生产环境中，你几乎不会直接 `new MysqlDataSource()`，而是使用连接池框架（如 HikariCP）提供的 `DataSource` 实现。连接池的通用模型见[下一章](./chapter-03-jdbc-performance-pool.md)。
 
 ### 2.2 Connection——一次数据库会话
 
@@ -95,11 +95,11 @@ try {
 }
 ```
 
-**关键认知：Connection 是昂贵资源。** 创建一个 Connection 意味着一次 TCP 三次握手 + 数据库认证过程，耗时几十到几百毫秒。这就是为什么生产环境必须使用连接池（2.6 节详述）。
+**关键认知：Connection 通常是昂贵资源。** 创建连接可能包含 TCP 握手、TLS 和数据库认证，耗时受网络与数据库配置影响。长生命周期服务通常使用[连接池](./chapter-03-jdbc-performance-pool.md)复用连接并控制连接数。
 
 ### 2.3 PreparedStatement——SQL 的执行者
 
-`PreparedStatement` 代表一条**预编译的 SQL 语句**。它负责两件事：接受参数绑定，执行 SQL 并返回结果。
+`PreparedStatement` 是可接受参数绑定、多次执行的 SQL 语句对象。JDBC API 将其描述为预编译语句；驱动是否在服务端真正预编译、何时编译，以及是否缓存执行计划由驱动与数据库实现决定。
 
 ```java
 // 创建 PreparedStatement（此时 SQL 发送到数据库进行预编译）
@@ -115,7 +115,7 @@ ps.setString(2, "北京");
 ResultSet rs = ps.executeQuery();
 ```
 
-为什么用 `PreparedStatement` 而不是普通的 `Statement`？两个原因，我们在 2.4 节详细讨论：**防 SQL 注入**和**预编译性能**。
+使用 `PreparedStatement` 的主要原因是参数化查询能降低拼接 SQL 带来的注入风险。重复执行时是否减少解析或优化开销，则要结合驱动和数据库验证。
 
 ### 2.4 ResultSet——查询结果的游标
 
@@ -279,7 +279,7 @@ SELECT * FROM users WHERE name = '' OR '1'='1' --'
 
 ### 4.2 PreparedStatement 的参数化查询
 
-`PreparedStatement` 通过**参数占位符 `?`** 将 SQL 结构与数据彻底分离：
+`PreparedStatement` 通过参数占位符 `?` 把参数值作为绑定值传递，不参与 SQL 文本拼接：
 
 ```java
 // 安全代码
@@ -291,7 +291,7 @@ ps.setString(1, name);  // 参数作为纯数据传递，不会被解析为 SQL
 ResultSet rs = ps.executeQuery();
 ```
 
-无论用户输入什么，`?` 处的内容都**只被当作数据值，永远不会被解析为 SQL 命令**。即使输入 `' OR '1'='1' --`，数据库也只会把它当作一个普通的字符串去匹配，不会改变 SQL 的逻辑结构。
+`?` 处的绑定值会被当作数据参数，而不会改变 SQL 文本结构。即使输入 `' OR '1'='1' --`，它也只是参与条件比较的字符串。参数化查询降低注入风险，但仍应避免把值直接拼接到 SQL 中。
 
 ```txt
 ┌──────────────────────────────────────────────────────┐
@@ -310,9 +310,9 @@ ResultSet rs = ps.executeQuery();
 └──────────────────────────────────────────────────────┘
 ```
 
-### 4.3 预编译带来的性能收益
+### 4.3 预编译协议与性能边界
 
-除了安全性，`PreparedStatement` 还有性能优势。数据库有一个预编译（Prepared Statement）功能。MySQL 5.0+、PostgreSQL、Oracle 都支持这套协议，当你发送一条带 `?` 的 SQL 给数据库时，数据库会：
+除安全性外，`PreparedStatement` 在重复执行相同结构的语句时可能减少 SQL 解析或执行计划生成开销，但收益取决于驱动和数据库。下图以 MySQL 协议为例：
 
 ```txt
 JDBC 驱动                              数据库服务器
@@ -365,204 +365,86 @@ for (long id : userIds) {
 
 **一句话总结：PreparedStatement 的两个价值——安全靠参数化，性能靠预编译。** 在现代 Java 开发中，没有任何理由使用裸的 `Statement`。
 
-## 5. JDBC 的性能瓶颈
+## 5. 用 Connection 管理事务 {#jdbc-connection-transactions}
 
-JDBC 给了我们统一的数据访问接口，但在实际使用中，朴素的 JDBC 编程存在几个明显的性能瓶颈。理解这些瓶颈，才能理解后续章节中各种优化手段的由来。
+JDBC 的事务边界属于 `Connection`，不属于某一条 `Statement`。同一个连接上的多条语句参与同一个事务；连接一旦提交、回滚或关闭，当前事务边界也随之结束。
 
-### 5.1 连接创建慢
+### 5.1 从自动提交切换到显式事务
 
-每次调用 `DriverManager.getConnection()` 或 `dataSource.getConnection()`，底层都要执行：
-
-```txt
-客户端                              数据库服务器
-  │                                    │
-  │──── 1. TCP 三次握手 ──────────────→ │  ~1-5ms（同机房）
-  │                                    │
-  │──── 2. 认证握手（用户名/密码）──────→  │  ~5-20ms
-  │                                    │
-  │←─── 3. 认证成功，连接建立 ──────────  │
-  │                                    │
-  │  总计：~10-50ms                     │
-```
-
-看起来不多？考虑一个高并发场景：每秒 1000 个请求，每个请求都要创建新连接，那就是每秒 10-50 秒的纯等待时间。而且这个代价是**每条 SQL 前都要付出的**，严重时连接创建的开销甚至超过了 SQL 执行本身。
-
-**根因：** 连接创建涉及 TCP 握手（第四卷网络知识）和数据库认证，是 I/O 密集操作，无法避免。
-
-**解法：** 连接池——预先创建一批连接，请求来了直接借，用完还回去。详见 2.6 节。
-
-### 5.2 逐条插入慢
-
-假设你要插入 10000 条用户数据：
+JDBC 默认通常处于自动提交模式：每条 SQL 执行成功后立即提交。需要让多条语句共享一个原子结果时，要显式关闭自动提交：
 
 ```java
-for (User user : users) {
-    PreparedStatement ps = conn.prepareStatement(
-        "INSERT INTO users (name, email) VALUES (?, ?)"
-    );
-    ps.setString(1, user.getName());
-    ps.setString(2, user.getEmail());
-    ps.executeUpdate();  // 每次执行 = 一次网络往返
-    ps.close();
-}
-```
-
-每次 `executeUpdate()` 都是一次完整的**请求-响应**网络往返。10000 条数据 = 10000 次网络往返，延迟叠加起来非常可观。
-
-```java
-// 优化：批量操作
-PreparedStatement ps = conn.prepareStatement(
-    "INSERT INTO users (name, email) VALUES (?, ?)"
-);
-for (User user : users) {
-    ps.setString(1, user.getName());
-    ps.setString(2, user.getEmail());
-    ps.addBatch();           // 加入批次，不发送
-}
-ps.executeBatch();           // 一次性发送所有数据
-```
-
-批量操作将多次网络往返合并为一次，性能提升可达 **10-100 倍**。
-
-### 5.3 模板代码多
-
-这个问题在 2.3.2 节已经讨论过。JDBC 的样板代码（获取连接、关闭资源、异常处理、ResultSet 映射）不仅让代码臃肿，还增加了出错的概率——忘记关闭连接导致连接泄漏，异常处理不当导致事务不回滚。
-
-### 5.4 瓶颈总结
-
-| 问题 | 根因 | 代价 | 解决方向 |
-| :-- | :-- | :-- | :-- |
-| 连接创建慢 | TCP 握手 + 数据库认证（I/O 操作） | 每次 10-50ms | 连接池（HikariCP） |
-| 逐条操作慢 | 每次 SQL 一次网络往返 | N 条数据 = N 次 RTT | 批量操作（Batch） |
-| 模板代码多 | 重复的连接/资源/映射代码 | 开发效率低、易出错 | ORM 框架封装 |
-
-注意一个有趣的规律：**前两个是运行时性能问题，第三个是开发时效率问题。** JDBC 本身是一个"薄"抽象——它忠实反映了数据库操作的真实代价（连接昂贵、网络有延迟），而不是试图隐藏它们。这种设计哲学在今天看来是正确的：把优化的空间留给上层框架，而不是在底层做魔法。
-
-## 6. JDBC 与连接池
-
-连接池是解决 JDBC 性能瓶颈的最重要手段，也是现代 Java 应用的标准配置。理解连接池，需要先理解"为什么连接这么贵"。
-
-### 6.1 创建一个连接的代价
-
-当 Java 应用调用 `dataSource.getConnection()` 时，底层发生了什么？
-
-```txt
-Java 应用                           操作系统                    数据库服务器
-   │                                  │                           │
-   │── 1. 创建 Socket ──────────────→│                           │
-   │                                  │── 2. TCP 三次握手 ────────→│
-   │                                  │←── SYN-ACK ───────────────│
-   │                                  │── 3. ACK ────────────────→│
-   │                                  │                           │
-   │←── 4. Socket 建立 ──────────────│                           │
-   │                                  │                           │
-   │── 5. 发送认证请求（用户名/密码）──→│──────────────────────────→│
-   │                                  │←── 6. 认证结果 ───────────│
-   │←─────────────────────────────────│                           │
-   │                                  │                           │
-   │── 7. 发送初始化命令（字符集等）──→│──────────────────────────→│
-   │←── 8. 连接就绪 ─────────────────────────────────────────────│
-   │                                  │                           │
-   │  总计：至少 2-3 次网络往返 + TCP 握手                          │
-   │  耗时：同机房 10-50ms，跨机房可能 100ms+                      │
-```
-
-这还只是建立连接。连接建立后，还可能需要设置字符集、时区、事务隔离级别等。整个过程涉及**系统调用（Socket 创建）、网络 I/O（TCP 握手 + 认证）、数据库资源分配（线程 + 内存）**，代价远比执行一条简单 SQL 要高。
-
-### 6.2 连接池的基本原理
-
-连接池的核心思想就两个字：**复用。**
-
-```txt
-不使用连接池：
-  请求 1 → 创建连接 → 执行 SQL → 关闭连接
-  请求 2 → 创建连接 → 执行 SQL → 关闭连接
-  请求 3 → 创建连接 → 执行 SQL → 关闭连接
-  每次都要付出连接创建的代价
-
-使用连接池：
-  启动时 → 预先创建 10 个连接，放入池中
-  
-  请求 1 → 从池中借出连接 → 执行 SQL → 连接归还池中
-  请求 2 → 从池中借出连接 → 执行 SQL → 连接归还池中
-  请求 3 → 从池中借出连接 → 执行 SQL → 连接归还池中
-  连接创建代价只付出一次
-```
-
-连接池的实现原理并不复杂：
-
-```java
-public class SimpleConnectionPool {
-    private final BlockingQueue<Connection> pool;
-    
-    public SimpleConnectionPool(DataSource ds, int size) throws SQLException {
-        pool = new LinkedBlockingQueue<>(size);
-        for (int i = 0; i < size; i++) {
-            pool.offer(ds.getConnection());  // 启动时预创建
+try (Connection connection = dataSource.getConnection()) {
+    boolean originalAutoCommit = connection.getAutoCommit();
+    try {
+        connection.setAutoCommit(false);
+        try (PreparedStatement debit = connection.prepareStatement(DEBIT_SQL);
+             PreparedStatement credit = connection.prepareStatement(CREDIT_SQL)) {
+            debit.setBigDecimal(1, amount);
+            debit.executeUpdate();
+            credit.setBigDecimal(1, amount);
+            credit.executeUpdate();
         }
-    }
-    
-    // 借出：从池中取一个连接
-    public Connection getConnection() throws InterruptedException {
-        return pool.take();  // 池空了就阻塞等待
-    }
-    
-    // 归还：还回池中（而不是真正关闭）
-    public void release(Connection conn) {
-        pool.offer(conn);
+        connection.commit();
+    } catch (SQLException ex) {
+        try {
+            connection.rollback();
+        } catch (SQLException rollbackFailure) {
+            ex.addSuppressed(rollbackFailure);
+        }
+        throw ex;
+    } finally {
+        connection.setAutoCommit(originalAutoCommit);
     }
 }
 ```
 
-当然，真实的连接池（如 HikariCP）要处理更多问题：连接有效性检测、空闲连接回收、最大等待时间、连接泄漏检测等。但核心思想就是这个 BlockingQueue——**借出和归还，而不是创建和销毁。**
+关闭自动提交前先记录原值，并在归还连接前恢复；try-with-resources 保证连接最终关闭。连接池中的 `close()` 通常表示归还连接；如果事务尚未提交或回滚，事务状态可能继续污染下一个借用者，因此不能把关闭连接当作提交事务。恢复自动提交状态本身也可能失败，生产代码还要保留或记录这个次级失败，避免它覆盖原始事务异常。
 
-### 6.3 连接池的关键参数
+### 5.2 回滚、隔离级别与失败边界
 
-| 参数 | 含义 | 典型值 | 注意事项 |
-| :-- | :-- | :-- | :-- |
-| `minimumIdle` | 最小空闲连接数 | 5-10 | 过小导致冷启动慢 |
-| `maximumPoolSize` | 最大连接数 | 10-20 | 过大浪费数据库资源 |
-| `connectionTimeout` | 获取连接的最大等待时间 | 30s | 超时应快速失败 |
-| `idleTimeout` | 空闲连接存活时间 | 10min | 过长浪费资源 |
-| `maxLifetime` | 连接最大存活时间 | 30min | 避免数据库单方面断开 |
+`rollback()` 撤销当前事务中尚未提交的修改。事务中任何一步失败，都应进入回滚路径；只有全部业务步骤成功后才调用 `commit()`。
 
-**最大连接数怎么设？** 一个经验公式：`maximumPoolSize = CPU 核心数 * 2 + 磁盘数`。数据库连接不是越多越好——每个连接都占用数据库端的线程和内存，过多连接反而会导致数据库性能下降。连接池的本质是**排队机制**：当所有连接都在使用时，新请求排队等待，而不是无限制地创建新连接。
+JDBC 通过 `setTransactionIsolation()` 设置事务隔离级别，常见取值包括 `TRANSACTION_READ_UNCOMMITTED`、`TRANSACTION_READ_COMMITTED`、`TRANSACTION_REPEATABLE_READ` 和 `TRANSACTION_SERIALIZABLE`。驱动可以通过 `supportsTransactionIsolationLevel()` 声明是否支持某个级别，但“设置成功”不等于数据库具有与该名称完全相同的并发语义。具体异常、锁和快照行为由数据库决定：
 
-### 6.4 连接池与 TCP 的关系
+- MySQL 的隔离级别与锁行为见 [MySQL 事务与锁](../../mysql/05-transaction-lock/chapter-02-transaction.md)。
+- PostgreSQL 的快照与隔离级别见 [PostgreSQL 事务隔离](../../postgresql/05-transactions/chapter-01-isolation-levels.md)。
 
-连接池复用的不只是 Java 对象，更是底层的 **TCP Socket 连接**。每个 `Connection` 对象内部持有一个 Socket，连接池让多个请求**分时复用**同一个 Socket，避免了反复创建和销毁 TCP 连接的开销。
+事务隔离级别不是越高越安全。更高隔离级别通常增加锁竞争或写冲突，应从真实并发异常出发选择，并用并发测试验证。
 
-这与第四卷中讨论的 TCP 连接管理一脉相承：
+### 5.3 使用 Savepoint 划分局部回滚
 
-- **TCP 三次握手**：连接创建时必须完成，耗时取决于网络延迟
-- **TCP Keep-Alive**：长连接需要心跳保活，防止中间设备（防火墙、NAT）断开空闲连接
-- **TCP 连接复用**：连接池本质上是应用层的连接复用，与 HTTP Keep-Alive 的思想一致
+驱动支持时，可以创建 `Savepoint`，把一组语句标记为一个检查点：
 
-理解了这些底层原理，你就能明白为什么连接池参数（如 `maxLifetime`、空闲检测）的设计是这样的——它们是在应对 TCP 层面的真实约束。
-
-## 7. 小结
-
-JDBC 是 Java 数据访问的基石，它的设计哲学是“**薄抽象**“——忠实地暴露数据库操作的真实代价，而不是试图隐藏它们。这既是它的优点（透明、可控），也是它的缺点（样板代码多、开发效率低）。
-
-回顾本章的核心知识点：
-
-1. **JDBC 的价值**：一套标准接口，屏蔽底层数据库差异，所有 ORM 框架都建立在它之上
-2. **四个核心接口**：`DataSource` → `Connection` → `PreparedStatement` → `ResultSet`，形成一条清晰的创建链
-3. **PreparedStatement 的两个价值**：防 SQL 注入（参数与代码分离）+ 预编译性能（执行计划缓存）
-4. **三个性能瓶颈**：连接创建慢（→ 连接池）、逐条操作慢（→ 批量）、样板代码多（→ ORM）
-5. **连接池的本质**：复用 TCP 连接，避免反复握手和认证的开销
-
-```mermaid
-graph TD
-    A[业务需求：存取数据] --> B[JDBC：统一接口]
-    B --> C{性能瓶颈}
-    C -->|连接创建慢| D[连接池：HikariCP]
-    C -->|逐条操作慢| E[批量操作：Batch]
-    C -->|样板代码多| F[ORM 框架：MyBatis / Hibernate]
-    F -->|底层依赖| B
-    D -->|底层复用| G[TCP Socket]
-    G --> H[第四卷：网络通信]
-    B --> I[第五卷后续章节]
+```java
+connection.setAutoCommit(false);
+Savepoint beforeOptionalStep = connection.setSavepoint("beforeOptionalStep");
+try {
+    executeRequiredSteps(connection);
+    executeOptionalStep(connection);
+    connection.commit();
+} catch (SQLException ex) {
+    connection.rollback(beforeOptionalStep);
+    try {
+        executeFallback(connection);
+        connection.commit();
+    } catch (SQLException fallbackFailure) {
+        connection.rollback();
+        throw fallbackFailure;
+    }
+}
 ```
 
-JDBC 到此讲完数据库的「统一接口」这一层。接口之下，SQL 的执行流程、索引原理、锁与事务隔离这些数据库内核知识，由 [MySQL](../../mysql/01-basics/chapter-01-overview.md) 与 [PostgreSQL](../../postgresql/01-pg-unique/chapter-01-pg-overview.md) 专题承接；接口之上，连接池、批处理与链路排查见下一章 [性能优化](./chapter-05-performance.md)。
+回滚到 Savepoint 只撤销检查点之后的修改，不会提交之前已经执行的修改。`releaseSavepoint()` 可以释放不再需要的检查点；驱动不支持 Savepoint 时会抛出 `SQLFeatureNotSupportedException`，数据库还可能因 DDL 或事务实现限制拒绝保存点。不要默认所有数据库和驱动都提供相同能力。
+
+### 5.4 选择 JDBC 事务还是框架事务
+
+直接使用 JDBC API 适合需要精确控制连接、Savepoint 或批量操作的底层代码。业务方法通常使用 [Spring 声明式事务](../../spring/04-data-access/chapter-04-transaction.md)管理边界、传播和回滚规则，但最终仍会落到当前 `Connection` 的事务状态。
+
+两种方式不要在同一个业务边界中混用：Spring 已经取得连接并开启事务时，再手动切换 `autoCommit` 或调用 `commit()`，可能提前结束框架管理的事务。分布式事务和 XA 不属于本页范围，应根据一致性需求单独评估。
+
+## 6. 下一步
+
+前面的内容覆盖了 JDBC 的接口、参数化查询、结果处理和事务边界。接下来从请求延迟和资源占用出发，分析连接创建、逐条执行与连接池参数之间的取舍。
+
+> **下一页：** [JDBC 性能瓶颈与连接池](./chapter-03-jdbc-performance-pool.md)

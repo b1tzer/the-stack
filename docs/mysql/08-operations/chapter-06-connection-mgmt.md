@@ -1,5 +1,7 @@
 # 连接管理
 
+> 本页处理连接参数、连接池和连接故障；整体请求路径见[整体架构](../01-basics/chapter-02-architecture.md)，排障入口见[常见问题](../10-practice/chapter-04-common-issues.md)。
+
 ## 1. 连接基础架构
 
 ```

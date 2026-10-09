@@ -1,5 +1,7 @@
 # MyBatis 集成
 
+> 本页聚焦 Spring 配置、事务集成和 `SqlSessionTemplate`。MyBatis 的动态代理、缓存与插件机制见 [MyBatis：SQL 映射框架](../../java/05-java-data-access/chapter-04-mybatis.md)。
+
 > 独立使用 MyBatis 要写 20 行模板代码：建 `SqlSessionFactory`、开 `SqlSession`、拿 Mapper、提交、关闭。Spring 整合后一个 `@Autowired UserMapper` 就够了。本章前三节讲用法，后四节讲原理——Mapper 接口凭什么能注入、`SqlSessionTemplate` 为什么线程安全、一级缓存为什么「失效」。
 
 ## 1. 配置

@@ -1,5 +1,15 @@
 # 常见问题与避坑指南
 
+> 本页只提供问题定位和处置入口。原因与机制回到对应专题，避免在同一处重复维护两套解释。
+
+| 现象 | 先检查 | 原理入口 |
+| :-- | :-- | :-- |
+| 查询变慢或索引失效 | 访问条件、选择性和执行计划 | [索引失效](../03-index/chapter-03-index-usage.md)、[执行计划](../04-query-optimization/chapter-01-execution-plan.md) |
+| 锁等待或死锁 | 事务边界、加锁顺序 | [死锁](../05-transaction-lock/chapter-04-deadlock.md) |
+| 连接耗尽或泄漏 | 连接池配置和未关闭连接 | [连接管理](../08-operations/chapter-06-connection-mgmt.md) |
+| 大表 DDL 阻塞 | 锁类型、算法和复制延迟 | [在线 DDL](../08-operations/chapter-07-online-ddl.md) |
+| 错误码或时区异常 | 版本、连接参数和错误上下文 | [错误码速查](../reference/errors.md) |
+
 ## 1. 索引失效
 
 ```sql
@@ -168,4 +178,3 @@ String url = "jdbc:mysql://host:3306/mydb?serverTimezone=Asia/Shanghai&useSSL=fa
 | 2006 | 服务器断开连接 | 检查 wait_timeout |
 | 1045 | 认证失败 | 检查用户名密码 |
 | 1146 | 表不存在 | 检查表名和数据库 |
-

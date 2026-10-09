@@ -422,7 +422,7 @@ TTL 不是免费午餐——每次任务提交都要抓拍所有已注册的 TTL
 
 ### 5.4 生产上的典型使用
 
-第六卷「企业架构」会详细展开这些组件，本章只点出它们与 `ThreadLocal` 的关系：
+[Spring 数据访问与事务](../../spring/04-data-access/chapter-04-transaction.md)、[Spring AOP](../../spring/01-core/chapter-05-aop.md)和链路追踪专题会展开这些组件；本章只点出它们与 `ThreadLocal` 的关系：
 
 - **日志 MDC**（Logback / Log4j2）：`MDC.put("traceId", ...)` 底层就是一个 `ThreadLocal`；异步日志线程 / 异步任务需要 TTL 才能保留 traceId
 - **Spring 事务传播**：`TransactionSynchronizationManager` 用 `ThreadLocal` 保存当前事务；`@Async` 场景下事务不会传递就是这个原因
@@ -450,3 +450,7 @@ TTL 不是免费午餐——每次任务提交都要抓拍所有已注册的 TTL
 | 线程池跨提交传递 | 复制发生太早，快照过期 | `TransmittableThreadLocal` 抓拍—回放 |
 
 `ThreadLocal` 是并发工具箱里最"反直觉"的一件——它不解决共享，而是干脆放弃共享。用得好，能把一整片同步代码变成无锁；用得不好，会带来更隐蔽的内存问题。
+
+## 8. 下一步
+
+ThreadLocal 通过线程封闭回避共享，但无法回答线程之间如何正确传递可见状态。下一步进入[Java 内存模型](./chapter-04-jmm.md)；线程池中的上下文丢失和泄漏可结合[线程池](./chapter-11-thread-pool.md)及[并发问题诊断](../06-diagnostics/02-concurrency/chapter-01-concurrency-diagnostics.md)排查。

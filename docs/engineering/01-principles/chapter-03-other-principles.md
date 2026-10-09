@@ -1,5 +1,7 @@
 # 其他设计原则
 
+> 本页讨论组合、解耦和通用设计取舍。Java 中接口、抽象类与继承的表达方式见 [面向对象](../../java/01-java-language/chapter-04-oop.md)。
+
 ## 1. DRY (Don't Repeat Yourself)
 
 避免重复代码。

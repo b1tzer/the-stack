@@ -184,7 +184,7 @@ c. 把引用赋值给 instance
 - `synchronized`：临界区内的顺序对持锁线程稳定
 - `final`：构造函数中对 `final` 字段的写不允许重排到"引用发布"之后
 
-## 4. happens-before：JMM 的判断规则
+## 4. happens-before：JMM 的判断规则 {#happens-before}
 
 原子性、可见性、有序性只是问题的分类。JMM 给出的**判断工具**是 happens-before。
 
@@ -258,7 +258,7 @@ print(result);   // 一定看到 42
 
 传递性是 happens-before 真正强大的地方——它让你可以跨多个操作串出可见性链条。
 
-### 4.3 用规则推导 DCL 的正确性
+### 4.3 用规则推导 DCL 的正确性 {#jmm-dcl}
 
 回到 §4.3.3 的 DCL，把 `volatile` 加上：
 
@@ -282,11 +282,11 @@ private static volatile Singleton instance;
 
 `volatile` 在这里做的事，是让"新对象初始化完成"这个事实沿着 happens-before 链条传给读端。这个推导过程也是理解"为什么 `volatile` 能修复 DCL"的正统路径——不是"因为 volatile 强制刷缓存"这类模糊说法。
 
-## 5. `final` 的并发语义与安全发布
+## 5. `final` 的并发语义与安全发布 {#safe-publication}
 
 原子性、可见性、有序性都可以由 `volatile` 和 `synchronized` 显式建立。JMM 还有第三根支柱：**`final` 字段的初始化安全保证**。它常被忽略，却是 `String`、`Integer`、`ImmutableList` 这类不可变类线程安全的根基。
 
-### 5.1 `final` 的两条硬规则
+### 5.1 `final` 的两条硬规则 {#final-semantics}
 
 JSR-133 给 `final` 字段两条硬规则：
 
@@ -409,7 +409,7 @@ public class SafeThisEscape {
 
 没有这层约束，happens-before 规则很难真正落到硬件上——语言层要求"前面的写对后面的读可见"，硬件层却可能因为缓存和乱序，让另一个核心暂时看不到这次写入。
 
-### 6.2 四类内存屏障
+### 6.2 四类内存屏障 {#memory-barriers}
 
 JMM 讨论底层实现时，通常用四类屏障描述重排边界：
 
@@ -469,3 +469,7 @@ JMM 定义并发语义、JVM 翻译为屏障、CPU 执行屏障——三层协�
 | 对象发布不安全 | 构造与发布之间可能重排 | `final` 字段的初始化安全 + 安全发布通道 |
 | 构造未完成引用逸出 | `this` 提前发布 | 构造函数里禁止 `this` 逸出 |
 | CPU 架构导致的平台差异 | 内存模型强度不同 | 依赖 JVM 插入的屏障，不依赖硬件默认 |
+
+## 8. 下一步
+
+JMM 给出正确性的抽象规则，[volatile](./chapter-05-volatile.md)和 [`synchronized`](./chapter-06-synchronized.md)分别提供不同粒度的保证。把规则用于生产问题时，进入[并发问题诊断](../06-diagnostics/02-concurrency/chapter-01-concurrency-diagnostics.md)。

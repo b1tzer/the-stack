@@ -6,7 +6,7 @@
 
 ## 1. 全景：一条链看懂 JVM Runtime
 
-上图是这一整卷的总地图，六步，每一步回答一个问题：
+上图是本专题的总地图，六步，每一步回答一个问题：
 
 | 环节 | 产物 | 谁在做 |
 | :-- | :-- | :-- |
@@ -141,7 +141,7 @@ ireturn   弹出 8，作为返回值返回      操作数栈 [8] → 返回 8
 
 ### 3.4 语言特性在字节码里的样子
 
-知道字节码怎么执行后，回头再看第一卷讲的那些语言特性，就能看清「编译器到底把它们变成了什么」。
+知道字节码怎么执行后，回头再看[Java 语言核心](../01-java-language/chapter-01-why-java.md)，就能看清“编译器到底把它们变成了什么”。
 
 **泛型擦除的证据。** `List<String>` 和 `List<Integer>` 编译后是同一个类。证据在字节码里：两个方法 `process(List<String>)` 和 `process(List<Integer>)` 的描述符都是 `(Ljava/util/List;)V`，因此重载冲突、编译报错。方法体里，编译器插入 `checkcast` 做运行时类型检查：
 
@@ -166,7 +166,7 @@ javac com/example/Calculator.java
 javap -c com/example/Calculator.class    # -c 显示方法体，-v 显示全部元数据
 ```
 
-对 §3.2 的 `add` 方法，`javap -c` 输出的就是那四条指令。加上 `-v` 还能看到 §2 讲的常量池、`max_stack`、`max_locals`。这个工具后面会反复用到：[第五章](./chapter-05-jit.md)看 JIT 内联决策，[第六章](./chapter-06-diagnostics.md)反编译确认线上跑的代码版本。
+对 §3.2 的 `add` 方法，`javap -c` 输出的就是那四条指令。加上 `-v` 还能看到 §2 讲的常量池、`max_stack`、`max_locals`。这个工具后面会反复用到：[JIT 编译](./chapter-05-jit.md)解释内联决策，[JVM 线上诊断](../06-diagnostics/01-jvm/chapter-01-jvm-diagnostics.md)用它确认线上运行的代码版本。
 
 ## 4. .class 如何进入 JVM
 

@@ -577,7 +577,7 @@ class RabbitMQIntegrationTest {
 }
 ```
 
-## 3. 消息可靠性保证
+## 3. 消息可靠性保证 {#reliability-guarantees}
 
 消息可靠性由四个环节共同保证，任一环缺失都会丢消息或重复消费：
 

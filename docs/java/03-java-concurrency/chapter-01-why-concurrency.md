@@ -378,13 +378,15 @@ graph TD
 | [第6章](./chapter-06-synchronized) | `synchronized` | Java 内置锁的本质是什么？锁如何升级？ | [第4章](./chapter-04-jmm)、[第5章](./chapter-05-volatile) |
 | [第7章](./chapter-07-cas-atomic) | CAS 与原子类 | 无锁并发如何实现？CAS 的局限是什么？ | [第4章](./chapter-04-jmm) |
 | [第8章](./chapter-08-locksupport-aqs) | `LockSupport` 与 AQS | `synchronized` 不够用时怎么办？AQS 如何统一并发工具？ | [第6章](./chapter-06-synchronized)、[第7章](./chapter-07-cas-atomic) |
-| [第9章](./chapter-09-concurrent-collections) | 并发集合 | 如何在高并发下安全地使用集合？ | [第7章](./chapter-07-cas-atomic)、[第8章](./chapter-08-locksupport-aqs) |
-| [第10章](./chapter-10-thread-pool) | 线程池 | 线程太多怎么办？如何复用和管理线程？ | [第8章](./chapter-08-locksupport-aqs)、[第9章](./chapter-09-concurrent-collections) |
-| [第11章](./chapter-11-async-model) | 异步编程 | 从 `Future` 到 `CompletableFuture`，有哪些异步范式？ | [第10章](./chapter-10-thread-pool) |
-| [第12章](./chapter-12-virtual-thread) | 虚拟线程与结构化并发 | JDK 21 之后，并发模型如何被重塑？ | [第2章](./chapter-02-thread-model)、[第10章](./chapter-10-thread-pool)、[第11章](./chapter-11-async-model) |
-| [第13章](./chapter-13-diagnostics) | 诊断与优化 | 并发问题怎么查？性能怎么优化？ | 全部前置 |
+| [第9章](./chapter-09-condition-lock-tools) | `Condition` 与 AQS 同步工具 | AQS 如何支撑条件等待和常见同步工具？ | [第8章](./chapter-08-locksupport-aqs) |
+| [第10章](./chapter-10-concurrent-collections) | 并发集合 | 如何在高并发下安全地使用集合？ | [第7章](./chapter-07-cas-atomic)、[第8章](./chapter-08-locksupport-aqs) |
+| [第11章](./chapter-11-thread-pool) | 线程池 | 线程太多怎么办？如何复用和管理线程？ | [第8章](./chapter-08-locksupport-aqs)、[第10章](./chapter-10-concurrent-collections) |
+| [第12章](./chapter-12-async-model) | 异步编程 | 从 `Future` 到 `CompletableFuture`，有哪些异步范式？ | [第11章](./chapter-11-thread-pool) |
+| [第13章](./chapter-13-virtual-thread) | 虚拟线程模型与 Pinning | 虚拟线程如何调度，什么情况下会被钉住？ | [第2章](./chapter-02-thread-model)、[第11章](./chapter-11-thread-pool)、[第12章](./chapter-12-async-model) |
+| [第14章](./chapter-14-virtual-thread-migration) | 迁移、适用边界与结构化并发 | 哪些任务适合虚拟线程，如何组织子任务？ | [第13章](./chapter-13-virtual-thread) |
+| [诊断与案例](../06-diagnostics/02-concurrency/chapter-01-concurrency-diagnostics.md) | 并发问题诊断 | 并发问题怎么查？如何从症状进入根因？ | 全部前置 |
 
-**学习建议：** [第2章](./chapter-02-thread-model) 至 [第4章](./chapter-04-jmm) 是地基，必须扎实。[第5章](./chapter-05-volatile) 至 [第8章](./chapter-08-locksupport-aqs) 是核心同步机制，理解它们才能读懂 `java.util.concurrent` 的源码。[第9章](./chapter-09-concurrent-collections) 至 [第10章](./chapter-10-thread-pool) 是应用层，日常开发中用得最多。[第11章](./chapter-11-async-model) 至 [第12章](./chapter-12-virtual-thread) 是范式扩展，[第13章](./chapter-13-diagnostics)是工程实践。
+**学习建议：** [第2章](./chapter-02-thread-model) 至 [第4章](./chapter-04-jmm) 是地基，必须扎实。[第5章](./chapter-05-volatile) 至 [第9章](./chapter-09-condition-lock-tools) 是核心同步机制，理解它们才能读懂 `java.util.concurrent` 的源码。[第10章](./chapter-10-concurrent-collections) 至 [第11章](./chapter-11-thread-pool) 是应用层，日常开发中用得最多。[第12章](./chapter-12-async-model) 至 [第14章](./chapter-14-virtual-thread-migration) 是范式扩展；先用[并发问题诊断](../06-diagnostics/02-concurrency/chapter-01-concurrency-diagnostics.md)定位问题，再用[并发性能优化](../06-diagnostics/02-concurrency/chapter-02-concurrency-optimization.md)选择改法。
 
 ### 4.3 Java 并发的历史里程碑
 
@@ -429,4 +431,4 @@ JDK 5 是一个分水岭。在它之前，Java 并发基本靠 `Thread` + `synch
 
 建议按顺序阅读。如果你已经有一定基础，可以跳过前两部分，从 [JMM](./chapter-04-jmm) 开始——它是理解后续所有内容的钥匙。
 
-> **与本卷其他章节的关系：** 本章回答的是"为什么"的问题——为什么需要并发。[线程模型](./chapter-02-thread-model) 将回答"是什么"——Java 中的线程到底是什么东西；[线程封闭](./chapter-03-threadlocal) 引入线程封闭思路，先给出一条回避竞争的捷径；[JMM](./chapter-04-jmm) 回答"怎么保证正确性"——当多个线程同时访问数据时，Java 内存模型提供了哪些保证。如果你对本章提到的任何概念（如 CAS、AQS、ForkJoinPool、虚拟线程）感到陌生，不必担心，后续章节会逐一展开。
+> **与本专题其他章节的关系：** 本章回答的是“为什么”——为什么需要并发。[线程模型](./chapter-02-thread-model)将回答“是什么”——Java 中的线程到底是什么东西；[线程封闭](./chapter-03-threadlocal)引入线程封闭思路，先给出一条回避竞争的捷径；[JMM](./chapter-04-jmm)回答“怎么保证正确性”——当多个线程同时访问数据时，Java 内存模型提供了哪些保证。如果你对本章提到的任何概念（如 CAS、AQS、ForkJoinPool、虚拟线程）感到陌生，不必担心，后续章节会逐一展开。

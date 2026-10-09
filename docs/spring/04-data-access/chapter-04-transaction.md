@@ -319,7 +319,7 @@ public class UserService {
 }
 ```
 
-### 4.2 解决自调用问题
+### 4.2 解决自调用问题 {#self-invocation-fix}
 
 ```java
 @Service

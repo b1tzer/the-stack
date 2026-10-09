@@ -1,5 +1,7 @@
 # 备份恢复
 
+> 本页完成备份、恢复和验证任务；Redo Log、Binlog 在恢复中的职责见[存储与日志](../02-storage-and-logging/chapter-04-redo-log.md)。
+
 ## 1. 备份方式
 
 ### 1.1 逻辑备份（mysqldump）

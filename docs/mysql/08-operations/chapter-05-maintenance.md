@@ -1,5 +1,7 @@
 # 日常维护
 
+> 本页处理表维护、清理和升级；表空间机制见[表空间](../02-storage-and-logging/chapter-03-tablespace.md)，结构变更风险见[在线 DDL](./chapter-07-online-ddl.md)。
+
 ## 1. 表维护命令
 
 ### 1.1 OPTIMIZE TABLE

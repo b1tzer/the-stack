@@ -1,5 +1,7 @@
 # Spring MVC
 
+> 本页解释 DispatcherServlet、参数解析、返回值和异常处理。请求从 Socket 进入 Tomcat 再到达 Servlet 的完整链路见 [Servlet 与 Tomcat 请求链](../../java/04-java-network/chapter-08-servlet-tomcat-request-chain.md)。
+
 > 你在 Controller 写了个 `@GetMapping("/user")`，浏览器就拿到了 JSON。中间发生了什么？从 Tomcat 接收 TCP 连接，到 Filter 链、DispatcherServlet、HandlerMapping、参数解析、返回值处理、异常兜底——20 多个组件参与了这场接力。本章追踪一个请求从浏览器到 Java 方法再回到浏览器的完整旅程。
 
 ## 1. 从 Servlet 到 Spring MVC

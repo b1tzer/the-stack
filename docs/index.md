@@ -10,7 +10,7 @@ hero:
   actions:
     - theme: brand
       text: 开始阅读
-      link: /java/01-java-language/chapter-01-type-system
+      link: /java/
     - theme: alt
       text: 在 GitHub 上查看
       link: https://github.com/b1tzer/the-stack
@@ -19,7 +19,7 @@ features:
   - icon: ☕
     title: Java
     details: 语言基石、JVM、并发编程、网络编程与数据访问。
-    link: /java/01-java-language/chapter-01-type-system
+    link: /java/
   - icon: 🍃
     title: Spring
     details: IoC 容器与 AOP、Spring MVC、Boot、数据集成与微服务。
@@ -34,8 +34,8 @@ features:
     link: /postgresql/01-pg-unique/chapter-01-pg-overview
   - icon: 🐬
     title: MySQL
-    details: InnoDB 内核、索引、事务与锁、查询优化与高可用。
-    link: /mysql/01-basics/chapter-01-overview
+    details: 存储与日志、索引与查询、事务锁、复制与生产运维。
+    link: /mysql/
   - icon: 📨
     title: Kafka
     details: 整体架构、消息可靠性、高吞吐原理、存储机制与 KRaft。

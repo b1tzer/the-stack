@@ -126,7 +126,7 @@ synchronized (lock) {         synchronized (lock) {
 
 有序性来自同一条规则的另一面。JVM 和处理器会重排指令，但 release 语义要求临界区内的写不能漏到解锁之后，acquire 语义要求临界区外的读不能提前到加锁之前。临界区内部的读写仍可能重排，但不会跨越加锁解锁这条边界，这给了并发代码一个可预期的执行窗口。
 
-第 5 章的 `volatile` 是变量粒度的内存语义，`synchronized` 是代码块粒度的，两者不是竞品，是不同粒度的工具。
+[第 5 章的 `volatile`](./chapter-05-volatile.md)是变量粒度的内存语义，`synchronized` 是代码块粒度的，两者不是竞品，是不同粒度的工具。
 
 无论 JVM 底层采用哪一版锁实现，release/acquire 语义都必须成立，这是不同实现形态下保持同一并发语义的根基。
 
@@ -180,7 +180,7 @@ JVM 在方法调用和返回的机制里看到这个标记，就隐式地获取�
 
 排查线上问题时，区分 `_EntryList` 和 `_WaitSet` 是第一步：`_EntryList` 里堆着线程，说明是真的锁竞争，往锁粒度和临界区长短方向查。
 
-## 7. wait/notify 又是另一种什么等待？
+## 7. wait/notify 又是另一种什么等待？ {#wait-notify}
 
 `_EntryList` 回答"抢不到锁怎么办"，`_WaitSet` 回答另一个问题：**已经抢到锁的线程，发现条件不满足，怎么办**。
 
@@ -220,7 +220,7 @@ _WaitSet 里            WAITING
 
 `wait/notify` 的能力到这就见底了。一个 Monitor 只有一个 `_WaitSet`，没法把"队列非空"和"队列非满"的等待者分开，`notify` 挑哪个线程也是不确定的。这些限制正是 `Condition` + `ReentrantLock` 要解决的，一个 `Lock` 能挂多个 `Condition`，各自独立等待，详见 [LockSupport 与 AQS](./chapter-08-locksupport-aqs.md)。
 
-## 8. JVM 为了让锁更快做了哪些优化？
+## 8. JVM 为了让锁更快做了哪些优化？ {#synchronized-lock-optimization}
 
 一共两层优化，一层在锁的实现里，一层在 JIT 里。
 

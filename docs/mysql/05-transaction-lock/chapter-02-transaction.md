@@ -143,7 +143,7 @@ InnoDB 的聚簇索引里，每一行记录除了你定义的列，还额外带�
 
 ![版本链：表里的当前行与 Undo Log 历史版本的关联](/mysql/05-transaction-lock-chapter-01-transaction-version-chain.svg)
 
-这条链就叫**版本链**。它完整记录了这行数据「从老到新」的每一次变化。Undo Log 的存储细节与 Purge 清理机制见 [Undo Log](../02-innodb-internals/chapter-05-undo-log.md)，这里只需记住：**版本链是 MVCC 的数据基础，DB_ROLL_PTR 是串起这条链的线。**
+这条链就叫**版本链**。它完整记录了这行数据「从老到新」的每一次变化。Undo Log 的存储细节与 Purge 清理机制见 [Undo Log](../02-storage-and-logging/chapter-05-undo-log.md)，这里只需记住：**版本链是 MVCC 的数据基础，DB_ROLL_PTR 是串起这条链的线。**
 
 版本链搭好了，剩下的问题就是：事务 A 做快照读时，站在这条链的哪一节往回看，才能看到「事务开始那一刻」的状态？这个「往回看到哪」的标尺，就是 Read View。
 

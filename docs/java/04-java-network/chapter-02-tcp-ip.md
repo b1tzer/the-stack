@@ -2,17 +2,17 @@
 
 > TCP 是互联网上使用最广泛的传输层协议。它承诺"可靠、有序、不重复"的字节流传输——但这个承诺是怎么兑现的？三次握手为什么是三次而不是两次？四次挥手中 TIME-WAIT 等待 2MSL 有什么用？粘包问题的根因是什么？本章深入 TCP 的核心机制，帮你建立扎实的传输层认知。
 
-> **先看一个线上故障。**
+> **先看一个构造的线上场景。**
 >
-> 你在公司上线了一个 HTTP 服务，部署在云服务器上，跑了两周一切正常。第三周，运维突然通知你：「服务假死了——端口开着，但新请求全部超时。」
+> 一个运行中的 HTTP 服务突然无法接受新请求，但监听端口仍然存在。日志中出现 `nf_conntrack: table full, dropping packet`，连接跟踪表达到上限。
 >
-> 你登上服务器，`netstat -ant | grep 8080` 一看，几千条连接全部卡在 `TIME_WAIT` 状态。再看 `dmesg`：`nf_conntrack: table full, dropping packet`。连接跟踪表被打满了，新包直接被内核丢弃。
+> 用 `netstat -ant | grep 8080` 可以看到大量连接处于 `TIME_WAIT`。短连接客户端每次请求都建立并关闭连接，主动关闭方通常进入 `TIME_WAIT`，持续积累后可能占用端口或连接跟踪资源。
 >
-> 根因是什么？不是你代码有 bug。是你的短连接 HTTP 客户端每请求一次就建一个新 TCP 连接、用完就关——主动关闭方进入 `TIME_WAIT` 等 2MSL（60 秒），加上每秒几百个请求，TIME_WAIT 连接越积越多。端口没耗尽先不说，conntrack 表先爆了。
+> `TIME_WAIT` 的持续时间取决于 MSL、内核配置和系统实现，Linux 常见示例约为 60 秒，但不能作为所有平台的固定值。应结合 `ss`/`netstat`、`dmesg` 和内核参数确认限制来自端口、连接跟踪还是其他资源。
 >
-> 如果你不懂 TCP 为什么有 TIME_WAIT、不懂四次挥手的方向性、不懂 `tcp_tw_reuse` 和连接池的关系，你能做的只有重启服务器——然后问题还会回来。
+> 排查时应先确认主动关闭方、连接速率、TIME_WAIT 数量和资源上限，再决定复用连接、调整系统参数或扩容。重启只能暂时清空状态，不能替代根因分析。
 >
-> 这一章讲的就是这些「看起来是网络问题、实际上是你不懂 TCP」的真实场景。
+> 本章通过构造场景说明这些资源限制与 TCP 状态的关系。
 
 ## 1. TCP 为什么存在
 
@@ -46,9 +46,9 @@ TCP 和 UDP 是传输层的两个核心协议，它们的设计哲学截然不�
 
 ### 1.3 为什么 HTTP 选择 TCP
 
-HTTP 是万维网的基础协议，它要求：请求必须到达、响应不能丢失、页面内容不能乱序。这些需求天然匹配 TCP 的特性。
+HTTP 定义请求与响应消息及消息体的完整性语义，但 HTTP/1.1 和 HTTP/2 默认运行在 TCP 上，借助 TCP 的校验、确认、重传和有序交付处理传输层丢包与乱序。HTTP/3 则定义在 QUIC 上，由 QUIC 自己提供可靠交付和流控。
 
-但 HTTP/3（基于 QUIC 协议）开始使用 UDP 作为传输层，在 UDP 之上自己实现了可靠传输和流控——因为 TCP 的某些设计（如队头阻塞）在现代网络环境下反而成了瓶颈。这个故事我们留到第 6 章再讲。
+但 HTTP/3（基于 QUIC 协议）开始使用 UDP 作为传输层，在 UDP 之上自己实现了可靠传输和流控——因为 TCP 的某些设计（如队头阻塞）在现代网络环境下反而成了瓶颈。这个故事我们留到第 7 章再讲。
 
 ## 2. TCP 三次握手与四次挥手
 
@@ -113,22 +113,22 @@ TCP 连接的建立需要三次数据交互，这就是著名的"三次握手"�
 
 **为什么需要 2MSL（Maximum Segment Lifetime）？**
 
-客户端在发送最后一个 ACK 后，进入 `TIME_WAIT` 状态，等待 2MSL（通常是 60 秒）。原因有两个：
+客户端在确认对方最后一个 FIN 后进入 `TIME_WAIT`，等待 2MSL。Linux 中常见配置得到约 60 秒，但实际值取决于平台和网络参数：
 
-1. **确保最后一个 ACK 到达服务端。** 如果 ACK 丢失，服务端会重发 FIN。如果客户端直接关闭了，就收不到重发的 FIN，服务端永远收不到最终确认。
-2. **让旧连接的报文在网络中自然消亡。** 等待 2MSL 确保属于这个连接的所有报文都从网络中消失，不会干扰后续的新连接。
+1. **为最后一个 ACK 的丢失留出重传窗口。** 如果确认丢失，对端可能重发 FIN；主动关闭方仍能再次确认。
+2. **降低旧报文影响后续连接的概率。** 等待期间，使用相同四元组的新连接不会立即建立。
 
 **生产中的 TIME_WAIT 问题：**
 
 在高并发短连接场景（如 HTTP 短连接），大量 TIME_WAIT 状态的连接会占用端口资源：
 
 ```bash
-# 查看 TIME_WAIT 连接数
-netstat -ant | grep TIME_WAIT | wc -l
+# Linux；同时观察本地与远端关闭方对应的 TIME-WAIT
+ss -ant state time-wait | wc -l
 
-# Linux 内核参数调优
-net.ipv4.tcp_tw_reuse = 1      # 允许复用 TIME_WAIT 连接
-net.ipv4.tcp_fin_timeout = 30   # 缩短 FIN 超时时间
+# tcp_tw_reuse 控制外向连接的时间等待复用；tcp_fin_timeout 控制 FIN-WAIT-2 等待，
+# 两者作用不同。修改前应核对内核文档、连接速率和业务复用方式。
+sysctl net.ipv4.tcp_tw_reuse net.ipv4.tcp_fin_timeout
 ```
 
 ### 2.3 TCP 状态机
@@ -189,7 +189,7 @@ RTO = SRTT + 4 × RTTVAR
 
 > **在继续往下读之前，建议你先亲眼看一下 TCP 的实际行为。**
 >
-> 在你电脑上启动第 2.6 节的 Java 示例，用 Wireshark 抓包。然后在客户端发送几条消息后，**直接拔掉网线（或用 `iptables` 断连）**，等 5 秒再插回去。
+> 在你电脑上启动本页第 4.2 节的 Java 示例，用 Wireshark 抓包。然后在客户端发送几条消息后，**直接拔掉网线（或用 `iptables` 断连）**，等 5 秒再插回去。
 >
 > 你会看到：TCP 发送方在 RTO 时间内没有收到 ACK → 重传 → 再等（RTO 翻倍）→ 再重传 → 直到达到重试上限才放弃。这就是超时重传的完整过程——不是你想象中"立刻重传"，而是有严格的时间间隔和退避策略。亲眼看到这个行为，比读一百行公式都管用。
 
@@ -340,208 +340,7 @@ pipeline.addLast(new LengthFieldBasedFrameDecoder(
 3. **消息边界问题只在 TCP 中存在**——如果你用 UDP，不需要处理粘包
 4. **使用成熟的框架（Netty）**——自己处理粘包容易出错
 
-## 5. TCP 性能参数
 
-### 5.1 Nagle 算法与 TCP_NODELAY
+理解 TCP 的连接、可靠交付和消息边界后，还需要区分协议语义与可调参数。下一页集中说明 Nagle、KeepAlive、缓冲区等性能选项，并用 Java 代码和抓包验证行为。
 
-> **你的 Dubbo 接口 P99 延迟突然从 20ms 涨到 60ms。你没改任何代码。** 排查发现：压测脚本每次 `write()` 一小段数据后没调 `flush()`——数据被 Nagle 算法按住，等上一个 ACK 回来才放行，硬生生等了一个 RTT。一行 `socket.setTcpNoDelay(true)`，P99 回到 20ms。
-
-**Nagle 算法**的设计初衷是减少网络中小包的数量。它的规则是：
-
-- 如果发送缓冲区中的数据 >= MSS，立即发送
-- 如果没有未确认的数据（in-flight），立即发送
-- 否则，等收到 ACK 或者攒够 MSS 再发送
-
-```txt
-没有 Nagle:                         有 Nagle:
-发送 "H" → 立即发送                  发送 "H" → 等待
-发送 "e" → 立即发送                  发送 "e" → 等待（还有未确认数据）
-发送 "l" → 立即发送                  收到 ACK → 发送 "Hel"
-发送 "l" → 立即发送
-发送 "o" → 立即发送
-
-4 个包 → 1 个包（节省带宽，但增加延迟）
-```
-
-**Nagle 算法在交互式场景中是个灾难。** 假设你在玩在线游戏，每次按键都要等一个 RTT 才能发送——体感延迟直接翻倍。
-
-**解决方案：** 设置 `TCP_NODELAY` 选项禁用 Nagle 算法：
-
-```java
-Socket socket = new Socket();
-socket.setTcpNoDelay(true); // 禁用 Nagle 算法
-```
-
-**什么时候该禁用 Nagle？**
-
-| 场景 | Nagle | TCP_NODELAY |
-| :-- | :-- | :-- |
-| 文件传输 | ✅ 保留（减少小包） | ❌ 不需要 |
-| HTTP API 请求 | ❌ 禁用 | ✅ 启用 |
-| 在线游戏 | ❌ 禁用 | ✅ 启用 |
-| SSH 远程终端 | ❌ 禁用 | ✅ 启用 |
-| 日志批量上报 | ✅ 保留 | ❌ 不需要 |
-
-### 5.2 KeepAlive
-
-TCP KeepAlive 是操作系统层面的机制，用于检测连接是否仍然存活：
-
-```txt
-默认参数（Linux）:
-  tcp_keepalive_time   = 7200  (2小时无数据后开始探测)
-  tcp_keepalive_intvl  = 75    (每隔75秒探测一次)
-  tcp_keepalive_probes = 9     (连续9次无响应则断开)
-```
-
-```java
-Socket socket = new Socket();
-socket.setKeepAlive(true); // 启用 TCP KeepAlive
-```
-
-**但 2 小时太长了！** 在实际应用中，我们通常使用**应用层心跳**来更快地检测连接断开：
-
-```java
-// 应用层心跳（比 TCP KeepAlive 更灵活）
-ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-scheduler.scheduleAtFixedRate(() -> {
-    try {
-        outputStream.writeInt(0x01); // 心跳包
-        outputStream.flush();
-    } catch (IOException e) {
-        // 连接已断开
-        reconnect();
-    }
-}, 30, 30, TimeUnit.SECONDS); // 每 30 秒一次
-```
-
-**TCP KeepAlive vs 应用层心跳：**
-
-| 维度 | TCP KeepAlive | 应用层心跳 |
-| :-- | :-- | :-- |
-| 粒度 | 粗（默认 2 小时） | 细（可自定义秒级） |
-| 灵活性 | 低（只能检测连接存活） | 高（可携带业务数据） |
-| 开销 | 极低（内核实现） | 稍高（应用层处理） |
-| 推荐 | 作为兜底机制 | 作为主要心跳机制 |
-
-### 5.3 Socket Buffer 调优
-
-TCP 的发送和接收缓冲区大小直接影响吞吐量：
-
-```java
-Socket socket = new Socket();
-socket.setSendBufferSize(256 * 1024);    // 发送缓冲区 256KB
-socket.setReceiveBufferSize(256 * 1024); // 接收缓冲区 256KB
-```
-
-**带宽-延迟积（BDP, Bandwidth-Delay Product）：**
-
-最佳的缓冲区大小 = 带宽 × 延迟（RTT）：
-
-```txt
-例如：带宽 1Gbps，RTT 10ms
-BDP = 1,000,000,000 × 0.01 / 8 = 1.25 MB
-
-→ 缓冲区至少设为 1.25MB，才能充分利用带宽
-```
-
-如果缓冲区太小，发送方会频繁等待 ACK（窗口被填满），带宽利用率下降。如果太大，浪费内存且可能增加延迟。
-
-**Linux 内核参数调优：**
-
-```bash
-# 最大 TCP 缓冲区大小
-net.core.rmem_max = 16777216        # 接收缓冲区最大 16MB
-net.core.wmem_max = 16777216        # 发送缓冲区最大 16MB
-
-# TCP 自动调优
-net.ipv4.tcp_rmem = 4096 131072 16777216  # 最小 默认 最大
-net.ipv4.tcp_wmem = 4096 65536 16777216
-
-# 启用窗口缩放（支持大于 64KB 的窗口）
-net.ipv4.tcp_window_scaling = 1
-```
-
-### 5.4 其他值得关注的 TCP 参数
-
-| 参数 | 说明 | 推荐设置 |
-| :-- | :-- | :-- |
-| `SO_REUSEADDR` | 允许重用处于 TIME_WAIT 的地址 | 服务器端通常启用 |
-| `SO_REUSEPORT` | 允许多个 Socket 绑定同一端口（Linux 3.9+） | 高并发服务器启用 |
-| `SO_LINGER` | close() 时的行为（立即返回 or 等待数据发完） | 根据场景设置 |
-| `SO_BACKLOG` | 连接等待队列长度 | 高并发场景增大 |
-| `TCP_QUICKACK` | 禁用延迟 ACK（Linux） | 交互式场景启用 |
-
-```java
-ServerSocket serverSocket = new ServerSocket();
-serverSocket.setReuseAddress(true);
-serverSocket.bind(new InetSocketAddress(8080), 1024); // backlog = 1024
-```
-
-## 6. 用 Java 体验 TCP 通信
-
-### 6.1 最简单的 TCP 示例
-
-```java
-// 服务端
-public class SimpleTcpServer {
-    public static void main(String[] args) throws IOException {
-        try (ServerSocket serverSocket = new ServerSocket(8080)) {
-            System.out.println("Server listening on port 8080...");
-            try (Socket socket = serverSocket.accept();
-                 BufferedReader in = new BufferedReader(
-                     new InputStreamReader(socket.getInputStream()));
-                 PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
-                
-                String line;
-                while ((line = in.readLine()) != null) {
-                    System.out.println("Received: " + line);
-                    out.println("Echo: " + line);
-                }
-            }
-        }
-    }
-}
-
-// 客户端
-public class SimpleTcpClient {
-    public static void main(String[] args) throws IOException {
-        try (Socket socket = new Socket("localhost", 8080);
-             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-             BufferedReader in = new BufferedReader(
-                 new InputStreamReader(socket.getInputStream()));
-             BufferedReader console = new BufferedReader(
-                 new InputStreamReader(System.in))) {
-            
-            String input;
-            while ((input = console.readLine()) != null) {
-                out.println(input);
-                System.out.println(in.readLine());
-            }
-        }
-    }
-}
-```
-
-这段代码展示了 TCP 通信的基本模式：**Socket 是连接的抽象，InputStream/OutputStream 是数据流的抽象。** 但这是阻塞式 I/O——每个连接占用一个线程，无法支撑高并发。这个痛点将驱动我们在后续章节引入 NIO 和 Netty。
-
-### 6.2 用 Wireshark 观察 TCP 行为
-
-理论不如实践。强烈建议你用 Wireshark 抓包，亲眼看到三次握手、数据传输、四次挥手的全过程：
-
-```bash
-# 启动抓包
-sudo tcpdump -i lo -w /tmp/tcp_capture.pcap port 8080
-
-# 运行上面的 Java 程序，发送几条消息
-
-# 用 Wireshark 打开
-wireshark /tmp/tcp_capture.pcap
-```
-
-在 Wireshark 中，你可以看到：
-
-- SYN、SYN+ACK、ACK 的三次握手
-- 每个 TCP 段的序列号和确认号
-- Nagle 算法是否在起作用（观察小包是否被延迟）
-- 窗口大小的变化
-- 是否有重传
+> **下一页：** [TCP 性能参数与 Java 实践](./chapter-03-tcp-performance-java.md)
