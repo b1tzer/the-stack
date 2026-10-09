@@ -78,3 +78,16 @@
 | `TYPE key` | 数据类型 |
 | `SCAN cursor [MATCH pattern] [COUNT n]` | 游标迭代（不阻塞） |
 | `KEYS pattern` | 匹配 key（阻塞，仅调试用） |
+
+## 阻塞与复杂度边界
+
+| 命令 | 复杂度或执行特征 | 使用边界 |
+| :-- | :-- | :-- |
+| `HGETALL` / `HKEYS` / `HVALS` | O(N)，返回整个 Hash | 大 Hash 可能长时间占用执行线程和输出带宽，改用 `HSCAN` 或按字段读取 |
+| `SMEMBERS` | O(N)，返回整个 Set | 大 Set 改用 `SSCAN` |
+| `SINTER` / `SUNION` / `SDIFF` | 与输入集合规模相关，可能 O(N+M) | 先评估集合大小和结果规模 |
+| `ZRANGEBYSCORE` / `ZREVRANGE` | O(log(N)+M) | 用 `LIMIT` 控制返回数量 |
+| `DEL` | 按删除的对象结构增长，可能长时间同步回收 | 大值优先评估 `UNLINK` 的后台回收行为 |
+| `KEYS` | O(N) 遍历整个键空间 | 生产环境使用 `SCAN` 迭代 |
+
+`SCAN`、`HSCAN`、`SSCAN` 和 `ZSCAN` 每次调用的游标推进是有界的，但迭代期间发生增删时可能重复或遗漏元素，不能当作一致性快照。

@@ -2,6 +2,8 @@
 
 > 线上 Redis 变慢或异常，需要一套系统的方法快速定位根因。本章介绍排查工具与常见故障的定位思路，给出可复用的排查流程。
 
+排查时先按延迟、内存、CPU、连接和集群状态分流，再收集 `INFO`、`SLOWLOG`、系统指标和客户端错误形成证据链。确认根因后再修改配置；如果指标恢复但原因未验证，应继续记录假设和反证，避免把偶然恢复当成修复完成。
+
 ## 1. 排查工具箱
 
 | 工具 | 用途 | 开销 |
@@ -10,9 +12,9 @@
 | `SLOWLOG` | 慢查询日志 | 低 |
 | `MONITOR` | 实时命令流 | **高**（生产慎用） |
 | `CLIENT LIST` | 客户端连接详情 | 中 |
-| `redis-cli --latency` | 网络延迟测试 | 低 |
+| `redis-cli --latency` | 持续 PING 的往返延迟 | 低 |
 | `redis-cli --bigkeys` | 大 Key 扫描 | 中（SCAN 遍历） |
-| `DEBUG OBJECT key` | 单 key 详情 | 低 |
+| `DEBUG OBJECT key` | 单 Key 的编码与引用信息 | 生产环境慎用；受版本、安全策略和命令禁用影响 |
 | `MEMORY USAGE key` | 单 key 内存占用 | 低 |
 
 ```bash
@@ -43,12 +45,12 @@ SLOWLOG GET 10
 
 ```bash
 INFO stats | grep latest_fork_usec
-# latest_fork_usec:150000  → fork 耗时 150ms，严重
+# latest_fork_usec:150000  → fork 耗时 150ms，结合业务延迟基线判断
 
 # 解决方案：
-# 1. 控制单实例内存 ≤ 10GB
-# 2. 减少 BGSAVE 频率
-# 3. 使用 AOF + 混合持久化（减少全量 RDB）
+# 1. 根据页表规模、COW 和延迟预算评估实例拆分
+# 2. 调整持久化触发条件并避开写入高峰
+# 3. 评估副本分担持久化任务的可行性和数据恢复影响
 ```
 
 ### 2.3 AOF fsync 阻塞
@@ -61,19 +63,20 @@ redis-cli INFO persistence | grep aof_delayed_fsync
 # 解决方案：
 # 1. appendfsync 改为 everysec（不要 always）
 # 2. 使用 SSD 替代 HDD
-# 3. 开启 no-appendfsync-on-rewrite
+# 3. 评估 no-appendfsync-on-rewrite；它会扩大重写期间的数据丢失窗口
 ```
 
 ### 2.4 swap 导致的延迟
 
 ```bash
-# 检查是否使用了 swap
-INFO memory | grep used_memory
-# used_memory: 8GB
-# used_memory_rss: 12GB  → rss > used 说明有 swap
+# RSS 高于 used_memory 也可能来自分配器碎片，不能据此判定 swap
+INFO memory | grep -E "used_memory|mem_fragmentation_ratio"
 
-# 系统层面确认
-cat /proc/$(pidof redis-server)/smaps | grep Swap
+# 检查目标 Redis 进程实际换出的页（将 12345 替换为目标 PID）
+awk '/^Swap:/ {sum += $2} END {print sum " kB"}' /proc/12345/smaps
+
+# 检查系统 swap 使用量
+grep -E "SwapTotal|SwapFree" /proc/meminfo
 ```
 
 swap 的解决：增加物理内存，或减小 maxmemory。
@@ -84,7 +87,7 @@ swap 的解决：增加物理内存，或减小 maxmemory。
 | :-- | :-- | :-- |
 | 内存持续增长 | key 无 TTL 堆积 | `INFO keyspace` 看 key 数量趋势 |
 | 碎片率高（>1.5） | 频繁增删 key | `INFO memory` 的 `mem_fragmentation_ratio` |
-| 使用了 swap | 内存超物理上限 | `used_memory_rss` > 物理内存 |
+| 使用了 swap | 容器或主机可用内存不足 | 检查进程 `smaps` 的 `Swap:` 与系统 `SwapTotal/SwapFree` |
 | 内存突增 | 大 Key 写入 | `redis-cli --bigkeys` 扫描 |
 
 ```bash
@@ -111,8 +114,8 @@ INFO memory
 | 过期键风暴 | `INFO stats` | `expired_keys` 突增 |
 
 ```bash
-# 实时观察 CPU
-top -p $(pidof redis-server)
+# 实时观察目标 Redis 进程 CPU（将 12345 替换为目标 PID）
+top -p 12345
 
 # Redis 内部 CPU 统计
 INFO cpu

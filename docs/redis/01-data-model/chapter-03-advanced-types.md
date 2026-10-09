@@ -1,6 +1,6 @@
 # 高级数据类型
 
-> 除了五种基础类型，Redis 还提供了四类高级数据类型：BitMap、HyperLogLog、Geo、Stream。它们并非全新的底层结构，而是对基础类型的巧妙封装——BitMap 与 HyperLogLog 基于 String，Geo 基于 ZSet，Stream 基于专属的 Radix Tree。
+> 除了五种基础类型，Redis 还提供四类常用扩展能力：BitMap、HyperLogLog、Geo 和 Stream。前三种建立在既有类型之上，Stream 才是独立的数据类型。
 
 ## 1. BitMap：位操作 {#bitmap}
 
@@ -66,7 +66,7 @@ GEOSEARCH cities FROMMEMBER "北京" BYRADIUS 1000 km   # 附近查询
 
 ## 4. Stream：消息流
 
-Stream 是 Redis 5.0 引入的专属数据类型，底层采用 Radix Tree（基数树），用于实现完整的消息队列语义。
+Stream 是 Redis 5.0 引入的专属数据类型，底层采用 Radix Tree（基数树），提供追加、读取、消费者组、确认和 Pending 列表等消息处理原语。它是否满足业务的可靠投递要求，仍取决于持久化、复制、重试和监控设计。
 
 ```bash
 XADD mystream * field1 value1      # 追加消息（* 表示自动生成 ID）
@@ -121,13 +121,13 @@ for (StreamEntry entry : entries) {
 | 运维复杂度 | 低（Redis 自带） | 低（Redis 自带） | 高（独立部署） |
 | 适用场景 | 实时通知 | 轻量级消息 | 大规模消息 |
 
-| 场景 | 推荐 |
+| 场景 | 可考虑 |
 | :-- | :-- |
 | 实时通知、缓存清除广播 | Pub/Sub |
-| 轻量级消息队列（万级 QPS） | Stream |
-| 大规模消息（百万级 QPS）、复杂路由 | Kafka / RocketMQ |
+| 需要回放、确认和消费者组的轻量消息流程 | Stream |
+| 需要专业路由、生态和大规模运维能力的消息系统 | Kafka / RocketMQ |
 
-## 5. 高级类型速查
+## 5. 扩展能力速查
 
 | 类型 | 底层 | 核心命令 | 典型场景 | 关键限制 |
 | :-- | :-- | :-- | :-- | :-- |
@@ -172,14 +172,14 @@ GEOSEARCH cities FROMMEMBER "北京" BYRADIUS 1500 km ASC
 # 1) "北京" 2) "上海" 3) "广州"   按距离升序
 ```
 
-### 6.4 场景四：可靠消息队列（Stream 消费者组）
+### 6.4 场景四：使用 Stream 消费者组
 
 Stream 解决 List 的「消费即销毁」问题，支持 ACK 与重试。先创建消费者组，再消费：
 
 ```bash
-# 1. 生产者发消息（* 表示自动生成递增 ID）
-XADD events * type login user "alice"     # "1704...-0"
-XADD events * type login user "bob"       # "1704...-1"
+# 1. 生产者发消息；示例使用可预测的毫秒时间戳 ID
+XADD events 1704000000000-0 type login user "alice"  # "1704000000000-0"
+XADD events 1704000000001-0 type login user "bob"    # "1704000000001-0"
 
 # 2. 创建消费者组（从最开始 $ 或 0 消费）
 XGROUP CREATE events group1 0             # OK
@@ -189,10 +189,10 @@ XREADGROUP GROUP group1 c1 COUNT 2 STREAMS events >
 # 返回两条消息及各自 ID
 
 # 4. 处理完确认（ACK）
-XACK events group1 1704...-0              # (integer) 1
+XACK events group1 1704000000000-0        # (integer) 1
 
 # 5. 查看已读但未确认的消息（Pending 列表，用于重试）
 XPENDING events group1
 ```
 
-> 消费流程是「`XREADGROUP` 读 → 业务处理 → `XACK` 确认」。若某条消息处理失败不 ACK，它会留在 Pending 列表里，可被重新拉取重试——这是 Stream 相比 List 最关键的可靠性提升。
+> 消费流程是「`XREADGROUP` 读 → 业务处理 → `XACK` 确认」。若消息处理失败，它会留在 Pending 列表并由运维策略重新读取或转给其他消费者。ACK 只表示 Redis 已记录确认；端到端可靠性还需要持久化、副本、超时认领、幂等消费和失败告警。

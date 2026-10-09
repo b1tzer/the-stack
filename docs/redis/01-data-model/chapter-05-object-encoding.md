@@ -92,7 +92,7 @@ redisObject | sdshdr8 | buf（≤ 44 字节）
 
 embstr 的优势：一次内存分配（而非两次），对象头和数据连续（缓存友好），一次 `free` 就能释放。
 
-为什么阈值恰好是 44 字节？`redisObject` 占 16 字节、`sdshdr8` 头部占 3 字节、字符串结尾的 `\0` 占 1 字节，合计 20 字节。44 + 20 = 64，正好落在分配器一个 64 字节内存块内。把对象控制在 64 字节内，就能让「一次分配、一次释放」的收益最大化（该值在 Redis 3.2 之前是 39 字节，因当时的 SDS 头部为 8 字节）。
+为什么阈值恰好是 44 字节？在常见的 64 位部署中，`redisObject` 占 16 字节、`sdshdr8` 头部占 3 字节、字符串结尾的 `\0` 占 1 字节，合计 20 字节。44 + 20 = 64，正好落在分配器一个 64 字节内存块内。该阈值受对象布局和分配器影响；Redis 3.2 之前为 39 字节，生产判断应以实际版本的 `OBJECT ENCODING` 为准。
 
 ### 3.3 raw 编码 {#raw-encoding}
 
@@ -149,8 +149,9 @@ listpack: [len|field1][len|value1][len|field2][len|value2]...[end]
 HSET user:1001 name "张三" age 25 email "zhangsan@qq.com"
 # 3 个 field，用 listpack
 
-HSET user:1001 field1 "v1" field2 "v2" ... field600 "v600"
-# 超过 512 个 field，自动切换为 hashtable
+# 伪代码：由应用循环执行 600 次
+# HSET user:1001 field${i} value${i}    # i 从 1 到 600
+# 超过 512 个 field 后，自动切换为 hashtable
 ```
 
 ### 4.3 编码切换不可逆 {#irreversible}

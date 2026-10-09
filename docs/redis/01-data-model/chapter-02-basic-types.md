@@ -14,7 +14,7 @@ key  →  value（单个值）
 "session:abc"    →  "{...json...}"
 ```
 
-**核心能力**：除了最基本的 `SET/GET`，String 提供了原子自增（`INCR`）和原子互斥（`SETNX`）两类关键原语。
+**核心能力**：除了最基本的 `SET/GET`，String 提供了原子自增（`INCR`）和条件写入（`SET ... NX`）两类关键原语。
 
 ```bash
 SET key value [EX seconds] [NX]   # 设置值，NX=不存在才设置
@@ -23,12 +23,12 @@ MSET k1 v1 k2 v2                   # 批量设置
 
 INCR key                           # 原子自增（计数器）
 INCRBY key 5                       # 原子增加指定值
-SETNX key value                    # 不存在才设置（分布式锁基础）
+SETNX key value                    # 旧式条件写入；新代码优先使用 SET ... NX
 ```
 
 **典型场景**：
 
-- **缓存**：`SET user:123 "{name:'张三'}" EX 300`（单值缓存天然匹配）
+- **缓存**：`SET user:123 '{"name":"张三"}' EX 300`（单值缓存天然匹配）
 - **计数器**：`INCR article:123:views`（原子操作，无并发问题）
 - **分布式锁**：`SET lock:order uuid NX PX 30000`（NX 确保互斥）
 
@@ -55,7 +55,7 @@ key  →  { field1: value1, field2: value2, ... }
 | 存储方式 | 更新单个字段 | 内存效率 | 并发安全 |
 | :-- | :-- | :-- | :-- |
 | String 存 JSON | 需全量覆盖，O(n) | 较差（含 JSON 格式开销） | 有并发覆盖风险 |
-| Hash 存字段 | 独立更新，O(1) | 较好（无格式开销） | 原子操作安全 |
+| Hash 存字段 | 独立更新，单命令 O(1) | 较好（无格式开销） | 单条命令原子；多字段读改写仍需并发控制 |
 
 **常用命令**：
 
@@ -75,7 +75,7 @@ HDEL user:123 age                   # 删除字段
 
 ## 3. List：有序的可重复列表
 
-List 是一个 key 对应一组有序、可重复的字符串，底层是双向链表结构，支持从两端插入和弹出。
+List 是一个 key 对应一组有序、可重复的字符串。Redis 7.0 使用 quicklist，即双向链表节点与 listpack 的组合，支持从两端插入和弹出。
 
 ```txt
 key  →  [ v1, v2, v3, ... ]（有序，可重复）
@@ -102,7 +102,7 @@ BLPOP list 10          # 阻塞弹出，等待最多 10 秒（消息队列）
 
 - **消息队列**：`RPUSH queue msg` + `BLPOP queue 0`（阻塞消费）
 - **最新动态**：`LPUSH news article1`，`LRANGE news 0 9` 取最新 10 条
-- **分页列表**：`LRANGE list (page-1)*size page*size-1`
+- **分页列表**：客户端先计算下标，例如第 2 页、每页 10 条对应 `LRANGE list 10 19`
 
 ## 4. Set：无序去重集合
 

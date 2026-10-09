@@ -85,7 +85,7 @@ Redis 的定期删除分 fast 与 slow 两种模式，各自独立运行（常�
 
 | 模式 | 触发位置 | 单次时间片 | 作用 |
 | :-- | :-- | :-- | :-- |
-| slow | `serverCron`（周期约 100ms） | 约占周期的 25% | 常规清理 |
+| slow | `serverCron`（默认 `hz=10`，周期约 100ms） | 默认最多占用该周期约 25% 的 CPU 时间 | 常规清理 |
 | fast | `beforeSleep`（每次事件循环前） | 约 1ms | 快速清理刚过期的键 |
 
 slow 模式每次执行：
@@ -94,7 +94,7 @@ slow 模式每次执行：
 每次执行：
 1. 从 expires 字典随机抽取 20 个键
 2. 删除其中已过期的键
-3. 若已过期键占比 > 25%，重复步骤 1~2（继续这一轮）
+3. 默认 effort 下，若已过期键占比仍 > 10%，重复步骤 1~2（继续这一轮）
 4. 否则本轮结束，等待下一次（约 100ms 后）
 ```
 
@@ -103,15 +103,16 @@ slow 模式每次执行：
 | 参数 | 含义 |
 | :-- | :-- |
 | 20 个 | 每次随机抽取的键数量 |
-| 25% | 过期占比阈值，超过则继续扫描 |
+| 10% | 默认 effort 下可接受的过期键残留比例，超过则继续扫描 |
+| 25% | slow cycle 默认 CPU 时间预算，不是过期键占比阈值 |
 
 时间片不是固定值，而是在执行过程中动态结算：每删一批键就累加耗时，接近时间片上限即停止本轮，把剩余工作留给下一轮。这样即使过期键堆积，也不会单次阻塞主线程超过时间片。
 
-两个可调参数：`active-expire-effort`（Redis 6.2+，默认 1，范围 1–10）是 Redis 定期删除的“力度系数”。它按比例放大抽样数量、CPU 时间片和连续扫描概率，使过期键清理更积极，但也增加 CPU 开销；`hz`（默认 10）控制 `serverCron` 每秒执行次数，间接决定 slow 模式的执行频率——上表「约 100ms」即由 `hz=10` 得出（1000ms ÷ 10）。
+两个可调参数：`active-expire-effort`（Redis 6.2+，默认 1，范围 1–10）是 Redis 定期删除的“力度系数”。它会增加抽样数量和 CPU 时间预算，同时降低可接受的过期键残留比例，使清理更积极，但也增加 CPU 开销；`hz`（默认 10）控制 `serverCron` 每秒执行次数，间接决定 slow 模式的执行频率——上表「约 100ms」即由 `hz=10` 得出（1000ms ÷ 10）。
 
-#### 1.3.2 为什么是 25%
+#### 1.3.2 如何决定是否继续扫描
 
-如果过期键占比很高（> 25%），说明大量键已经过期但还没清理，需要继续扫描以释放内存。如果占比低（≤ 25%），说明过期键不多，扫描一轮就够了，避免浪费 CPU。
+一次抽样结束后，Redis 会同时检查 CPU 时间预算和过期键残留比例。默认 effort 下，残留比例高于 10% 就继续扫描；达到时间预算后则停止本轮，把剩余工作留给后续周期。25% 是 slow cycle 的 CPU 时间预算，不是“过期键超过 25% 就继续”的阈值。
 
 #### 1.3.3 特点
 
@@ -119,7 +120,7 @@ slow 模式每次执行：
 | :-- | :-- |
 | 优点 | 主动清理，避免过期键长期堆积 |
 | 缺点 | 随机抽取，可能漏掉部分过期键 |
-| 时间上限 | 单次执行有 CPU 时间上限（25ms），防止阻塞主线程 |
+| 时间上限 | 默认 `hz=10`、effort=1 时约为 25ms；实际值随 `hz`、effort 和模式变化 |
 
 ### 1.4 两种策略的配合
 
@@ -152,7 +153,7 @@ slow 模式每次执行：
 | :-- | :-- |
 | 大量键同时过期 | 触发定期删除风暴，CPU 飙升。解决方案：TTL 加随机偏移（见 [缓存失效：穿透·击穿·雪崩](../../scenarios/01-cache/chapter-01-cache-invalidation.md)） |
 | 过期键不被访问 | 只靠定期删除清理，可能清理不及时。设置合理的 maxmemory 兜底 |
-| EXPIRE 精度 | EXPIRE 精度为毫秒，但实际删除可能有延迟（取决于定期删除的扫描频率） |
+| 过期精度 | `EXPIRE` 按秒设置，`PEXPIRE` 按毫秒设置；实际删除可能因惰性检查和后台扫描而稍晚发生 |
 
 ## 2. 内存淘汰
 
@@ -169,7 +170,7 @@ maxmemory-policy allkeys-lru
 
 | 建议 | 说明 |
 | :-- | :-- |
-| 留出余量 | 设为物理内存的 60%~80%，预留 fork COW 和系统开销 |
+| 留出余量 | 根据系统、监控、网络缓冲、写入模式和 fork/COW 实测预留空间，不套用固定比例 |
 | 必须设上限 | 不设上限时内存会持续增长直到被 OOM Killer 杀死 |
 | 配合策略 | 上限 + 淘汰策略配套使用 |
 
@@ -317,7 +318,7 @@ INFO memory
 | :-- | :-- | :-- |
 | 0.9 ~ 1.1 | 健康 | 无需处理 |
 | > 1.5 | 碎片较多 | 考虑整理 |
-| < 1 | 使用了 swap | 内存不足，需扩容 |
+| < 1 | 可能存在 swap、内存超额使用或指标口径差异 | 检查系统 swap、容器限额和内存分配情况 |
 
 #### 2.6.2 处理方式
 
@@ -335,8 +336,8 @@ active-defrag-threshold-upper 100   # 碎片率 > 100% 全力整理
 
 | 配置 | 建议值 | 说明 |
 | :-- | :-- | :-- |
-| `maxmemory` | 物理内存的 60%~80% | 预留 fork 和系统开销 |
-| `maxmemory-policy` | `allkeys-lfu` | 通用场景推荐 |
+| `maxmemory` | 由容量压测和故障场景确定 | 预留系统、网络缓冲和 fork/COW 空间 |
+| `maxmemory-policy` | 缓存场景按访问模式选择 | 主数据通常保持 `noeviction` |
 | `maxmemory-samples` | 10 | 采样数越大越精确，CPU 开销越大 |
 | `lfu-log-factor` | 10 | 默认即可，除非有特殊访问模式 |
 | `lfu-decay-time` | 1 | 默认即可 |
@@ -347,3 +348,16 @@ maxmemory 8gb
 maxmemory-policy allkeys-lfu
 maxmemory-samples 10
 ```
+
+### 2.8 Hash 字段过期（Redis 7.4+） {#hash-field-expiry}
+
+Redis 7.4 起，除了给整个 Key 设置 TTL，还可以只让 Hash 中的部分字段过期：
+
+```bash
+HSET session:alice status active profile cached
+HEXPIRE session:alice 300 NX FIELDS 2 status profile
+HTTL session:alice FIELDS 2 status profile
+HPERSIST session:alice FIELDS 1 status
+```
+
+`HEXPIRE`、`HEXPIREAT`、`HPEXPIRE`、`HPEXPIREAT` 设置字段过期时间，`HTTL`、`HPTTL` 查询剩余时间，`HPERSIST` 移除字段过期时间。字段级 TTL 与 Key 级 TTL 相互独立：字段过期不会自动设置整个 Hash 的 TTL，Key 过期时则整个 Hash 及其字段都会失效。

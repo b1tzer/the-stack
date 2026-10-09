@@ -41,7 +41,7 @@
 | 主观下线（SDOWN） | Subjectively Down | 单个哨兵认为某个节点（主/从/哨兵）下线 |
 | 客观下线（ODOWN） | Objectively Down | 达到 quorum 个哨兵都认为下线 |
 
-单个哨兵判断下线可能是网络抖动导致的误判，多个哨兵达成共识才可靠。
+单个哨兵判断下线可能是网络抖动或视角差异导致的误判。quorum 和多数授权用于降低单点误判风险，但仍取决于网络分区和部署拓扑。
 
 ```txt
 哨兵A：SDOWN（主观下线）
@@ -80,7 +80,7 @@ quorum = 2 → 3 个哨兵中 2 个确认 → ODOWN（客观下线）
 
 ### 3.2 为什么需要 Leader
 
-如果所有哨兵都同时执行故障转移，可能选出不同的新主，导致脑裂。Leader 机制保证只有一个哨兵执行转移。
+如果多个哨兵同时执行故障转移，可能产生互相竞争的配置变更。Leader 和配置纪元机制用于让同一个故障转移周期内只有一个被授权的哨兵执行切换。
 
 ## 4. 故障转移流程 {#failover}
 
@@ -113,13 +113,18 @@ sequenceDiagram
 
 ### 4.3 客户端通知
 
-切换完成后，哨兵通过 Pub/Sub 通知客户端新主节点的地址：
+切换完成后，客户端可以订阅 Sentinel 的 Pub/Sub 频道接收拓扑变化，也可以主动查询当前主节点：
 
 ```bash
-# 客户端订阅哨兵频道
-SENTINEL get-master-addr-by-name mymaster   # 获取当前主节点地址
-# 哨兵切换后，自动推送新地址
+# 订阅切换通知
+SUBSCRIBE +switch-master
+# 消息示例：+switch-master mymaster 10.0.0.1 6379 10.0.0.2 6379
+
+# 主动查询当前主节点
+SENTINEL get-master-addr-by-name mymaster
 ```
+
+实际客户端通常由 Sentinel 库封装发现、订阅和缓存刷新；业务代码不应只依赖一次查询结果。
 
 ## 5. 配置详解
 
@@ -144,8 +149,8 @@ sentinel auth-pass mymaster your_password
 
 | 配置 | 含义 | 建议值 |
 | :-- | :-- | :-- |
-| `quorum` | 判定客观下线所需的哨兵数 | 哨兵总数的多数（如 3 个哨兵取 2） |
-| `down-after-milliseconds` | 主观下线阈值 | 30000（30 秒），过短易误判 |
+| `quorum` | 判定客观下线所需的 SDOWN 确认数 | 与故障检测灵敏度匹配；执行转移仍需多数授权 |
+| `down-after-milliseconds` | 主观下线阈值 | 由网络抖动、业务 RTO 和误判成本共同确定 |
 | `failover-timeout` | 故障转移超时 | 180000（3 分钟） |
 | `parallel-syncs` | 并行同步从节点数 | 1（避免同时全量同步） |
 
@@ -219,17 +224,17 @@ min-replicas-max-lag 10
 
 ### 7.3 误判与抖动
 
-`down-after-milliseconds` 过短会导致频繁误判，触发不必要的故障转移。建议 ≥ 30 秒。
+`down-after-milliseconds` 过短会增加误判和不必要切换，过长则延长不可用时间。应结合网络抖动历史、业务 RTO、故障切换演练和误判代价选择，不设置脱离环境的统一下限。
 
 ### 7.4 多数据中心
 
-哨兵应部署在多个机房/可用区，避免单机房故障导致所有哨兵不可用。
+应按故障域规划 Redis、Sentinel 和客户端的部署位置，保证发生网络分区时仍能形成授权多数，并明确哪一侧继续提供写入。不要只按“数量分散到多个机房”部署，而不评估跨区延迟和分区行为。
 
 ## 8. 小结
 
 | 要点 | 说明 |
 | :-- | :-- |
-| SDOWN → ODOWN | 单个哨兵主观判断 → 多数哨兵客观确认 |
+| SDOWN → ODOWN | 单个哨兵主观判断 → 达到 quorum 后客观确认 |
 | Leader 选举 | Raft 类算法，保证只有一个哨兵执行转移 |
 | 选新主规则 | 优先级 → 偏移量 → runid |
 | 脑裂防护 | `min-replicas-to-write` 保护旧主不再写入 |

@@ -37,7 +37,7 @@ Redis Cluster 把整个键空间划分为 **16384 个哈希槽（slot）**，每
 | 原因 | 说明 |
 | :-- | :-- |
 | 心跳包大小 | Gossip 心跳携带槽位图，16384 个槽用 2KB（16384/8=2048 字节）表示 |
-| 节点数上限 | 官方建议节点数 ≤ 1000，16384 个槽足够分配 |
+| 规模设计 | 规范以最多约 1000 个节点作为线性扩展设计目标，16384 个槽足以分配 |
 | 网络开销 | 槽数量过大时心跳包更大，节点通信开销增加 |
 
 > 为什么不用 65536？作者 antirez 的解释：集群节点数不太可能超过 1000，16384 个槽已经足够，心跳包用 2KB 表示比 8KB 更高效。
@@ -59,7 +59,7 @@ Gossip 是一种“人人都随口互相通风报信”的分布式通信协议�
 
 ### 2.2 消息体
 
-Gossip 消息携带的信息：
+下图是便于理解的示意字段，不是 Redis Cluster 线协议的实际编码：
 
 ```txt
 {
@@ -139,7 +139,7 @@ cluster.mset("{user:1001}:name", "张三", "{user:1001}:age", "25");
 节点B → 节点C：...（超时无响应）
 节点C 标记 B 为 PFAIL
 
-当集群中超过半数主节点都标记 B 为 PFAIL → B 升级为 FAIL（确认下线）
+主节点在多个 gossip 周期中确认 B 持续 PFAIL，并且超过半数主节点持相同观点 → B 升级为 FAIL（确认下线）
 ```
 
 | 阶段 | 说明 |
@@ -158,7 +158,7 @@ cluster.mset("{user:1001}:name", "张三", "{user:1001}:age", "25");
 4. 新主节点广播自己的新身份
 ```
 
-选举规则与哨兵类似：偏移量最大（数据最新）的从节点优先。
+复制偏移量最大的从节点具有更高 rank，通常会更早开始申请投票；但主节点不会像 Sentinel 那样按偏移量选出“最佳副本”，最终仍由 epoch、投票规则和时序决定选举结果。
 
 ## 5. 扩缩容
 
@@ -192,7 +192,7 @@ redis-cli --cluster del-node 10.0.0.1:6379 <node-id>
 1. 目标节点：CLUSTER SETSLOT <slot> IMPORTING <source-node-id>（准备接收）
 2. 源节点：CLUSTER SETSLOT <slot> MIGRATING <target-node-id>（准备发送）
 3. 源节点：CLUSTER GETKEYSINSLOT <slot> <count>（获取槽内 key 列表）
-4. 源节点：MIGRATE <target-ip> <port> "" 0 5000 KEYS key1 key2...（逐个迁移 key）
+4. 源节点：MIGRATE <target-ip> <port> "" 0 5000 KEYS k1 k2 ...（伪代码；实际循环迁移 GETKEYSINSLOT 返回的 Key）
 5. 所有节点：CLUSTER SETSLOT <slot> NODE <target-node-id>（更新槽归属）
 ```
 
@@ -235,6 +235,8 @@ MGET user:1001 user:1002   # ERR
 
 | 场景 | 推荐 |
 | :-- | :-- |
-| 数据量 < 10GB、可接受手动切换 | 主从 |
-| 数据量 < 10GB、要求高可用 | 哨兵 |
-| 数据量 > 10GB、需要水平扩展 | 集群 |
+| 单实例容量和吞吐可满足目标，可接受手动切换 | 主从 |
+| 单实例容量和吞吐可满足目标，需要自动故障转移 | 主从 + Sentinel |
+| 单实例无法满足容量、吞吐或水平扩展目标 | Redis Cluster |
+
+拓扑阈值应来自数据增长、单实例压测、RPO/RTO 和运维能力，不以固定的 10GB 数据量作为选型边界。

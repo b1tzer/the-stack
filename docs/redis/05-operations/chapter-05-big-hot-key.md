@@ -63,8 +63,8 @@ Biggest zset found 'rank:daily:score' has 500000 members
 
 ```bash
 redis-cli --memusage user:profile:10087   # 查看单个 key 的内存占用
-redis-cli MEMORY USAGE user:profile:10087  # 精确内存（字节）
-redis-cli DEBUG OBJECT user:profile:10087  # 查看对象编码和引用计数
+redis-cli MEMORY USAGE user:profile:10087  # 服务端估算的 Key 占用（字节）
+redis-cli DEBUG OBJECT user:profile:10087  # 生产环境慎用；查看对象编码和引用计数
 ```
 
 ### 1.4 处理
@@ -91,13 +91,13 @@ UNLINK queue:tasks:pending
 ```java
 public void hsetSharded(String baseKey, String field, String value, int shardCount) {
     // field 的哈希值对分片数取模，决定写入哪个子 Hash
-    int shard = Math.abs(field.hashCode()) % shardCount;
+    int shard = Math.floorMod(field.hashCode(), shardCount);
     String shardedKey = baseKey + ":shard:" + shard;
     redis.opsForHash().put(shardedKey, field, value);
 }
 
 public String hgetSharded(String baseKey, String field, int shardCount) {
-    int shard = Math.abs(field.hashCode()) % shardCount;
+    int shard = Math.floorMod(field.hashCode(), shardCount);
     String shardedKey = baseKey + ":shard:" + shard;
     Object val = redis.opsForHash().get(shardedKey, field);
     return val != null ? val.toString() : null;
@@ -137,8 +137,9 @@ public String hgetSharded(String baseKey, String field, int shardCount) {
 @Component
 public class HotKeyDetector {
 
-    // 本地计数器：key → 访问次数
-    private final ConcurrentHashMap<String, LongAdder> counter = new ConcurrentHashMap<>();
+    // 当前统计窗口；重置时原子替换，避免遍历后 clear() 丢失并发写入
+    private final AtomicReference<ConcurrentHashMap<String, LongAdder>> counter =
+        new AtomicReference<>(new ConcurrentHashMap<>());
     // 热 key 阈值：1 分钟内超过 1000 次
     private static final long HOT_THRESHOLD = 1000;
 
@@ -146,14 +147,20 @@ public class HotKeyDetector {
      * 记录一次 key 访问
      */
     public void record(String key) {
-        counter.computeIfAbsent(key, k -> new LongAdder()).increment();
+        while (true) {
+            ConcurrentHashMap<String, LongAdder> window = counter.get();
+            window.computeIfAbsent(key, k -> new LongAdder()).increment();
+            if (counter.compareAndSet(window, window)) {
+                return;
+            }
+        }
     }
 
     /**
      * 判断是否为热 key
      */
     public boolean isHot(String key) {
-        LongAdder adder = counter.get(key);
+        LongAdder adder = counter.get().get(key);
         return adder != null && adder.sum() >= HOT_THRESHOLD;
     }
 
@@ -163,7 +170,9 @@ public class HotKeyDetector {
      */
     @Scheduled(fixedRate = 60000)
     public void resetAndReport() {
-        List<String> hotKeys = counter.entrySet().stream()
+        ConcurrentHashMap<String, LongAdder> reportedWindow =
+            counter.getAndSet(new ConcurrentHashMap<>());
+        List<String> hotKeys = reportedWindow.entrySet().stream()
             .filter(e -> e.getValue().sum() >= HOT_THRESHOLD)
             .map(Map.Entry::getKey)
             .collect(Collectors.toList());
@@ -172,7 +181,6 @@ public class HotKeyDetector {
             log.warn("检测到热 key: {}", hotKeys);
             // 上报到监控系统或自动触发缓存预热
         }
-        counter.clear();
     }
 }
 ```
@@ -221,13 +229,20 @@ public class HotKeyDistributor {
      * 读取时随机选择一个副本
      */
     public String getWithReplicas(StringRedisTemplate redis, String key) {
-        int replica = ThreadLocalRandom.current().nextInt(REPLICA_COUNT);
-        return redis.opsForValue().get(key + ":r" + replica);
+        int start = ThreadLocalRandom.current().nextInt(REPLICA_COUNT);
+        for (int offset = 0; offset < REPLICA_COUNT; offset++) {
+            int replica = (start + offset) % REPLICA_COUNT;
+            String value = redis.opsForValue().get(key + ":r" + replica);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 }
 ```
 
-> 在 Cluster 模式下，不同副本 key 会落在不同分片上，从而分散单节点压力。副本数量根据热 key 的 QPS 和分片数来决定。
+> 在 Cluster 模式下，不同副本 Key 通常会按哈希落在不同槽，但不保证每个分片恰好一份。一次批量更新也无法跨分片保持原子，可能出现部分副本仍是旧值。该方案只适合可容忍短暂不一致的只读缓存；需要一致性时应使用版本化 Key、回源和更新传播机制。
 
 ## 3. 小结对比
 

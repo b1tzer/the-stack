@@ -63,7 +63,7 @@ String value = getFuture.get();
 | :-- | :-- |
 | 非原子 | Pipeline 只优化网络，不保证命令原子性 |
 | 可被插队 | 其他客户端的命令可能插在 Pipeline 命令中间 |
-| 批量大小 | 单次 Pipeline 不要太大（建议 ≤ 1000 条），避免阻塞服务端 |
+| 批量大小 | 按压测和响应体积分批；大批量命令会连续占用服务端执行线程 |
 | 不适合事务场景 | 需要原子性时用 MULTI/EXEC 或 Lua |
 
 ### 1.4 Pipeline vs 事务 vs Lua
