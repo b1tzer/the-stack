@@ -8,21 +8,39 @@
 
 ### 1.1 对象在哪里
 
-Java 中，对象实例存储在**堆（Heap）**上，局部变量和对象引用存储在**栈（Stack）**上。
+JVM 为对象实例分配堆内存；方法执行时，局部变量和引用保存在当前方法帧的局部变量数组中。这里的“堆”和“栈”是逻辑模型：JVMS 不要求方法帧必须以普通进程栈的物理方式分配，也不规定引用必须暴露为内存地址。JIT 还可能把局部值保存在寄存器中。理解 GC 时，更重要的是判断对象是否仍然可达，而不是追踪它位于哪一块物理内存。
 
 ```java
 public void process() {
-    int count = 10;              // count 在栈上
-    User user = new User();      // user 引用在栈上，User 对象在堆上
-    user.name = "Tom";           // 通过引用操作堆上的对象
+    int count = 10;              // 方法帧中的局部变量
+    StringBuilder text = new StringBuilder("Tom"); // text 保存引用，对象由堆管理
+    text.append("!");            // 通过引用操作堆上的对象
 }
 ```
 
+![引用与对象的逻辑关系：方法帧中的 text 引用指向堆中的 StringBuilder 对象](/java/stack-heap.svg)
+
 当方法 `process()` 执行完毕：
 
-- 栈帧被弹出，`count` 和 `user` 引用消失
-- 堆上的 User 对象变成"不可达"（没有引用指向它了）
+- 方法帧结束，`count` 和 `text` 引用不再存在
+- 堆上的 StringBuilder 对象变成"不可达"（没有引用指向它了）
 - GC 在某个时刻回收这个对象
+
+引用赋值也不会复制对象：
+
+```java
+class ReferenceAssignment {
+    public static void main(String[] args) {
+        StringBuilder first = new StringBuilder("Tom");
+        StringBuilder second = first;
+
+        second.append("!");
+        System.out.println(first); // Tom!
+    }
+}
+```
+
+`second = first` 复制的是引用，因此两个变量指向同一个对象。对对象状态的修改会通过两个变量同时可见。
 
 ### 1.2 null 的含义
 
@@ -57,7 +75,7 @@ NPE 是 Java 中最常见的运行时异常之一。后面的[异常与资源管
 
 | 层次 | 含义 | 运算符/方法 |
 | :-- | :-- | :-- |
-| **identity** | 是否同一个对象（内存地址相同） | `==` |
+| **identity** | 是否同一个对象 | `==` |
 | **equality** | 逻辑上是否相等 | `equals()` |
 | **hash** | 对象的哈希指纹 | `hashCode()` |
 
@@ -79,7 +97,7 @@ int y = 10;
 x == y  // true
 ```
 
-对于引用类型，`==` 比较的是**引用地址**（是否同一个对象）：
+对于引用类型，`==` 比较的是两个引用是否指向同一个对象：
 
 ```java
 User u1 = new User("Tom");
@@ -155,6 +173,62 @@ public int hashCode() {
     return Objects.hash(name, age);
 }
 ```
+
+### 2.6 包装类型与自动装箱
+
+`Integer`、`Long` 等包装类型是不可变对象；`int`、`long` 等基本类型表达值。Java 允许两者之间隐式转换，但这不会消除两者的语义差异：
+
+```java
+class BoxingExample {
+    public static void main(String[] args) {
+        int primitiveValue = 10;
+        Integer boxedValue = primitiveValue; // 装箱
+        int restoredValue = boxedValue;      // 拆箱
+    }
+}
+```
+
+当前 `javac` 通常把装箱编译为 `Integer.valueOf(...)`，把拆箱编译为 `Integer.intValue()`。包装引用可以为 `null`，因此拆箱空引用会抛出 `NullPointerException`。
+
+`==` 比较的是引用身份，不是包装值本身：
+
+```java
+class IntegerCacheExample {
+    public static void main(String[] args) {
+        Integer first = 127;
+        Integer second = 127;
+        System.out.println(first == second); // true
+
+        Integer third = 128;
+        Integer fourth = 128;
+        System.out.println(third == fourth); // 结果依赖实现和缓存配置，不应依赖
+    }
+}
+```
+
+`Integer.valueOf()` 总会缓存 -128 到 127 的值，也可能缓存范围外的值。对于装箱值来自编译期常量的情况，JLS 只保证 -128 到 127 的常量引用相同；范围外不能依赖 `==`。比较包装值应使用 `equals()`，或者先拆箱再用 `==` 比较基本类型。
+
+循环累计也应优先使用基本类型：
+
+```java
+class AccumulationExample {
+    public static void main(String[] args) {
+        Long boxedSum = 0L;
+        for (long value = 0; value < 10_000_000L; value++) {
+            boxedSum += value; // 每次复合赋值都会拆箱、相加并重新装箱
+        }
+
+        long primitiveSum = 0L;
+        for (long value = 0; value < 10_000_000L; value++) {
+            primitiveSum += value;
+        }
+    }
+}
+```
+
+第一条循环会反复执行拆箱和装箱，并可能分配 `Long` 对象；缓存和 JIT 优化可能减少实际分配次数，所以性能结论应以目标 JVM 上的测量为准。数值累计通常直接使用 `long`。
+
+> 包装类型缓存行为按 Java SE 21 核对。官方参考：[`Integer` API 文档](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Integer.html)、[Java Language Specification](https://docs.oracle.com/javase/specs/jls/se21/html/jls.html)。
 
 ## 3. String 与不可变对象
 
