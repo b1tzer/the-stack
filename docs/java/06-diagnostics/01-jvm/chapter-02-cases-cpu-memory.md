@@ -441,3 +441,5 @@ jcmd <pid> VM.class_stats | wc -l
 **教训：** CGLIB 代理类要缓存复用。`Enhancer.create()` 不是「创建对象」，是「生成类 + 创建对象」。前者消耗 Metaspace（元空间），后者消耗堆。堆 GC 能回收对象，但类的卸载条件非常苛刻——需要 ClassLoader 不可达、且所有实例已回收、且没有反射引用。
 
 另外：生产环境**必须**设置 `-XX:MaxMetaspaceSize=256m`。JDK 8+ 的 Metaspace 默认无上限（受限于物理内存），设置这个参数能让你在泄漏发生时拿到 OOM dump 而不是让整个机器被拖死。
+
+> **回到诊断入口：** [JVM 线上诊断](./chapter-01-jvm-diagnostics.md)。类加载机制见[字节码与类加载](../../02-jvm-runtime/chapter-01-bytecode-classloading.md)，堆与 GC 行为见[垃圾回收](../../02-jvm-runtime/chapter-04-gc.md)。

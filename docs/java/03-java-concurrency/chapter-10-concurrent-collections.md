@@ -152,7 +152,7 @@ final V putVal(K key, V value, boolean onlyIfAbsent) {
 
 反直觉的一件事：JDK 7 用的是 `ReentrantLock`（因为 Segment 继承它），JDK 8 换成了 `synchronized`。三个直接的原因：
 
-- **JDK 6 之后 `synchronized` 已经不慢**：偏向锁、轻量级锁、锁消除、锁粗化把无竞争场景的开销压到几乎为零（第 6 章 §6.5、§6.6）。
+- **JDK 6 之后 `synchronized` 已经不慢**：偏向锁、轻量级锁、锁消除、锁粗化把无竞争场景的开销压到几乎为零（[第 6 章的锁优化部分](./chapter-06-synchronized.md#synchronized-lock-optimization)）。
 - **粒度更细意味着单锁的竞争度更低**：每个 bin 的头节点独立当锁，绝大多数并发写落到不同 bin 上，走的都是偏向锁 / 轻量级锁路径。
 - **`synchronized` 内部由 JVM 管理，减少对象元数据**：`ReentrantLock` 本身是 Java 对象，每个 Segment 都要单独维护同步状态；`synchronized` 直接用 Node 的对象头，节省内存。
 
@@ -175,7 +175,7 @@ public int size() {
 }
 ```
 
-这套思路和 `LongAdder`（第 7 章 §7.5）完全一致——**同一套代码在两个地方用**。代价是 `size()` 是"接近实时"的估算，不保证瞬时精确。
+这套思路和 [`LongAdder`](./chapter-07-cas-atomic.md)完全一致——**同一套代码在两个地方用**。代价是 `size()` 是“接近实时”的估算，不保证瞬时精确。
 
 ### 2.5 JDK 7 vs JDK 8 一览
 
@@ -482,7 +482,7 @@ new Thread(() -> {
 }).start();
 ```
 
-对比第 6 章 §6.3 那种自己写 `wait/notify` 的版本，`BlockingQueue` 少了三个坑：条件判断的 `while` 循环、`notifyAll` 惊群、忘了持锁的 `IllegalMonitorStateException`。所有这些都被封装到容器里。
+对比[第 6 章的 `wait/notify`](./chapter-06-synchronized.md#wait-notify)，`BlockingQueue` 少了三个坑：条件判断的 `while` 循环、`notifyAll` 惊群、忘了持锁的 `IllegalMonitorStateException`。所有这些都被封装到容器里。
 
 ### 5.7 三类队列的选型
 
@@ -494,7 +494,7 @@ new Thread(() -> {
 | 按优先级消费 | `PriorityBlockingQueue` |
 | 定时消费（延迟队列） | `DelayQueue` |
 
-第 11 章 `ThreadPoolExecutor` 的 `workQueue` 就是从这里挑一种——不同队列直接决定线程池的调度形态。
+[第 11 章 `ThreadPoolExecutor`](./chapter-11-thread-pool.md)的 `workQueue` 就是从这里挑一种——不同队列直接决定线程池的调度形态。
 
 ## 6. 选型：安全、并发度、开销的三角权衡
 
@@ -535,3 +535,7 @@ new Thread(() -> {
 | 需要"精确交接"的队列 | `SynchronousQueue` 太受限 | `LinkedTransferQueue` |
 | `size()` O(N) 陷阱 | 无锁队列不维护实时计数 | 不要频繁调 `size()`，用其他指标监控 |
 | 生产者-消费者语义 | 手写 `wait/notify` 易错 | `BlockingQueue` 家族 |
+
+## 8. 下一步
+
+并发集合提供数据结构层面的并发安全，任务调度仍需要[线程池](./chapter-11-thread-pool.md)管理执行资源。需要组合多个异步结果时继续阅读[异步编程](./chapter-12-async-model.md)；出现吞吐下降或 key 语义错误时，从[并发问题诊断](../06-diagnostics/02-concurrency/chapter-01-concurrency-diagnostics.md)进入。

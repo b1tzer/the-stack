@@ -91,7 +91,7 @@ public class ThreadLimit {
 // 典型输出（取决于系统配置）：最多创建 ~4000 个线程
 ```
 
-这就是为什么在高并发场景下，需要线程池（`ExecutorService`）来复用线程，而不是为每个任务创建新线程。线程池的内容详见第 11 章。
+这就是为什么在高并发场景下，需要线程池（`ExecutorService`）来复用线程，而不是为每个任务创建新线程。线程池的内容详见[第 11 章](./chapter-11-thread-pool.md)。
 
 而 1:1 模型的另一条突围路径，是从根本上改变线程与 OS 资源的绑定关系——这就是 Java 21 引入 Virtual Thread 的动机。
 
@@ -143,7 +143,7 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 | 调度 | OS 内核调度器 | JVM 内部 ForkJoinPool |
 | 适用场景 | CPU 密集型任务 | I/O 密集型任务（Web 服务、数据库查询） |
 
-> **注意**：虚拟线程并非万能药。对于 CPU 密集型任务，虚拟线程没有优势（因为平台线程数 ≈ CPU 核心数已经是最优配置）。虚拟线程的价值在于 I/O 密集型场景——用少量 OS 线程支撑海量并发连接。虚拟线程机制与 pinning 陷阱详见第 13 章，迁移和结构化并发详见第 14 章。
+> **注意**：虚拟线程并非万能药。对于 CPU 密集型任务，虚拟线程没有优势（因为平台线程数 ≈ CPU 核心数已经是最优配置）。虚拟线程的价值在于 I/O 密集型场景——用少量 OS 线程支撑海量并发连接。虚拟线程机制与 pinning 陷阱详见[第 13 章](./chapter-13-virtual-thread.md)，迁移和结构化并发详见[第 14 章](./chapter-14-virtual-thread-migration.md)。
 
 ## 3. 创建线程的方式演进
 
@@ -453,3 +453,7 @@ if (deadlockedThreads != null) {
 5. **中断是协作式的通知机制**，不是强制终止
 
 > **与 Project Loom 的关系**：本章介绍的 1:1 线程模型和线程状态机是理解传统 Java 并发的基础。Virtual Thread 改变了线程的调度方式（由 JVM 而非 OS 调度），但 JMM 的规则（第 4 章）、线程安全的编程范式（第 5-10 章）依然完全适用。无论底层是平台线程还是虚拟线程，happens-before 规则不变，`volatile` 和 `synchronized` 的语义不变。
+
+## 6. 下一步
+
+线程只是执行载体。下一步用[ThreadLocal](./chapter-03-threadlocal.md)理解线程封闭，再进入[Java 内存模型](./chapter-04-jmm.md)回答线程如何看到彼此的写入；虚拟线程的调度差异见[虚拟线程模型与 Pinning](./chapter-13-virtual-thread.md)，线程状态异常从[并发问题诊断](../06-diagnostics/02-concurrency/chapter-01-concurrency-diagnostics.md)开始排查。

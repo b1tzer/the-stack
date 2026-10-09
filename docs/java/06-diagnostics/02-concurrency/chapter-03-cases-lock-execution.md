@@ -303,7 +303,7 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 }
 ```
 
-详见第 13 章虚拟线程的原理。
+详见[第 13 章虚拟线程的原理](../../03-java-concurrency/chapter-13-virtual-thread.md)。
 
 ### 2.5 总结
 

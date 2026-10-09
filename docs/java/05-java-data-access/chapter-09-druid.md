@@ -16,7 +16,7 @@ Druid 是阿里巴巴开源的数据库连接池。它和 HikariCP 解决同一�
 | 性能 | 实现以 `ConcurrentBag` 为主；实际吞吐需压测 | 功能更全；实际吞吐需压测 |
 | 默认 | Spring Boot 2.x 起默认 | 需手动引入 |
 
-连接池本身的原理——为何建连昂贵、参数如何调——在 [性能优化](./chapter-08-performance.md) §1 已讲，这里不重复。本章只讲 Druid 比 HikariCP 多出来的东西。
+连接池为什么存在和通用容量模型见[JDBC 性能瓶颈与连接池](./chapter-03-jdbc-performance-pool.md)，HikariCP 的参数、指标与调优见[数据访问性能优化](./chapter-08-performance.md)。本章只讲 Druid 比 HikariCP 多出来的东西。
 
 ### 组件全景
 

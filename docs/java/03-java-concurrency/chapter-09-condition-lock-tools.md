@@ -1,4 +1,4 @@
-# `Condition` 与同步工具：基于 AQS 的应用
+# `Condition` 与 AQS 同步工具
 
 > 本页建立在 [LockSupport 与 AQS 核心机制](./chapter-08-locksupport-aqs.md) 之上，回答两个应用问题：多个等待条件如何精确唤醒，以及常见同步工具在 AQS 上如何分工与选型。
 
@@ -31,7 +31,7 @@ Condition_notFull 条件队列（挂在同一个 lock 上）
 
 **关键**：`signal` 不代表"立刻运行"。被 `signal` 的线程只是从"等条件"变成"等锁"，还得排队争锁——和 `wait/notify` 是一样的。
 
-### 1.2 生产者-消费者用两条 Condition 精确唤醒
+### 1.2 生产者-消费者用两条 Condition 精确唤醒 {#condition-producer-consumer}
 
 ```java
 private final ReentrantLock lock = new ReentrantLock();
@@ -73,7 +73,7 @@ public E take() throws InterruptedException {
 
 ## 2. 基于 AQS 的工具矩阵
 
-`java.util.concurrent.locks` 与 `java.util.concurrent` 里几乎所有同步工具都是 AQS 子类。它们的差异，落到源码上就是四行 `try*` 方法的写法不同。
+`java.util.concurrent.locks` 与 `java.util.concurrent` 中的多个工具直接复用 AQS；`StampedLock` 和 `CyclicBarrier` 则使用自己的锁状态或 `Lock`/`Condition` 组合。对 AQS 工具来说，它们的差异主要落在 `tryAcquire*`、`tryRelease*`、`tryAcquireShared*` 和 `tryReleaseShared*` 的实现方式。
 
 ### 2.1 一张矩阵
 
@@ -86,7 +86,7 @@ public E take() throws InterruptedException {
 | `CountDownLatch` | 共享（一次性） | 未完成计数 | 等 N 件事都完成 |
 | `CyclicBarrier` | 用 `ReentrantLock` + `Condition` 组合，而非直接 AQS | —— | 一批线程互相等到齐再一起走 |
 
-`CyclicBarrier` 是唯一没有直接继承 AQS 的常用工具——它自己组合 `Lock` + `Condition` 就够用。列在这里方便一同选型。
+`CyclicBarrier` 和 `StampedLock` 不直接继承 AQS：前者用 `ReentrantLock` 与 `Condition` 组合，后者用内部版本戳和同步状态。列在这里是为了按协调语义一并选型，而不是把所有工具都归入同一套 AQS 源码。
 
 ### 2.2 `ReentrantReadWriteLock`：一个 `int` 同时管理读写
 
@@ -173,9 +173,84 @@ try {
 }
 ```
 
-这是 `Lock` 相比 `synchronized` 最容易踩的坑。`synchronized` 的 `monitorexit` 有异常处理路径保底（见第 6 章 §5），`Lock` 没有——`unlock` 必须写在 `finally` 里。
+这是 `Lock` 相比 `synchronized` 最容易踩的坑。[`synchronized` 的 `monitorexit` 有异常处理路径保底](./chapter-06-synchronized.md)，`Lock` 没有——`unlock` 必须写在 `finally` 里。
 
-## 3. 本页小结
+## 3. 常见协调工具的语义与边界
+
+`Semaphore`、`CountDownLatch` 和 `CyclicBarrier` 都解决“多个线程按某种计数协作”的问题，但计数代表的含义、能否复用和失败后的状态不同。
+
+### 3.1 CountDownLatch：一次性的完成计数
+
+`CountDownLatch` 创建时固定计数。其他线程调用 `await()` 等待计数归零，负责方完成一项工作后调用 `countDown()`：
+
+```java
+CountDownLatch completed = new CountDownLatch(tasks.size());
+for (Runnable task : tasks) {
+    executor.execute(() -> {
+        try {
+            runTask(task);
+        } finally {
+            completed.countDown();
+        }
+    });
+}
+
+if (!completed.await(3, TimeUnit.SECONDS)) {
+    throw new IllegalStateException("workers did not become ready in time");
+}
+```
+
+计数不能重置。需要重复使用时创建新的 Latch，或者选择支持重置的协调结构。`await()` 可以被中断，也支持超时；调用方必须处理 `InterruptedException`。Latch 只表达“完成了多少”，不会收集工作线程抛出的异常；任务失败还要通过 `Future`、异常队列或统一错误处理传回。它适合“等 N 件一次性事件完成”，不适合“每轮都让 N 个线程重新集合”。
+
+### 3.2 Semaphore：限制许可数量
+
+`Semaphore` 的状态表示可用许可数。线程先 `acquire()` 或 `tryAcquire()` 取得许可，完成资源使用后在 `finally` 中 `release()`：
+
+```java
+Semaphore permits = new Semaphore(maxConcurrentRequests);
+
+if (permits.tryAcquire()) {
+    try {
+        callLimitedResource();
+    } finally {
+        permits.release();
+    }
+} else {
+    throw new RejectedExecutionException("concurrency limit reached");
+}
+```
+
+必须保证“成功取得的许可最终只释放一次”。没有先取得许可却调用 `release()`，会凭空增加许可，使限流失效。`tryAcquire()` 可以立即返回失败，`tryAcquire(timeout)` 可以给等待设置预算。Semaphore 默认不保证公平排队；在强公平需求下要显式构造公平模式，并接受吞吐与排队行为的变化。
+
+### 3.3 CyclicBarrier：一批线程互相等待
+
+`CyclicBarrier(parties)` 要求指定数量的线程都调用 `await()` 后才一起继续。可以在创建时提供 barrier action，让所有线程释放前先执行一次公共步骤：
+
+```java
+CyclicBarrier barrier = new CyclicBarrier(
+        participantCount,
+        () -> publishRoundResult()
+);
+
+// 每个参与线程在每一轮结束时调用
+barrier.await(5, TimeUnit.SECONDS);
+```
+
+调用点需要声明或捕获 `InterruptedException`、`TimeoutException` 和 `BrokenBarrierException`。一轮全部到达后，Barrier 可以复用。任一线程中断、超时或抛出异常时，Barrier 进入 broken 状态，其他等待线程会收到 `BrokenBarrierException`，后续 `await()` 也无法自动恢复。需要重试时必须明确调用 `reset()`，或创建新的 Barrier。它由 `ReentrantLock` 和 `Condition` 组合实现，不直接继承 AQS。
+
+### 3.4 按协作语义选型
+
+| 你想表达的关系 | 首选工具 | 不适合的场景 |
+| :-- | :-- | :-- |
+| 一次性等待 N 个事件完成 | `CountDownLatch` | 需要多轮复用 |
+| 最多允许 N 个线程进入资源 | `Semaphore` | 只想等待固定事件数量 |
+| N 个线程每轮到齐后一起继续 | `CyclicBarrier` | 单向通知或单次启动门闩 |
+| 精确唤醒生产者或消费者 | 两个 `Condition` | 线程只等待一个一次性计数 |
+| 多阶段、动态参与方 | 需要评估 `Phaser` 等结构 | 把上述工具强行拼接 |
+
+这些工具都只协调线程，不解决共享数据的原子更新，也不决定任务在哪个线程池执行。选型后还要检查[并发集合](./chapter-10-concurrent-collections.md)、[线程池](./chapter-11-thread-pool.md)和[并发性能优化](../06-diagnostics/02-concurrency/chapter-02-concurrency-optimization.md)是否形成完整方案。
+
+## 4. 本页小结
 
 | 问题 | 根源 | 解决方案 |
 | :-- | :-- | :-- |

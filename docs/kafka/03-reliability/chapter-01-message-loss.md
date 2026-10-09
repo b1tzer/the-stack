@@ -10,7 +10,7 @@
 
 ## 2. 三个环节的丢消息场景
 
-> 本节涉及的术语在前置章节有详细解释：[acks 与幂等](../02-core/chapter-05-ack-and-idempotence.md#ack-modes)、[副本与 ISR/OSR](../02-core/chapter-04-replication-and-isr.md#isr)、[Offset](../02-core/chapter-03-consumer-group.md#offset-management) 与 [Rebalance](../02-core/chapter-03-consumer-group.md#rebalance)。
+> 本节涉及的术语在前置章节有详细解释：[acks 与幂等](../02-core/chapter-05-ack-and-idempotence.md#ack-modes)、[副本与 ISR/OSR](../02-core/chapter-04-replication-and-isr.md#isr-definition)、[Offset](../02-core/chapter-03-consumer-group.md#offset-management) 与 [Rebalance](../02-core/chapter-03-consumer-group.md#rebalance)。
 
 ### 2.1 生产者 → Broker
 
@@ -58,7 +58,7 @@ Controller 从 ISR 里选一个新 Leader（某个 Follower）
 | :-- | :-- | :-- |
 | 副本因子=1 | 单节点宕机，数据永久丢失 | default.replication.factor=3 |
 | [min.insync.replicas](../02-core/chapter-05-ack-and-idempotence.md#min-insync-replicas)=1 | acks=all 但只有一个副本写入 | min.insync.replicas=2 |
-| [Unclean Leader 选举](../02-core/chapter-04-replication-and-isr.md#unclean-leader-election) | [OSR](../02-core/chapter-04-replication-and-isr.md#isr) 副本当选，丢失未同步数据 | unclean.leader.election.enable=false |
+| [Unclean Leader 选举](../02-core/chapter-04-replication-and-isr.md#unclean-leader-election) | [OSR](../02-core/chapter-04-replication-and-isr.md#isr-definition) 副本当选，丢失未同步数据 | unclean.leader.election.enable=false |
 | 数据保留过期 | 消息被自动删除 | 合理配置 log.retention |
 
 #### 为什么 min.insync.replicas=1 时 acks=all 也会丢

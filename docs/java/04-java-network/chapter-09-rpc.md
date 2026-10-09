@@ -229,3 +229,7 @@ Consumer 启动 → 拉取 `user-service` 的所有实例 → 本地缓存 → �
 | RoundRobin | 轮询 | 实例性能相同 |
 | LeastActive | 选当前负载最轻的 | 请求耗时差异大 |
 | ConsistentHash | 相同参数 → 同一实例 | 有状态服务、本地缓存 |
+
+## 6. 下一步
+
+RPC 在 TCP 和序列化之上组织远程调用。理解一次请求如何进入应用代码，可继续阅读 [Servlet 与 Tomcat 请求链](./chapter-08-servlet-tomcat-request-chain.md)；连接、DNS、TLS 或超时异常从[网络性能分析与故障排查](../06-diagnostics/03-network/chapter-01-network-diagnostics.md)进入。

@@ -39,7 +39,7 @@ User user = null;
 user.getName();  // NPE!
 ```
 
-NPE 是 Java 中最常见的运行时异常之一。后面的 Lambda 章节会讲 `Optional` 如何用类型系统来表达"值可能不存在"，从而减少 NPE。
+NPE 是 Java 中最常见的运行时异常之一。后面的[异常与资源管理](./chapter-08-exceptions.md)会说明何时应显式失败，[Stream 与 Optional](./chapter-10-stream-optional.md)会说明 `Optional` 如何表达“结果可能不存在”，从而减少无意的 NPE。
 
 ### 1.3 对象的创建过程
 
@@ -185,7 +185,7 @@ String b = "hello";
 
 **2. 线程安全**
 
-不可变对象天然线程安全——没有任何线程可以修改它的状态，所以不需要同步。这是第三卷并发编程的重要基础。
+不可变对象天然线程安全——没有任何线程可以修改它的状态，所以不需要同步。这是[Java 并发](../03-java-concurrency/chapter-01-why-concurrency.md)的重要基础。
 
 **3. 哈希缓存**
 

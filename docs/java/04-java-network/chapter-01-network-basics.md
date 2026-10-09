@@ -282,9 +282,70 @@ ServerSocket serverSocket = new ServerSocket(8080);
 Socket socket = new Socket("localhost", 8080);
 ```
 
-## 5. Java 网络编程全景
+## 5. UDP 与 DNS：连接建立之前的两个边界
 
-### 5.1 Java 网络编程的演进路线
+TCP 并不是所有网络通信的前提。UDP 在发送前不建立连接，DNS 则负责在 TCP 连接之前把主机名解析成地址。两者都容易被上层框架隐藏，却会直接影响延迟和故障判断。
+
+### 5.1 UDP 提供数据报，不提供可靠传输
+
+UDP 把应用数据封装成独立数据报发送。它没有连接状态，也不保证数据到达、按序到达或只到达一次。Java 的传统 API 是 `DatagramSocket` 与 `DatagramPacket`，NIO API 是 [`DatagramChannel`](./chapter-05-nio.md)。
+
+```java
+try (DatagramChannel channel = DatagramChannel.open()) {
+    channel.configureBlocking(false);
+    channel.bind(new InetSocketAddress(9000));
+    ByteBuffer buffer = ByteBuffer.allocate(1500);
+    SocketAddress sender = channel.receive(buffer);
+    if (sender != null) {
+        buffer.flip();
+        // 按应用协议解析这一份数据报
+    }
+}
+```
+
+这段代码只说明数据报的接收边界，不提供业务协议。若需要确认、重传、顺序、流控或拥塞控制，必须在应用层补齐，或者改用提供这些语义的协议。典型选择如下：
+
+| 需求 | UDP 的直接能力 | 选择方向 |
+| :-- | :-- | :-- |
+| 音视频、遥测、DNS | 允许丢包，重视低延迟 | 可直接使用 UDP 语义 |
+| RPC、文件传输、命令下发 | 需要可靠和有序 | TCP、QUIC 或应用层确认机制 |
+| 大量并发小消息 | 数据报独立、无连接握手 | 仍需自行设计重试、幂等和限流 |
+
+UDP 报文还受 MTU、网络分片和中间设备策略影响。应用必须定义最大消息大小、解析失败策略和重复消息的幂等性；“收到了发送成功”不等于对端已经处理。
+
+### 5.2 DNS 决定连接会去哪里
+
+访问 `https://api.example.com/orders` 时，通常先解析 `api.example.com`，再向得到的 IP 地址建立 TCP 连接。Java 可以显式查看解析结果：
+
+```java
+import java.io.UncheckedIOException;
+
+try {
+    InetAddress[] addresses = InetAddress.getAllByName("api.example.com");
+    for (InetAddress address : addresses) {
+        System.out.println(address.getHostAddress());
+    }
+} catch (UnknownHostException ex) {
+    throw new UncheckedIOException("无法解析 api.example.com", ex);
+}
+```
+
+JDK 会对成功和失败结果进行缓存，具体策略受 JDK 版本、安全配置和网络环境影响。因此，一次 Java 查询返回同一地址不能证明 DNS 刚刚重新解析。排查时应同时观察应用侧结果、系统解析器和权威/递归 DNS：
+
+```text
+应用 URL
+  → JDK/系统 DNS 解析
+  → IP 地址
+  → TCP 建连
+  → TLS 握手
+  → HTTP 响应
+```
+
+这条链上的错误要分开判断：域名不存在通常是 DNS 问题；拿到地址后连接超时更可能是路由、端口或防火墙问题；TCP 成功但 TLS 失败则要检查证书链和主机名匹配。`curl -w` 的 `time_namelookup`、`time_connect` 和 `time_appconnect` 正好对应这些阶段，详见 [HTTP 协议、Java 客户端与 TLS/HTTPS](./chapter-07-http.md)。
+
+## 6. Java 网络编程全景
+
+### 6.1 Java 网络编程的演进路线
 
 Java 的网络编程经历了几个明显的阶段，每个阶段都是对前一阶段痛点的回应：
 
@@ -309,7 +370,7 @@ JDK 1.0 (1996)          JDK 1.4 (2002)         JDK 7 (2011)
 | **NIO.2** | `java.nio.channels.AsynchronousChannel` | 异步 I/O | 真正的异步，回调通知 | 生态不如 NIO 成熟 |
 | **Netty** | 第三方框架 | Reactor 模式 | 高性能、易用、生态丰富 | 额外依赖，学习曲线 |
 
-### 5.2 从 Socket 到框架的抽象层次
+### 6.2 从 Socket 到框架的抽象层次
 
 ```txt
 ┌─────────────────────────────────────────────────────────┐
@@ -335,7 +396,7 @@ JDK 1.0 (1996)          JDK 1.4 (2002)         JDK 7 (2011)
 
 **你日常开发中用到的框架，都是在底层 Socket API 之上层层封装的结果。** 理解底层，不是为了让你每次都手写 Socket，而是当框架行为不符合预期时，你能穿透抽象层去排查问题。
 
-### 5.3 Java 网络编程的核心类库
+### 6.3 Java 网络编程的核心类库
 
 以下是 Java 网络编程中最常用的类，按层次组织：
 
@@ -373,7 +434,7 @@ HttpResponse<String> response = client.send(request,
 
 三种 API 的演进反映了 Java 网络编程的进化：从"一个连接一个线程"到"一个线程管理多个连接"，再到"声明式异步"。
 
-### 5.4 选择合适的 API
+### 6.4 选择合适的 API
 
 面对这么多选择，实际开发中应该怎么选？
 
@@ -401,9 +462,11 @@ HttpResponse<String> response = client.send(request,
 
 **记住：大多数 Java 开发者不需要直接操作 Socket。** 但理解 Socket 层的工作原理，是理解上层所有框架的前提。
 
-### 5.5 本书后续章节导读
+### 6.5 本专题后续章节导读
 
 本章建立了网络通信的基础认知。后续章节将沿着这条路线深入：
+
+侧边栏按“协议、Java I/O、Web/RPC”主题分组，分组顺序和章号顺序不是同一个概念。系统学习时按下表从第 2 章依次到第 12 章；按问题查阅时可以直接进入对应主题组。
 
 | 章节 | 主题 | 核心问题 |
 | :-- | :-- | :-- |
@@ -412,7 +475,7 @@ HttpResponse<String> response = client.send(request,
 | [第4章](./chapter-04-socket.md) | Java Socket 编程 | Socket 在进程与内核之间抽象了什么？ |
 | [第5章](./chapter-05-nio.md) | Java NIO | Channel、Buffer、Selector 如何支撑非阻塞 I/O？ |
 | [第6章](./chapter-06-netty.md) | Netty 框架 | Java 网络程序为什么通常建立在 Netty 之上？ |
-| [第7章](./chapter-07-http.md) | HTTP 协议与 Java 实现 | HTTP/1.1、HTTP/2、HTTP/3 有什么区别？ |
+| [第7章](./chapter-07-http.md) | HTTP 协议、Java 客户端与 TLS/HTTPS | 如何发起、验证和排查一次 HTTPS 请求？ |
 | [第8章](./chapter-08-servlet-tomcat-request-chain.md) | Servlet 与 Tomcat 请求链 | HTTP 请求如何从字节流进入应用代码？ |
 | [第9章](./chapter-09-rpc.md) | RPC 与微服务通信 | 一次远程调用经过哪些层次？ |
 | [第10章](./chapter-10-long-connection-protocols.md) | 长连接协议与保活 | WebSocket、SSE 和心跳如何维持通信？ |

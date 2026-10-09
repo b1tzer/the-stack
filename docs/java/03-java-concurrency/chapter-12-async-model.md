@@ -2,7 +2,7 @@
 
 > 有了线程池，也有了 `Future`，为什么 Java 8 还要再加一个 `CompletableFuture`？异步链条上，任务到底跑在哪条线程上？异常又是从哪一段冒出来的？
 
-`Future` 让 Java 在 2004 年拿到了"未来取值"的能力，`CompletableFuture` 在 2014 年补齐了"未来编排"的能力。这中间隔的十年，是异步编程从"能做"到"好用"的十年。这一章聚焦这两者的语义边界、线程归属和最容易踩的坑；响应式和 Actor 只以速览形式出现，主体分别归第四卷网络与通信、第七卷性能与架构。
+`Future` 让 Java 在 2004 年拿到了“未来取值”的能力，`CompletableFuture` 在 2014 年补齐了“未来编排”的能力。这中间隔的十年，是异步编程从“能做”到“好用”的十年。这一章聚焦两者的语义边界、线程归属和最容易踩的坑；响应式流只与本专题的 [NIO](../04-java-network/chapter-05-nio.md)、[Netty](../04-java-network/chapter-06-netty.md)建立联系，Actor 模型不作为本专题的主线内容。
 
 ## 1. `Future` 的三个致命局限
 
@@ -150,7 +150,7 @@ String result = pipeline.join();
 
 ### 3.2 `commonPool` 的默认坑
 
-`supplyAsync(fn)` / `thenApplyAsync(fn)` 不传 executor 时，默认使用 `ForkJoinPool.commonPool()`（第 11 章的 `ForkJoinPool` 一节讨论过）。这个池由 JVM 中的任务共享；常见配置下并行度为可用处理器数减 1，但也可能被 `java.util.concurrent.ForkJoinPool.common.parallelism` 覆盖。并行度低于 2 时，JDK 会为每个任务创建新线程。
+`supplyAsync(fn)` / `thenApplyAsync(fn)` 不传 executor 时，默认使用 `ForkJoinPool.commonPool()`（[第 11 章的 `ForkJoinPool` 一节](./chapter-11-thread-pool.md#fork-join-pool)讨论过）。这个池由 JVM 中的任务共享；常见配置下并行度为可用处理器数减 1，但也可能被 `java.util.concurrent.ForkJoinPool.common.parallelism` 覆盖。并行度低于 2 时，JDK 会为每个任务创建新线程。
 
 ```java
 // ❌ 阻塞 IO 塞进 commonPool：一整个 JVM 的 CompletableFuture / parallelStream 陪葬
@@ -168,7 +168,7 @@ CompletableFuture.supplyAsync(() -> httpClient.get(url), ioPool);
 
 一条生产规则：**除非任务是纯 CPU 计算且短，否则永远显式传 Executor**。这条规则在 §5.3 会再出现一次。
 
-### 3.3 `Async` 变体的选型
+### 3.3 `Async` 变体的选型 {#async-executor-selection}
 
 看到方法名带 `Async` 后缀就要问自己两个问题：
 
@@ -244,7 +244,7 @@ supplyAsync ──▶ thenApply ──▶ thenApply ──▶ ...
 
 因此从 `exceptionally` 拿到的 `ex` 通常是 `CompletionException`，真正的业务异常在 `ex.getCause()` 里。写异常处理时如果不 unwrap，日志和监控上会全部显示成 `CompletionException`，看不到真正的原因。
 
-### 4.4 超时保护（JDK 9+）
+### 4.4 超时保护（JDK 9+） {#async-timeout}
 
 JDK 9 起 `CompletableFuture` 支持异步超时，不再需要外挂 `ScheduledExecutorService`：
 
@@ -319,37 +319,37 @@ CompletableFuture.allOf(fu, fo, fc).thenApply(v -> new Profile(...));
 
 ## 6. 其他并发范式：只点名思想
 
-`CompletableFuture` 解决的是"单值异步 + 编排"。生产上还有两类相邻范式，它们的主体归其他卷：
+`CompletableFuture` 解决的是"单值异步 + 编排"。生产上还有两类相邻范式，它们的主体归其他专题：
 
-### 6.1 响应式编程（详见第四卷）
+### 6.1 响应式编程（延伸阅读）
 
 - **模型**：`Publisher` / `Subscriber` / `Subscription` / `Processor`（JDK 9 的 `java.util.concurrent.Flow`；主流实现 Reactor、RxJava）
 - **核心能力**：数据**流**（而非单值），**背压**（`onBackpressureBuffer` / `Drop` / `Latest` / `Error`），**冷流 / 热流**
 - **和 `CompletableFuture` 的关系**：`CompletableFuture` = 单值 + 一次；响应式流 = 多值 + 持续
-- **完整机制**：Publisher/Subscriber 协议、`request(n)` 拉取语义、`Scheduler` 与非阻塞 IO 的绑定，全部在第四卷 Netty / NIO 章节展开
+- **与本专题的连接**：Publisher/Subscriber 协议、`request(n)` 拉取语义和 `Scheduler` 与非阻塞 I/O 密切相关，可从 [Java NIO](../04-java-network/chapter-05-nio.md)与 [Netty](../04-java-network/chapter-06-netty.md)建立上下文
 
-一句话结论：**业务里只是"异步取一次结果 + 编排"，不必上响应式**；真的需要流处理、背压、事件驱动的场景，第四卷会给完整答案。
+一句话结论：**业务里只是“异步取一次结果 + 编排”，不必上响应式**；需要流处理、背压或事件驱动时，应另行评估响应式框架，而不是仅凭本页决定。
 
-### 6.2 Actor 模型（详见第七卷）
+### 6.2 Actor 模型（延伸阅读）
 
 - **核心思想**：不共享状态，只传消息。每个 Actor 有独立邮箱，串行处理消息，天然无锁
 - **能力项**：监督策略（`Resume` / `Restart` / `Stop` / `Escalate`）、位置透明（本地和远程 Actor 用同一 API 调用）、事件溯源
 - **代表**：Akka（Scala 主导，Java API 完整）
 - **主要场景**：分布式系统、聊天/游戏这类"多个独立实体"的天然模型、事件驱动架构
 
-Actor 与前述所有模型的分野在**编程思维**：从"共享内存 + 加锁"切换到"消息传递 + 无共享"。这个思维底座与分布式系统的一致性、CAP 直接相关，因此完整讨论放在第七卷。
+Actor 与前述所有模型的分野在**编程思维**：从“共享内存 + 加锁”切换到“消息传递 + 无共享”。这个思维底座与[分布式理论](../../engineering/05-system-design/chapter-06-distributed-theory.md)的一致性和 CAP 问题相关，但不属于 Java 语言或 JVM 主线。
 
 ### 6.3 四种模型的选型速览
 
-| 模型 | 适合场景 | 本卷 / 卷号 |
+| 模型 | 适合场景 | 本专题位置 |
 | :-- | :-- | :-- |
-| 线程 + 锁 | CPU 密集、简单并发 | 本卷 §6 / §8 |
+| 线程 + 锁 | CPU 密集、简单并发 | 本专题第 6、8 章 |
 | `CompletableFuture` | 单值异步 + 编排、微服务扇出 | 本章 |
-| 响应式流 | 高并发 IO、流处理、背压 | 第四卷 |
-| 虚拟线程 | 大量阻塞 IO、同步风格代码 | 本卷第 13 章 |
-| Actor | 分布式系统、事件驱动、高容错 | 第七卷 |
+| 响应式流 | 高并发 I/O、流处理、背压 | 网络与通信专题的延伸 |
+| 虚拟线程 | 大量阻塞 I/O、同步风格代码 | 本专题第 13 章 |
+| Actor | 分布式系统、事件驱动、高容错 | 分布式专题的延伸 |
 
-选型的一条起手线：**能用同步风格 + 虚拟线程解决的场景，就不要引入响应式或 Actor**（第 13 章给了理由）。剩下真正需要流处理和分布式容错的场景，再各自展开。
+选型的一条起手线：**能用同步风格 + 虚拟线程解决的场景，就不要引入响应式或 Actor**（[第 13 章](./chapter-13-virtual-thread.md)给了理由）。剩下真正需要流处理和分布式容错的场景，再各自展开。
 
 ## 7. 本章小结
 
@@ -363,3 +363,7 @@ Actor 与前述所有模型的分野在**编程思维**：从"共享内存 + 加
 | 链尾完成或失败状态不可见 | 链末端没有消费 future | 按需要 `join()`，或补齐异常、监控和生命周期处理 |
 | 异常总是显示成 `CompletionException` | 未 unwrap `getCause()` | 处理异常时取 `ex.getCause()` |
 | 异步超时 | JDK 9 之前没原生 API | `orTimeout` / `completeOnTimeout` |
+
+## 8. 下一步
+
+`CompletableFuture` 解决组合问题，不改变底层线程模型。阻塞式异步任务可继续评估[虚拟线程](./chapter-13-virtual-thread.md)；需要理解事件循环和非阻塞 I/O 时进入 [Java NIO](../04-java-network/chapter-05-nio.md)，生产上的丢任务、超时和 commonPool 问题从[并发性能优化](../06-diagnostics/02-concurrency/chapter-02-concurrency-optimization.md)开始。

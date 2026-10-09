@@ -137,7 +137,7 @@ public FlowResult processFlow(FlowRequest request) throws InterruptedException {
 }
 ```
 
-`StructuredTaskScope` 的优势（详见第 14 章）：父任务不会被抛弃不管，一个子任务失败时其他子任务自动取消，整个作用域的边界清晰。
+`StructuredTaskScope` 的优势（详见[第 14 章](../../03-java-concurrency/chapter-14-virtual-thread-migration.md)）：父任务不会被抛弃不管，一个子任务失败时其他子任务自动取消，整个作用域的边界清晰。
 
 ### 1.6 总结：DiscardPolicy 两条禁用场景
 
@@ -495,4 +495,4 @@ public class RiskService {
 
 **教训：** 任何跨网络的调用，必须设置超时。没有例外。`connectTimeout`、`readTimeout`、`connectionRequestTimeout` 三个参数缺一不可。超时值的选择原则：宁可快失败也不慢等待。失败可以重试，但等待会耗尽线程。
 
-> **回到诊断入口：** [并发问题诊断与性能优化](./chapter-01-concurrency-diagnostics.md)
+> **回到诊断入口：** [并发问题诊断](./chapter-01-concurrency-diagnostics.md)；确认根因后，继续查看[并发性能优化](./chapter-02-concurrency-optimization.md)。

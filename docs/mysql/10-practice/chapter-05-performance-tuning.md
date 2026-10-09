@@ -1,6 +1,6 @@
 # 性能调优实战
 
-> 调优先建立基线、定位瓶颈，再一次只改一个变量。参数只是执行诊断后的手段，不应作为默认起点；完整诊断路径见[性能调优流程](#9-性能调优流程)。
+> 调优先建立基线、定位瓶颈，再一次只改一个变量。参数只是执行诊断后的手段，不应作为默认起点；完整诊断路径见[性能调优流程](#performance-tuning-flow)。
 
 ## 1. 先确定目标与基线
 
@@ -137,7 +137,7 @@ public class UserService {
 List<User> findByIdAfter(@Param("lastId") Long lastId, Pageable pageable);
 ```
 
-## 9. 性能调优流程
+## 9. 性能调优流程 {#performance-tuning-flow}
 
 ```
 1. 识别瓶颈

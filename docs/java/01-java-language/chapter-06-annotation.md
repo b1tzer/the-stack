@@ -72,7 +72,7 @@ public class UserService { ... }
 | CLASS | ✅ | ✅ | ❌ | 字节码工具 |
 | RUNTIME | ✅ | ✅ | ✅ | 框架反射读取（`@Component`） |
 
-注解在 Class 文件中的存储位置是 `RuntimeVisibleAnnotations`（RUNTIME）和 `RuntimeInvisibleAnnotations`（CLASS）属性。第二卷会详细展开。
+注解在 Class 文件中的存储位置是 `RuntimeVisibleAnnotations`（RUNTIME）和 `RuntimeInvisibleAnnotations`（CLASS）属性；[字节码与类加载](../02-jvm-runtime/chapter-01-bytecode-classloading.md)会进一步解释 Class 文件结构。
 
 ## 3. 定义自定义注解
 
@@ -233,7 +233,11 @@ public void transfer(Long from, Long to, BigDecimal amount) {
 代码里没有一行关于事务的代码，但运行时确实有事务。这导致：
 
 1. **调试困难**：行为不明显，新人可能不知道这里有事务
-2. **自调用失效**：类内部方法调用 `this.transfer()` 不走代理，事务不生效（第六卷详细展开）
+2. **自调用失效**：类内部方法调用 `this.transfer()` 不走代理，事务不生效（[Spring 声明式事务的自调用修复](../../spring/04-data-access/chapter-04-transaction.md#self-invocation-fix)详细展开）
 3. **注解冲突**：多个注解叠加时，优先级和覆盖规则需要理解
 
 经验法则：**与代码强绑定的元数据用注解（如 `@Service`），频繁变化的运维参数用外部配置（如超时时间、地址）。**
+
+## 6. 下一步
+
+注解解决的是“如何给代码附加语义”，下一页进入[Lambda 与函数式编程](./chapter-07-lambda.md)，讨论“如何把行为作为值传递”。需要继续追踪注解在 Class 文件中的存储时，可回到[字节码与类加载](../02-jvm-runtime/chapter-01-bytecode-classloading.md)；需要理解代理注解为何可能失效，则进入[Spring AOP](../../spring/01-core/chapter-05-aop.md)。

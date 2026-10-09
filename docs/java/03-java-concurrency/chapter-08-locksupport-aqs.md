@@ -2,7 +2,7 @@
 
 > `ReentrantLock`、`Semaphore`、`CountDownLatch`——三种表面不同的工具，为什么源码都藏在同一个基类里？`CyclicBarrier` 为什么不继承它？
 
-第 6 章的 `synchronized` 把互斥锁封装在 JVM 内部。开发者只有一个开关：`synchronized`/不 `synchronized`。这一章讨论的是另一条路：**把锁的实现搬到 Java 代码层面**，让"如何挂起线程"、"如何组织等待队列"、"如何唤醒"这些机制变得可编程。这条路的起点是 `LockSupport`，终点是 AQS。走完这一章，回头再看 `java.util.concurrent.locks` 和 `java.util.concurrent` 包里绝大多数工具，会发现它们其实只有一个骨架。
+[第 6 章的 `synchronized`](./chapter-06-synchronized.md)把互斥锁封装在 JVM 内部。开发者只有一个开关：`synchronized`/不 `synchronized`。这一章讨论的是另一条路：**把锁的实现搬到 Java 代码层面**，让“如何挂起线程”、“如何组织等待队列”、“如何唤醒”这些机制变得可编程。这条路的起点是 `LockSupport`，终点是 AQS。走完这一章，回头再看 `java.util.concurrent.locks` 和 `java.util.concurrent` 包里绝大多数工具，会发现它们其实只有一个骨架。
 
 ## 1. `synchronized` 走不到的地方
 
@@ -387,4 +387,4 @@ private void doReleaseShared() {
 
 下一页从 `Condition` 的条件队列开始，再集中比较基于 AQS 的常用同步工具。
 
-> **下一页：** [Condition 与同步工具](./chapter-09-condition-lock-tools.md)
+> **下一页：** [Condition 与 AQS 同步工具](./chapter-09-condition-lock-tools.md)

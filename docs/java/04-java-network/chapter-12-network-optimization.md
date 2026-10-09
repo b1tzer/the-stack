@@ -383,6 +383,6 @@ java.security.Security.setProperty("networkaddress.cache.negative.ttl", "10");
 
 > **本章与其他章节的联系：**
 >
-> - **纵向（本卷内）：** 第 1-6 章建立网络基础与 Java I/O 模型，第 7-11 章覆盖 HTTP、Servlet、RPC 和长连接应用。本章在这些内容之上讨论高并发连接配置、验证方法与生产约束。
+> - **纵向（本专题内）：** 第 1-6 章建立网络基础与 Java I/O 模型，第 7-11 章覆盖 HTTP、Servlet、RPC 和长连接应用。本章在这些内容之上讨论高并发连接配置、验证方法与生产约束。
 >
 > - **横向（跨专题）：** 本章涉及的连接池、线程池监控与 [Java 并发问题诊断](../06-diagnostics/02-concurrency/chapter-01-concurrency-diagnostics.md)中的线程管理和资源调优直接相关；Arthas 诊断工具在 Java 各专题中都可使用；TCP 参数调优和拥塞控制的知识也适用于跨机房通信场景。限流熔断机制则是构建高可用分布式系统的通用基础设施。

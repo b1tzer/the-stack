@@ -206,7 +206,7 @@ public class CountingCallerRunsPolicy implements RejectedExecutionHandler {
 | `newCachedThreadPool()` | core=0, max=`Integer.MAX_VALUE`, `SynchronousQueue` | 线程数无上限 → 线程爆炸 |
 | `newScheduledThreadPool(n)` | core=n, max=`Integer.MAX_VALUE`, `DelayedWorkQueue`（无界） | 定时任务 + 无界队列 |
 
-### 5.2 `LinkedBlockingQueue` 默认无界为什么致命
+### 5.2 `LinkedBlockingQueue` 默认无界为什么致命 {#unbounded-work-queue}
 
 看看 `newFixedThreadPool` 的实现：
 
@@ -301,7 +301,7 @@ scheduler.scheduleAtFixedRate(() -> {
 
 线上"定时任务运行了一段时间突然不跑了"，绝大多数是这个原因。
 
-## 7. `ForkJoinPool` 与工作窃取
+## 7. `ForkJoinPool` 与工作窃取 {#fork-join-pool}
 
 `ThreadPoolExecutor` 处理"独立任务"；`ForkJoinPool` 处理"能被拆分的任务"——分治并行。
 
@@ -338,7 +338,7 @@ ExecutorService ioPool = ...;
 CompletableFuture.supplyAsync(() -> httpClient.get(url), ioPool);
 ```
 
-一条经验规则是：**默认的 `commonPool` 适合可拆分的 CPU 密集任务；可能长时间阻塞的任务应使用专门配置的线程池**。是否必须隔离，还要结合线程池参数、阻塞时长和任务隔离需求判断。第 12 章会围绕 `CompletableFuture` 把这条规则再展开一遍。
+一条经验规则是：**默认的 `commonPool` 适合可拆分的 CPU 密集任务；可能长时间阻塞的任务应使用专门配置的线程池**。是否必须隔离，还要结合线程池参数、阻塞时长和任务隔离需求判断。[第 12 章](./chapter-12-async-model.md)会围绕 `CompletableFuture` 把这条规则再展开一遍。
 
 ### 7.3 `ThreadPoolExecutor` vs `ForkJoinPool`
 
@@ -372,7 +372,7 @@ CompletableFuture.supplyAsync(() -> httpClient.get(url), ioPool);
 
 这个公式给的是**起点**，不是终点。真实业务需要靠压测把线程数、队列大小、拒绝策略这三者一起调到最佳组合。
 
-### 8.2 线程命名：排查线上问题的生命线
+### 8.2 线程命名：排查线上问题的生命线 {#thread-naming}
 
 线上出问题，第一件事是抓线程栈。默认线程名 `pool-1-thread-3` 会让你完全分不清哪个业务在跑：
 
@@ -406,7 +406,7 @@ public class NamedThreadFactory implements ThreadFactory {
 | 已完成任务 | `getCompletedTaskCount()` | 观察增长速率，突降=卡顿 |
 | 拒绝数 | 自定义 `RejectedExecutionHandler` 计数 | 示例：出现拒绝即告警；阈值按业务容忍度调整 |
 
-### 8.4 业务线程池要相互隔离
+### 8.4 业务线程池要相互隔离 {#thread-pool-isolation}
 
 **反模式**：整个应用共用一个线程池。任一业务变慢会拖垮所有业务。
 
@@ -459,7 +459,7 @@ try {
 
 Spring 环境中用 `@PreDestroy` 触发这套流程，避免 JVM 退出时任务被硬中断。
 
-### 8.6 `submit` 的异常静默陷阱
+### 8.6 `submit` 的异常静默陷阱 {#submit-exception}
 
 ```java
 // ❌ 用 submit 但不调用 future.get()，任务抛的异常悄无声息
@@ -486,3 +486,7 @@ try { f.get(); } catch (ExecutionException e) { /* 才能拿到异常 */ }
 | `parallelStream` / `CompletableFuture` 全局卡住 | 阻塞任务塞进 `commonPool` | 阻塞任务用独立线程池 |
 | 线上无法定位是哪个业务的线程 | 默认线程名无区分 | 自定义 `ThreadFactory` 命名 |
 | `submit` 的任务异常静默丢失 | 异常被封在 `Future` 里 | 用 `execute` 或调 `future.get` |
+
+## 10. 下一步
+
+线程池决定任务在哪里执行，[异步编程](./chapter-12-async-model.md)决定任务如何组合。阻塞任务较多时继续阅读[虚拟线程模型与 Pinning](./chapter-13-virtual-thread.md)；线程池耗尽、拒绝和任务堆积从[并发性能优化](../06-diagnostics/02-concurrency/chapter-02-concurrency-optimization.md)进入。

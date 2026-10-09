@@ -2,6 +2,8 @@
 
 堆外内存不受 JVM 堆规范直接约束，却会计入进程总内存。理解它的分配、释放和监控方式，才能解释“堆使用正常但进程仍被 OOMKilled”的现象，也才能判断问题究竟出在 Java 堆、直接缓冲区还是其他本地内存区域。
 
+本页位于[垃圾回收](./chapter-04-gc.md)之后，因为 `DirectByteBuffer` 的释放依赖堆对象回收和引用清理；位于[JIT 编译](./chapter-05-jit.md)之前，因为先完成内存链路，再进入与内存相对独立的执行优化。NIO 的具体使用见 [Java NIO](../04-java-network/chapter-05-nio.md)，堆外泄漏案例从[JVM 线上诊断](../06-diagnostics/01-jvm/chapter-01-jvm-diagnostics.md)进入。
+
 ## 1. 什么是堆外内存
 
 堆外内存通常泛指 Java 堆之外、由 JVM 或本地代码管理的进程内存，例如线程栈、Metaspace、CodeCache 和直接缓冲区。它不在 JVM 运行时数据区的规范中，却会在实际工程中成为进程内存持续增长的原因。本页重点关注 `ByteBuffer.allocateDirect()` 创建的直接缓冲区。
@@ -18,7 +20,7 @@
   ByteBuffer.allocateDirect(1024)  →  分配在本地内存  →  DirectByteBuffer 被 GC 时通过 Cleaner 释放
 ```
 
-### 1.2 DirectByteBuffer 的释放路径
+### 1.2 DirectByteBuffer 的释放路径 {#direct-bytebuffer-release}
 
 `DirectByteBuffer` 本身是堆上的小对象，它关联的内存在堆外。堆外内存的释放通常依赖 `DirectByteBuffer` 被回收后触发的清理任务。[垃圾回收](./chapter-04-gc.md)会解释虚引用和引用队列，这里先建立直觉：
 
@@ -77,7 +79,7 @@ jcmd <pid> VM.native_memory summary
 
 ### 3.2 释放依赖 GC 和引用清理
 
-释放时机见 [1.2 DirectByteBuffer 的释放路径](#12-directbytebuffer-的释放路径)。当分配速度超过清理速度时，堆外内存会持续增长；GC 越晚发生，清理通常也越晚。
+释放时机见 [1.2 DirectByteBuffer 的释放路径](#direct-bytebuffer-release)。当分配速度超过清理速度时，堆外内存会持续增长；GC 越晚发生，清理通常也越晚。
 
 ```java
 // 危险：在循环中分配大量 DirectByteBuffer

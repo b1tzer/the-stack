@@ -75,7 +75,7 @@ ds.setPassword("password");
 Connection conn = ds.getConnection();
 ```
 
-为什么推荐 `DataSource`？因为它支持连接池、支持 JNDI 查找、支持分布式事务。在实际生产环境中，你几乎不会直接 `new MysqlDataSource()`，而是使用连接池框架（如 HikariCP）提供的 `DataSource` 实现。这一点我们在 2.6 节详细展开。
+为什么推荐 `DataSource`？因为它支持连接池、支持 JNDI 查找、支持分布式事务。在实际生产环境中，你几乎不会直接 `new MysqlDataSource()`，而是使用连接池框架（如 HikariCP）提供的 `DataSource` 实现。连接池的通用模型见[下一章](./chapter-03-jdbc-performance-pool.md)。
 
 ### 2.2 Connection——一次数据库会话
 
@@ -95,7 +95,7 @@ try {
 }
 ```
 
-**关键认知：Connection 通常是昂贵资源。** 创建连接可能包含 TCP 握手、TLS 和数据库认证，耗时受网络与数据库配置影响。长生命周期服务通常使用连接池（第 6 节详述）来复用连接并控制连接数。
+**关键认知：Connection 通常是昂贵资源。** 创建连接可能包含 TCP 握手、TLS 和数据库认证，耗时受网络与数据库配置影响。长生命周期服务通常使用[连接池](./chapter-03-jdbc-performance-pool.md)复用连接并控制连接数。
 
 ### 2.3 PreparedStatement——SQL 的执行者
 
@@ -365,7 +365,86 @@ for (long id : userIds) {
 
 **一句话总结：PreparedStatement 的两个价值——安全靠参数化，性能靠预编译。** 在现代 Java 开发中，没有任何理由使用裸的 `Statement`。
 
+## 5. 用 Connection 管理事务 {#jdbc-connection-transactions}
 
-前面的内容覆盖 JDBC 的接口、参数化查询和结果处理。接下来从请求延迟和资源占用出发，分析连接创建、逐条执行与连接池参数之间的取舍。
+JDBC 的事务边界属于 `Connection`，不属于某一条 `Statement`。同一个连接上的多条语句参与同一个事务；连接一旦提交、回滚或关闭，当前事务边界也随之结束。
+
+### 5.1 从自动提交切换到显式事务
+
+JDBC 默认通常处于自动提交模式：每条 SQL 执行成功后立即提交。需要让多条语句共享一个原子结果时，要显式关闭自动提交：
+
+```java
+try (Connection connection = dataSource.getConnection()) {
+    boolean originalAutoCommit = connection.getAutoCommit();
+    try {
+        connection.setAutoCommit(false);
+        try (PreparedStatement debit = connection.prepareStatement(DEBIT_SQL);
+             PreparedStatement credit = connection.prepareStatement(CREDIT_SQL)) {
+            debit.setBigDecimal(1, amount);
+            debit.executeUpdate();
+            credit.setBigDecimal(1, amount);
+            credit.executeUpdate();
+        }
+        connection.commit();
+    } catch (SQLException ex) {
+        try {
+            connection.rollback();
+        } catch (SQLException rollbackFailure) {
+            ex.addSuppressed(rollbackFailure);
+        }
+        throw ex;
+    } finally {
+        connection.setAutoCommit(originalAutoCommit);
+    }
+}
+```
+
+关闭自动提交前先记录原值，并在归还连接前恢复；try-with-resources 保证连接最终关闭。连接池中的 `close()` 通常表示归还连接；如果事务尚未提交或回滚，事务状态可能继续污染下一个借用者，因此不能把关闭连接当作提交事务。恢复自动提交状态本身也可能失败，生产代码还要保留或记录这个次级失败，避免它覆盖原始事务异常。
+
+### 5.2 回滚、隔离级别与失败边界
+
+`rollback()` 撤销当前事务中尚未提交的修改。事务中任何一步失败，都应进入回滚路径；只有全部业务步骤成功后才调用 `commit()`。
+
+JDBC 通过 `setTransactionIsolation()` 设置事务隔离级别，常见取值包括 `TRANSACTION_READ_UNCOMMITTED`、`TRANSACTION_READ_COMMITTED`、`TRANSACTION_REPEATABLE_READ` 和 `TRANSACTION_SERIALIZABLE`。驱动可以通过 `supportsTransactionIsolationLevel()` 声明是否支持某个级别，但“设置成功”不等于数据库具有与该名称完全相同的并发语义。具体异常、锁和快照行为由数据库决定：
+
+- MySQL 的隔离级别与锁行为见 [MySQL 事务与锁](../../mysql/05-transaction-lock/chapter-02-transaction.md)。
+- PostgreSQL 的快照与隔离级别见 [PostgreSQL 事务隔离](../../postgresql/05-transactions/chapter-01-isolation-levels.md)。
+
+事务隔离级别不是越高越安全。更高隔离级别通常增加锁竞争或写冲突，应从真实并发异常出发选择，并用并发测试验证。
+
+### 5.3 使用 Savepoint 划分局部回滚
+
+驱动支持时，可以创建 `Savepoint`，把一组语句标记为一个检查点：
+
+```java
+connection.setAutoCommit(false);
+Savepoint beforeOptionalStep = connection.setSavepoint("beforeOptionalStep");
+try {
+    executeRequiredSteps(connection);
+    executeOptionalStep(connection);
+    connection.commit();
+} catch (SQLException ex) {
+    connection.rollback(beforeOptionalStep);
+    try {
+        executeFallback(connection);
+        connection.commit();
+    } catch (SQLException fallbackFailure) {
+        connection.rollback();
+        throw fallbackFailure;
+    }
+}
+```
+
+回滚到 Savepoint 只撤销检查点之后的修改，不会提交之前已经执行的修改。`releaseSavepoint()` 可以释放不再需要的检查点；驱动不支持 Savepoint 时会抛出 `SQLFeatureNotSupportedException`，数据库还可能因 DDL 或事务实现限制拒绝保存点。不要默认所有数据库和驱动都提供相同能力。
+
+### 5.4 选择 JDBC 事务还是框架事务
+
+直接使用 JDBC API 适合需要精确控制连接、Savepoint 或批量操作的底层代码。业务方法通常使用 [Spring 声明式事务](../../spring/04-data-access/chapter-04-transaction.md)管理边界、传播和回滚规则，但最终仍会落到当前 `Connection` 的事务状态。
+
+两种方式不要在同一个业务边界中混用：Spring 已经取得连接并开启事务时，再手动切换 `autoCommit` 或调用 `commit()`，可能提前结束框架管理的事务。分布式事务和 XA 不属于本页范围，应根据一致性需求单独评估。
+
+## 6. 下一步
+
+前面的内容覆盖了 JDBC 的接口、参数化查询、结果处理和事务边界。接下来从请求延迟和资源占用出发，分析连接创建、逐条执行与连接池参数之间的取舍。
 
 > **下一页：** [JDBC 性能瓶颈与连接池](./chapter-03-jdbc-performance-pool.md)

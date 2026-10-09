@@ -10,7 +10,7 @@ Java 21 把虚拟线程从预览特性升级为 GA。它不是一种新语言语
 
 ### 1.1 一条平台线程的成本清单
 
-在 JDK 21 之前，`new Thread()` 得到的每一条 Java 线程背后都对应一条 OS 线程（HotSpot 的 1:1 模型，见第 2 章）。这条 OS 线程要付出的固定成本：
+在 JDK 21 之前，`new Thread()` 得到的每一条 Java 线程背后都对应一条 OS 线程（HotSpot 的 1:1 模型，见[第 2 章](./chapter-02-thread-model.md)）。这条 OS 线程要付出的固定成本：
 
 | 项目 | 典型值 | 说明 |
 | :-- | :-- | :-- |
@@ -161,7 +161,7 @@ try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
 
 **注意 `newVirtualThreadPerTaskExecutor` 的语义**：它不是"共享一批固定 Carrier 的池"，而是"每提交一个任务就新起一条虚拟线程"。它更接近 `newCachedThreadPool`，但没有创建上限——因为 VT 本身就是廉价的。
 
-## 3. pinning：`synchronized` 造成的钉住问题
+## 3. pinning：`synchronized` 造成的钉住问题 {#virtual-thread-pinning}
 
 ### 3.1 什么是 pinning
 

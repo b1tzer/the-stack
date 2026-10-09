@@ -1,4 +1,4 @@
-# JVM 运行时数据区
+# JVM 运行时数据区与内存结构
 
 > `-Xmx4g` 设完，你以为安全了。`docker stats` 一看，容器 RSS 已经 7.2G——堆才用了 3G。多出来的 4.2G 在哪？线程栈（一个线程 1MB，800 个就是 800MB）、Metaspace（类元数据不归堆管）、CodeCache（JIT 编译后的机器码）、堆外内存（Direct Buffer）。OOM Killer 杀进程时你在查堆——方向错了。JVM 内存不只堆和栈，记不住这一点，线上排查必走弯路。堆外内存不在本页的规范数据区范围内，分配与释放机制见 [堆外内存](./chapter-06-offheap-memory.md)。
 
@@ -14,6 +14,8 @@ JVM 运行时数据区
       ├── Native Method Stack —— 本地方法栈
       └── PC Register（程序计数器）
 ```
+
+页面按“规范数据区 → 方法区实现 → CodeCache → 字符串常量池”连续展开：先建立线程私有与共享区域的全景，再理解 Metaspace、CodeCache 和 StringTable 如何补充进程内存视图。堆外内存不属于本页的规范数据区范围，见[堆外内存](./chapter-06-offheap-memory.md)。
 
 这些区域不是孤立存在的。一行 Java 代码的执行，会同时涉及多个区域。以 `User user = new User("Tom")` 为例：
 
@@ -270,7 +272,7 @@ while (true) {
 }
 ```
 
-CAS（Compare-And-Swap）是第三卷并发编程的核心概念，这里先建立直觉：多个线程同时移动分配指针，只有一个能成功，失败的重试。TLAB 的价值正在于避免这个 CAS 竞争——大部分对象在 TLAB 内分配，只有 TLAB 耗尽时才需要 CAS。
+CAS（Compare-And-Swap）是[并发编程](../03-java-concurrency/chapter-07-cas-atomic.md)的核心概念，这里先建立直觉：多个线程同时移动分配指针，只有一个能成功，失败的重试。TLAB 的价值正在于避免这个 CAS 竞争——大部分对象在 TLAB 内分配，只有 TLAB 耗尽时才需要 CAS。
 
 ### 5.3 大对象为什么直接进老年代
 
@@ -335,7 +337,7 @@ jstat -gcutil <pid> 1000
 方法区不是"存方法的地方"——它存的是**类的元数据**：
 
 ```txt
-方法区（Metaspace）
+方法区（HotSpot 实现为 Metaspace）
 ├── 类元数据（Klass）
 │   ├── 类名、访问修饰符、父类、接口列表
 │   ├── 字段定义（名称、类型、修饰符、偏移量）
@@ -343,40 +345,12 @@ jstat -gcutil <pid> 1000
 ├── 运行时常量池
 │   ├── 字面量（字符串、数字常量）
 │   └── 符号引用（类名、方法名、字段名 → 解析后变成直接引用）
-├── 静态变量（引用类型的静态变量，JDK 7+ 移到了堆中）
-└── JIT 编译后的机器码（CodeCache，单独管理）
+└── 字段与方法的静态结构信息
 ```
 
-JDK 7 之后，`static Object obj = new Object()` 中，`obj` 这个引用本身在**堆**中，不在方法区。方法区只存类的结构信息。
+JDK 7 之后，`static Object obj = new Object()` 中，`obj` 这个引用本身在**堆**中，不在方法区。方法区主要保存类的结构信息；CodeCache 是与 Metaspace 分开管理的本地内存区域，不放进上述结构图。
 
-### 6.2 CodeCache：JIT 编译的物理存储
-
-方法区中有一个容易被忽略但极其重要的区域——**CodeCache**，存储 JIT 编译后的机器码和 JNI 编译的本地代码。
-
-```txt
-方法区
-├── 类元数据（Metaspace）
-├── 运行时常量池
-└── CodeCache
-    ├── C1 编译的机器码
-    ├── C2 编译的机器码
-    └── JNI 本地代码
-```
-
-CodeCache 有容量上限，具体大小和缺省值取决于 JDK、CPU 与配置。容量不足时，HotSpot 会停止接受新的编译；已有已编译代码通常仍可继续执行，只有发生反优化的代码路径会退回解释执行。CodeCache 不足时未必出现 OOM，但服务可能持续变慢，因此要结合 `-Xlog:codecache`、`jstat` 或 JFR 观察。
-
-```bash
-# 监控 CodeCache 使用情况
-jstat -compiler <pid>
-
-# 或通过 JMX
-# java.lang:type=Compilation → TotalCompilationTime
-# 看 CodeCache 的 JMX Bean
-```
-
-如果 CodeCache 经常接近满，需要增大 `-XX:ReservedCodeCacheSize` 或检查是否有大量方法被编译（可能是动态生成代码过多）。
-
-### 6.3 PermGen → Metaspace 的演进
+### 6.2 PermGen → Metaspace 的演进
 
 JDK 7 及以前，方法区的实现叫**永久代（PermGen）**，是堆的一部分，大小固定（`-XX:MaxPermSize`）。
 
@@ -398,7 +372,7 @@ JDK 8 将永久代彻底移除，替换为 **Metaspace**，使用本地内存（
 
 Metaspace 用本地内存，默认不设上限，由操作系统管理。类卸载时自动回收。这解决了预估困难的问题。
 
-### 6.4 Metaspace OOM 的真实场景
+### 6.3 Metaspace OOM 的真实场景
 
 Metaspace 不是无限的。以下场景会导致 Metaspace OOM：
 
@@ -440,9 +414,17 @@ jstat -gcmetacapacity <pid>
 jcmd <pid> VM.metaspace
 ```
 
-## 7. StringTable：字符串驻留的代价
+## 7. CodeCache：JIT 编译代码的独立存储
 
-### 7.1 字符串常量池的工作原理
+CodeCache 保存 C1、C2 等编译器生成的机器码以及部分本地代码。它是独立的本地内存区域，不归 Metaspace 管理，也不受 `-Xmx` 直接控制。
+
+CodeCache 有容量上限，具体大小和缺省值取决于 JDK、CPU 与配置。容量不足时，HotSpot 会停止接受新的编译；已有已编译代码通常仍可继续执行，只有发生反优化的代码路径会退回解释执行。CodeCache 不足时未必出现 OOM，但服务可能持续变慢，因此应结合 JFR 的 `jdk.CodeCacheConfiguration`、JMX 内存池和目标 JDK 的诊断命令观察，不要用 `jstat -compiler` 的编译计数代替容量监控。
+
+如果 CodeCache 经常接近满，需要评估 `-XX:ReservedCodeCacheSize`，并检查动态生成代码或热点方法是否异常增多。
+
+## 8. StringTable：字符串驻留的代价
+
+### 8.1 字符串常量池的工作原理
 
 ```java
 String a = "hello";
@@ -454,7 +436,7 @@ JVM 维护一个**字符串常量池（StringTable）**，存储所有字面量�
 
 StringTable 本质上是一个 HashTable，通过字符串的 hashCode 定位桶。`-XX:StringTableSize` 控制桶数（默认 60013），桶数越多，哈希冲突越少，查找越快。
 
-### 7.2 intern() 的行为与陷阱
+### 8.2 intern() 的行为与陷阱
 
 ```java
 String a = new String("hello");  // 堆上新对象（a ≠ "hello"）
@@ -473,7 +455,7 @@ b == c  // true
 
 JDK 7+ 的变化意味着：`intern()` 不再往永久代塞数据，而是把堆中已有对象的引用记录到 StringTable。这大幅降低了 `intern()` 的内存风险。
 
-### 7.3 G1 字符串去重
+### 8.3 G1 字符串去重
 
 G1 收集器提供了一个专门的字符串去重优化：`-XX:+UseStringDeduplication`。它的原理是在 GC 过程中，发现多个 `String` 对象的 `char[]` 内容相同，就让它们共享同一个 `char[]`。
 
@@ -491,7 +473,7 @@ G1 收集器提供了一个专门的字符串去重优化：`-XX:+UseStringDedup
 
 适合场景：应用中存在大量重复字符串（如从数据库读取的枚举值、城市名、状态码），且使用 G1 收集器。
 
-### 7.4 intern() 的正确使用场景
+### 8.4 intern() 的正确使用场景
 
 **适合：大量重复字符串的去重**
 
@@ -513,7 +495,7 @@ for (int i = 0; i < 1_000_000; i++) {
 }
 ```
 
-### 7.5 字符串常量池的内存模型
+### 8.5 字符串常量池的内存模型
 
 ```txt
 堆（Heap）

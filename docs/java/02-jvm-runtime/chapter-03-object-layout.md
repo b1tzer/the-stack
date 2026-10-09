@@ -75,7 +75,7 @@ hash: 对象的 hashCode (首次调用 hashCode() 时计算并存储)
 | 重量级锁 | 指向 Monitor 的指针 | 10 |
 | GC 标记 | 空 | 11 |
 
-这是第三卷 `synchronized` 锁升级机制的关键前置知识。是否经过偏向锁取决于 JVM 版本和配置；JDK 17 已默认关闭 `-XX:+UseBiasedLocking`。Mark Word 的变化过程如下：
+这是 [`synchronized` 锁升级机制](../03-java-concurrency/chapter-06-synchronized.md)的关键前置知识。是否经过偏向锁取决于 JVM 版本和配置；JDK 17 已默认关闭 `-XX:+UseBiasedLocking`。Mark Word 的变化过程如下：
 
 ```txt
 启用偏向锁：无锁 → 偏向锁 → 轻量级锁 → 重量级锁
@@ -136,7 +136,7 @@ synchronized (obj) {
 }
 ```
 
-Monitor 是重量级的数据结构，依赖操作系统的 Mutex 实现。JVM 通常先尝试轻量级锁；启用偏向锁的配置才会先经过偏向锁阶段，只有竞争持续存在时才升级到重量级锁。第三卷 `synchronized` 章节会详细展开锁升级的完整过程。
+Monitor 是重量级的数据结构，依赖操作系统的 Mutex 实现。JVM 通常先尝试轻量级锁；启用偏向锁的配置才会先经过偏向锁阶段，只有竞争持续存在时才升级到重量级锁。[`synchronized` 章节](../03-java-concurrency/chapter-06-synchronized.md)会展开锁升级的完整过程。
 
 ## 4. TLAB（线程本地分配缓冲）
 
@@ -222,4 +222,4 @@ int sum = x + y;
 
 `-XX:+DoEscapeAnalysis` 默认开启，`-XX:+EliminateAllocations`（标量替换）默认开启，`-XX:+EliminateLocks`（锁消除）默认开启。一般不需要手动调整。
 
-> 本章覆盖了对象从创建到消亡的完整生命周期。下一章将进入垃圾回收——JVM 如何自动识别和回收不再使用的对象。
+> 本章覆盖了对象从创建到消亡的完整生命周期。下一章进入[垃圾回收](./chapter-04-gc.md)，解释 JVM 如何识别和回收不再使用的对象；对象头与 Monitor 的运行方式可继续对照 [`synchronized`](../03-java-concurrency/chapter-06-synchronized.md)。

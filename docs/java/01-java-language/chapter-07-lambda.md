@@ -160,7 +160,7 @@ r.run();                                          运行期：首次执行时 La
 
 调用 `r.run()` 时，执行的是运行时生成的 `Runnable` 实现类的 `run()` 方法，它内部转调 `lambda$test$0()`——也就是你写的 Lambda body。
 
-`invokedynamic` 是 JVM 层面的特性，第二卷字节码章节会详细展开。
+`invokedynamic` 是 JVM 层面的特性，[字节码与类加载](../02-jvm-runtime/chapter-01-bytecode-classloading.md)会进一步解释它。
 
 ## 4. 方法引用
 
@@ -234,7 +234,7 @@ Java 是以面向对象为核心，同时吸收函数式思想的**多范式语�
 
 > 注解与 Lambda 是 Java 语言层的最后两块拼图。注解让 Java 从"静态代码"走向"元数据驱动"，Lambda 让 Java 从"纯面向对象"走向"多范式"。
 >
-> 至此，第一卷《Java 语言》完整闭环。六次抽象升级：
+> 至此，Java 语言的主线已经形成。五次抽象升级：
 >
 > - 类型系统（如何描述数据）
 > - 面向对象（如何组织复杂世界）
@@ -242,4 +242,4 @@ Java 是以面向对象为核心，同时吸收函数式思想的**多范式语�
 > - 注解（如何给代码附加语义）
 > - Lambda（如何让行为成为一等公民）
 >
-> 读者已经不仅"会写 Java"，而是理解了 Java 语言本身提供的全部表达能力。第二卷《JVM Runtime》将回答：这些 Java 代码到底是如何被 JVM 接收、加载、执行和管理的。
+> 读者已经不仅“会写 Java”，而是建立了语言层的表达模型。下一步可以从[异常处理](./chapter-08-exceptions.md)、[标准集合](./chapter-09-collections.md)、[Stream 与 Optional](./chapter-10-stream-optional.md)和[现代语言特性](./chapter-11-modern-language-features.md)补全日常语言能力，也可以进入[JVM 运行时](../02-jvm-runtime/chapter-01-bytecode-classloading.md)，继续理解这些代码如何被 JVM 接收、加载、执行和管理。

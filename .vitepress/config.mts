@@ -473,6 +473,10 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '泛型', link: '/java/01-java-language/chapter-05-generics' },
             { text: '注解', link: '/java/01-java-language/chapter-06-annotation' },
             { text: 'Lambda 与函数式编程', link: '/java/01-java-language/chapter-07-lambda' },
+            { text: '异常与资源管理', link: '/java/01-java-language/chapter-08-exceptions' },
+            { text: '标准集合', link: '/java/01-java-language/chapter-09-collections' },
+            { text: 'Stream 与 Optional', link: '/java/01-java-language/chapter-10-stream-optional' },
+            { text: 'record、sealed 与模式匹配', link: '/java/01-java-language/chapter-11-modern-language-features' },
           ],
         },
         {
@@ -480,11 +484,11 @@ export default withOpenInEditor(withMermaid(defineConfig({
           collapsed: true,
           items: [
             { text: '字节码到 ClassLoader', link: '/java/02-jvm-runtime/chapter-01-bytecode-classloading' },
-            { text: 'JVM 运行时数据区', link: '/java/02-jvm-runtime/chapter-02-runtime-data-areas' },
+            { text: 'JVM 运行时数据区与内存结构', link: '/java/02-jvm-runtime/chapter-02-runtime-data-areas' },
             { text: 'HotSpot 对象布局', link: '/java/02-jvm-runtime/chapter-03-object-layout' },
             { text: '垃圾回收', link: '/java/02-jvm-runtime/chapter-04-gc' },
-            { text: 'JIT 编译', link: '/java/02-jvm-runtime/chapter-05-jit' },
             { text: '堆外内存', link: '/java/02-jvm-runtime/chapter-06-offheap-memory' },
+            { text: 'JIT 编译', link: '/java/02-jvm-runtime/chapter-05-jit' },
           ],
         },
         {
@@ -507,7 +511,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
                 { text: 'synchronized', link: '/java/03-java-concurrency/chapter-06-synchronized' },
                 { text: 'CAS 与原子类', link: '/java/03-java-concurrency/chapter-07-cas-atomic' },
                 { text: 'LockSupport 与 AQS', link: '/java/03-java-concurrency/chapter-08-locksupport-aqs' },
-                { text: 'Condition 与同步工具', link: '/java/03-java-concurrency/chapter-09-condition-lock-tools' },
+                { text: 'Condition 与 AQS 同步工具', link: '/java/03-java-concurrency/chapter-09-condition-lock-tools' },
               ],
             },
             {
@@ -532,7 +536,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
                 { text: '网络通信基础', link: '/java/04-java-network/chapter-01-network-basics' },
                 { text: 'TCP/IP', link: '/java/04-java-network/chapter-02-tcp-ip' },
                 { text: 'TCP/IP：性能参数与 Java 实践', link: '/java/04-java-network/chapter-03-tcp-performance-java' },
-                { text: 'HTTP 协议', link: '/java/04-java-network/chapter-07-http' },
+                { text: 'HTTP、Java 客户端与 TLS/HTTPS', link: '/java/04-java-network/chapter-07-http' },
               ],
             },
             {

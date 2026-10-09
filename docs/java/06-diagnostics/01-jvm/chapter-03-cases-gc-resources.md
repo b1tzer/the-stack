@@ -413,3 +413,5 @@ public class FieldFilter {
 | 内存分配热点 | JFR | `jdk.ObjectAllocationInNewTLAB` / `jdk.ObjectAllocationOutsideTLAB` |
 
 **黄金组合：Arthas 快速定位 + JFR 精确量化。** Arthas 告诉你「哪个方法慢了」，JFR 告诉你「它在等什么、分配了什么、锁了什么」。两者互补，缺一不可。
+
+> **回到诊断入口：** [JVM 线上诊断](./chapter-01-jvm-diagnostics.md)。案例中的分配和回收机制见[垃圾回收](../../02-jvm-runtime/chapter-04-gc.md)，资源泄漏边界见[堆外内存](../../02-jvm-runtime/chapter-06-offheap-memory.md)。

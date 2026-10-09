@@ -20,6 +20,7 @@
 ### Site integrity
 
 - Internal links and image paths resolve.
+- Links to a specific section use `path.md#anchor`, and the target heading declares a matching stable `{#anchor}` alias; whole-document links intentionally omit the fragment.
 - Navigation and sidebar entries match the intended route.
 - Public assets are present and use appropriate alt text.
 - `npm run build` succeeds after relevant changes.

@@ -1,8 +1,8 @@
-# HTTP 协议：应用层通信标准
+# HTTP 协议、Java 客户端与 TLS/HTTPS
 
 > 你的 Grafana 监控面板亮了一排红灯：502、504、Connection Timeout。team 群里的运营已经在催「接口挂了」。你打开 Nginx error.log，看到 `upstream timed out` 和 `connection refused` 交替出现——但这两个错误的根因完全不同，一个需要修上游代码，一个需要看上游进程是不是挂了。你怎么在 5 分钟内判断应该把时间花在哪？
 
-> **📖 阅读建议**：如果你正盯着 502/504 告警排障，直接从 §4 状态码开始。§1-§3 是 HTTP 协议基础——每天写 REST API 的人建议全部读完，很多坑都源于「你以为你懂了 GET」。
+> **📖 阅读路线**：从协议开始读，进入 §2；要写 Java 调用，跳到 §6；正在处理 502、超时或证书错误，直接看 §1、§4 和 §7。三个入口共享同一套 HTTP、TCP 和 TLS 上下文，不需要重复阅读全部章节。
 
 ## 1. 一次 HTTP 请求到底花了多少时间
 
@@ -278,4 +278,120 @@ QUIC (HTTP/3):             丢 Packet 3 → 只影响 Stream 1，其他照常
 | 队头阻塞 | 应用层与 TCP | TCP 仍可能阻塞各流 | 跨流传输阻塞较少，但仍有应用与流内等待 |
 | 首连延迟 | TCP + TLS 协商 | TCP + TLS 协商 | 常为 1-RTT，0-RTT 需满足会话恢复条件 |
 
-> **本章小结：** HTTP 是你每天在用的协议——不是教科书上的 RFC 条目。502 和 504 的区别决定了你下一步是重启进程还是查慢 SQL。`curl -w` 把「这个接口慢」拆成了 6 个可量化的数字。`Content-Type` 配错导致的 415，日志里写的是 `Unsupported Media Type`，根因是 `@RequestBody` 找不到匹配的 `HttpMessageConverter`。
+## 6. 用 Java HttpClient 发起请求
+
+JDK 11 起，`java.net.http.HttpClient` 提供同步和异步请求、HTTP/1.1 与 HTTP/2 偏好、重定向策略、超时和代理配置。适用于 JDK 11 及以上；本节示例按 Java 21 编写。
+
+### 6.1 复用客户端并设置两层超时
+
+`HttpClient` 是不可变的，通常管理自己的连接池。不要为每次请求创建一个新客户端，否则连接无法复用：
+
+```java
+HttpClient client = HttpClient.newBuilder()
+        .version(HttpClient.Version.HTTP_2)
+        .followRedirects(HttpClient.Redirect.NORMAL)
+        .connectTimeout(Duration.ofSeconds(3))
+        .build();
+
+HttpRequest request = HttpRequest.newBuilder(URI.create("https://api.example.com/orders/42"))
+        .timeout(Duration.ofSeconds(5))
+        .header("Accept", "application/json")
+        .GET()
+        .build();
+```
+
+客户端级 `connectTimeout` 控制建立连接的等待时间；请求级 `timeout` 控制从发送请求到收到响应的等待时间。它们不能替代服务端处理、数据库和下游调用各自的超时预算。
+
+默认客户端偏好 HTTP/2，但最终协议受服务器能力、连接条件和实现约束影响。重定向默认不跟随；只有业务确实接受跨地址跳转时才设置 `Redirect.NORMAL`，登录态和敏感参数还应限制跳转来源。
+
+### 6.2 选择同步或异步接收
+
+同步发送会阻塞当前线程：
+
+```java
+HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
+if (response.statusCode() >= 400) {
+    throw new IllegalStateException("HTTP " + response.statusCode() + ": " + response.body());
+}
+```
+
+`send()` 抛出 `IOException` 和 `InterruptedException`。`InterruptedException` 表示调用线程被中断，应恢复中断状态并停止当前任务，而不是简单吞掉。
+
+需要组合多个请求时使用异步发送：
+
+```java
+CompletableFuture<HttpResponse<String>> future =
+        client.sendAsync(request, BodyHandlers.ofString())
+                .thenApply(response -> {
+                    if (response.statusCode() >= 400) {
+                        throw new IllegalStateException(
+                                "HTTP " + response.statusCode() + ": " + response.body());
+                    }
+                    return response;
+                });
+```
+
+异步调用不会自动消除超时。请求仍应设置 `timeout`，组合任务还要明确整体预算、异常传播和使用哪个执行器。同步调用应放在合适的阻塞线程中；虚拟线程可使用同步 API，但不能解决下游本身无界等待的问题。
+
+### 6.3 检查状态码、响应体和资源
+
+收到 2xx 不代表业务一定成功，收到 4xx/5xx 也不应立即重试。至少要区分：
+
+| 状态 | 典型含义 | 处理方向 |
+| :-- | :-- | :-- |
+| 4xx | 请求参数、鉴权或客户端行为错误 | 修正请求；通常不盲目重试 |
+| 502/504 | 网关未获得有效响应或等待超时 | 先判断上游可用性和超时链路 |
+| 网络异常 | DNS、连接、TLS、读超时或连接重置 | 按失败阶段定位 |
+
+响应体可能很大，不应默认读成完整 `String`。可使用 `BodyHandlers.ofInputStream()` 流式处理并关闭流，或使用 `BodyHandlers.ofFile()` 写入文件。`HttpClient` 实现为 `AutoCloseable`；长生命周期客户端应在应用生命周期结束时关闭，但仍要给应用关闭流程设置时间预算。
+
+## 7. 用 TLS 保护 HTTPS 连接
+
+HTTPS 把 HTTP 请求放进 TLS 通道。TLS 负责协商加密参数、验证服务端身份并保护传输内容；HTTP 状态码、Header 和业务错误仍发生在 TLS 之上。
+
+### 7.1 证书链与信任库
+
+服务端通常发送叶子证书和中间证书。客户端从叶子证书向上验证签名关系，最终必须连接到本地信任的根证书。Java 默认信任材料位于 JDK 的 `cacerts`；企业内网服务可能使用私有 CA，需要把根证书导入独立信任库：
+
+```java
+KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+try (InputStream input = Files.newInputStream(Path.of("truststore.p12"))) {
+    trustStore.load(input, trustStorePassword);
+}
+
+TrustManagerFactory factory =
+        TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+factory.init(trustStore);
+
+SSLContext context = SSLContext.getInstance("TLS");
+context.init(null, factory.getTrustManagers(), null);
+
+SSLParameters sslParameters = context.getDefaultSSLParameters();
+sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
+
+HttpClient client = HttpClient.newBuilder()
+        .sslContext(context)
+        .sslParameters(sslParameters)
+        .build();
+```
+
+证书验证通过还不等于主机名匹配。端点识别必须确认证书 SAN（Subject Alternative Name）包含当前主机名；不要用自定义信任所有证书的 `TrustManager` 或关闭主机名验证来“修复”生产错误。
+
+### 7.2 区分常见 TLS 故障
+
+| 故障 | 先检查什么 | 常见根因 |
+| :-- | :-- | :-- |
+| `PKIX path building failed` | 信任链和 `cacerts`/自定义 TrustStore | 缺中间证书或私有 CA 未信任 |
+| `No name matching` | 证书 SAN 与请求主机名 | 使用 IP 访问但证书只含域名，或反向代理改写了地址 |
+| `handshake_failure` | 双方支持的 TLS 版本和密码套件 | 服务端或 JDK 安全策略禁用了交集 |
+| TLS 阶段耗时高 | `time_appconnect - time_connect` | 网络 RTT、证书链获取、代理或密码协商 |
+
+TLS 版本和密码套件由客户端配置、JDK 安全策略和服务端共同决定。启用某个协议不保证对端一定选用它。优先保留系统安全策略允许的现代配置，并用目标环境实际握手验证，而不是复制一份脱离版本和厂商边界的参数。
+
+## 8. 下一步
+
+HTTP 请求的协议、Java 客户端和 TLS 边界已经连成一条链。需要理解请求如何从字节流进入应用代码，进入 [Servlet 与 Tomcat 请求链](./chapter-08-servlet-tomcat-request-chain.md)；出现连接、DNS、TLS 或超时问题时，从[网络性能分析与故障排查](../06-diagnostics/03-network/chapter-01-network-diagnostics.md)开始。
+
+> **本章小结：** HTTP 不只是教科书里的报文格式。`curl -w` 把“接口慢”拆成可比较的阶段，状态码区分 4xx、502 和 504，Java `HttpClient` 把连接、请求和响应变成可管理的资源，TLS 再保证连接确实到达预期主机并受到保护。
+
+> **官方参考：** [Java SE 21 `HttpClient`](https://docs.oracle.com/en/java/javase/21/docs/api/java.net.http/java/net/http/HttpClient.html)、[`SSLContext`](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/javax/net/ssl/SSLContext.html)、[`SSLParameters`](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/javax/net/ssl/SSLParameters.html)。

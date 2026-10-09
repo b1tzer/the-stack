@@ -387,7 +387,7 @@ socket.setKeepAlive(true);
 
 前面四节讲的是 Socket 的"是什么"和"怎么工作"。这一节用最小的代码示例把理论变成可运行的程序。
 
-### 5.1 Echo Server
+### 5.1 Echo Server {#echo-server}
 
 ```java
 import java.io.*;

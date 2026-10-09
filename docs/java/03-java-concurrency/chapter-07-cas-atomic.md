@@ -14,7 +14,7 @@
 | **死锁风险** | 多把锁交叉持有形成循环等待 | 程序完全卡死，难以排查 |
 | **优先级反转** | 低优先级线程持锁，高优先级线程被迫等待 | 实时性要求高的系统中表现恶劣 |
 
-对于一个简单的计数器场景，第 1 章已经展示过 `count++` 的数据竞争问题，第 6 章用 `synchronized` 解决了它。但 `count++` 对应的 CPU 指令其实只有三步：
+对于一个简单的计数器场景，[第 1 章](./chapter-01-why-concurrency.md)已经展示过 `count++` 的数据竞争问题，[第 6 章](./chapter-06-synchronized.md)用 `synchronized` 解决了它。但 `count++` 对应的 CPU 指令其实只有三步：
 
 ```txt
 LOAD count → 寄存器
@@ -440,3 +440,7 @@ public class LockFreeStack<T> {
 | CAS vs 锁 | 低竞争单变量用 CAS，复杂逻辑用锁 |
 
 无锁并发覆盖"低竞争 + 单变量"这条主线；一旦跨过这条线，锁与 AQS 仍然是更合适的工具。理解 CAS 的原理与局限，才能在正确的场景做出正确的选择。
+
+## 8. 下一步
+
+CAS 是 AQS 状态转移和无锁容器的基础。下一步进入 [`LockSupport` 与 AQS](./chapter-08-locksupport-aqs.md)；确认争用是否真的值得优化时，可从[并发性能优化](../06-diagnostics/02-concurrency/chapter-02-concurrency-optimization.md)选择策略。

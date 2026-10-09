@@ -41,7 +41,7 @@ list.add("hello");
 list.add(123);           // 编译错误！编译器直接拒绝
 ```
 
-`T` 是一个占位符：`List<String>` 声明「这个列表装的是 `String`」。编译器拿到这个声明后，就能在**编译期**验证每次 `add` 是否合法，把第 1 章的三类问题一次性消掉——强转不需要了、错误提前暴露了、约束表达出来了。
+`T` 是一个占位符：`List<String>` 声明「这个列表装的是 `String`」。编译器拿到这个声明后，就能在**编译期**验证每次 `add` 是否合法，把本页第 1 节的三类问题一次性消掉——强转不需要了、错误提前暴露了、约束表达出来了。
 
 核心动作只有一句：**把类型检查从运行期提前到编译期。** 2.2 ~ 2.5 讲清 `T` 的各种写法。
 
@@ -179,7 +179,7 @@ public class Event<T> {
 
 ## 3. 为什么泛型默认不变
 
-类型变量解决了第 1 章的问题，但立刻引出新问题：类型变量之间是什么关系？
+类型变量解决了本页第 1 节的问题，但立刻引出新问题：类型变量之间是什么关系？
 
 直觉上，既然 `String` is-a `Object`，那 `List<String>` 应该也是 `List<Object>`。
 
@@ -192,7 +192,7 @@ objects.add(123);                 // 往 String 列表里塞了一个 Integer！
 String s = strings.get(1);       // ClassCastException
 ```
 
-一旦允许 `List<String>` 赋给 `List<Object>`，第 2 章建立的编译期检查就被绕过：`objects` 名义上是 `List<Object>`，可以合法地 `add(123)`，但它底层指向只能装 `String` 的列表，类型错误又回到了运行期。
+一旦允许 `List<String>` 赋给 `List<Object>`，本页第 2 节建立的编译期检查就被绕过：`objects` 名义上是 `List<Object>`，可以合法地 `add(123)`，但它底层指向只能装 `String` 的列表，类型错误又回到了运行期。
 
 所以 Java 让泛型默认**不变（Invariant）**：
 
@@ -301,7 +301,7 @@ strings.getClass() == integers.getClass()  // true!
 
 ### 6.2 擦除的机制
 
-编译器在编译时完成第 5 章的检查后，在生成的字节码中**移除类型参数**，替换为它的上界（默认 `Object`）：
+编译器在编译时完成本页第 5 节的检查后，在生成的字节码中**移除类型参数**，替换为它的上界（默认 `Object`）：
 
 ```java
 // 源码
@@ -435,11 +435,11 @@ Type[] typeArgs = pt.getActualTypeArguments();
 // typeArgs[1] = Long.class
 ```
 
-Spring、MyBatis 等框架大量利用这个能力获取泛型参数。第二卷 Class 文件章节会展开 `Signature` 属性的存储结构。
+Spring、MyBatis 等框架大量利用这个能力获取泛型参数。[字节码与类加载](../02-jvm-runtime/chapter-01-bytecode-classloading.md)会进一步说明 Class 文件如何保存类型签名。
 
 ## 8. 框架如何拿回被擦除的泛型信息
 
-7.3 节留下一个可追问的点：`Signature` 属性在运行时仍可读，框架究竟怎么利用它？Jackson 的 `TypeReference` 是最典型的例子。
+本页 7.3 节留下一个可追问的点：`Signature` 属性在运行时仍可读，框架究竟怎么利用它？Jackson 的 `TypeReference` 是最典型的例子。
 
 ```java
 // ❌ 擦除导致的问题
@@ -451,13 +451,17 @@ List<String> list = objectMapper.readValue(json, new TypeReference<List<String>>
 // 正确返回 List<String>
 ```
 
-`TypeReference` 依赖 `Signature` 属性：匿名子类的 `getGenericSuperclass()` 能取回 `TypeReference<List<String>>` 的完整泛型信息。这正是第 6 章「运行期擦除、Signature 留底」在真实框架里的落地——擦除没有让泛型信息消失，只是把它从字节码挪进了 `Signature` 属性，谁需要谁去取。
+`TypeReference` 依赖 `Signature` 属性：匿名子类的 `getGenericSuperclass()` 能取回 `TypeReference<List<String>>` 的完整泛型信息。这正是本页第 6 节「运行期擦除、Signature 留底」在真实框架里的落地——擦除没有让泛型信息消失，只是把它从字节码挪进了 `Signature` 属性，谁需要谁去取。
 
 ## 9. 未来方向（Project Valhalla）
 
-6.4 节的三类限制，根子都在「类型参数被擦成 `Object`」。Oracle 的 Project Valhalla 要动的正是这个根，而不是给限制打补丁：
+本页 6.4 节的三类限制，根子都在「类型参数被擦成 `Object`」。Oracle 的 Project Valhalla 要动的正是这个根，而不是给限制打补丁：
 
 - **Specialized Generics**：让 `List<int>` 合法，对应 6.4 的「不能用基本类型」
 - **Value Types**：消除装箱，对应 6.4 里 `List<Integer>` 的装箱开销
 
-两条路指向同一件事：让基本类型也能作类型参数。目前仍在开发，但它若落地，第 6 章整条「擦除」因果链会被重写。
+两条路指向同一件事：让基本类型也能作类型参数。目前仍在开发，但它若落地，本页第 6 节整条「擦除」因果链会被重写。
+
+## 10. 本页位置
+
+泛型连接了[类型系统](./chapter-02-type-system.md)与框架运行期读取类型信息的能力。擦除后的字节码如何继续携带必要签名，可继续阅读[字节码与类加载](../02-jvm-runtime/chapter-01-bytecode-classloading.md)；注解、函数式接口和 Stream 分别由[注解](./chapter-06-annotation.md)、[Lambda](./chapter-07-lambda.md)与[Stream 与 Optional](./chapter-10-stream-optional.md)展开。

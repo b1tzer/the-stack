@@ -2,7 +2,7 @@
 
 > 修饰一个变量到底修饰了什么？它凭什么能让 DCL 恢复正确？为什么它明明有"可见性 + 有序性"，却还是撑不起一个 `count++`？
 
-第 4 章的 JMM 定义了规则——线程之间怎么看到彼此的数据、什么样的重排允许发生。`volatile` 是这份规则里最小的执行工具：**只作用于单个变量的读写边界**。它比 `synchronized` 便宜得多，也比 `synchronized` 弱得多。这一章讨论它到底在什么位置、能做什么、不能做什么。
+[第 4 章的 JMM](./chapter-04-jmm.md)定义了规则——线程之间怎么看到彼此的数据、什么样的重排允许发生。`volatile` 是这份规则里最小的执行工具：**只作用于单个变量的读写边界**。它比 `synchronized` 便宜得多，也比 `synchronized` 弱得多。这一章讨论它到底在什么位置、能做什么、不能做什么。
 
 ## 1. `volatile` 解决的问题
 
@@ -51,7 +51,7 @@ private volatile boolean running = true;
 1. **可见性**：写发生后，其他线程后续对同一变量的读一定能看到这个新值
 2. **有序性**：`volatile` 变量相关的读写不允许被重排到"它应该在的位置"之外
 
-一句更精确的表述：**`volatile` 建立的是变量读写边界上的 happens-before 关系**——第 4 章 §4.4.2 的规则 2。理解这一点，`volatile` 剩下所有行为都能推理出来。
+一句更精确的表述：**`volatile` 建立的是变量读写边界上的 happens-before 关系**——[第 4 章的 JMM 规则](./chapter-04-jmm.md#happens-before)。理解这一点，`volatile` 剩下所有行为都能推理出来。
 
 ### 1.3 与 JMM 的位置关系
 
@@ -71,7 +71,7 @@ CPU 层 ─── 屏障映射到具体架构的一致性协议行为
 
 ### 2.1 屏障的作用回顾
 
-第 4 章 §4.6 完整定义了四类内存屏障（LoadLoad / LoadStore / StoreStore / StoreLoad）及其作用。`volatile` 用到其中三类，位置固定：
+[第 4 章的内存屏障规则](./chapter-04-jmm.md#memory-barriers)定义了四类屏障（LoadLoad / LoadStore / StoreStore / StoreLoad）及其作用。`volatile` 用到其中三类，位置固定：
 
 | 屏障 | 在 `volatile` 中的插入点 |
 | :-- | :-- |
@@ -181,7 +181,7 @@ JMM 定义 Java 层语义，JVM 用屏障翻译语义，MESI 让屏障在硬件�
 
 ## 3. 用 `volatile` 完整修复 DCL
 
-第 4 章 §4.3.3 提到过 DCL 需要 `volatile` 修复。这一节把机制彻底剖开——它是理解"`volatile` 有序性到底防了什么"的最好案例。
+[第 4 章的 DCL 案例](./chapter-04-jmm.md#jmm-dcl)提到过需要 `volatile` 修复。这一节把机制彻底剖开——它是理解“`volatile` 有序性到底防了什么”的最好案例。
 
 ### 3.1 `new Singleton()` 不是原子的
 
@@ -309,7 +309,7 @@ public void updateIfNull(Config c) {
 }
 ```
 
-修复要么用 `synchronized`、要么用 `AtomicReference.compareAndSet`（第 7 章展开）。
+修复要么用 [`synchronized`](./chapter-06-synchronized.md)、要么用 [`AtomicReference.compareAndSet`](./chapter-07-cas-atomic.md)。
 
 ### 4.3 `volatile` 只保护引用本身，不保护指向的对象
 
@@ -324,7 +324,7 @@ list.add("hello");        // ArrayList.add 内部不是线程安全
 list.get(0);              // 可能抛 IndexOutOfBoundsException
 ```
 
-`volatile List` 只保证"`list` 这个引用变量被替换时"新引用对其他线程立刻可见——比如 `list = new ArrayList<>()` 这样的重新赋值。它**完全不管** `list` 内部的字段并发访问。要线程安全的列表：`CopyOnWriteArrayList` 或 `Collections.synchronizedList`（第 10 章展开）。
+`volatile List` 只保证“`list` 这个引用变量被替换时”新引用对其他线程立刻可见——比如 `list = new ArrayList<>()` 这样的重新赋值。它**完全不管** `list` 内部的字段并发访问。要线程安全的列表：[`CopyOnWriteArrayList` 或 `Collections.synchronizedList`](./chapter-10-concurrent-collections.md)。
 
 ### 4.4 能力边界总表
 
@@ -364,7 +364,7 @@ private volatile boolean running = true;
 - 防止 `new Singleton()` 的构造重排到引用发布之后
 - 让完成构造的对象通过 volatile 写-读的 happens-before 传递给读端
 
-现代 JDK 里更简洁的替代是 **静态内部类** 模式（借助类初始化锁完成安全发布，见第 4 章 §4.5.3）。但 DCL 仍是理解 `volatile` 语义的最佳案例。
+现代 JDK 里更简洁的替代是 **静态内部类** 模式（借助类初始化锁完成安全发布，见[第 4 章的安全发布](./chapter-04-jmm.md#safe-publication)）。但 DCL 仍是理解 `volatile` 语义的最佳案例。
 
 ### 5.3 安全发布配置对象
 
@@ -386,7 +386,7 @@ public class ConfigHolder {
 
 前提是 **`Config` 是不可变对象**——所有字段 `final`、构造完成后不再修改。这样：
 
-- `Config` 的字段由 `final` 语义保证初始化安全（第 4 章 §4.5.1）
+- `Config` 的字段由 `final` 语义保证初始化安全（见[第 4 章的 `final` 规则](./chapter-04-jmm.md#final-semantics)）
 - 引用发布由 `volatile` 保证可见性
 - 后续所有线程通过 `snapshot()` 拿到的都是"完整构造 + 立刻可见"的对象
 
@@ -409,7 +409,7 @@ public class AtomicInteger {
 - **`volatile`**：让 `value` 的最新写立即被其他线程看到——CAS 才能读到当前值
 - **CAS**：把"读当前值 + 判等 + 写新值"合并成一步硬件级原子操作，弥补 `volatile` 不解决的复合原子性
 
-`AtomicInteger` 的完整机制在第 7 章展开。
+[`AtomicInteger` 的完整机制在第 7 章展开](./chapter-07-cas-atomic.md)。
 
 ## 6. `volatile` 与 `synchronized` 的选型
 
@@ -480,3 +480,7 @@ public class TokenBucket {
 | `volatile List` 内部不安全 | 只保护引用变量本身 | 用并发容器 |
 | 32 位平台 `long` 撕裂 | 普通 `long` 非原子 | `volatile long` 或 `AtomicLong` |
 | 高频写变量竞争严重 | `StoreLoad` 屏障成本高 | 分散写热点（`LongAdder`）或缩窄临界区 |
+
+## 8. 下一步
+
+`volatile` 解决单变量的可见性和有序性，不提供复合操作的原子性。下一步比较[`synchronized`](./chapter-06-synchronized.md)的互斥语义，或继续阅读 [JMM](./chapter-04-jmm)理解其边界；出现不一致数据时进入[并发问题诊断](../06-diagnostics/02-concurrency/chapter-01-concurrency-diagnostics.md)。

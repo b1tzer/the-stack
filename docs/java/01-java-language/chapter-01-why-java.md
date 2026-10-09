@@ -91,4 +91,4 @@ public class Hello {
 
 ![java-compile-pipeline](/java/java-compile-pipeline.svg)
 
-后续页面分别解释类型与对象、字节码与类加载、运行时数据区、GC 和 JIT。当前只需要理解：**Java 代码不会直接由 CPU 执行，中间还存在编译、类加载和运行时解释或编译过程。**
+后续页面分别解释[类型与对象](./chapter-02-type-system.md)、[字节码与类加载](../02-jvm-runtime/chapter-01-bytecode-classloading.md)、[运行时数据区](../02-jvm-runtime/chapter-02-runtime-data-areas.md)、GC 和 JIT。当前只需要理解：**Java 代码不会直接由 CPU 执行，中间还存在编译、类加载和运行时解释或编译过程。**

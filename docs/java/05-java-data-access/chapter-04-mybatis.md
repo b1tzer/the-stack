@@ -211,9 +211,9 @@ public Object execute(SqlSession sqlSession, Object[] args) {
 
 ### 3.4 横向联系：反射与代理
 
-这里用到的 `java.lang.reflect.Proxy` 是 JDK 反射 API 的一部分。在第一卷《Java 语言》中我们详细讨论了反射机制——MyBatis 的 Mapper 代理正是反射在框架设计中的经典应用。
+这里用到的 `java.lang.reflect.Proxy` 是 JDK 反射 API 的一部分。[Java 语言核心](../01-java-language/chapter-04-oop.md)已经讨论了反射机制——MyBatis 的 Mapper 代理正是反射在框架设计中的经典应用。
 
-同时，这种"不修改原始代码、在调用前后插入额外逻辑"的模式，与第六卷将要讨论的 AOP（面向切面编程）异曲同工。区别在于 MyBatis 用 JDK 动态代理手写实现，而 Spring AOP 抽象了这一模式，提供了声明式的切面编程。
+同时，这种“不修改原始代码、在调用前后插入额外逻辑”的模式，与 [Spring AOP](../../spring/01-core/chapter-05-aop.md)异曲同工。区别在于 MyBatis 用 JDK 动态代理手写实现，而 Spring AOP 抽象了这一模式，提供了声明式的切面编程。
 
 ## 4. 缓存机制
 

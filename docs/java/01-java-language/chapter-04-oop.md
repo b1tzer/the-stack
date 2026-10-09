@@ -283,7 +283,7 @@ clazz.getName();      // "com.example.User"
 clazz.getDeclaredFields();  // 获取所有字段
 ```
 
-这是反射的起点——第六卷 Spring 会大量用到它。
+这是反射的起点——[Spring AOP](../../spring/01-core/chapter-05-aop.md) 会大量用到它。
 
 ## 5. 多态：面向对象扩展性的核心
 
@@ -358,7 +358,7 @@ public void processPayment(Payment payment, BigDecimal amount) {
 
 Java 的多态通过**动态绑定（Dynamic Binding）**实现。编译时，编译器只知道变量的声明类型（`Payment`）；运行时，JVM 根据对象的实际类型（`AlipayPayment`）决定调用哪个方法。
 
-在字节码层面，这对应 `invokevirtual` 指令——JVM 在运行时查找对象的实际类，找到正确的方法实现。第二卷会详细展开方法表和动态绑定的机制。
+在字节码层面，这对应 `invokevirtual` 指令——JVM 在运行时查找对象的实际类，找到正确的方法实现。[字节码与类加载](../02-jvm-runtime/chapter-01-bytecode-classloading.md)会进一步解释方法分派如何落到字节码与运行时数据结构。
 
 ## 6. 接口 vs 抽象类
 
