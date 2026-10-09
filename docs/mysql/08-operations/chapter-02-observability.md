@@ -24,7 +24,7 @@ information_schema ──→ performance_schema ──→ sys + EXPLAIN
 
 ### 2.1 它是什么
 
-`information_schema` 是一组**只读的虚拟表**，把库、表、列、索引、约束、权限等所有结构定义摊开来给你看。它的数据不是存在磁盘上的物理表，而是 MySQL 启动后从**数据字典（Data Dictionary）**实时映射出来的元数据。
+`information_schema` 是一组**只读的虚拟表**，把库、表、列、索引、约束、权限等所有结构定义摊开来给你看。它的数据不是存在磁盘上的物理表，而是 MySQL 启动后从**数据字典（Data Dictionary）** 实时映射出来的元数据。
 
 MySQL 8.0 是关键分水岭：数据字典从原来分散在各库目录下的 `.frm` 文件，迁移到了 InnoDB 里的一组**事务化系统表**。带来的直接后果是——元数据查询也走 InnoDB，不再依赖文件系统，`information_schema` 的查询性能大幅提升，也避免了早版本里 `.frm` 文件与真实表结构不一致的坑。
 
