@@ -1,4 +1,8 @@
-# Redis 命令速查
+# Redis 常用命令速查
+
+本页列出五种基础类型和常用通用命令，适用于 Redis 7.4.11。它是任务速查，不是完整命令手册；执行前请结合[官方命令参考](https://redis.io/docs/latest/commands/)核对参数、复杂度和适用版本。
+
+命令说明中的“阻塞”表示命令可能占用主线程到操作完成，实际耗时取决于 Key 大小和数据量。
 
 ## String
 
@@ -16,9 +20,8 @@
 
 | 命令 | 说明 |
 | :-- | :-- |
-| `HSET key field value` | 设置字段 |
+| `HSET key field value [field value ...]` | 设置一个或多个字段 |
 | `HGET key field` | 获取字段 |
-| `HMSET key f1 v1 f2 v2` | 批量设置 |
 | `HGETALL key` | 获取所有字段和值 |
 | `HINCRBY key field n` | 字段自增 |
 | `HDEL key field` | 删除字段 |
@@ -67,8 +70,8 @@
 
 | 命令 | 说明 |
 | :-- | :-- |
-| `DEL key` | 删除（阻塞） |
-| `UNLINK key` | 异步删除（非阻塞） |
+| `DEL key` | 同步删除；大值可能阻塞主线程 |
+| `UNLINK key` | 先解除 Key，再由后台线程回收内存 |
 | `EXISTS key` | 是否存在 |
 | `EXPIRE key seconds` | 设置过期时间 |
 | `TTL key` | 剩余过期时间 |

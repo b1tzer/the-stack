@@ -76,7 +76,7 @@ Redis 计划每年发布一个主版本，每个主版本约半年后跟一个�
 | 7.0 | 2022 | Functions、Multi-part AOF |
 | 8.0 | 2025 | 模块并入核心、Vector Set |
 
-本书聚焦 **Redis 6.0 ~ 7.2**。6.0 起支持多线程网络 IO（命令执行仍单线程），7.0 引入 Functions 和 MP-AOF，7.2 彻底用 listpack 替代 ziplist。自 7.4 起 Redis 切换为 RSALv2 + SSPLv1 双协议，社区出现 Valkey 等开源分支。
+本书以 **Redis 7.4.11** 为主要验证版本，并保留 6.0、7.0 和 7.2 中仍然适用的机制说明。6.0 起支持多线程网络 IO（命令执行仍单线程），7.0 引入 Functions 和 MP-AOF，7.2 彻底用 listpack 替代 ziplist。自 7.4 起 Redis 切换为 RSALv2 + SSPLv1 双协议，社区出现 Valkey 等开源分支；使用 8.x 前应核对新特性、配置默认值和许可证变化。
 
 ### 4.2 版本与许可证
 

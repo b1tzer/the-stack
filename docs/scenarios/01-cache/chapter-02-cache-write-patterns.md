@@ -26,7 +26,7 @@ Cache Aside 是最常见、最灵活的模式。应用代码同时管理缓存�
 写：UPDATE 数据库 → DEL 缓存
 ```
 
-![Cache Aside 读写流程](/redis/03-cache-engineering-chapter-04-consistency-1.svg)
+![Cache Aside 读写流程](/scenarios/cache/cache-write-cache-aside.svg)
 
 ### 2.2 为什么删缓存而不是更新缓存
 
@@ -345,7 +345,7 @@ Cache Aside 的「先更新库、后删缓存」已把不一致窗口缩到最�
 4. 再次删除缓存
 ```
 
-![延迟双删流程](/redis/03-cache-engineering-chapter-04-consistency-2.svg)
+![延迟双删流程](/scenarios/cache/cache-write-delayed-double-delete.svg)
 
 ### 8.1 实现
 
@@ -379,7 +379,7 @@ public void updateUserWithDelayDoubleDelete(Long userId, User user) {
 
 对于强一致需求的场景，可以基于数据库 Binlog 实现异步同步。
 
-![Canal 同步方案流程](/redis/03-cache-engineering-chapter-04-consistency-3.svg)
+![Canal 同步方案流程](/scenarios/cache/cache-write-canal.svg)
 
 Canal 模拟 MySQL 从库，订阅主库的 Binlog，解析出数据变更事件，再投递到消息队列，由消费端更新或删除缓存。
 

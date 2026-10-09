@@ -22,7 +22,7 @@
 
 正常查询会先查缓存，命中直接返回；未命中则查数据库，再把结果写入缓存。
 
-![缓存穿透问题流程](/redis/03-cache-engineering-chapter-01-penetration-1.svg)
+![缓存穿透问题流程](/scenarios/cache/cache-invalidation-penetration-1.svg)
 
 穿透的根源在于「缓存和数据库都没有数据」：既然数据库查不到，就不会写缓存，于是下一次相同请求还是查不到缓存、还是直达数据库。
 
@@ -147,7 +147,7 @@ public class UserService {
 
 在查缓存前先过布隆过滤器：
 
-![布隆过滤器拦截流程](/redis/03-cache-engineering-chapter-01-penetration-2.svg)
+![布隆过滤器拦截流程](/scenarios/cache/cache-invalidation-penetration-2.svg)
 
 布隆过滤器拦截了大部分「不存在」的请求，只有少数「可能存在的误判」会继续查缓存和数据库。
 
@@ -238,7 +238,7 @@ public User getUser(Long userId) {
 
 热点 key 平时一直命中缓存，但过期后缓存里没有它了，瞬间涌入的大量并发请求全部打到数据库。
 
-![缓存击穿问题流程](/redis/03-cache-engineering-chapter-02-breakdown-1.svg)
+![缓存击穿问题流程](/scenarios/cache/cache-invalidation-breakdown-1.svg)
 
 典型场景：
 
@@ -254,7 +254,7 @@ public User getUser(Long userId) {
 
 互斥锁的思路：缓存未命中时，只允许一个请求去查数据库并重建缓存，其他请求等待或重试。
 
-![互斥锁方案流程](/redis/03-cache-engineering-chapter-02-breakdown-2.svg)
+![互斥锁方案流程](/scenarios/cache/cache-invalidation-breakdown-2.svg)
 
 **原生实现**：
 
@@ -296,7 +296,7 @@ public String get(String key) {
 
 逻辑过期指「不设置物理 TTL，而是在 value 里存一个逻辑过期时间」。缓存永不物理过期，靠后台异步刷新。
 
-![逻辑过期方案流程](/redis/03-cache-engineering-chapter-02-breakdown-3.svg)
+![逻辑过期方案流程](/scenarios/cache/cache-invalidation-breakdown-3.svg)
 
 **数据结构**：
 
@@ -432,7 +432,7 @@ public class UserService {
 | 大量 key 同时过期 | 同一时间设置了相同 TTL 的 key 集体失效 |
 | 缓存服务宕机 | Redis 整体不可用，所有请求直达数据库 |
 
-![缓存雪崩成因](/redis/03-cache-engineering-chapter-03-avalanche-1.svg)
+![缓存雪崩成因](/scenarios/cache/cache-invalidation-avalanche.svg)
 
 危害：数据库瞬时并发激增，连接耗尽，整个系统不可用。
 

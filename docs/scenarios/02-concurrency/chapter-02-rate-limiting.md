@@ -54,7 +54,7 @@ public boolean tryAcquire(String key, int windowSeconds, int limit) {
 
 固定窗口的缺陷在窗口交界处：第 1 秒最后 100ms 与第 2 秒最初 100ms 分属两个窗口，各自放行 `limit` 个请求，实际 200ms 内放行了 `2 × limit`。
 
-![固定窗口与滑动窗口的边界突刺对比](/redis/06-patterns-chapter-02-rate-limiter-1.svg)
+![固定窗口与滑动窗口的边界突刺对比](/scenarios/concurrency/rate-limiter-window-boundary.svg)
 
 固定窗口只能保证「每个窗口内不超过阈值」，无法保证「任意时间段流量均匀」。对「每分钟最多 100 次」这类粗粒度限制够用，对精确限流不够。
 

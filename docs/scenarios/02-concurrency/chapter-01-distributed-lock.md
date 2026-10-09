@@ -85,7 +85,7 @@ Redisson 是 Java 的 Redis 客户端，封装了分布式锁，提供可重入�
 
 ### 4.1 原理
 
-![Redisson 看门狗续期机制](/redis/06-patterns-chapter-01-distributed-lock.svg)
+![Redisson 看门狗续期机制](/scenarios/concurrency/distributed-lock-watchdog.svg)
 
 ```txt
 线程 A 获取锁（默认 30 秒）

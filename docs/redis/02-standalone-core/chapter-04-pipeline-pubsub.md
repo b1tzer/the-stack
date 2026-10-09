@@ -1,4 +1,4 @@
-# Pipeline 与 PubSub
+# Pipeline 与 Pub/Sub
 
 > Pipeline 用批量发送优化网络往返，Pub/Sub 用订阅机制实现消息广播。两者都运行在单机 Redis 上，本章讲解各自的用法、局限与适用场景。
 

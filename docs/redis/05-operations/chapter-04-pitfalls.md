@@ -1,191 +1,98 @@
-# 开发运维陷阱
+# Redis 上线检查清单
 
-> Redis 踩坑大多来自「命令误用」与「配置不当」。本章汇总开发、运维、集群三方面的常见陷阱，并提供上线前检查清单。
+本页把开发和运维中最容易遗漏的条件整理成上线前检查项。它不重复讲解机制；每个需要深入判断的项目都链接到对应章节。
 
-## 1. 开发陷阱
+## 检查开发用法
 
-### 1.1 KEYS 命令
+### 避免阻塞主线程
 
-```bash
-# ❌ 生产环境使用 KEYS *
-KEYS user:*   # 遍历所有 key，O(n)，阻塞主线程
+- 生产查询不使用 `KEYS`，键空间扫描改用 `SCAN` 及其迭代版本。
+- 删除大值前先测量大小，优先评估 `UNLINK` 的后台回收行为。
+- 不一次性读取超大 Hash、List 或 ZSet，按字段或范围分批访问。
+- 客户端使用有上限的连接池，并配置连接超时、读取超时和重试上限。
 
-# ✅ 用 SCAN 替代
-SCAN 0 MATCH user:* COUNT 100
-```
+完整的慢命令判断见[性能优化](./chapter-01-performance.md)，大值处理见[大 Key 与热 Key](./chapter-05-big-hot-key.md)。
 
-`KEYS` 会遍历整个键空间，key 数量百万级时可能阻塞数秒。单线程下这意味着所有客户端都在等待。
+### 选择合适的数据模型
 
-### 1.2 DEL 大 Key
+- 只更新部分字段时，评估 Hash 是否比整体序列化的 String 更合适。
+- 缓存 Key 明确 TTL、更新路径和淘汰责任，不把缓存当成唯一数据副本。
+- 集合运算、排行榜和位图只在数据规模与命令复杂度可接受时使用。
+- 为业务 Key 定义统一命名、所有权和生命周期，不使用无前缀的临时 Key。
 
-```bash
-# ❌ 同步删除大 Key
-DEL biglist   # 一个有 100 万元素的 List，阻塞数秒
+数据类型语义见[五种基础数据类型](../01-data-model/chapter-02-basic-types.md)，缓存失效策略见[缓存失效场景](../../scenarios/01-cache/chapter-01-cache-invalidation.md)。
 
-# ✅ 异步删除
-UNLINK biglist  # 后台线程删除，不阻塞主线程
-```
+### 检查并发和恢复
 
-### 1.3 HGETALL 大 Hash
+- 锁具有过期时间、唯一持有者标识和失败重试边界。
+- 任务消费具备确认、重试、幂等和死信处理，不只依赖 `BLPOP`。
+- 关键写入明确故障时允许丢失的数据量，并据此选择持久化和副本策略。
+- 应用能够处理 `LOADING`、`READONLY`、连接拒绝和超时，不进行无上限重试。
 
-```bash
-# ❌ 返回全部字段
-HGETALL user:1001:profile   # 100 个 field
+锁与限流边界见[并发控制场景](../../scenarios/02-concurrency/index.md)，消息恢复见[消息场景](../../scenarios/03-messaging/index.md)。
 
-# ✅ 只取需要的字段
-HGET user:1001:profile name age
+## 检查运行配置
 
-# ✅ 或用 HSCAN 分批
-HSCAN user:1001:profile 0 COUNT 20
-```
+### 内存与淘汰
 
-### 1.4 String 存 JSON
+- `maxmemory` 已扣除操作系统、监控、网络缓冲和 fork/COW 所需空间。
+- 淘汰策略与数据用途一致：可重建缓存可以淘汰，主数据通常使用 `noeviction` 并扩容。
+- 淘汰次数、内存使用率和碎片率均有告警。
+- 达到 `maxmemory` 时，应用有明确的降级或拒绝写入行为。
 
-```bash
-# ❌ 整个对象存为 JSON 字符串
-SET user:1001 '{"name":"张三","age":25,"email":"zhangsan@qq.com"}'
-# 更新 age 需要全量覆盖，并发下互相覆盖
+参数含义见[配置参数参考](../reference/parameters.md)，策略边界见[过期与淘汰](../02-standalone-core/chapter-06-expiration-eviction.md)。
 
-# ✅ 用 Hash 存字段
-HSET user:1001 name "张三" age 25 email "zhangsan@qq.com"
-HINCRBY user:1001 age 1   # 只更新 age
-```
+### 持久化与故障转移
 
-### 1.5 无 TTL 缓存
+- RDB、AOF 或两者的组合与 RPO 一致，不把“开启持久化”当作数据不丢失的保证。
+- 已完成一次备份恢复和一次从节点数据加载演练。
+- `latest_fork_usec`、AOF 重写、磁盘延迟和复制偏移差已纳入监控。
+- Sentinel 或 Cluster 的故障转移已在非生产环境演练，客户端能够刷新拓扑。
+- 主从默认异步复制的丢失窗口已写入运维文档，并有对应的业务接受结论。
 
-```bash
-# ❌ 缓存 key 没有过期时间
-SET cache:user:1001 "{...}"
+持久化取舍见[持久化 RDB 与 AOF](../02-standalone-core/chapter-05-persistence.md)，拓扑选择见[首次生产部署](../10-practice/chapter-03-first-production.md)。
 
-# ✅ 设置合理 TTL
-SET cache:user:1001 "{...}" EX 300
-```
+### 网络与权限
 
-无 TTL 的 key 会永久占用内存，直到被淘汰策略踢出或手动删除。
+- Redis 只监听回环或私网地址，端口不对公网和不可信容器开放。
+- 防火墙或安全组只允许应用与运维网段访问。
+- 每个应用使用独立 ACL 用户，命令和 Key 模式符合最小权限。
+- 密钥通过环境变量或密钥管理系统注入，日志和仓库中没有凭据。
+- 跨不可信网络时启用 TLS，并验证证书、主机名和轮换流程。
+- `rename-command` 如有使用，只作为减少误操作的补充措施。
 
-### 1.6 短连接
+网络与认证要求见[首次生产部署](../10-practice/chapter-03-first-production.md)。
 
-```java
-// ❌ 每次操作都新建连接
-Jedis jedis = new Jedis("10.0.0.1", 6379);
-jedis.get("key");
-jedis.close();  // TCP 四次挥手
+## 检查可观测性
 
-// ✅ 使用连接池
-JedisPool pool = new JedisPool("10.0.0.1", 6379);
-try (Jedis jedis = pool.getResource()) {
-    jedis.get("key");
-}
-```
+- 延迟使用分位数和慢日志观察，不仅看平均值。
+- 监控 QPS、网络带宽、连接数、命中率、复制延迟和持久化状态。
+- 每个告警都有负责人、阈值依据、处理步骤和升级条件。
+- 能按实例、Key 前缀或客户端定位流量突增，不只保留聚合曲线。
+- 已建立正常负载基线，容量评估来自真实数据而不是示例值。
 
-## 2. 运维陷阱
+指标定义和告警设计见[监控告警](./chapter-03-monitoring.md)。
 
-### 2.1 主节点不持久化
+## 检查集群约束
 
-```bash
-# ❌ 主节点关闭持久化，靠从节点持久化
-save ""
+- 跨槽多 Key 操作已经消除，或通过哈希标签将相关 Key 放入同一槽。
+- Key 分布不会长期集中到单个主节点，迁移前后都检查槽分布。
+- 大 Key 在扩缩容前已拆分，迁移窗口经过压测。
+- 客户端正确处理 `MOVED`、`ASK` 和拓扑刷新，不在异常后无限重定向。
 
-# 问题：主节点宕机 → 哨兵提升从节点 → 但数据可能不全
-# 正确：主节点必须开启持久化
-save 900 1
-save 300 10
-```
+集群机制见[集群模式](../04-high-availability/chapter-03-cluster.md)。
 
-### 2.2 不设 maxmemory
+## 上线前签字项
 
-```bash
-# ❌ 不设内存上限
-# 问题：内存持续增长直到 OOM Killer
-
-# ✅ 设上限 + 淘汰策略
-maxmemory 4gb
-maxmemory-policy allkeys-lru
-```
-
-### 2.3 透明大页（THP）
-
-Linux 的 THP（Transparent Huge Pages）会导致 fork 性能下降：
-
-```bash
-# 检查 THP 状态
-cat /sys/kernel/mm/transparent_hugepage/enabled
-# [always] madvise never  ← 开启了
-
-# 关闭 THP
-echo never > /sys/kernel/mm/transparent_hugepage/enabled
-```
-
-> THP 导致 fork 时页表复制变慢，内存写入时 COW 复制的页更大。Redis 官方建议关闭 THP。
-
-### 2.4 appendfsync always
-
-```bash
-# ❌ 每条命令都 fsync
-appendfsync always   # 写入性能下降 10 倍以上
-
-# ✅ 每秒 fsync
-appendfsync everysec
-```
-
-### 2.5 单实例内存过大
-
-```bash
-# ❌ 单实例 50GB 数据
-# 问题：fork 耗时 > 1 秒，期间阻塞所有请求
-
-# ✅ 控制单实例 ≤ 10GB，用集群分片
-maxmemory 10gb
-```
-
-## 3. 集群陷阱
-
-### 3.1 跨槽多 key 命令
-
-```bash
-# ❌ 跨槽操作
-MGET user:1001 user:1002   # 不同槽，报错
-
-# ✅ 用哈希标签强制同槽
-MGET {user:1001}:name {user:1001}:age
-```
-
-### 3.2 热 Key 集中
-
-```bash
-# ❌ 所有热 key 都在同一分片
-# 导致该分片 QPS 远高于其他分片
-
-# ✅ 本地缓存 + key 复制分散
-SET hotkey:r1 value
-SET hotkey:r2 value
-SET hotkey:r3 value  # 分散到不同槽
-```
-
-### 3.3 大 Key 迁移
-
-```bash
-# ❌ 大 Key 在集群中迁移
-# 导致迁移卡住，影响集群性能
-
-# ✅ 先拆分大 Key，再迁移
-```
-
-## 4. 上线检查清单
-
-| 类别 | 检查项 | 通过 |
+| 类别 | 通过条件 | 结果 |
 | :-- | :-- | :-- |
-| 内存 | `maxmemory` 已设且留有余量 | □ |
-| 淘汰 | `maxmemory-policy` 符合业务 | □ |
-| 持久化 | 主节点开启持久化 | □ |
-| fsync | `appendfsync` 为 `everysec` | □ |
-| 过期 | 缓存 key 都设置了 TTL | □ |
-| 命令 | 无 KEYS、大 DEL 等危险命令 | □ |
-| 连接 | 客户端使用连接池 | □ |
-| THP | 透明大页已关闭 | □ |
-| 监控 | 内存、延迟、命中率已接入告警 | □ |
-| 高可用 | 哨兵/集群已配置 | □ |
-| 大 Key | 已扫描并处理大 Key | □ |
-| 热 Key | 已识别并做本地缓存或分散 | □ |
+| 容量 | 数据增长、内存、磁盘和带宽均有余量 | □ |
+| 性能 | 峰值负载下延迟和错误率达到业务目标 | □ |
+| 数据 | RPO、RTO、备份和恢复演练已有记录 | □ |
+| 高可用 | 故障转移和客户端拓扑刷新经过验证 | □ |
+| 安全 | 网络、ACL、TLS 和密钥注入检查完成 | □ |
+| 告警 | 核心指标有阈值、负责人和处理步骤 | □ |
+| 回滚 | 配置变更、版本升级和流量回退方案明确 | □ |
+| 降级 | Redis 不可用时应用行为符合预期 | □ |
 
-> 上线前的检查清单不是形式，而是把「踩过的坑」固化下来，避免重复犯错。
+任何一项无法确认时，应记录风险、责任人和截止时间；不要用“默认配置可用”代替验证结果。

@@ -1,6 +1,8 @@
-# 第一个 Redis 应用
+# Redis 常见任务上手
 
-> 打开 `redis-cli`，把五种基础类型各跑一个真实场景，再补上分布式锁——这是 Redis 最常用的几个套路。命令后带 `#` 的注释是「你预期会看到的返回」，边敲边对照。
+本页是任务式教程，不是连续项目。先按要解决的问题选择章节，再打开 `redis-cli` 执行示例。命令后的 `#` 注释表示预期返回；实际返回取决于已有数据。
+
+开始前启动一个开发实例，参见[在本机安装 Redis](./chapter-01-installation.md)。示例命令会创建测试 Key，生产环境不要直接执行。
 
 ## 1. String：计数器
 
@@ -24,7 +26,7 @@ GET article:1001:views         # "11"
 
 ## 2. String：缓存层
 
-读多写少的数据用缓存层扛住流量，遵循 Cache-Aside 模式。
+读多写少的数据可以使用 Cache Aside 模式。下面只展示 Redis 端的读写动作，不代表完整的缓存一致性方案。
 
 ```bash
 # 查询时先查缓存
@@ -51,7 +53,7 @@ HDEL cart:u001 p002            # (integer) 1  删除商品
 
 ## 4. List：消息队列
 
-List 两端操作 + `BLPOP` 阻塞弹出，是做简单任务队列的经典用法。
+List 两端操作配合 `BLPOP`，可以演示最简单的任务分发。
 
 两个终端配合：终端 A 作为消费者阻塞等待，终端 B 作为生产者入队。
 
@@ -74,6 +76,8 @@ RPUSH task:queue "send_email:user123"   # (integer) 1
 ```
 
 > `BLPOP` 的妙处：队列为空时消费者不会空转轮询，而是挂起等待，省 CPU。
+
+这个模式没有确认、重试和消费进度，不能直接承担不可丢失的任务。需要可靠消费时，参见[消息场景](../../scenarios/03-messaging/index.md)。
 
 ## 5. Set：共同好友
 
@@ -111,11 +115,11 @@ ZRANK leaderboard "alice"      # (integer) 0  仍是第 1 名
 
 ## 7. 分布式锁
 
-并发下「读-改-写」操作会互相覆盖，用 `SET NX EX` 原子加锁，Lua 保证解锁安全。
+下面的命令演示带过期时间和归属校验的锁。锁不能替代业务幂等和数据库事务，分布式锁的完整边界见[分布式锁](../../scenarios/02-concurrency/chapter-01-distributed-lock.md)。
 
 ```bash
 # 加锁（NX=不存在才设置，EX=过期时间）
-SET lock:order:1001 $request_id NX EX 30
+SET lock:order:1001 "request-8f31" NX EX 30
 
 # 解锁（Lua 脚本保证原子性）
 EVAL "
@@ -124,7 +128,7 @@ EVAL "
   else
     return 0
   end
-" 1 lock:order:1001 $request_id
+" 1 lock:order:1001 "request-8f31"
 ```
 
 > 锁必须带过期时间（防死锁），解锁必须校验归属（防误删别人的锁）。
