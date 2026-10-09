@@ -1,5 +1,13 @@
 # Source and Evidence Standard
 
+## Search the local knowledge base first
+
+For source code, official documentation, specifications, release notes, and version-specific behavior, first search `~/projects/source/tech-knowledge`. Check `metadata/sources.yaml` or equivalent metadata for the exact version, commit, home-relative location, and upstream source before using a result. Do not place personal absolute paths in repository content.
+
+- Use local official mirrors as trusted primary evidence when their provenance and version match the claim.
+- Use `notes/` only as an index or supporting summary; verify key conclusions against official originals.
+- Search online only when the local knowledge base lacks the required evidence or a newer applicable version.
+
 ## Select sources for the claim
 
 Different claims require different authority:
