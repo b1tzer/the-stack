@@ -1063,7 +1063,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
           items: [
             { text: '概览', link: '/redis/01-data-model/chapter-01-overview' },
             { text: '基础类型', link: '/redis/01-data-model/chapter-02-basic-types' },
-            { text: '高级类型', link: '/redis/01-data-model/chapter-03-advanced-types' },
+            { text: '高级数据能力', link: '/redis/01-data-model/chapter-03-advanced-types' },
             { text: '数据结构', link: '/redis/01-data-model/chapter-04-data-structures' },
             { text: '对象编码', link: '/redis/01-data-model/chapter-05-object-encoding' },
             { text: '数据模型生产案例', link: '/redis/01-data-model/chapter-06-production-cases' },
@@ -1086,6 +1086,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
           text: '高可用',
           collapsed: true,
           items: [
+            { text: '高可用方案选型', link: '/redis/04-high-availability/chapter-00-overview' },
             { text: '主从复制', link: '/redis/04-high-availability/chapter-01-replication' },
             { text: '哨兵', link: '/redis/04-high-availability/chapter-02-sentinel' },
             { text: '集群', link: '/redis/04-high-availability/chapter-03-cluster' },

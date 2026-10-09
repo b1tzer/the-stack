@@ -1,4 +1,4 @@
-# 高级数据类型
+# 高级数据能力
 
 > 除了五种基础类型，Redis 还提供四类常用扩展能力：BitMap、HyperLogLog、Geo 和 Stream。前三种建立在既有类型之上，Stream 才是独立的数据类型。
 
@@ -136,7 +136,7 @@ for (StreamEntry entry : entries) {
 | Geo | ZSet | `GEOADD`/`GEOSEARCH` | 附近的人、配送 | 约 0.6 米（52 位 Geohash） |
 | Stream | Radix Tree | `XADD`/`XREADGROUP` | 消息队列 | 需消费者组管理 |
 
-## 6. 实操演示：四种高级类型场景
+## 6. 实操演示：四种高级数据能力场景
 
 ### 6.1 场景一：每日签到（BitMap）
 

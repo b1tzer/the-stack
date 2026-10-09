@@ -137,7 +137,7 @@ redis-check-aof --fix /data/redis/appendonly.aof                # 截断损坏�
 
 Redis 的过期清理靠「惰性删除 + 定期删除」配合。定期删除在**主线程**里执行：随机抽样 20 个键，删掉已过期的；默认 effort 下，残留比例仍高于 10% 就继续扫描，同时受 CPU 时间预算约束。当海量键集中过期时，抽样几乎每轮都能命中过期键，清理循环持续占用主线程，批量 `unlink` 命令集中产生，CPU 被清理任务占满，正常读写被延迟。
 
-这正是[过期与淘汰 §1.6](./chapter-06-expiration-eviction.md#production-notes) 点名的「大量键同时过期，触发定期删除风暴，CPU 飙升」。
+这正是[过期删除的生产注意事项](./chapter-06-expiration-eviction.md#production-notes) 点名的「大量键同时过期，触发定期删除风暴，CPU 飙升」。
 
 ### 6.3 处理与预防
 

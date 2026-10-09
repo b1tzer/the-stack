@@ -58,7 +58,7 @@ String 是单值结构，一个 key 对应一整块 value（见[基础类型 §1
 
 ### 3.2 根因
 
-BitMap 不是独立类型，它建立在 String 之上（见[高级类型 §1](./chapter-03-advanced-types.md#bitmap)）。Redis 按 offset 分配连续内存：把第 N 位设为 1，就分配 `ceil(N/8)` 字节，中间空位全部填 0。
+BitMap 不是独立类型，它建立在 String 之上（见[BitMap 位操作](./chapter-03-advanced-types.md#bitmap)）。Redis 按 offset 分配连续内存：把第 N 位设为 1，就分配 `ceil(N/8)` 字节，中间空位全部填 0。
 
 内存占用 = 最大 offset ÷ 8，与「实际置 1 的位数」无关。稀疏 ID 下，只有少数位是 1，内存却按最大 offset 全量分配：
 
@@ -106,7 +106,7 @@ HDEL h c
 OBJECT ENCODING h                           # 仍是 "hashtable"，不会降回
 ```
 
-intset 有相同的单向机制（见[底层数据结构 §5.2](./chapter-04-data-structures.md#intset-upgrade)）：Set 全存小整数时用 16 位 intset，存入一个 70000 升级为 32 位，删掉后仍是 32 位。
+intset 有相同的单向机制（见[只升级、不降级](./chapter-04-data-structures.md#intset-upgrade)）：Set 全存小整数时用 16 位 intset，存入一个 70000 升级为 32 位，删掉后仍是 32 位。
 
 ### 4.3 处理与预防
 
@@ -127,7 +127,7 @@ intset 有相同的单向机制（见[底层数据结构 §5.2](./chapter-04-dat
 
 两类现象来自两个不同层面，机制不同，不能用一个原因解释。
 
-**单 key 缩短不降，来自 SDS 惰性释放**（见[底层数据结构 §1.3](./chapter-04-data-structures.md#sds-prealloc)）。SDS 缩短字符串（`sdstrim`、`sdsclear` 这类内部操作）只改 `len`、不减小 `alloc`，多出的空间留给同一对象后续写入复用。它只发生在对象内部，规模很小；`SET` 整体覆盖或 `DEL` 会调用 `sdsfree` 真正释放旧值，不属于此列。
+**单 key 缩短不降，来自 SDS 惰性释放**（见[空间预分配](./chapter-04-data-structures.md#sds-prealloc)）。SDS 缩短字符串（`sdstrim`、`sdsclear` 这类内部操作）只改 `len`、不减小 `alloc`，多出的空间留给同一对象后续写入复用。它只发生在对象内部，规模很小；`SET` 整体覆盖或 `DEL` 会调用 `sdsfree` 真正释放旧值，不属于此列。
 
 **进程整体碎片不降，来自分配器**。jemalloc 释放内存后不立即归还操作系统，而是留在自己的内存池复用，导致 RSS 高于逻辑数据量。这是分配器行为，与 SDS 无关。
 

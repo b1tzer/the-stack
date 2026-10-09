@@ -27,13 +27,30 @@ INFO commandstats
 # cmdstat_keys:calls=10,usec=500000,usec_per_call=50000.00  ← 这个有问题
 ```
 
-## 2. 延迟突增排查
+## 2. 排查方法论
+
+![排查方法论循环](/redis/05-operations-chapter-02-troubleshooting-2.svg)
+
+```txt
+观察现象 → 收集指标 → 提出假设 → 验证假设 → 修复 → 监控
+```
+
+| 步骤 | 说明 |
+| :-- | :-- |
+| 观察现象 | 明确是延迟、内存还是 CPU 问题 |
+| 收集指标 | 用 INFO、SLOWLOG 收集客观数据 |
+| 提出假设 | 基于指标缩小范围（慢命令？fork？swap？） |
+| 验证假设 | 用数据证实或推翻，不凭直觉 |
+| 修复 | 替换慢命令、调配置、扩内存 |
+| 监控 | 修复后持续观察，确认问题消除 |
+
+## 3. 延迟突增排查
 
 延迟突增是最常见的故障，按顺序排查：
 
 ![延迟排查顺序](/redis/05-operations-chapter-02-troubleshooting-1.svg)
 
-### 2.1 慢命令
+### 3.1 慢命令
 
 ```bash
 SLOWLOG GET 10
@@ -41,7 +58,7 @@ SLOWLOG GET 10
 # 如果看到 DEL 大 Key → 用 UNLINK 替代
 ```
 
-### 2.2 fork 停顿
+### 3.2 fork 停顿
 
 ```bash
 INFO stats | grep latest_fork_usec
@@ -53,7 +70,7 @@ INFO stats | grep latest_fork_usec
 # 3. 评估副本分担持久化任务的可行性和数据恢复影响
 ```
 
-### 2.3 AOF fsync 阻塞
+### 3.3 AOF fsync 阻塞
 
 ```bash
 # 检查 fsync 延迟
@@ -66,7 +83,7 @@ redis-cli INFO persistence | grep aof_delayed_fsync
 # 3. 评估 no-appendfsync-on-rewrite；它会扩大重写期间的数据丢失窗口
 ```
 
-### 2.4 swap 导致的延迟
+### 3.4 swap 导致的延迟
 
 ```bash
 # RSS 高于 used_memory 也可能来自分配器碎片，不能据此判定 swap
@@ -81,7 +98,7 @@ grep -E "SwapTotal|SwapFree" /proc/meminfo
 
 swap 的解决：增加物理内存，或减小 maxmemory。
 
-## 3. 内存异常排查
+## 4. 内存异常排查
 
 | 现象 | 可能原因 | 排查方法 |
 | :-- | :-- | :-- |
@@ -104,7 +121,7 @@ INFO memory
 # mem_fragmentation_ratio:1.50
 ```
 
-## 4. CPU 飙升排查
+## 5. CPU 飙升排查
 
 | 排查点 | 命令 | 说明 |
 | :-- | :-- | :-- |
@@ -123,7 +140,7 @@ INFO cpu
 # used_cpu_user:5678.90
 ```
 
-## 5. 连接数异常
+## 6. 连接数异常
 
 | 现象 | 可能原因 | 排查 |
 | :-- | :-- | :-- |
@@ -139,7 +156,7 @@ CLIENT LIST | awk '{print $2}' | sort | uniq -c | sort -rn
 CONFIG GET maxclients
 ```
 
-## 6. 集群故障排查
+## 7. 集群故障排查
 
 | 现象 | 可能原因 | 排查 |
 | :-- | :-- | :-- |
@@ -147,20 +164,3 @@ CONFIG GET maxclients
 | ASK 重定向 | 槽迁移中 | `CLUSTER STATE` |
 | 节点下线 | 网络或内存问题 | `CLUSTER NODES` |
 | 数据不一致 | 复制延迟 | `INFO replication` |
-
-## 7. 排查方法论
-
-![排查方法论循环](/redis/05-operations-chapter-02-troubleshooting-2.svg)
-
-```txt
-观察现象 → 收集指标 → 提出假设 → 验证假设 → 修复 → 监控
-```
-
-| 步骤 | 说明 |
-| :-- | :-- |
-| 观察现象 | 明确是延迟、内存还是 CPU 问题 |
-| 收集指标 | 用 INFO、SLOWLOG 收集客观数据 |
-| 提出假设 | 基于指标缩小范围（慢命令？fork？swap？） |
-| 验证假设 | 用数据证实或推翻，不凭直觉 |
-| 修复 | 替换慢命令、调配置、扩内存 |
-| 监控 | 修复后持续观察，确认问题消除 |

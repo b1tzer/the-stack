@@ -18,6 +18,7 @@
 - [五种基础数据类型](./01-data-model/chapter-02-basic-types.md)
 - [线程模型](./02-standalone-core/chapter-01-thread-model.md)
 - [持久化 RDB 与 AOF](./02-standalone-core/chapter-05-persistence.md)
+- [高可用方案选型](./04-high-availability/chapter-00-overview.md)
 - [主从复制](./04-high-availability/chapter-01-replication.md)
 
 ## 完成生产运维

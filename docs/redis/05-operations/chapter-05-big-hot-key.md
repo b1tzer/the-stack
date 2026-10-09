@@ -84,7 +84,7 @@ DEL queue:tasks:pending
 UNLINK queue:tasks:pending
 ```
 
-### 1.5 Hash 分片示例
+#### Hash 分片示例
 
 将一个大 Hash 按 ID 取模拆分到多个子 Hash：
 

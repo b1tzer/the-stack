@@ -147,7 +147,20 @@ slow 模式每次执行：
 
 > 从库的过期键处理依赖主节点的 DEL 传播。如果主从之间网络延迟大，从库可能短暂返回已过期的数据。
 
-### 1.6 过期删除的坑 {#production-notes}
+### 1.6 Hash 字段过期（Redis 7.4+） {#hash-field-expiry}
+
+Redis 7.4 起，除了给整个 Key 设置 TTL，还可以只让 Hash 中的部分字段过期：
+
+```bash
+HSET session:alice status active profile cached
+HEXPIRE session:alice 300 NX FIELDS 2 status profile
+HTTL session:alice FIELDS 2 status profile
+HPERSIST session:alice FIELDS 1 status
+```
+
+`HEXPIRE`、`HEXPIREAT`、`HPEXPIRE`、`HPEXPIREAT` 设置字段过期时间，`HTTL`、`HPTTL` 查询剩余时间，`HPERSIST` 移除字段过期时间。字段级 TTL 与 Key 级 TTL 相互独立：字段过期不会自动设置整个 Hash 的 TTL，Key 过期时则整个 Hash 及其字段都会失效。
+
+### 1.7 过期删除的坑 {#production-notes}
 
 | 问题 | 说明 |
 | :-- | :-- |
@@ -348,16 +361,3 @@ maxmemory 8gb
 maxmemory-policy allkeys-lfu
 maxmemory-samples 10
 ```
-
-### 2.8 Hash 字段过期（Redis 7.4+） {#hash-field-expiry}
-
-Redis 7.4 起，除了给整个 Key 设置 TTL，还可以只让 Hash 中的部分字段过期：
-
-```bash
-HSET session:alice status active profile cached
-HEXPIRE session:alice 300 NX FIELDS 2 status profile
-HTTL session:alice FIELDS 2 status profile
-HPERSIST session:alice FIELDS 1 status
-```
-
-`HEXPIRE`、`HEXPIREAT`、`HPEXPIRE`、`HPEXPIREAT` 设置字段过期时间，`HTTL`、`HPTTL` 查询剩余时间，`HPERSIST` 移除字段过期时间。字段级 TTL 与 Key 级 TTL 相互独立：字段过期不会自动设置整个 Hash 的 TTL，Key 过期时则整个 Hash 及其字段都会失效。

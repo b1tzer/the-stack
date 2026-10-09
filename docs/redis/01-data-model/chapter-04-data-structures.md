@@ -49,9 +49,34 @@ SDS 扩容时会多分配一些空间，减少后续修改的内存分配次数�
 
 惰性释放：缩短字符串时不立即回收空间，而是更新 len，等下次修改时再决定是否回收。
 
-## 2. 链表与 quicklist
+## 2. listpack（压缩列表替代）
 
-### 2.1 双向链表
+Redis 7.0 用 listpack 替代了 ziplist。listpack 解决了 ziplist 的「连锁更新」问题。
+
+### 2.1 ziplist 的连锁更新问题
+
+ziplist 每个节点的 `previous_entry_length` 记录前一个节点的长度（1字节或5字节）。当某个节点从短变长（跨越254字节阈值），后续所有节点的 `previous_entry_length` 都要从1字节扩展到5字节，可能引发连锁反应。
+
+```txt
+连锁更新：节点A变长 → 节点B的prevlen扩展 → 节点B变长 → 节点C的prevlen扩展 → ...
+最坏情况：O(n^2) 时间复杂度
+```
+
+### 2.2 listpack 的改进
+
+listpack 去掉了 `previous_entry_length`，每个节点记录自己的长度而非前一个节点的长度：
+
+```txt
+listpack 节点：[encoding][data][self-len]
+```
+
+节点长度变化只影响自己，不会波及其他节点，彻底消除连锁更新。
+
+![ziplist 连锁更新 vs listpack](/redis/01-data-model-chapter-04-data-structures-7.svg)
+
+## 3. 链表与 quicklist
+
+### 3.1 双向链表
 
 Redis 的 List 底层最初是双向链表：
 
@@ -72,7 +97,7 @@ typedef struct list {
 
 纯链表的问题：每个节点单独分配内存，指针开销大（prev+next 16字节/节点），内存碎片多。
 
-### 2.2 quicklist：链表 + listpack
+### 3.2 quicklist：链表 + listpack
 
 Redis 7.0 的 List 底层是 quicklist——一个双向链表，每个节点是一个连续内存的 listpack：
 
@@ -104,7 +129,7 @@ list-compress-depth 0       # 中间节点 LZF 压缩深度（0=不压缩，默�
 
 ![quicklist 三层结构与中间压缩](/redis/01-data-model-chapter-04-data-structures-9.svg)
 
-## 3. 字典（dict）
+## 4. 字典（dict）
 
 字典是 Redis 最核心的结构——所有键值对都存在字典里。它是一个哈希表：用桶数组定位 key，用链表解决冲突，负载过高时通过渐进式 rehash 扩容。任何一次 `GET` / `SET` 都要先在这个字典里定位 key。
 
@@ -118,7 +143,7 @@ dict 同时承担三类职责：
 
 注意区分两个名词：`dict` 是底层数据结构（`dict.c` 里的通用哈希表，用户不可见），`Hash` 是对外数据类型（`HSET` / `HGET` 命令族）。Hash 可能用 dict 作为底层编码，但并非必然——field 少、值小时用 listpack 编码（见[对象系统与编码](./chapter-05-object-encoding.md)），此时底层不是 dict；反过来，`redisDb.dict`、`redisDb.expires` 都是 dict，却都不是 Hash 类型。
 
-### 3.1 结构
+### 4.1 结构
 
 ```c
 typedef struct dict {
@@ -152,7 +177,7 @@ typedef struct dictEntry {
 
 ![字典结构](/redis/01-data-model-chapter-04-data-structures-5.svg)
 
-### 3.2 一次查找的流程
+### 4.2 一次查找的流程
 
 以 `GET user:1001` 为例，dict 定位 key 的完整链路：
 
@@ -186,7 +211,7 @@ typedef struct dictEntry {
 
 **为什么先比指针、再比内容？** `dictEntry` 里不存哈希值，遍历链表时先 `key == he->key` 判断是否同一个对象，相等直接命中；指针不同才调用 `dictCompareKeys` 逐字节比较内容。这样把昂贵的字符串比较次数降到最低。
 
-### 3.3 为什么必须 rehash
+### 4.3 为什么必须 rehash
 
 ![渐进式 rehash](/redis/01-data-model-chapter-04-data-structures-1.svg)
 
@@ -198,7 +223,7 @@ rehash 表面是「把数据从 ht[0] 搬到 ht[1]」，本质要回答三个「
 
 **为什么必须渐进式，而非一次性搬完？** Redis 是单线程。若一次性把几百万个 key 从 ht[0] 搬到 ht[1]，主线程会阻塞数百毫秒甚至数秒，期间无法响应任何命令。渐进式把「一次性大迁移」拆成「每次增删改查顺带搬一个桶」，把长停顿摊薄成无数次可忽略的微小停顿，服务始终可用。
 
-### 3.4 渐进式 rehash 的实现 {#rehash-how}
+### 4.4 渐进式 rehash 的实现 {#rehash-how}
 
 三个「为什么」共同决定了 rehash 的形态：`ht[2]` 双表让新旧数据在迁移期间并存，`rehashidx` 记录「搬到哪了」，迁移因此可以随时暂停、随时继续。
 
@@ -229,13 +254,13 @@ rehash 表面是「把数据从 ht[0] 搬到 ht[1]」，本质要回答三个「
 
 > 渐进式 rehash 期间，字典同时使用两个哈希表：查找时两个表都查，插入时只进新表。这避免了单次全量迁移的长停顿，但每次操作仍会承担少量额外搬迁成本。
 
-## 4. 跳表（skiplist）
+## 5. 跳表（skiplist）
 
 跳表是 ZSet 的底层结构之一（当元素较多时），支持 O(log n) 的范围查询。
 
 ![跳表结构](/redis/01-data-model-chapter-04-data-structures-2.svg)
 
-### 4.1 结构
+### 5.1 结构
 
 ```c
 typedef struct zskiplistNode {
@@ -269,7 +294,7 @@ typedef struct zskiplist {
 
 `span` 之所以能支撑排名，是因为它记录的是「当前层从本节点到下一个节点之间跨越了多少个节点」，而非简单的指针距离。层数越低跨越越少，累加结果就是精确排名。
 
-### 4.2 层高随机化
+### 5.2 层高随机化
 
 每个节点的层数是随机的，概率为：
 
@@ -283,7 +308,7 @@ P(level ≥ n) = 1/4^(n-1)
 
 层数越高概率越低，形成「金字塔」结构——底层密集、高层稀疏。这保证了跳表的平均查找效率为 O(log n)。
 
-### 4.3 跳表 vs 红黑树
+### 5.3 跳表 vs 红黑树
 
 | 维度 | 跳表 | 红黑树 |
 | :-- | :-- | :-- |
@@ -300,13 +325,13 @@ Redis 选择跳表的原因：实现简单、范围查询天然支持（`ZRANGEB
 - [Skip List Visualizer](https://alltools.dev/tools/visualizations/skip-list-visualizer)（独立跳表演示，可调参数 p 观察层级分布）
 :::
 
-## 5. 整数集合（intset）
+## 6. 整数集合（intset）
 
 Set 有两种底层编码：元素多或含非整数时用 hashtable 编码，元素少且全是整数时用 intset。
 
 intset 解决的是内存问题。hashtable 编码本质是 dict（见第 3 节），每存一个整数都要分配一个 `dictEntry`，含 key 指针、value、next 指针，单个整数就要数十字节开销。intset 用连续数组紧凑存储整数，没有指针、没有桶数组，在小整数集合场景下显著省内存。
 
-### 5.1 结构
+### 6.1 结构
 
 ```c
 typedef struct intset {
@@ -328,7 +353,7 @@ typedef struct intset {
 
 ![整数集合结构](/redis/01-data-model-chapter-04-data-structures-6.svg)
 
-### 5.2 只升级，不降级 {#intset-upgrade}
+### 6.2 只升级，不降级 {#intset-upgrade}
 
 intset 的编码升级是**单向**的：一旦因为存入大整数从 16 位升到 32 位（或 64 位），之后即使删掉那个大整数，编码也不会降回 16 位。
 
@@ -343,31 +368,6 @@ SREM nums 70000        # 删掉大整数后，encoding 仍是 32 位，不回退
 为什么只升不降？降级需要把整个 `contents` 数组重新拷贝一遍（从 4 字节元素缩成 2 字节），而 intset 本身只服务于「数量少」的集合——超过 `set-max-intset-entries`（默认 512）就会转成 hashtable。在元素这么少的前提下，省下的内存微乎其微，却要付出一次全量拷贝的代价，得不偿失。
 
 > 换句话说：intset 的生命周期里，编码只会因为「装不下」而升，不会因为「空出来」而降。这是用「少量内存冗余」换「避免频繁拷贝」的取舍。
-
-## 6. listpack（压缩列表替代）
-
-Redis 7.0 用 listpack 替代了 ziplist。listpack 解决了 ziplist 的「连锁更新」问题。
-
-### 6.1 ziplist 的连锁更新问题
-
-ziplist 每个节点的 `previous_entry_length` 记录前一个节点的长度（1字节或5字节）。当某个节点从短变长（跨越254字节阈值），后续所有节点的 `previous_entry_length` 都要从1字节扩展到5字节，可能引发连锁反应。
-
-```txt
-连锁更新：节点A变长 → 节点B的prevlen扩展 → 节点B变长 → 节点C的prevlen扩展 → ...
-最坏情况：O(n^2) 时间复杂度
-```
-
-### 6.2 listpack 的改进
-
-listpack 去掉了 `previous_entry_length`，每个节点记录自己的长度而非前一个节点的长度：
-
-```txt
-listpack 节点：[encoding][data][self-len]
-```
-
-节点长度变化只影响自己，不会波及其他节点，彻底消除连锁更新。
-
-![ziplist 连锁更新 vs listpack](/redis/01-data-model-chapter-04-data-structures-7.svg)
 
 ## 7. 小结
 
