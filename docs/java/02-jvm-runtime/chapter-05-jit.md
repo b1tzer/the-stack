@@ -103,9 +103,7 @@ OSR 编译的代码质量通常略低于正常编译——因为它需要在循�
 
 ## 3. 方法内联
 
-**最重要的 JIT 优化，没有之一。**
-
-方法内联将被调用方法的代码直接嵌入调用方，消除方法调用开销（栈帧创建与销毁、参数传递、返回值处理）。
+方法内联将被调用方法的代码直接嵌入调用方，减少方法调用开销，包括栈帧创建与销毁、参数传递和返回值处理。它是后续多项优化的基础。
 
 ### 3.1 内联的效果
 
@@ -139,7 +137,7 @@ public int calculate() { return 10; }
   → 标量替换，消除 result 对象
 ```
 
-没有内联，逃逸分析和常量折叠都无法进行——因为方法调用是"黑盒"，JIT 看不到方法内部。
+内联会把调用方和被调用方的中间表示放到一起，使常量折叠和逃逸分析更容易跨调用边界进行。具体是否应用这些优化，仍取决于 JVM 的分析结果和运行时配置。
 
 ### 3.3 内联阈值
 
@@ -197,7 +195,7 @@ parser.parse(data);  // invokeinterface
 
 ## 4. 逃逸分析与相关优化
 
-[HotSpot 对象布局](./chapter-03-object-layout.md)已经介绍了逃逸分析的概念。JIT 编译器利用逃逸分析的结果做三种优化：
+逃逸分析判断对象或同步操作是否可能被方法外或当前线程外观察。C2 编译器可以利用分析结果尝试三类优化：
 
 ### 4.1 栈上分配
 
@@ -241,7 +239,7 @@ int sum = x + y;
 ```java
 // JIT 发现 sb 不会逃逸
 public String concat(String[] parts) {
-    StringBuilder sb = new StringBuilder();  // 局部变量，不逃逸
+    StringBuffer sb = new StringBuffer();  // 局部变量，不逃逸
     for (String part : parts) {
         sb.append(part);  // synchronized 块被消除
     }
@@ -249,7 +247,7 @@ public String concat(String[] parts) {
 }
 ```
 
-`StringBuilder.append()` 内部有 `synchronized`，但 JIT 通过逃逸分析发现 `sb` 不会逃逸出方法，不可能被其他线程访问，因此安全地消除了锁。
+`StringBuffer.append()` 内部使用 `synchronized`。JIT 通过逃逸分析发现 `sb` 不会逃逸出方法，不可能被其他线程访问，因此可以消除这个同步操作。
 
 ### 4.4 逃逸分析的局限
 
@@ -287,13 +285,13 @@ sum += arr[3];
 ```java
 // 原始
 for (int i = 0; i < n; i++) {
-    result += arr[i] * Math.PI;  // Math.PI 每次都计算
+    result += arr[i] * Math.sqrt(base);
 }
 
 // 优化后
-double pi = Math.PI;  // 外提
+double scale = Math.sqrt(base);  // 循环不变量外提
 for (int i = 0; i < n; i++) {
-    result += arr[i] * pi;
+    result += arr[i] * scale;
 }
 ```
 
@@ -391,9 +389,9 @@ parser.parse(data);
 
 JIT 在生产环境中可能引发三类隐蔽问题：
 
-### 7.1 问题一：CodeCache 满
+### 7.1 问题一：CodeCache 满 {#codecache-full}
 
-JIT 编译的机器码存储在 CodeCache 中（[JVM 运行时数据区](./chapter-02-runtime-data-areas.md) 6.2 节）。CodeCache 容量不足时，HotSpot 会停止接受新的编译，已有已编译代码通常仍可继续执行；只有发生特定反优化事件的路径才会退回解释执行。容量上限和缺省值取决于 JDK 版本、CPU 与配置，不能用一个固定区间概括所有环境。
+JIT 编译的机器码存储在 CodeCache 中，其位置和职责见[JVM 运行时数据区中的 CodeCache](./chapter-02-runtime-data-areas.md#codecache)。CodeCache 容量不足时，HotSpot 会停止接受新的编译，已有已编译代码通常仍可继续执行；只有发生特定反优化事件的路径才会退回解释执行。容量上限和缺省值取决于 JDK 版本、CPU 与配置，不能用一个固定区间概括所有环境。
 
 **症状：** 服务运行一段时间后突然变慢，没有 OOM、没有 GC 问题、CPU 使用率正常——但响应时间骤增。
 
@@ -466,4 +464,4 @@ JFR 中的 JIT 相关事件：
 - `CompilerInlining`：方法被内联
 - `Deoptimization`：去优化事件
 
-> 本章解释了热点代码可能随分层编译而改变执行性能。下一章将部分 JVM 原理应用于线上问题排查与诊断。
+> 本章解释了热点代码如何随分层编译改变执行性能。下一步进入[堆外内存](./chapter-06-offheap-memory.md)，理解不属于 Java 堆、但会计入进程内存的本地内存区域。

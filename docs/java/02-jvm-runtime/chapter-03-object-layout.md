@@ -1,8 +1,8 @@
 # HotSpot 对象布局
 
-> 面试官问：`new Object()` 占多少字节？你说 16 字节——说得不错。但加上 `int` 字段就是 16 还是 24？加上引用字段呢？数组头比对象头多了哪 4 个字节？对齐填充什么时候触发？HotSpot 默认 8 字节对齐——你的 Object 到 new Object() 之间，有一整套内存布局规则。这章的目标不是让你背数字，是让你能对着 JOL 输出说清楚每一 bit 在干什么。
+`new Object()` 占多少字节，取决于对象头、实例字段和对齐填充。本章解释 HotSpot 如何组织这三部分，以及对象头中的 Mark Word 如何随锁状态变化。目标不是记住一组随 JVM 版本和配置变化的数字，而是看到对象布局后能说明每个字段的用途。
 
-## 1. new 一个对象发生了什么
+## 1. new 一个对象发生了什么 {#object-creation}
 
 ```java
 User user = new User();
@@ -10,9 +10,15 @@ User user = new User();
 
 JVM 执行的操作：
 
-![jvm-object-layout](/java/jvm-object-layout.svg)
+1. 检查 `User` 类是否已经加载，必要时先完成类加载。
+2. 在堆中分配对象内存。TLAB 内使用指针碰撞分配；TLAB 耗尽后可能需要 CAS。
+3. 将实例字段初始化为零值：`int` 为 0，`boolean` 为 false，引用为 null。
+4. 写入对象头，包括 Mark Word 和 Klass Pointer。
+5. 执行构造方法 `<init>`，把字段初始化为程序指定的值。
 
-步骤 3 保证了 Java 的安全特性——字段在使用前一定有确定的值，不会读到脏数据。
+![new User() 的五步对象创建流程](/java/jvm-object-creation.svg)
+
+第 3 步保证字段在使用前已有确定的零值，避免读到未初始化的内存；第 5 步才执行开发者编写的构造逻辑。
 
 ## 2. 对象内存布局
 
@@ -138,88 +144,4 @@ synchronized (obj) {
 
 Monitor 是重量级的数据结构，依赖操作系统的 Mutex 实现。JVM 通常先尝试轻量级锁；启用偏向锁的配置才会先经过偏向锁阶段，只有竞争持续存在时才升级到重量级锁。[`synchronized` 章节](../03-java-concurrency/chapter-06-synchronized.md)会展开锁升级的完整过程。
 
-## 4. TLAB（线程本地分配缓冲）
-
-多线程环境下，多个线程同时在 Eden 区分配对象需要同步。TLAB 解决了这个问题：
-
-- 每个线程在 Eden 区有一块**私有缓冲区**
-- TLAB 内分配只需要移动指针，**无需 CAS**
-- TLAB 用完才需要同步申请新缓冲区
-
-```txt
-Eden 区
-├── TLAB for Thread A  [已用: 3KB / 总共: 8KB]
-├── TLAB for Thread B  [已用: 1KB / 总共: 8KB]
-└── TLAB for Thread C  [已用: 5KB / 总共: 8KB]
-```
-
-`-XX:+UseTLAB` 默认开启。这就是为什么 Java 多线程创建对象这么快——大部分情况下不需要真正的同步。
-
-### 4.1 TLAB 的关键参数
-
-| 参数 | 默认值 | 说明 |
-| :-- | :-- | :-- |
-| `-XX:+UseTLAB` | 开启 | 是否使用 TLAB |
-| `-XX:TLABSize` | 自适应 | 单个 TLAB 的初始大小 |
-| `-XX:MinTLABSize` | 2KB | TLAB 最小大小 |
-| `-XX:TLABRefillWasteFraction` | 64 | TLAB 浪费比例阈值 |
-| `-XX:+ResizeTLAB` | 开启 | 允许 JVM 动态调整 TLAB 大小 |
-
-TLAB 有一个"碎片化"问题：TLAB 内部用指针碰撞分配对象，当剩余空间不够下一个对象时，剩余空间被浪费（padding 填充）。`TLABRefillWasteFraction` 控制浪费的容忍度——如果浪费比例超过阈值，JVM 会申请一个新的 TLAB，而不是在剩余空间中硬塞。`-XX:+ResizeTLAB` 让 JVM 根据线程的分配速率动态调整 TLAB 大小，分配速率高的线程获得更大的 TLAB。
-
-## 5. 逃逸分析
-
-逃逸分析是 JIT 编译器的一种分析技术，判断对象是否"逃逸"出方法或线程的范围。
-
-### 5.1 什么是逃逸
-
-```java
-// 未逃逸：对象只在方法内部使用
-public void process() {
-    User user = new User("Tom");  // user 不会离开这个方法
-    System.out.println(user.getName());
-}
-
-// 逃逸：对象被外部引用
-public User createUser() {
-    User user = new User("Tom");
-    return user;  // user 逃逸到了方法外部
-}
-```
-
-### 5.2 未逃逸对象的三种优化
-
-**1. 栈上分配。** 如果对象不逃逸，可以在栈帧上创建，方法结束时自动销毁，不需要 GC 回收。
-
-**2. 标量替换。** 将对象拆散为基本类型标量：
-
-```java
-// 原始代码
-Point p = new Point(1, 2);
-int sum = p.x + p.y;
-
-// 标量替换后（JIT 优化）
-int x = 1, y = 2;
-int sum = x + y;
-// Point 对象完全消除了
-```
-
-**3. 锁消除。** 如果对象不逃逸出方法，不可能被其他线程访问，那么对它的同步操作可以安全去除。
-
-这三种优化都依赖逃逸分析的结果。JIT 编译器会在编译时分析对象的使用范围，决定是否应用这些优化。
-
-### 5.3 逃逸分析的局限
-
-逃逸分析并非万能，有几个实际局限：
-
-1. **栈上分配在 HotSpot 中实现不完善。** HotSpot 的 C2 编译器做逃逸分析后，真正走"栈上分配"路径的情况很少——大部分优化走的是标量替换（更彻底，连栈上的对象都不创建）。栈上分配需要 GC 配合（对象头需要特殊标记以区分栈上对象和堆对象），实现复杂度高。
-
-2. **分析本身有开销。** 逃逸分析需要遍历方法的 IR（中间表示），对于大型方法可能增加编译时间。JVM 只对热点方法做逃逸分析。
-
-3. **逃逸是保守估计。** 如果分析器无法确定对象是否逃逸（比如通过数组间接引用），会保守地认为逃逸，放弃优化。
-
-4. **跨方法逃逸分析有限。** HotSpot 的逃逸分析主要在方法内进行，跨方法的分析能力有限。如果对象在方法 A 创建、传给方法 B 使用，即使方法 B 也不逃逸，也可能无法优化。
-
-`-XX:+DoEscapeAnalysis` 默认开启，`-XX:+EliminateAllocations`（标量替换）默认开启，`-XX:+EliminateLocks`（锁消除）默认开启。一般不需要手动调整。
-
-> 本章覆盖了对象从创建到消亡的完整生命周期。下一章进入[垃圾回收](./chapter-04-gc.md)，解释 JVM 如何识别和回收不再使用的对象；对象头与 Monitor 的运行方式可继续对照 [`synchronized`](../03-java-concurrency/chapter-06-synchronized.md)。
+> 本章解释了对象的内存布局和对象头在锁状态下的变化。下一章进入[垃圾回收](./chapter-04-gc.md)，解释 JVM 如何识别和回收不再使用的对象；线程分配与逃逸优化分别见[运行时数据区](./chapter-02-runtime-data-areas.md)和[JIT 编译](./chapter-05-jit.md)，Monitor 的使用方式可继续对照 [`synchronized`](../03-java-concurrency/chapter-06-synchronized.md)。

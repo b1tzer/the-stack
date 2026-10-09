@@ -68,7 +68,7 @@ public class UserService {
 
 每个栈帧里都有一个"指针"指向运行时常量池——这就是动态链接。它的作用很直接：方法执行时，JVM 通过它找到目标方法的字节码入口。没有它，多态就无法工作。
 
-这和[第一章](./chapter-01-bytecode-classloading)讲的"解析阶段"直接相关。静态方法、final 方法在类加载时就解析为直接引用（静态解析），但虚方法和接口方法的解析是延迟的——每次调用时通过动态链接查找实际目标。这就是多态在栈帧层面的支撑：
+这和[第一章的解析阶段](./chapter-01-bytecode-classloading.md#resolution)直接相关。静态方法、final 方法在类加载时就解析为直接引用（静态解析），但虚方法和接口方法的解析是延迟的——每次调用时通过动态链接查找实际目标。这就是多态在栈帧层面的支撑：
 
 ```txt
 // 编译时：invokevirtual 的目标是父类方法的符号引用
@@ -121,7 +121,7 @@ JSP 页面编译成 Servlet 后，整个页面的逻辑在一个 `_jspService()`
 
 ## 3. 程序计数器：线程切换后为什么还能接着跑
 
-程序计数器可以把它理解为 **当前线程下一条将要执行的字节码位置**。线程一旦发生切换，JVM 之所以还能在恢复后继续执行。
+可以把程序计数器理解为 **当前线程下一条将要执行的字节码位置**。线程切换后，JVM 正是依靠它恢复执行位置。
 
 ### 3.1 程序计数器存的是字节码偏移量
 
@@ -248,17 +248,15 @@ Native Method Stack
 
 堆分为新生代（Eden + S0 + S1）和老年代（Old）。分代的依据是**弱分代假说**（Weak Generational Hypothesis）：绝大多数对象在创建后很快就会被回收。一个 Web 应用中，一次请求创建的大量临时对象（DTO、StringBuilder、各种中间变量）在请求结束后就变成垃圾。分代的设计就是利用这个特征：频繁回收新生代（少量存活对象），偶尔回收老年代（长期存活对象）。
 
-### 5.2 对象分配的完整路径
+### 5.2 对象分配的落点
 
 ```java
 User user = new User("Tom");
 ```
 
-![jvm-object-creation](/java/jvm-object-creation.svg)
+普通对象首先分配到 Eden。HotSpot 默认使用 TLAB，让每个线程在 Eden 中拥有一块私有缓冲区，从而在缓冲区内通过移动指针完成分配，避免线程间竞争。完整的对象创建步骤见[对象创建流程](./chapter-03-object-layout.md#object-creation)。
 
-**TLAB 是关键优化**。没有 TLAB，多线程同时在 Eden 分配对象需要加锁（CAS），TLAB 让每个线程有自己的"私人领地"，分配只需要移动指针。`-XX:+UseTLAB` 默认开启。
-
-TLAB 用完后，线程需要在 Eden 共享区分配对象。这个过程需要 CAS 保证原子性：
+TLAB 用完后，线程需要在 Eden 共享区分配对象。这个过程使用 CAS 保证原子性：
 
 ```txt
 // 伪代码：Eden 共享区的对象分配
@@ -274,42 +272,7 @@ while (true) {
 
 CAS（Compare-And-Swap）是[并发编程](../03-java-concurrency/chapter-07-cas-atomic.md)的核心概念，这里先建立直觉：多个线程同时移动分配指针，只有一个能成功，失败的重试。TLAB 的价值正在于避免这个 CAS 竞争——大部分对象在 TLAB 内分配，只有 TLAB 耗尽时才需要 CAS。
 
-### 5.3 大对象为什么直接进老年代
-
-超过 `-XX:PretenureSizeThreshold` 的大对象直接分配在老年代，避免大对象在 Eden 和 Survivor 之间来回复制——复制算法的代价与对象大小成正比。
-
-```java
-// -XX:PretenureSizeThreshold=4194304 (4MB)
-byte[] big = new byte[5 * 1024 * 1024];  // 5MB，直接进老年代
-byte[] small = new byte[1024];            // 1KB，在 Eden 分配
-```
-
-### 5.4 动态年龄判定
-
-JVM 不是死板地等到对象年龄达到 15 才晋升。有一个**动态年龄判定**规则：
-
-> 如果 Survivor 区中某个年龄及以下的所有对象大小之和超过 Survivor 空间的一半，年龄 ≥ 该年龄的对象直接晋升老年代。
-
-为什么需要这个规则？举个具体例子：
-
-```txt
-Survivor 区大小 = 100MB
-
-某次 Minor GC 后，存活对象分布：
-  年龄 1: 10MB
-  年龄 2: 15MB
-  年龄 3: 20MB
-  年龄 4: 18MB
-  ─────────────
-  累计: 年龄 1+2+3 = 45MB（< 50MB，不触发）
-  累计: 年龄 1+2+3+4 = 63MB（> 50MB，触发！）
-
-→ 年龄 ≥ 4 的对象直接晋升老年代
-```
-
-JVM 从年龄 1 开始累加，当累加到某个年龄的累计大小超过 Survivor 一半时，该年龄及以上全部晋升。如果不晋升，下次 Minor GC 时 Survivor 可能放不下存活对象，导致对象直接被送入老年代（HandlePromotionFailure 失败）。动态年龄判定提前晋升，避免了这种"被动晋升"的风险。
-
-### 5.5 堆内存的监控
+### 5.3 堆内存的监控
 
 ```bash
 # 查看堆内存使用情况
@@ -414,13 +377,11 @@ jstat -gcmetacapacity <pid>
 jcmd <pid> VM.metaspace
 ```
 
-## 7. CodeCache：JIT 编译代码的独立存储
+## 7. CodeCache：JIT 编译代码的独立存储 {#codecache}
 
-CodeCache 保存 C1、C2 等编译器生成的机器码以及部分本地代码。它是独立的本地内存区域，不归 Metaspace 管理，也不受 `-Xmx` 直接控制。
+CodeCache 保存 C1、C2 等编译器生成的机器码以及部分本地代码。它是独立的本地内存区域，不归 Metaspace 管理，也不受 `-Xmx` 直接控制。容量上限和缺省值取决于 JDK 版本、CPU 与配置；容量耗尽后的症状、排查和调参见 [CodeCache 满](./chapter-05-jit.md#codecache-full)。
 
-CodeCache 有容量上限，具体大小和缺省值取决于 JDK、CPU 与配置。容量不足时，HotSpot 会停止接受新的编译；已有已编译代码通常仍可继续执行，只有发生反优化的代码路径会退回解释执行。CodeCache 不足时未必出现 OOM，但服务可能持续变慢，因此应结合 JFR 的 `jdk.CodeCacheConfiguration`、JMX 内存池和目标 JDK 的诊断命令观察，不要用 `jstat -compiler` 的编译计数代替容量监控。
-
-如果 CodeCache 经常接近满，需要评估 `-XX:ReservedCodeCacheSize`，并检查动态生成代码或热点方法是否异常增多。
+容量不足时，HotSpot 会停止接受新的编译，已有编译代码通常仍可继续执行。CodeCache 不足时未必出现 OOM，但服务可能持续变慢。
 
 ## 8. StringTable：字符串驻留的代价
 

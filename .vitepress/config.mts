@@ -487,8 +487,8 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: 'JVM 运行时数据区与内存结构', link: '/java/02-jvm-runtime/chapter-02-runtime-data-areas' },
             { text: 'HotSpot 对象布局', link: '/java/02-jvm-runtime/chapter-03-object-layout' },
             { text: '垃圾回收', link: '/java/02-jvm-runtime/chapter-04-gc' },
-            { text: '堆外内存', link: '/java/02-jvm-runtime/chapter-06-offheap-memory' },
             { text: 'JIT 编译', link: '/java/02-jvm-runtime/chapter-05-jit' },
+            { text: '堆外内存', link: '/java/02-jvm-runtime/chapter-06-offheap-memory' },
           ],
         },
         {
