@@ -43,7 +43,7 @@ C2 编译（Server Compiler）—— 深度编译，激进优化
 
 ### 2.1 分层编译（Tiered Compilation）
 
-JDK 8+ 默认开启分层编译（`-XX:+TieredCompilation`），将编译分为 5 个层级：
+本节描述同时包含 C1 和 C2 的典型 OpenJDK HotSpot 构建。此类构建通常默认启用 `-XX:+TieredCompilation`，将编译分为 5 个层级；只包含 C2 的构建、非 HotSpot JVM 或启用了 `-Xint` 时不适用。目标 JVM 的实际默认值应以 `java -XX:+PrintFlagsFinal -version` 的输出为准。
 
 | 层级 | 编译方式 | 特点 |
 | :-- | :-- | :-- |
@@ -141,18 +141,20 @@ public int calculate() { return 10; }
 
 ### 3.3 内联阈值
 
+下面是 JDK 21 HotSpot C2 的默认参考值。不同 JDK、编译器和 CPU 架构可能使用不同值，调优前应检查目标 JVM：
+
 | 参数 | 默认值 | 说明 |
 | :-- | :-- | :-- |
 | `-XX:MaxInlineSize` | 35 字节 | 小于此大小的方法自动内联 |
-| `-XX:FreqInlineSize` | 325 字节 | 热点方法的内联阈值 |
-| `-XX:MaxInlineLevel` | 9 | 最大内联深度（方法 A 调用 B 调用 C...） |
+| `-XX:FreqInlineSize` | 325 字节 | 热点方法的内联阈值；部分 CPU 架构为 175 字节 |
+| `-XX:MaxInlineLevel` | 15 | 最大内联深度（方法 A 调用 B 调用 C...） |
 
 ```java
 // 小方法 → 自动内联
 public int add(int a, int b) { return a + b; }  // 字节码 < 35 字节
 
 // 大方法 → 通常不会内联
-public void process() { /* 100 行代码 */ }  // 字节码 > 325 字节
+public void process() { /* 100 行代码 */ }  // 字节码超过目标 JVM 的 FreqInlineSize
 ```
 
 ### 3.4 内联与虚方法
@@ -379,89 +381,6 @@ parser.parse(data);
 
 去优化是 JVM 自适应优化的一部分——它不是错误，而是 JVM 根据运行时信息动态调整策略的机制。
 
-```bash
-# 观察去优化事件
--Xlog:compilation*=info
-# 或使用 JFR 录制 Deoptimization 事件
-```
-
-## 7. JIT 相关的生产问题
-
-JIT 在生产环境中可能引发三类隐蔽问题：
-
-### 7.1 问题一：CodeCache 满 {#codecache-full}
-
-JIT 编译的机器码存储在 CodeCache 中，其位置和职责见[JVM 运行时数据区中的 CodeCache](./chapter-02-runtime-data-areas.md#codecache)。CodeCache 容量不足时，HotSpot 会停止接受新的编译，已有已编译代码通常仍可继续执行；只有发生特定反优化事件的路径才会退回解释执行。容量上限和缺省值取决于 JDK 版本、CPU 与配置，不能用一个固定区间概括所有环境。
-
-**症状：** 服务运行一段时间后突然变慢，没有 OOM、没有 GC 问题、CPU 使用率正常——但响应时间骤增。
-
-**排查：**
-
-```bash
-# JDK 17 示例；先检查已编译方法数量
-jstat -compiler <pid>
-
-# 再用 JFR 或 -Xlog:codecache 观察容量与停止编译事件
-jcmd <pid> JFR.start settings=profile filename=codecache.jfr duration=60s
-```
-
-**修复：** 增大 `-XX:ReservedCodeCacheSize`（如 512MB），或检查是否有大量动态生成的代码（如 Groovy 脚本、反射代理）。
-
-### 7.2 问题二：编译线程占用 CPU
-
-JIT 编译在后台线程中执行。当大量方法同时达到编译阈值时（如服务刚启动后的预热阶段），编译线程可能占用显著的 CPU 资源。
-
-**症状：** 服务启动后前几分钟 CPU 使用率偏高，之后恢复正常。
-
-**通常不需要处理**——这是正常的预热行为。如果影响启动速度，可以通过 `-XX:+TieredCompilation -XX:TieredStopAtLevel=1` 先只做 C1 编译（快速），等服务稳定后再允许 C2 编译。
-
-### 7.3 问题三：逆优化风暴
-
-当大量类同时被加载（如应用部署后初始化、热部署），之前编译的代码可能批量去优化。去优化后代码退回解释执行，需要重新 profiling 和编译。
-
-**症状：** 部署后短暂的性能抖动（1~3 分钟），之后恢复正常。
-
-**排查：** 观察 `-Xlog:compilation*=info` 中的 `made not compilable` 和 `deoptimization` 事件数量。
-
-## 8. 实战：观察 JIT 编译
-
-### 8.1 打印编译日志
-
-```bash
-# JDK 17 + HotSpot 示例
-java -XX:+PrintCompilation -jar app.jar
-
-# 输出示例:
-#   76   1       3       java.lang.String::hashCode (55 bytes)
-#   78   2       4       java.lang.String::hashCode (55 bytes)
-#   79   3       3       java.lang.String::charAt (29 bytes)
-# 含义：编译ID 编译次数 编译层级(3=C1,4=C2) 方法名 (字节码大小)
-```
-
-### 8.2 使用 JITWatch 可视化
-
-JITWatch 是一个 JIT 编译日志分析工具，可以查看哪些方法被内联、哪些被编译、编译后的机器码。
-
-```bash
-# 1. JDK 17 + HotSpot 示例
-java -XX:+UnlockDiagnosticVMOptions \
-  -XX:+LogCompilation \
-  -XX:LogFile=jit.log \
-  -jar app.jar
-
-# 2. 使用与日志格式匹配的 JITWatch 版本分析 jit.log
-```
-
-### 8.3 使用 JFR 观察 JIT 事件
-
-```bash
-jcmd <pid> JFR.start settings=profile filename=jit.jfr duration=60s
-```
-
-JFR 中的 JIT 相关事件：
-
-- `CompilerCompilation`：方法被编译
-- `CompilerInlining`：方法被内联
-- `Deoptimization`：去优化事件
+生产环境中的 CodeCache、编译线程 CPU 和去优化抖动，以及编译日志、JITWatch 和 JFR 的观察方法，见 [JIT 编译与 CodeCache 观察](../06-diagnostics/01-jvm/chapter-01-jvm-diagnostics.md#jit-observability)。
 
 > 本章解释了热点代码如何随分层编译改变执行性能。下一步进入[堆外内存](./chapter-06-offheap-memory.md)，理解不属于 Java 堆、但会计入进程内存的本地内存区域。

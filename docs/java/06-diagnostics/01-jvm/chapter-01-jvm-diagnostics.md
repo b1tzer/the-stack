@@ -322,7 +322,77 @@ JMC 打开 `.jfr` 文件后，左侧 "Rule Results" 中自动标记了问题：
 
 将字符串拼接改为预分配的 `StringBuilder`，减少临时对象分配。再次录制确认 CPU 和 GC 均有改善。
 
-## 7. 工具选择指南
+## 7. GC 日志与参数 {#gc-logs}
+
+GC 日志是判断回收频率、停顿和空间增长的第一手资料。以下命令适用于 JDK 9+：
+
+```bash
+# 常规信息
+-Xlog:gc*=info:file=gc.log:time,uptime,level,tags
+
+# 需要更多阶段细节时
+-Xlog:gc*=debug:file=gc.log:time,uptime,level,tags
+```
+
+读取 G1 日志时，先关注回收类型、各代空间变化和耗时：
+
+| 字段 | 含义 |
+| :-- | :-- |
+| `Pause Young (Normal)` | 正常的年轻代回收 |
+| `Pause Mixed` | 回收部分老年代 Region 的 Mixed GC |
+| `Pause Full` | 整堆或老年代压力下的 Full GC |
+| `Eden: 1024M(1024M)->0B(1024M)` | Eden 回收前后的使用量与容量 |
+| `Old: 2048M->2100M` | 老年代回收前后的使用量 |
+| `real=0.08 secs` | 日志记录的墙上时间；是否等于应用停顿取决于收集器和字段定义 |
+
+字段名称和格式会随 JDK 与收集器变化。常用参数见 [JVM 核心参数速查](#jvm-core-parameters)，完整排查案例见 [GC、资源与综合诊断](./chapter-03-cases-gc-resources.md)和 [GC 延迟与分配异常](./chapter-04-cases-gc-latency.md)。
+
+## 8. JIT 编译与 CodeCache 观察 {#jit-observability}
+
+### 8.1 CodeCache 满 {#codecache-full}
+
+CodeCache 容量不足时，HotSpot 会停止接受新的编译，已有编译代码通常仍可继续执行；服务可能在没有 OOM 或 GC 异常的情况下逐渐变慢。
+
+```bash
+# 查看已编译方法数量；该计数不能代替容量监控
+jstat -compiler <pid>
+
+# 结合 JFR 或编译日志观察容量、停止编译和反优化事件
+jcmd <pid> JFR.start settings=profile filename=codecache.jfr duration=60s
+java -Xlog:codecache=info -jar app.jar
+```
+
+容量上限和缺省值取决于 JDK、CPU 与配置。确认持续接近上限后，再评估 `-XX:ReservedCodeCacheSize`，并检查 Groovy、动态代理等是否生成了异常大量的代码。
+
+### 8.2 编译线程 CPU 与去优化抖动
+
+| 症状 | 通常含义 | 检查方向 |
+| :-- | :-- | :-- |
+| 启动后几分钟编译线程 CPU 偏高 | 正常预热 | 观察是否随热点稳定而下降 |
+| 部署或热部署后短暂抖动 | 新类加载导致批量去优化 | 检查 `-Xlog:compilation*=info` 中的 `deoptimization` |
+| 运行一段时间后突然变慢 | CodeCache 停止编译或动态代码过多 | 对照本节 CodeCache 排查步骤 |
+
+如需压测启动阶段，可以评估 `-XX:TieredStopAtLevel=1` 等策略，但它会改变编译层级和峰值性能，不能作为长期默认配置直接套用。
+
+### 8.3 打印与分析 JIT 日志
+
+```bash
+# 简要编译事件
+java -XX:+PrintCompilation -jar app.jar
+
+# 完整编译日志，供 JITWatch 等工具分析
+java -XX:+UnlockDiagnosticVMOptions \
+  -XX:+LogCompilation \
+  -XX:LogFile=jit.log \
+  -jar app.jar
+
+# 使用 JFR 记录 JIT 事件
+jcmd <pid> JFR.start settings=profile filename=jit.jfr duration=60s
+```
+
+JFR 中可关注 `CompilerCompilation`、`CompilerInlining` 和 `Deoptimization`。使用 JITWatch 时，应选择与日志格式匹配的版本。日志选项和输出字段可能随 JDK 版本变化。
+
+## 9. 工具选择指南
 
 遇到问题时，选对工具能事半功倍：
 
@@ -337,7 +407,7 @@ JMC 打开 `.jfr` 文件后，左侧 "Rule Results" 中自动标记了问题：
 | 综合性能分析 | JFR（持续录制） | JMC 可视化分析 |
 | CodeCache 问题 | `jstat -compiler` | `-Xlog:compilation*` |
 
-### 7.1 端到端排查案例：接口变慢
+### 9.1 端到端排查案例：接口变慢
 
 **现象：** 某个 API 接口从 200ms 降到 3 秒。
 
@@ -385,7 +455,7 @@ jad com.example.ReportGenerator
 
 将 `ArrayList` 改为请求级局部变量，或添加清理逻辑。修复后部署，用 `jstat` 确认老年代使用率稳定，Full GC 消失。
 
-## 8. JVM 核心参数速查
+## 10. JVM 核心参数速查 {#jvm-core-parameters}
 
 | 类别 | 参数 | 说明 |
 | :-- | :-- | :-- |
@@ -398,9 +468,10 @@ jad com.example.ReportGenerator
 | OOM dump | `-XX:+HeapDumpOnOutOfMemoryError` | OOM 时自动 dump |
 | dump 路径 | `-XX:HeapDumpPath=/path/` | dump 文件存储位置 |
 | Metaspace | `-XX:MaxMetaspaceSize=256m` | 限制 Metaspace 大小 |
-| 压缩指针 | `-XX:+UseCompressedOops` | 64 位 JVM 默认开启 |
+| 压缩对象引用 | `-XX:+UseCompressedOops` | 64 位 HotSpot 默认开启 |
+| 压缩类指针 | `-XX:+UseCompressedClassPointers` | 64 位 OpenJDK 21 HotSpot 默认开启 |
 
-## 9. 实战案例集
+## 11. 实战案例集
 
 以上内容是诊断工具和方法的速查手册。以下案例集均为构造或匿名化的教学案例，每个案例都包含完整的背景、排查链路、根因定位和修复验证：
 

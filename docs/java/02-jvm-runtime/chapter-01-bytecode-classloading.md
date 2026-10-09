@@ -1,4 +1,4 @@
-# 字节码到 ClassLoader
+# 字节码、类加载与执行
 
 > 一个 `.java` 文件躺在磁盘上，自己不会运行。`javac` 先把它编译成 `.class`，JVM 再加载、连接并初始化类，最后解释或编译执行方法中的字节码。这条从「磁盘文件」到「运行中程序」的链路，是本文的主线，也是整个 JVM Runtime 的骨架。后面讲运行时数据区、对象模型、GC、JIT，都挂在这条链的某个环节上。
 
@@ -16,7 +16,7 @@
 | 字节码 → 机器码 | CPU 能执行的指令 | Interpreter / JIT |
 | 机器码 → 运行 | 程序的结果 | CPU |
 
-本文只讲前三个环节，最后两个环节属于[第五章 JIT 编译](./chapter-05-jit.md)。但这条链必须一次立完整，否则后面每一章都只是孤立的碎片，读者不知道它们各自挂在哪一环。
+本文只讲前三个环节，最后两个环节属于 [JIT 编译](./chapter-05-jit.md)。但这条链必须一次立完整，否则后面每一章都只是孤立的碎片，读者不知道它们各自挂在哪一环。
 
 ### 1.1 为什么中间要多一层字节码
 
@@ -28,7 +28,7 @@
 
 **语言生态统一。** Kotlin、Scala、Groovy 都编译到同一套字节码，共享同一个 JVM 生态：Java 写的库能被 Kotlin 调用，反过来也行。字节码是这条生态链的公共约定。
 
-## 2. .class 是一份二进制程序描述文件
+## 2. .class 是一份二进制程序描述文件 {#class-file-structure}
 
 先纠正一个直觉：`.class` 不是「Java 类」。Java 类是你脑子里的概念，`.class` 是这个概念在磁盘上的序列化结果：一份 JVM 定义的二进制文件，用来描述一个类的全部信息。
 
@@ -45,7 +45,7 @@
 | `CONSTANT_Methodref` | 方法的符号引用 | `println:(Ljava/lang/String;)V` |
 | `CONSTANT_Fieldref` | 字段的符号引用 | `System.out` |
 
-用索引引用而不在各处重复存字符串，是为了省体积。但常量池真正的意义在 §4.2 才浮现：它存的是**符号引用**，运行时要被替换成**直接引用**。
+用索引引用而不在各处重复存字符串，是为了省体积。但常量池真正的意义到[解析阶段](#resolution)才浮现：它存的是**符号引用**，运行时要被替换成**直接引用**。
 
 ### 2.2 字段与方法：类的结构
 
@@ -64,117 +64,17 @@ Code {
 }
 ```
 
-`code[]` 就是真正的字节码指令序列。第一节里讲的 `.class → 执行`，执行的就是这个数组。
+`code[]` 就是真正的字节码指令序列。开篇全景里的 `.class → 执行`，执行的就是这个数组。
 
-> 完整的 ClassFile 结构远不止这些（还有 `magic`、`access_flags`、`attributes` 等），但不需要背。理解「常量池 + 结构 + Code」这三类，就抓住了 `.class` 的本质。要看到完整结构，用 §3.5 的 `javap -v`。
+> 完整的 ClassFile 结构远不止这些（还有 `magic`、`access_flags`、`attributes` 等），但不需要背。理解「常量池 + 结构 + Code」这三类，就抓住了 `.class` 的本质。要看到完整结构，使用 [`javap -v`](#javap)。
 
-## 3. JVM 是一个栈式虚拟机
-
-`.class` 里的指令，由 JVM 来执行。但 JVM 的执行方式和物理 CPU 完全不同：CPU 用寄存器，JVM 用**操作数栈**。这个差异是理解字节码的钥匙。
-
-### 3.1 执行模型：局部变量表 + 操作数栈
-
-每调用一个方法，JVM 就创建一个**栈帧**，里面有两个关键结构：
-
-- **局部变量表**：存放 `this`、方法参数、方法内的局部变量，按索引访问。
-- **操作数栈**：指令操作的工作区。字节码指令不直接操作内存，只和这个栈打交道：需要数据就压栈，运算就从栈顶弹出操作数、把结果压回。
-
-局部变量表是存储，操作数栈是计算。指令在两者之间搬运数据。
-
-### 3.2 完整走一遍 add
-
-拿一个最简单的方法看整个过程：
-
-```java
-public class Calculator {
-    public int add(int a, int b) {
-        return a + b;
-    }
-}
-```
-
-`javap -c` 反编译出四条指令：
-
-```txt
-public int add(int, int);
-  Code:
-     0: iload_1
-     1: iload_2
-     2: iadd
-     3: ireturn
-```
-
-调用 `add(3, 5)` 时，栈帧的局部变量表是 `[this, 3, 5]`（`this` 占 0 号位，`a` 占 1 号，`b` 占 2 号），操作数栈初始为空。逐步执行：
-
-```txt
-iload_1   把局部变量 1（a=3）压入栈   操作数栈 [] → [3]
-iload_2   把局部变量 2（b=5）压入栈   操作数栈 [3] → [3, 5]
-iadd      弹出 3 和 5，相加，压回     操作数栈 [3, 5] → [8]
-ireturn   弹出 8，作为返回值返回      操作数栈 [8] → 返回 8
-```
-
-这就是「栈式虚拟机」的全部含义：**运算都发生在操作数栈上，局部变量表只是存储**。对比寄存器式 CPU，`add(3,5)` 大概是一条指令直接操作两个寄存器；JVM 则是先 `iload` 把值搬上栈，再 `iadd`。多出来的搬运指令，代价是性能，换来的是同一套字节码可以在任何架构上跑：栈模型不需要知道目标机器有几个寄存器。
-
-### 3.3 方法调用：五种 invoke
-
-方法调用是字节码里最重要的指令，五种 `invoke` 各管一类场景：
-
-| 指令 | 用途 | 例子 |
-| :-- | :-- | :-- |
-| `invokevirtual` | 普通实例方法 | `user.getName()` |
-| `invokestatic` | 静态方法 | `Math.max(1, 2)` |
-| `invokeinterface` | 接口方法 | `list.add(x)` |
-| `invokespecial` | 构造器、private、super | `new User()` |
-| `invokedynamic` | 动态绑定（Lambda、方法引用） | `x -> x + 1` |
-
-为什么要分五种而不是一种？因为**不同调用方式的查找成本不一样**：
-
-| 指令 | 查找方式 | 为什么 |
-| :-- | :-- | :-- |
-| `invokevirtual` | 查虚方法表（vtable），固定偏移 | 方法表加载时就定了，偏移可缓存 |
-| `invokeinterface` | 搜索接口方法表（itable） | 接口方法位置不固定，无法用偏移直定位 |
-| `invokespecial` | 编译期直接定位 | 构造器、private、super 的目标编译时已知 |
-| `invokestatic` | 编译期直接定位 | 静态方法无多态 |
-| `invokedynamic` | 首次执行时绑定，之后可变 | 调用点运行时才确定 |
-
-这个差异有实际后果：`invokeinterface` 比 `invokevirtual` 慢，因为接口方法在 itable 里没有固定偏移，每次调用都要搜索。这也是为什么 JIT 对接口调用的内联比虚调用更难。[第五章 JIT](./chapter-05-jit.md)讲方法内联时会回扣这里。
-
-### 3.4 语言特性在字节码里的样子
-
-知道字节码怎么执行后，回头再看[Java 语言核心](../01-java-language/chapter-01-why-java.md)，就能看清“编译器到底把它们变成了什么”。
-
-**泛型擦除的证据。** `List<String>` 和 `List<Integer>` 编译后是同一个类。证据在字节码里：两个方法 `process(List<String>)` 和 `process(List<Integer>)` 的描述符都是 `(Ljava/util/List;)V`，因此重载冲突、编译报错。方法体里，编译器插入 `checkcast` 做运行时类型检查：
-
-```txt
-// List<String>.get(0) 编译后
-invokeinterface List.get:(I)Ljava/lang/Object;
-checkcast java/lang/String    // 编译器插入的类型检查
-```
-
-这也解释了泛型为什么不能用于基本类型：`checkcast` 只认引用类型，`List<int>` 无处可 cast。
-
-**Lambda 不是语法糖的证据。** 匿名内部类会生成 `Outer$1.class` 独立文件，Lambda 编译后**不生成任何类文件**，只在字节码里留下一条 `invokedynamic`，指向 `BootstrapMethods` 里的 `LambdaMetafactory`。真正的实现类在首次调用时才由 `LambdaMetafactory` 在内存里生成。这就是 Lambda 比匿名内部类轻量的根源：无额外类文件、无额外类加载。
-
-**try-with-resources 的异常抑制。** 编译器在 finally 里插入的不只是 `close()`，还有异常抑制逻辑：捕获 `close()` 抛出的异常，用 `Throwable.addSuppressed()` 附加到主异常上，而不是吞掉或覆盖。所以 `try-with-resources` 的异常堆栈里能看到 `Suppressed:` 标记。
-
-### 3.5 动手：用 javap 看字节码
-
-概念讲得再多，不如亲眼确认一次。`javap` 是 JDK 自带的字节码反编译工具：
-
-```bash
-javac com/example/Calculator.java
-javap -c com/example/Calculator.class    # -c 显示方法体，-v 显示全部元数据
-```
-
-对 §3.2 的 `add` 方法，`javap -c` 输出的就是那四条指令。加上 `-v` 还能看到 §2 讲的常量池、`max_stack`、`max_locals`。这个工具后面会反复用到：[JIT 编译](./chapter-05-jit.md)解释内联决策，[JVM 线上诊断](../06-diagnostics/01-jvm/chapter-01-jvm-diagnostics.md)用它确认线上运行的代码版本。
-
-## 4. .class 如何进入 JVM
+## 3. .class 如何进入 JVM
 
 `.class` 是磁盘上的死文件，自己不会进入 JVM。需要有人把它读成字节流、交给 JVM 校验、转成运行时能用的 `Class` 对象。这个「有人」就是 ClassLoader。
 
 「字节码」和「类加载」的关系在这里接上了：**字节码是 `.class` 里的静态内容，类加载是把这些内容带进 JVM、变成运行时 `Class` 的动作。**
 
-### 4.1 五个阶段：从字节流到运行时 Class
+### 3.1 五个阶段：从字节流到运行时 Class
 
 ClassLoader 把 `.class` 交进来之后，JVM 还要经过一系列处理，一个类才能被使用：
 
@@ -192,7 +92,7 @@ Loading（加载）→ Verification（验证）→ Preparation（准备）→ Re
 | 解析 | 符号引用 → 直接引用 | 把常量池里的符号换成内存地址 |
 | 初始化 | 执行 `<clinit>`，真正给静态变量赋值 | 静态代码块在首次主动使用时才执行 |
 
-### 4.2 符号引用 → 直接引用 {#resolution}
+### 3.2 符号引用 → 直接引用 {#resolution}
 
 五个阶段里，「解析」最抽象，也最关键，它就是「静态 `.class`」变成「运行时 `Class`」的具体转换点。
 
@@ -204,21 +104,23 @@ CONSTANT_Methodref #15 = #16.#17
   #17 = println:(Ljava/lang/String;)V
 ```
 
-运行时解析后，它被替换成**直接引用**，一个内存地址：
+解析完成后，JVM 得到可以绕过名称查找的**直接引用**，并把结果缓存在运行时常量池中：
 
 ```txt
-PrintStream 已加载，println 在方法表第 3 个槽位
-直接引用 = 方法表偏移量 #3
+CONSTANT_Methodref → PrintStream.println 已解析
+运行时常量池缓存了这次解析结果
 ```
 
-符号引用是「按名字找人」，直接引用是「看工位号」。解析的本质，就是把前者换成后者。
+符号引用是「按名字找人」，直接引用则是解析后可以继续执行的信息。具体表示可能是对象引用、方法入口或调用表索引，不能统一理解为一个固定内存地址。
 
-解析有两个时机：
+JVMS 没有按调用指令规定统一的解析时机，而是允许 JVM 选择：
 
-- **静态解析**：类加载时就解析。适用编译期能确定目标的方法：`invokestatic`、`invokespecial`、`final` 方法。
-- **动态解析**：首次调用时才解析。适用多态方法：`invokevirtual`、`invokeinterface`，实际目标取决于运行时对象类型。`invokedynamic` 更极端，每次调用都可能重新解析。
+- **惰性链接**：使用某个符号引用时才解析它。
+- **及时链接**：验证类时一次解析该类中的符号引用。
 
-### 4.3 什么时候触发初始化
+动态计算常量和动态调用点是例外，JVMS 规定它们必须等到指定的 `ldc` 指令执行或引导方法被调用。HotSpot 通常把已解析结果缓存到运行时常量池，因此常见表现是首次使用时完成解析，后续调用复用结果。需要注意，解析得到方法入口后，`invokevirtual` 和 `invokeinterface` 还要根据接收者的实际类型选择最终实现。
+
+### 3.3 什么时候触发初始化
 
 不是加载就初始化。只有「主动使用」才触发：
 
@@ -237,13 +139,13 @@ User[] arr = new User[10];           // 创建数组：不初始化元素类
 int y = User.MAX;                    // 编译期常量（static final 且值可内联）：编译时已替换
 ```
 
-## 5. 为什么需要 ClassLoader 层级
+## 4. 为什么需要 ClassLoader 层级
 
 ClassLoader 的职责是「找到字节码并交给 JVM」。那自然产生一个问题：如果多个 ClassLoader 都能加载同一个类，该由谁负责？
 
 答案是**双亲委派**。
 
-### 5.1 双亲委派：先问父加载器
+### 4.1 双亲委派：先问父加载器
 
 JVM 的 ClassLoader 是一个层次结构：
 
@@ -291,7 +193,7 @@ protected Class<?> loadClass(String name, boolean resolve) {
 
 **层次化信任。** 核心库 → 平台库 → 应用代码，逐级信任，越靠近根的越不可被应用层篡改。
 
-### 5.2 什么时候必须打破它
+### 4.2 什么时候必须打破它
 
 双亲委派不是放之四海皆准。三个场景下，「先问父加载器」反而出错。
 
@@ -319,7 +221,7 @@ Bundle A 的 ClassLoader
 
 每个 Bundle 用 `Import-Package` / `Export-Package` 声明依赖，JVM 同时加载同一个库的多个版本，按版本范围解析。这是 Java 模块化最激进的实现，也是 JDK 9 引入 JPMS 的灵感来源之一。
 
-### 5.3 自定义 ClassLoader 的本质
+### 4.3 自定义 ClassLoader 的本质
 
 要扩展加载行为，只需继承 `ClassLoader` 并覆盖一个方法：
 
@@ -335,6 +237,107 @@ public class MyClassLoader extends ClassLoader {
 ```
 
 覆盖 `findClass` 保留双亲委派，覆盖 `loadClass` 则打破它。典型场景：热部署（新 ClassLoader 重新加载，无需重启 JVM）、加密 Class、从网络动态加载。
+
+## 5. JVM 是一个栈式虚拟机
+
+`.class` 里的指令，由 JVM 来执行。但 JVM 的执行方式和物理 CPU 完全不同：CPU 用寄存器，JVM 用**操作数栈**。这个差异是理解字节码的钥匙。
+
+### 5.1 执行模型：局部变量表 + 操作数栈
+
+每调用一个方法，JVM 就创建一个**栈帧**，里面有两个关键结构：
+
+- **局部变量表**：存放 `this`、方法参数、方法内的局部变量，按索引访问。
+- **操作数栈**：指令操作的工作区。字节码指令不直接操作内存，只和这个栈打交道：需要数据就压栈，运算就从栈顶弹出操作数、把结果压回。
+
+局部变量表是存储，操作数栈是计算。指令在两者之间搬运数据。
+
+### 5.2 完整走一遍 add {#bytecode-add}
+
+拿一个最简单的方法看整个过程：
+
+```java
+public class Calculator {
+    public int add(int a, int b) {
+        return a + b;
+    }
+}
+```
+
+`javap -c` 反编译出四条指令：
+
+```txt
+public int add(int, int);
+  Code:
+     0: iload_1
+     1: iload_2
+     2: iadd
+     3: ireturn
+```
+
+调用 `add(3, 5)` 时，栈帧的局部变量表是 `[this, 3, 5]`（`this` 占 0 号位，`a` 占 1 号，`b` 占 2 号），操作数栈初始为空。逐步执行：
+
+```txt
+iload_1   把局部变量 1（a=3）压入栈   操作数栈 [] → [3]
+iload_2   把局部变量 2（b=5）压入栈   操作数栈 [3] → [3, 5]
+iadd      弹出 3 和 5，相加，压回     操作数栈 [3, 5] → [8]
+ireturn   弹出 8，作为返回值返回      操作数栈 [8] → 返回 8
+```
+
+这就是「栈式虚拟机」的全部含义：**运算都发生在操作数栈上，局部变量表只是存储**。对比寄存器式 CPU，`add(3,5)` 大概是一条指令直接操作两个寄存器；JVM 则是先 `iload` 把值搬上栈，再 `iadd`。多出来的搬运指令，代价是性能，换来的是同一套字节码可以在任何架构上跑：栈模型不需要知道目标机器有几个寄存器。
+
+### 5.3 方法调用：五种 invoke
+
+方法调用是字节码里最重要的指令，五种 `invoke` 各管一类场景：
+
+| 指令 | 用途 | 例子 |
+| :-- | :-- | :-- |
+| `invokevirtual` | 普通实例方法 | `user.getName()` |
+| `invokestatic` | 静态方法 | `Math.max(1, 2)` |
+| `invokeinterface` | 接口方法 | `list.add(x)` |
+| `invokespecial` | 构造器、private、super | `new User()` |
+| `invokedynamic` | 动态绑定（Lambda、方法引用） | `x -> x + 1` |
+
+为什么要分五种而不是一种？因为**不同调用方式的查找成本不一样**：
+
+| 指令 | 执行时如何定位 | 为什么 |
+| :-- | :-- | :-- |
+| `invokevirtual` | 通过虚方法表定位 | 虚方法使用稳定的表索引 |
+| `invokeinterface` | 通过接口方法表定位 | 需要先按接收者类型匹配接口方法 |
+| `invokespecial` | 不做接收者分派 | 构造器、private、super 调用按常量池解析结果执行 |
+| `invokestatic` | 不做接收者分派 | 静态方法没有接收者 |
+| `invokedynamic` | 首次执行时建立调用点 | 调用目标由引导方法决定 |
+
+这个差异有实际后果：未被去虚化的接口调用通常要多做一次按接收者类型匹配，结果可以缓存；JIT 也能根据 profiling 信息将其内联，因而不能简单断言每次 `invokeinterface` 都比 `invokevirtual` 慢。[JIT 编译](./chapter-05-jit.md)讨论方法内联时会回扣这里。
+
+### 5.4 语言特性在字节码里的样子
+
+知道字节码怎么执行后，回头再看[Java 语言核心](../01-java-language/chapter-01-why-java.md)，就能看清“编译器到底把它们变成了什么”。
+
+**泛型擦除的证据。** `List<String>` 和 `List<Integer>` 编译后是同一个类。证据在字节码里：两个方法 `process(List<String>)` 和 `process(List<Integer>)` 的描述符都是 `(Ljava/util/List;)V`，因此重载冲突、编译报错。方法体里，编译器插入 `checkcast` 做运行时类型检查：
+
+```txt
+// List<String>.get(0) 编译后
+invokeinterface List.get:(I)Ljava/lang/Object;
+checkcast java/lang/String    // 编译器插入的类型检查
+```
+
+这也解释了泛型为什么不能用于基本类型：`checkcast` 只认引用类型，`List<int>` 无处可 cast。
+
+**Lambda 的字节码证据。** 匿名内部类会生成独立的 `Outer$1.class`；Lambda 编译后不生成对应类文件，只留下一条指向 `LambdaMetafactory` 的 `invokedynamic`。首次执行这条指令时，JVM 才调用引导方法、在内存中定义实现类并缓存调用点；后续执行复用调用点。OpenJDK 的具体实现与匿名内部类不同，但 Lambda 并非完全不涉及类定义。
+
+**try-with-resources 的异常抑制。** 编译器在 finally 里插入的不只是 `close()`，还有异常抑制逻辑：捕获 `close()` 抛出的异常，用 `Throwable.addSuppressed()` 附加到主异常上，而不是吞掉或覆盖。所以 `try-with-resources` 的异常堆栈里能看到 `Suppressed:` 标记。
+
+### 5.5 动手：用 javap 看字节码 {#javap}
+
+概念讲得再多，不如亲眼确认一次。`javap` 是 JDK 自带的字节码反编译工具：
+
+```bash
+javac com/example/Calculator.java
+javap -c com/example/Calculator.class    # -c 显示方法体，-v 显示全部元数据
+```
+
+对 [`add` 示例](#bytecode-add)，`javap -c` 输出的就是那四条指令。加上 `-v` 还能看到[Class 文件结构](#class-file-structure)中的常量池、`max_stack` 和 `max_locals`。这个工具后面会反复用到：[JIT 编译](./chapter-05-jit.md)解释内联决策，[JVM 线上诊断](../06-diagnostics/01-jvm/chapter-01-jvm-diagnostics.md)用它确认线上运行的代码版本。
+
 
 ---
 

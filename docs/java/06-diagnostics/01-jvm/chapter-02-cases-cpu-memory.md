@@ -294,7 +294,7 @@ jstat -gcutil <pid> 1000 10
 
 **教训：** 任何本地缓存都必须有 TTL 和容量上限。`ConcurrentHashMap` 不是缓存——它只是一个线程安全的 Map。做缓存用 Caffeine、Guava Cache，或者 Redis。**用 Map 当缓存 = 把应用当操作系统。**
 
-## CGLIB 动态代理未复用 —— 爆掉 256MB Metaspace
+## CGLIB 动态代理未复用 —— 爆掉 256MB Metaspace {#metaspace-oom}
 
 ### 3.1 事故背景
 
