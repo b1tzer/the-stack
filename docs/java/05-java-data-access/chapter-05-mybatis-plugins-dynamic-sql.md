@@ -1,6 +1,6 @@
 # MyBatis：插件机制与动态 SQL
 
-> 本页与 [MyBatis：SQL 映射框架](./chapter-03-mybatis.md) 配套，重点说明插件拦截链、分页插件和动态 SQL 的运行方式。
+> 本页与 [MyBatis：SQL 映射框架](./chapter-04-mybatis.md) 配套，重点说明插件拦截链、分页插件和动态 SQL 的运行方式。
 
 ## 1. 插件机制
 

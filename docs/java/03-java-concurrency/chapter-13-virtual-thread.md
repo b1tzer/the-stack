@@ -1,4 +1,4 @@
-# 虚拟线程与结构化并发（JDK 21）
+# 虚拟线程模型与 Pinning（JDK 21）
 
 > 如果一条线程可以像一个对象那样廉价，过去十年围绕线程池积累的工程直觉，还剩下多少是对的？
 
@@ -139,7 +139,7 @@ Reactor 版本换来的是吞吐，付出的是：
 | `Thread.startVirtualThread(runnable)` | 一次性异步任务 | 最简洁，立即启动 |
 | `Thread.ofVirtual().name(...).start(runnable)` | 需要命名、异常处理器 | 通过 builder 配置 |
 | `Executors.newVirtualThreadPerTaskExecutor()` | 替换现有 `ExecutorService` | 兼容既有代码 |
-| `StructuredTaskScope`（§12.5） | 有生命周期约束的子任务组 | 结构化并发入口 |
+| `StructuredTaskScope`（第 14 章 §2.5） | 有生命周期约束的子任务组 | 结构化并发入口 |
 
 ```java
 // 场景 1：一次性任务
@@ -257,4 +257,4 @@ Thread[#42,ForkJoinPool-1-worker-3,5,CarrierThreads]
 
 前面几节解释了虚拟线程的调度模型、pinning 机制和适用限制。下一步把这些结论转成迁移决策：哪些场景应保留平台线程、如何使用结构化并发，以及如何从传统 API 平滑迁移。
 
-> **下一页：** [适用边界、结构化并发与迁移](./chapter-12-virtual-thread-migration.md)
+> **下一页：** [适用边界、结构化并发与迁移](./chapter-14-virtual-thread-migration.md)

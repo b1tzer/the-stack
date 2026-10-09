@@ -386,4 +386,4 @@ vmtool --action getInstances \
 
 前面的内容侧重定位问题发生在客户端、连接、应用还是外部依赖。确认瓶颈后，下一页转向处理方案：连接复用、I/O 模型、TCP 参数、限流熔断与监控检查清单。
 
-> **下一页：** [高并发网络优化与最佳实践](./chapter-01-network-optimization-practices.md)
+> **下一页：** [高并发网络优化与最佳实践](../../04-java-network/chapter-12-network-optimization.md)

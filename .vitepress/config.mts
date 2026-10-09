@@ -507,16 +507,17 @@ export default withOpenInEditor(withMermaid(defineConfig({
                 { text: 'synchronized', link: '/java/03-java-concurrency/chapter-06-synchronized' },
                 { text: 'CAS 与原子类', link: '/java/03-java-concurrency/chapter-07-cas-atomic' },
                 { text: 'LockSupport 与 AQS', link: '/java/03-java-concurrency/chapter-08-locksupport-aqs' },
+                { text: 'Condition 与同步工具', link: '/java/03-java-concurrency/chapter-09-condition-lock-tools' },
               ],
             },
             {
               text: '并发工具',
               items: [
-                { text: '并发集合', link: '/java/03-java-concurrency/chapter-09-concurrent-collections' },
-                { text: '线程池', link: '/java/03-java-concurrency/chapter-10-thread-pool' },
-                { text: '异步编程', link: '/java/03-java-concurrency/chapter-11-async-model' },
-                { text: '虚拟线程与结构化并发', link: '/java/03-java-concurrency/chapter-12-virtual-thread' },
-                { text: '虚拟线程：适用边界与迁移', link: '/java/03-java-concurrency/chapter-12-virtual-thread-migration' },
+                { text: '并发集合', link: '/java/03-java-concurrency/chapter-10-concurrent-collections' },
+                { text: '线程池', link: '/java/03-java-concurrency/chapter-11-thread-pool' },
+                { text: '异步编程', link: '/java/03-java-concurrency/chapter-12-async-model' },
+                { text: '虚拟线程模型与 Pinning', link: '/java/03-java-concurrency/chapter-13-virtual-thread' },
+                { text: '迁移、适用边界与结构化并发', link: '/java/03-java-concurrency/chapter-14-virtual-thread-migration' },
               ],
             },
           ],
@@ -530,25 +531,26 @@ export default withOpenInEditor(withMermaid(defineConfig({
               items: [
                 { text: '网络通信基础', link: '/java/04-java-network/chapter-01-network-basics' },
                 { text: 'TCP/IP', link: '/java/04-java-network/chapter-02-tcp-ip' },
-                { text: 'TCP/IP：性能参数与 Java 实践', link: '/java/04-java-network/chapter-02-tcp-performance-java' },
-                { text: 'HTTP 协议', link: '/java/04-java-network/chapter-06-http' },
+                { text: 'TCP/IP：性能参数与 Java 实践', link: '/java/04-java-network/chapter-03-tcp-performance-java' },
+                { text: 'HTTP 协议', link: '/java/04-java-network/chapter-07-http' },
               ],
             },
             {
               text: 'Java I/O 与框架',
               items: [
-                { text: 'Socket 编程', link: '/java/04-java-network/chapter-03-socket' },
-                { text: 'Java NIO', link: '/java/04-java-network/chapter-04-nio' },
-                { text: 'Netty', link: '/java/04-java-network/chapter-05-netty' },
+                { text: 'Socket 编程', link: '/java/04-java-network/chapter-04-socket' },
+                { text: 'Java NIO', link: '/java/04-java-network/chapter-05-nio' },
+                { text: 'Netty', link: '/java/04-java-network/chapter-06-netty' },
               ],
             },
             {
               text: 'Web、RPC 与长连接',
               items: [
-                { text: 'Servlet 与 Tomcat 请求链', link: '/java/04-java-network/chapter-07-servlet-tomcat-request-chain' },
-                { text: 'RPC 与微服务', link: '/java/04-java-network/chapter-08-rpc' },
-                { text: '长连接协议与保活', link: '/java/04-java-network/chapter-09-long-connection-protocols' },
-                { text: 'IM 系统设计', link: '/java/04-java-network/chapter-10-im-system-design' },
+                { text: 'Servlet 与 Tomcat 请求链', link: '/java/04-java-network/chapter-08-servlet-tomcat-request-chain' },
+                { text: 'RPC 与微服务', link: '/java/04-java-network/chapter-09-rpc' },
+                { text: '长连接协议与保活', link: '/java/04-java-network/chapter-10-long-connection-protocols' },
+                { text: 'IM 系统设计', link: '/java/04-java-network/chapter-11-im-system-design' },
+                { text: '高并发网络优化', link: '/java/04-java-network/chapter-12-network-optimization' },
               ],
             },
           ],
@@ -562,23 +564,23 @@ export default withOpenInEditor(withMermaid(defineConfig({
               items: [
                 { text: '持久化思想', link: '/java/05-java-data-access/chapter-01-persistence-thought' },
                 { text: 'JDBC', link: '/java/05-java-data-access/chapter-02-jdbc' },
-                { text: 'JDBC：性能瓶颈与连接池', link: '/java/05-java-data-access/chapter-02-jdbc-performance-pool' },
+                { text: 'JDBC：性能瓶颈与连接池', link: '/java/05-java-data-access/chapter-03-jdbc-performance-pool' },
               ],
             },
             {
               text: '映射框架',
               items: [
-                { text: 'MyBatis', link: '/java/05-java-data-access/chapter-03-mybatis' },
-                { text: 'MyBatis：插件与动态 SQL', link: '/java/05-java-data-access/chapter-03-mybatis-plugins-dynamic-sql' },
-                { text: 'ORM 深入', link: '/java/05-java-data-access/chapter-04-orm-deep' },
-                { text: 'ORM：对象关系映射策略', link: '/java/05-java-data-access/chapter-04-orm-mapping-strategies' },
+                { text: 'MyBatis', link: '/java/05-java-data-access/chapter-04-mybatis' },
+                { text: 'MyBatis：插件与动态 SQL', link: '/java/05-java-data-access/chapter-05-mybatis-plugins-dynamic-sql' },
+                { text: 'ORM 深入', link: '/java/05-java-data-access/chapter-06-orm-deep' },
+                { text: 'ORM：对象关系映射策略', link: '/java/05-java-data-access/chapter-07-orm-mapping-strategies' },
               ],
             },
             {
               text: '性能与连接池',
               items: [
-                { text: '性能优化', link: '/java/05-java-data-access/chapter-05-performance' },
-                { text: 'Druid 连接池', link: '/java/05-java-data-access/chapter-06-druid' },
+                { text: '性能优化', link: '/java/05-java-data-access/chapter-08-performance' },
+                { text: 'Druid 连接池', link: '/java/05-java-data-access/chapter-09-druid' },
               ],
             },
           ],
@@ -601,17 +603,17 @@ export default withOpenInEditor(withMermaid(defineConfig({
             {
               text: '并发',
               items: [
-                { text: '并发诊断与优化', link: '/java/06-diagnostics/02-concurrency/chapter-01-concurrency-diagnostics' },
-                { text: '锁与执行模型案例', link: '/java/06-diagnostics/02-concurrency/chapter-02-cases-lock-execution' },
-                { text: '并发案例：可变键与 pinning', link: '/java/06-diagnostics/02-concurrency/chapter-02-cases-mutable-key-pin' },
-                { text: '异步任务与下游超时案例', link: '/java/06-diagnostics/02-concurrency/chapter-03-cases-async-timeout' },
+                { text: '并发问题诊断', link: '/java/06-diagnostics/02-concurrency/chapter-01-concurrency-diagnostics' },
+                { text: '并发性能优化', link: '/java/06-diagnostics/02-concurrency/chapter-02-concurrency-optimization' },
+                { text: '锁与执行模型案例', link: '/java/06-diagnostics/02-concurrency/chapter-03-cases-lock-execution' },
+                { text: '并发案例：可变键与 pinning', link: '/java/06-diagnostics/02-concurrency/chapter-04-cases-mutable-key-pin' },
+                { text: '异步任务与下游超时案例', link: '/java/06-diagnostics/02-concurrency/chapter-05-cases-async-timeout' },
               ]
             },
             {
               text: '网络',
               items: [
                 { text: '网络性能分析与故障排查', link: '/java/06-diagnostics/03-network/chapter-01-network-diagnostics' },
-                { text: '网络诊断：高并发优化与实践', link: '/java/06-diagnostics/03-network/chapter-01-network-optimization-practices' },
               ]
             },
           ],

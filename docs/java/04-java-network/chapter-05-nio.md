@@ -28,7 +28,7 @@ Tomcat 的 Acceptor 和 Poller 可以使用 Selector 管理就绪事件，但业
 
 ### 1.2 BIO 把线程当「等待工」用
 
-上一章 §3.5 的 Echo Server 用的就是最原始的 BIO：每 `accept` 一个连接，分配一个线程处理。线程 90% 的时间都阻塞在 `read()` 上。
+[第 4 章 §5.1](./chapter-04-socket.md) 的 Echo Server 用的就是最原始的 BIO：每 `accept` 一个连接，分配一个线程处理。线程 90% 的时间都阻塞在 `read()` 上。
 
 ```txt
 ┌─────────────────────────────────────────┐

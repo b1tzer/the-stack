@@ -176,7 +176,7 @@ Socket socket = new Socket("192.168.1.1", 8080);  // 内部调用 socket() + con
 // Java 层
 OutputStream out = socket.getOutputStream();
 out.write("hello".getBytes());   // 数据进入内核发送缓冲区
-out.flush();                     // 强制刷新（见 §3.4）
+out.flush();                     // 强制刷新（见 §2.5）
 
 InputStream in = socket.getInputStream();
 byte[] buf = new byte[1024];
@@ -253,7 +253,7 @@ close(connFd)  ◄── 四次挥手 ──── close(fd)
 └────────────────────────────────────────────────┘
 ```
 
-缓冲区大小由 Socket 选项 `SO_SNDBUF` 和 `SO_RCVBUF` 控制（详见 §3.4）。默认值因 OS 而异，Linux 通常为 **128KB ~ 256KB**，并会根据内存压力自动调整（`tcp_rmem` / `tcp_wmem` 内核参数）。
+缓冲区大小由 Socket 选项 `SO_SNDBUF` 和 `SO_RCVBUF` 控制；Java 设置方法见 §4.2，参数取舍见 [TCP 性能参数与 Java 实践](./chapter-03-tcp-performance-java.md)。默认值因 OS 而异，Linux 通常为 **128KB ~ 256KB**，并会根据内存压力自动调整（`tcp_rmem` / `tcp_wmem` 内核参数）。
 
 **发送缓冲区满会怎样？** `write()` 会**阻塞**，直到内核发出了一些数据腾出空间。这就是"写阻塞"——它不是因为网络慢，而是因为发送缓冲区满了。
 
@@ -348,77 +348,18 @@ $ netstat -s | grep "listen"
 
 这就是为什么高并发场景必须用 NIO——不是因为 BIO "慢"，而是因为 BIO 用线程做等待，内存扛不住。
 
-## 4. Socket 选项：生产中真正要调的参数
+## 4. 在 Java 中设置 Socket 选项
 
-Socket 选项通过 `setsockopt()` 系统调用设置，Java 中通过 `ServerSocket.setOption()` / `Socket.setOption()` 或 `ServerSocketChannel` 设置。
+Socket 选项最终由 `setsockopt()` 或等价的系统调用设置。Java 的阻塞式 API 使用专用方法，NIO Channel 使用 `setOption()`。选项含义、调参边界与验证方法见 [TCP 性能参数与 Java 实践](./chapter-03-tcp-performance-java.md)，本节只说明 Java API 的对应关系和设置时机。
 
-### 4.1 `SO_REUSEADDR` 与 `SO_REUSEPORT`
+### 4.1 先确定设置时机
 
-**`SO_REUSEADDR`**：允许绑定处于 `TIME_WAIT` 状态的地址。
+- `SO_REUSEADDR`、`SO_REUSEPORT` 必须在 `bind()` 前设置；绑定后再修改不会生效。
+- `SO_RCVBUF`、`SO_SNDBUF` 应在绑定或连接前设置，设置值只是建议，实际值可能被系统限制或调整。
+- `TCP_NODELAY` 和 `SO_KEEPALIVE` 只适用于已建立的 TCP 连接，可在连接前后按具体 API 设置。
+- 使用 Channel 时，先通过 `supportedOptions()` 确认当前实现和协议支持该选项，再调用 `setOption()`。
 
-> 你重启了服务，结果报了一个 `BindException: Address already in use`。端口还在用？明明上一个进程已经 kill 了。这是因为旧连接还卡在 `TIME_WAIT`（见第 2 章四次挥手），要等 60 秒端口才能释放。`SO_REUSEADDR` 就是让你跳过这个等待。
-
-```java
-ServerSocket ss = new ServerSocket();
-ss.setReuseAddress(true);          // SO_REUSEADDR
-ss.bind(new InetSocketAddress(8080));
-```
-
-**`SO_REUSEPORT`**（Linux 3.9+）：允许多个进程/线程绑定同一个端口，内核在它们之间做负载均衡。适用于多线程 accept 的场景，避免单一 accept 线程成为瓶颈。
-
-```java
-// Java 11+ 通过 ServerSocketChannel 设置
-ServerSocketChannel ssc = ServerSocketChannel.open();
-ssc.setOption(StandardSocketOptions.SO_REUSEPORT, true);
-ssc.bind(new InetSocketAddress(8080));
-```
-
-### 4.2 `TCP_NODELAY`：禁用 Nagle 算法
-
-Nagle 算法会把小包合并后再发送，以提高网络利用率。但对延迟敏感的场景（游戏、实时通信、RPC），这个合并会引入额外延迟。
-
-```java
-socket.setTcpNoDelay(true);  // TCP_NODELAY = true，禁用 Nagle
-```
-
-**经验法则**：RPC 框架（Dubbo、gRPC）默认开启 `TCP_NODELAY`；HTTP 服务器通常不开。
-
-### 4.3 `SO_KEEPALIVE`：TCP 层保活
-
-TCP KeepAlive 在空闲连接上定期发送探测包，检测对端是否存活。
-
-```java
-socket.setKeepAlive(true);  // SO_KEEPALIVE = true
-```
-
-TCP KeepAlive 的默认参数（Linux）：
-
-| 参数 | 默认值 | 含义 |
-| :-- | :-- | :-- |
-| `tcp_keepalive_time` | 7200 秒 | 空闲多久后开始探测 |
-| `tcp_keepalive_intvl` | 75 秒 | 探测间隔 |
-| `tcp_keepalive_probes` | 9 次 | 多少次无响应判定断开 |
-
-> **注意**：默认 2 小时才开始探测，对于长连接服务来说太慢了。生产中通常结合**应用层心跳**（如每 30 秒发一次 ping/pong），TCP KeepAlive 只作为兜底。
-
-### 4.4 `SO_RCVBUF` / `SO_SNDBUF`：缓冲区大小
-
-控制内核为每个 Socket 分配的收发缓冲区大小。
-
-```java
-socket.setReceiveBufferSize(256 * 1024);   // SO_RCVBUF = 256KB
-socket.setSendBufferSize(256 * 1024);      // SO_SNDBUF = 256KB
-```
-
-| 场景 | 建议 |
-| :-- | :-- |
-| 低延迟、小数据量 | 默认即可（128KB） |
-| 高吞吐、大数据量（文件传输） | 适当增大（512KB ~ 1MB） |
-| 内存紧张、连接数极多 | 适当减小（64KB） |
-
-Linux 内核会自动在 `tcp_rmem` / `tcp_wmem` 范围内调整缓冲区大小（自动调优），通常不需要手动设置。
-
-### 4.5 在 Java 中设置 Socket 选项
+### 4.2 Java API 对应关系
 
 | 选项 | ServerSocket | Socket | Channel |
 | :-- | :-- | :-- | :-- |
@@ -429,7 +370,18 @@ Linux 内核会自动在 `tcp_rmem` / `tcp_wmem` 范围内调整缓冲区大小�
 | `SO_RCVBUF` | `setReceiveBufferSize(n)` | `setReceiveBufferSize(n)` | `setOption(SO_RCVBUF, n)` |
 | `SO_SNDBUF` | — | `setSendBufferSize(n)` | `setOption(SO_SNDBUF, n)` |
 
-> **注意**：Channel 列依赖具体实现。`SO_KEEPALIVE` 和 `TCP_NODELAY` 只能在已连接的 `SocketChannel` 上设置；JDK 21 的 `ServerSocketChannel` 仅支持 `SO_RCVBUF` 和 `SO_REUSEADDR`。`SO_REUSEADDR`、`SO_REUSEPORT` 应在 `bind()` 前设置；其他选项能否在连接后修改，需查阅对应 API 和目标操作系统的行为。
+```java
+ServerSocket serverSocket = new ServerSocket();
+serverSocket.setReuseAddress(true);
+serverSocket.setReceiveBufferSize(256 * 1024);
+serverSocket.bind(new InetSocketAddress(8080), 1024);
+
+Socket socket = new Socket("example.com", 8080);
+socket.setTcpNoDelay(true);
+socket.setKeepAlive(true);
+```
+
+`ServerSocket` 不提供 `TCP_NODELAY` 和 `SO_KEEPALIVE` 专用方法，因为这两项属于已建立的连接，而不是监听端点。是否允许在连接后修改、以及操作系统如何执行设置，仍需以目标 JDK、协议类型和 `supportedOptions()` 结果为准。
 
 ## 5. 动手：用 Java Socket 跑通一个 Echo
 
@@ -525,5 +477,5 @@ public class EchoClient {
 | 内核缓冲区 | 每个 Socket 有收发两块缓冲区，read/write 操作的是缓冲区而非网络 |
 | 全连接队列 | accept queue 溢出时连接被丢弃，需关注 `ss -ltn` 中的 Recv-Q |
 | fd 限制 | 单进程默认 1024，高并发需调 `ulimit -n` |
-| Socket 选项 | `SO_REUSEADDR`、`TCP_NODELAY`、`SO_KEEPALIVE` 等是生产必调项 |
+| Socket 选项 | Java API 提供设置入口；参数含义和调参边界见 TCP 性能参数章节 |
 | BIO 的局限 | 一连接一线程，内存扛不住 → 需要 NIO |

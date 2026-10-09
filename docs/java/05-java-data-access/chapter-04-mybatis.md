@@ -352,4 +352,4 @@ User u2 = userMapper.getById(1);     // 命中缓存，返回 Tom（脏数据！
 
 核心流程和缓存说明了 MyBatis 如何组织一次数据库访问。下一页继续扩展执行链路：插件如何拦截语句，以及动态 SQL 如何在运行时组织查询。
 
-> **下一页：** [MyBatis 插件机制与动态 SQL](./chapter-03-mybatis-plugins-dynamic-sql.md)
+> **下一页：** [MyBatis 插件机制与动态 SQL](./chapter-05-mybatis-plugins-dynamic-sql.md)

@@ -1,6 +1,6 @@
 # Spring Data JPA
 
-> 本页聚焦 Repository、Specification、审计和 DTO 投影。实体生命周期、延迟加载与 N+1 问题见 [ORM 深入](../../java/05-java-data-access/chapter-04-orm-deep.md)。
+> 本页聚焦 Repository、Specification、审计和 DTO 投影。实体生命周期、延迟加载与 N+1 问题见 [ORM 深入](../../java/05-java-data-access/chapter-06-orm-deep.md)。
 
 > JPA 把数据库表映射成 Java 对象，你操作对象，框架帮你生成 SQL。不用手写 SELECT/INSERT，方法名就能查询，审计字段自动填充。但 ORM 的「魔法」背后藏着 N+1 陷阱、懒加载异常、持久化上下文脏检查——理解原理才能用好。本章从实体定义到 Repository，从 Specification 动态查询到审计功能，把 JPA 的核心用法和常见坑讲清楚。
 

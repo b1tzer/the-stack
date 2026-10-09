@@ -4,7 +4,7 @@
 
 > 堆使用率和 Full GC 次数不足以判断 GC 对延迟的影响。本页通过构造场景说明如何结合分配速率、对象寿命、Young GC 频率、暂停时间和晋升量，判断“堆未满但延迟上升”的原因。
 
-## 案例 7：支付回调的 Young GC 风暴 —— 日志拼接每秒造 300MB 垃圾
+## 支付回调的 Young GC 风暴 —— 日志拼接每秒造 300MB 垃圾
 
 ### 1.1 事故背景
 
@@ -114,7 +114,7 @@ public class PaymentCallbackService {
 
 **规则：生产环境日志一律用 `{}` 占位符，永远不要在日志参数中拼接字符串。**
 
-## 案例 8：索引热更新的 Survivor 复制风暴 —— 500MB 对象在新生代来回搬家
+## 索引热更新的 Survivor 复制风暴 —— 500MB 对象在新生代来回搬家
 
 ### 2.1 事故背景
 
@@ -203,7 +203,7 @@ public void switchIndex(String indexPath) {
 | 大规模长生命对象 | 间歇性 Young GC 耗时暴增 | Object Copy 阶段过大 | `MaxTenuringThreshold=1` / 断流预热 |
 | 15 分钟周期 + P99 毛刺同步 | 毛刺与索引更新时间吻合 | 索引替换触发的复制风暴 | 灰度分批 + 断流预热 |
 
-## 案例 9：SafePoint 同步延迟 —— GC 只花了 0.14 秒，线程却停了 2.26 秒
+## SafePoint 同步延迟 —— GC 只花了 0.14 秒，线程却停了 2.26 秒
 
 ### 3.1 事故背景
 
@@ -295,7 +295,7 @@ while (true) {
 | jstack 触发 ThreadDump vmop | jstack 本身需要 SafePoint | 低峰期操作，用 `jcmd Thread.dump_to_file` |
 | Native 方法长时间不返回 | Native 代码中无法响应 SafePoint | 拆分长 JNI 调用，加超时 |
 
-## 案例 10：Log4j2 + PretenureSizeThreshold 组合技 —— 2MB 的"日志炸弹"直冲老年代
+## Log4j2 + PretenureSizeThreshold 组合技 —— 2MB 的"日志炸弹"直冲老年代
 
 ### 4.1 事故背景
 

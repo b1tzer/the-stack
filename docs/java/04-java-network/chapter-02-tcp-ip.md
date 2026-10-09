@@ -48,7 +48,7 @@ TCP 和 UDP 是传输层的两个核心协议，它们的设计哲学截然不�
 
 HTTP 定义请求与响应消息及消息体的完整性语义，但 HTTP/1.1 和 HTTP/2 默认运行在 TCP 上，借助 TCP 的校验、确认、重传和有序交付处理传输层丢包与乱序。HTTP/3 则定义在 QUIC 上，由 QUIC 自己提供可靠交付和流控。
 
-但 HTTP/3（基于 QUIC 协议）开始使用 UDP 作为传输层，在 UDP 之上自己实现了可靠传输和流控——因为 TCP 的某些设计（如队头阻塞）在现代网络环境下反而成了瓶颈。这个故事我们留到第 6 章再讲。
+但 HTTP/3（基于 QUIC 协议）开始使用 UDP 作为传输层，在 UDP 之上自己实现了可靠传输和流控——因为 TCP 的某些设计（如队头阻塞）在现代网络环境下反而成了瓶颈。这个故事我们留到第 7 章再讲。
 
 ## 2. TCP 三次握手与四次挥手
 
@@ -343,4 +343,4 @@ pipeline.addLast(new LengthFieldBasedFrameDecoder(
 
 理解 TCP 的连接、可靠交付和消息边界后，还需要区分协议语义与可调参数。下一页集中说明 Nagle、KeepAlive、缓冲区等性能选项，并用 Java 代码和抓包验证行为。
 
-> **下一页：** [TCP 性能参数与 Java 实践](./chapter-02-tcp-performance-java.md)
+> **下一页：** [TCP 性能参数与 Java 实践](./chapter-03-tcp-performance-java.md)

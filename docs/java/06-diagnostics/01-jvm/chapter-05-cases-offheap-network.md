@@ -4,7 +4,7 @@
 
 > 本页用两个构造场景说明：堆和 GC 正常时，连接数上限与堆外内存仍可能限制服务。前一个场景检查 Tomcat `LimitLatch` 和 accept 队列，后一个场景检查 Netty 引用计数与 Native Memory Tracking（NMT）。
 
-## 案例 11：Tomcat LimitLatch —— 一条陈年配置让服务间歇性假死
+## Tomcat LimitLatch —— 一条陈年配置让服务间歇性假死
 
 ### 1.1 事故背景
 
@@ -160,7 +160,7 @@ server:
 
 此外：任何环境里的任何配置，你都必须知道它是怎么来的、为什么是这个值。`max-connections=10` 可能是一次压测时的临时调整、某个"最佳实践"博客里的推荐值、或者某个前辈留下的"为了防止连接数打满"的保护措施——但无论哪种，在大批量 Nginx worker 的长连接面前都是灾难。
 
-## 案例 12：Netty 直接内存泄漏 —— 堆正常但容器被 OOMKilled
+## Netty 直接内存泄漏 —— 堆正常但容器被 OOMKilled
 
 ### 2.1 事故背景
 

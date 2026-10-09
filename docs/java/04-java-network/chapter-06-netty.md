@@ -2,11 +2,11 @@
 
 > Netty 不只是 NIO API 的封装。本章解释 EventLoop 如何绑定 Channel、异步任务如何分配执行线程、Pipeline 的职责边界，以及堆外内存不足为何可能在堆仍可用时失败。阅读时需要区分 NIO 核心类型与 Netty 自己的抽象。
 
-> **📖 阅读建议**：§5.1 是为什么要有 Netty（对比[第4章](./chapter-04-nio) NIO），§5.2 是核心线程模型（你线上排障最需要的部分），§5.3 ByteBuf（`Direct buffer memory` OOM 根因），§5.4 编解码（粘包/拆包解决方案），§5.5 Reactor 模式全景。删除API罗列式讲解，保留原理和排查路径。
+> **📖 阅读建议**：§1 是为什么要有 Netty（对比[第 5 章](./chapter-05-nio) NIO），§2 是核心线程模型（你线上排障最需要的部分），§3 讲 ByteBuf（`Direct buffer memory` OOM 根因），§4 讲编解码（粘包/拆包解决方案），§5 给出 Reactor 模式全景。
 
 ## 1. 从 NIO 到 Netty：为什么原生 NIO 没人直接用了
 
-[第4章](./chapter-04-nio)讲了 NIO 的 Channel、Buffer、Selector。你能用 500 行写一个 NIO Echo Server，但[第4章](./chapter-04-nio)也在末尾告诉你：生产代码没人这么写。具体原因一个一个看。
+[第 5 章](./chapter-05-nio)讲了 NIO 的 Channel、Buffer、Selector。你能用 500 行写一个 NIO Echo Server，但[第 5 章](./chapter-05-nio)也在末尾告诉你：生产代码没人这么写。具体原因一个一个看。
 
 ### 1.1 NIO 的三个致命缺陷
 

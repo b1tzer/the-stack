@@ -4,7 +4,7 @@
 
 > 本页用四个构造场景覆盖死锁、线程池饱和、可变键导致的并发集合失效，以及虚拟线程 pinning。每个场景先从线程状态和执行轨迹定位问题，再讨论锁顺序、任务队列、对象身份和同步边界。
 
-## 1. 案例 1：对账与下单的死锁 —— 两个团队，两个锁序 {#case-1}
+## 对账与下单的死锁 —— 两个团队，两个锁序 {#case-1}
 
 ### 1.1 事故背景
 
@@ -200,7 +200,7 @@ public void reconcileOrder() {
 
 **教训：** 任何涉及多把锁的方法，必须定义全局统一的加锁顺序（如按锁对象的 `identityHashCode` 排序），并给所有锁获取加超时。这个案例的致命组合（两个团队独立开发，锁顺序相反）在真实生产环境中反复出现——根源是跨团队协作时缺少锁资源申请的全局视图。
 
-## 2. 案例 2：618 的雪崩 —— CallerRunsPolicy 把 Tomcat 线程全拖下水 {#case-2}
+## 618 的雪崩 —— CallerRunsPolicy 把 Tomcat 线程全拖下水 {#case-2}
 
 ### 2.1 事故背景
 
@@ -303,7 +303,7 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 }
 ```
 
-详见第 12 章虚拟线程的原理。
+详见第 13 章虚拟线程的原理。
 
 ### 2.5 总结
 
@@ -317,4 +317,4 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 
 前两个案例分别说明锁序错误和线程池饱和。下一组案例聚焦另外两类并发故障：可变 key 破坏并发集合去重，以及虚拟线程 pinning 导致调度能力下降。
 
-> **下一页：** [可变键与虚拟线程 pinning 案例](./chapter-02-cases-mutable-key-pin.md)
+> **下一页：** [可变键与虚拟线程 pinning 案例](./chapter-04-cases-mutable-key-pin.md)

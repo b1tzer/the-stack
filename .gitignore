@@ -45,3 +45,7 @@ temp/
 .codebuddy/
 hooks/
 tools/
+
+# 本地研究资料（清单和脚本保留，下载内容不入库）
+research-cache/downloads/
+research-cache/extracted/

@@ -408,12 +408,14 @@ HttpResponse<String> response = client.send(request,
 | 章节 | 主题 | 核心问题 |
 | :-- | :-- | :-- |
 | [第2章](./chapter-02-tcp-ip) | TCP/IP | TCP 如何保证可靠传输？三次握手和四次挥手的细节？ |
-| [第3章](./chapter-03-socket) | UDP 与非阻塞通信 | UDP 适合什么场景？Java NIO 的 Selector 怎么工作？ |
-| [第4章](./chapter-04-nio) | Java NIO 深入 | Channel、Buffer、Selector 的底层原理是什么？ |
-| [第5章](./chapter-05-netty) | Netty 框架 | 为什么 Netty 是 Java 网络编程的事实标准？ |
-| [第6章](./chapter-06-http) | HTTP 协议与 Java 实现 | HTTP/1.1、HTTP/2、HTTP/3 有什么区别？ |
-| [第7章](./chapter-07-servlet-tomcat-request-chain.md) | Servlet 与 Tomcat 请求链 | HTTP 请求如何从字节流进入应用代码？ |
-| [第8章](./chapter-08-rpc.md) | RPC 与微服务通信 | 一次远程调用经过哪些层次？ |
-| [第9章](./chapter-09-long-connection-protocols.md) | 长连接协议与保活 | WebSocket、SSE 和心跳如何维持通信？ |
-| [第10章](./chapter-10-im-system-design.md) | IM 系统设计 | 在线状态、消息路由和顺序如何保证？ |
+| [第3章](./chapter-03-tcp-performance-java.md) | TCP 性能参数与 Java 实践 | 如何权衡 Nagle、KeepAlive 和缓冲区配置？ |
+| [第4章](./chapter-04-socket.md) | Java Socket 编程 | Socket 在进程与内核之间抽象了什么？ |
+| [第5章](./chapter-05-nio.md) | Java NIO | Channel、Buffer、Selector 如何支撑非阻塞 I/O？ |
+| [第6章](./chapter-06-netty.md) | Netty 框架 | Java 网络程序为什么通常建立在 Netty 之上？ |
+| [第7章](./chapter-07-http.md) | HTTP 协议与 Java 实现 | HTTP/1.1、HTTP/2、HTTP/3 有什么区别？ |
+| [第8章](./chapter-08-servlet-tomcat-request-chain.md) | Servlet 与 Tomcat 请求链 | HTTP 请求如何从字节流进入应用代码？ |
+| [第9章](./chapter-09-rpc.md) | RPC 与微服务通信 | 一次远程调用经过哪些层次？ |
+| [第10章](./chapter-10-long-connection-protocols.md) | 长连接协议与保活 | WebSocket、SSE 和心跳如何维持通信？ |
+| [第11章](./chapter-11-im-system-design.md) | IM 系统设计 | 在线状态、消息路由和顺序如何保证？ |
+| [第12章](./chapter-12-network-optimization.md) | 高并发网络优化 | 高并发下如何配置连接并持续验证性能？ |
 | [网络诊断](../06-diagnostics/03-network/chapter-01-network-diagnostics.md) | 网络排查 | 如何用抓包、线程和连接状态定位故障？ |

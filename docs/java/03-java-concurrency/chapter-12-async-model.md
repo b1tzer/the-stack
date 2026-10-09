@@ -150,7 +150,7 @@ String result = pipeline.join();
 
 ### 3.2 `commonPool` 的默认坑
 
-`supplyAsync(fn)` / `thenApplyAsync(fn)` 不传 executor 时，默认使用 `ForkJoinPool.commonPool()`（第 10 章 §10.7.2 讨论过）。这个池由 JVM 中的任务共享；常见配置下并行度为可用处理器数减 1，但也可能被 `java.util.concurrent.ForkJoinPool.common.parallelism` 覆盖。并行度低于 2 时，JDK 会为每个任务创建新线程。
+`supplyAsync(fn)` / `thenApplyAsync(fn)` 不传 executor 时，默认使用 `ForkJoinPool.commonPool()`（第 11 章的 `ForkJoinPool` 一节讨论过）。这个池由 JVM 中的任务共享；常见配置下并行度为可用处理器数减 1，但也可能被 `java.util.concurrent.ForkJoinPool.common.parallelism` 覆盖。并行度低于 2 时，JDK 会为每个任务创建新线程。
 
 ```java
 // ❌ 阻塞 IO 塞进 commonPool：一整个 JVM 的 CompletableFuture / parallelStream 陪葬
@@ -166,7 +166,7 @@ ExecutorService ioPool = new ThreadPoolExecutor(
 CompletableFuture.supplyAsync(() -> httpClient.get(url), ioPool);
 ```
 
-一条生产规则：**除非任务是纯 CPU 计算且短，否则永远显式传 Executor**。这条规则在 §11.5 会再出现一次。
+一条生产规则：**除非任务是纯 CPU 计算且短，否则永远显式传 Executor**。这条规则在 §5.3 会再出现一次。
 
 ### 3.3 `Async` 变体的选型
 
@@ -290,7 +290,7 @@ CompletableFuture.supplyAsync(this::queryDB)
     .thenAccept(this::save);
 ```
 
-`thenApply` 的回调很可能在 `commonPool` 上执行（详见 §11.3.1）。阻塞 IO 占死 commonPool 后，同 JVM 内的 `parallelStream`、其他 `CompletableFuture` 全部卡住。**含阻塞的 stage 必须用 `xxxAsync(fn, executor)` 换到专用池**。
+`thenApply` 的回调很可能在 `commonPool` 上执行（详见 §3.2）。阻塞 IO 占死 commonPool 后，同 JVM 内的 `parallelStream`、其他 `CompletableFuture` 全部卡住。**含阻塞的 stage 必须用 `xxxAsync(fn, executor)` 换到专用池**。
 
 ### 5.3 未指定 Executor
 
@@ -346,10 +346,10 @@ Actor 与前述所有模型的分野在**编程思维**：从"共享内存 + 加
 | 线程 + 锁 | CPU 密集、简单并发 | 本卷 §6 / §8 |
 | `CompletableFuture` | 单值异步 + 编排、微服务扇出 | 本章 |
 | 响应式流 | 高并发 IO、流处理、背压 | 第四卷 |
-| 虚拟线程 | 大量阻塞 IO、同步风格代码 | 本卷第 12 章 |
+| 虚拟线程 | 大量阻塞 IO、同步风格代码 | 本卷第 13 章 |
 | Actor | 分布式系统、事件驱动、高容错 | 第七卷 |
 
-选型的一条起手线：**能用同步风格 + 虚拟线程解决的场景，就不要引入响应式或 Actor**（第 12 章给了理由）。剩下真正需要流处理和分布式容错的场景，再各自展开。
+选型的一条起手线：**能用同步风格 + 虚拟线程解决的场景，就不要引入响应式或 Actor**（第 13 章给了理由）。剩下真正需要流处理和分布式容错的场景，再各自展开。
 
 ## 7. 本章小结
 

@@ -47,7 +47,7 @@ ExecutorService pool = new ThreadPoolExecutor(
 pool.submit(() -> handle(request));
 ```
 
-一行 `submit` 背后，线程池已经决定了：新任务应该由核心线程执行、还是入队、还是新起一条非核心线程、还是走拒绝策略。§10.3 会把这个决策过程剖开来看。
+一行 `submit` 背后，线程池已经决定了：新任务应该由核心线程执行、还是入队、还是新起一条非核心线程、还是走拒绝策略。§3.1 会把这个决策过程剖开来看。
 
 ## 2. `ThreadPoolExecutor` 的七个参数
 
@@ -79,7 +79,7 @@ public ThreadPoolExecutor(
 
 ![pool-execute-flow](/java/pool-execute-flow.svg)
 
-**这个流程决定了一件反直觉的事：只有队列先"装不下"，才可能创建非核心线程**。也就是说，把 `workQueue` 换成无界队列，等于让 `maximumPoolSize` 形同虚设——见 §10.5.2。
+**这个流程决定了一件反直觉的事：只有队列先"装不下"，才可能创建非核心线程**。也就是说，把 `workQueue` 换成无界队列，等于让 `maximumPoolSize` 形同虚设——见 §5.2。
 
 ## 3. 任务流转的完整状态机
 
@@ -113,7 +113,7 @@ public void execute(Runnable command) {
 }
 ```
 
-四条路径映射到 §10.2.2 的图。这里有一个容易漏掉的细节：**入队之后要 double-check**。因为提交和 `shutdown` 是并发的，入队瞬间线程池可能刚好被关。`workerCountOf(recheck) == 0` 那一段则是防御另一种边缘情况——所有 Worker 都异常终止后，队列里还有任务，得补一条兜底 Worker 来消费它。
+四条路径映射到 §2.2 的图。这里有一个容易漏掉的细节：**入队之后要 double-check**。因为提交和 `shutdown` 是并发的，入队瞬间线程池可能刚好被关。`workerCountOf(recheck) == 0` 那一段则是防御另一种边缘情况——所有 Worker 都异常终止后，队列里还有任务，得补一条兜底 Worker 来消费它。
 
 ### 3.2 Worker 的生命周期
 
@@ -135,7 +135,7 @@ ThreadPoolExecutor pool = new ThreadPoolExecutor(
 );
 ```
 
-有界队列 + 明确拒绝策略 + 可辨识的线程名——这三条是 §10.5 反复强调的红线。
+有界队列 + 明确拒绝策略 + 可辨识的线程名——这三条是 §5 反复强调的红线。
 
 ## 4. 四种拒绝策略
 
@@ -219,7 +219,7 @@ public static ExecutorService newFixedThreadPool(int n) {
 
 `LinkedBlockingQueue()` 无参构造的容量是 `Integer.MAX_VALUE`——20 亿级容量，等于**不设上限**。
 
-代入 §10.2.2 的流程图：核心线程满 → 入队 → 由于队列永远不会满 → 永远走不到"创建非核心线程"这一步。表面上看 `maximumPoolSize` 生效了（因为等于 `corePoolSize`），实际上真正决定行为的是**无界队列在堆里持续膨胀**。任务提交速率一旦持续大于处理速率，堆很快撑爆。
+代入 §2.2 的流程图：核心线程满 → 入队 → 由于队列永远不会满 → 永远走不到“创建非核心线程”这一步。表面上看 `maximumPoolSize` 生效了（因为等于 `corePoolSize`），实际上真正决定行为的是**无界队列在堆里持续膨胀**。任务提交速率一旦持续大于处理速率，堆很快撑爆。
 
 ### 5.3 `newCachedThreadPool` 的另一头出口
 
@@ -231,7 +231,7 @@ public static ExecutorService newCachedThreadPool() {
 }
 ```
 
-`SynchronousQueue` 是零容量的“传递型”队列——**入队必须有一个消费者同时等待才成功**。§10.2.2 的流程图代入：没有空闲 worker 时，核心线程 0，`workQueue.offer` 失败，于是走到“创建非核心线程”，而这一步的上限是 `Integer.MAX_VALUE`。
+`SynchronousQueue` 是零容量的“传递型”队列——**入队必须有一个消费者同时等待才成功**。§2.2 的流程图代入：没有空闲 worker 时，核心线程 0，`workQueue.offer` 失败，于是走到“创建非核心线程”，而这一步的上限是 `Integer.MAX_VALUE`。
 
 如果空闲 worker 不足，任务到来就可能创建新的线程；当并发同时达到 10 000 且没有 worker 可复用时，就可能创建 10 000 条线程，按每条 1 MB 栈估算约为 10 GB 虚拟地址空间。最终可能触发 `OutOfMemoryError: unable to create native thread`，但是否发生取决于平台、线程栈配置和并发峰值。
 
@@ -338,7 +338,7 @@ ExecutorService ioPool = ...;
 CompletableFuture.supplyAsync(() -> httpClient.get(url), ioPool);
 ```
 
-一条经验规则是：**默认的 `commonPool` 适合可拆分的 CPU 密集任务；可能长时间阻塞的任务应使用专门配置的线程池**。是否必须隔离，还要结合线程池参数、阻塞时长和任务隔离需求判断。第 11 章会围绕 `CompletableFuture` 把这条规则再展开一遍。
+一条经验规则是：**默认的 `commonPool` 适合可拆分的 CPU 密集任务；可能长时间阻塞的任务应使用专门配置的线程池**。是否必须隔离，还要结合线程池参数、阻塞时长和任务隔离需求判断。第 12 章会围绕 `CompletableFuture` 把这条规则再展开一遍。
 
 ### 7.3 `ThreadPoolExecutor` vs `ForkJoinPool`
 

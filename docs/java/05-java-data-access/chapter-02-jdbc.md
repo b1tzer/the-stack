@@ -368,4 +368,4 @@ for (long id : userIds) {
 
 前面的内容覆盖 JDBC 的接口、参数化查询和结果处理。接下来从请求延迟和资源占用出发，分析连接创建、逐条执行与连接池参数之间的取舍。
 
-> **下一页：** [JDBC 性能瓶颈与连接池](./chapter-02-jdbc-performance-pool.md)
+> **下一页：** [JDBC 性能瓶颈与连接池](./chapter-03-jdbc-performance-pool.md)

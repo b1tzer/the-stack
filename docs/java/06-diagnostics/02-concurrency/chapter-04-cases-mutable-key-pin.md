@@ -1,8 +1,8 @@
 # 并发案例：可变键与虚拟线程 pinning
 
-> 本页与 [并发案例：锁与执行模型](./chapter-02-cases-lock-execution.md) 配套，重点说明并发集合可变键和虚拟线程 pinning。
+> 本页与 [并发案例：锁与执行模型](./chapter-03-cases-lock-execution.md) 配套，重点说明并发集合可变键和虚拟线程 pinning。
 
-## 1. ConcurrentHashMap 去重失效：可变 key 的 hashCode 陷阱 {#case-3}
+## ConcurrentHashMap 去重失效：可变 key 的 hashCode 陷阱 {#case-3}
 
 ### 1.1 事故背景
 
@@ -107,7 +107,7 @@ public class Task {
 
 **教训：** 可变对象作为 Map 的 key = 定时炸弹。代码审查里如果看到 `Map<某可变对象, ...>`，直接问一句："这个对象的 hashCode 会不会变？" 如果答案是"会"——别让它做 key。
 
-## 2. 虚拟线程 pinning：同步锁让 5000 QPS 跌到 800 {#case-4}
+## 虚拟线程 pinning：同步锁让 5000 QPS 跌到 800 {#case-4}
 
 ### 2.1 事故背景
 

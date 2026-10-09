@@ -123,21 +123,37 @@ net.ipv4.tcp_wmem = 4096 65536 16777216
 net.ipv4.tcp_window_scaling = 1
 ```
 
-### 1.4 其他值得关注的 TCP 参数
+### 1.4 端口复用：`SO_REUSEADDR` 与 `SO_REUSEPORT`
 
-| 参数 | 说明 | 推荐设置 |
-| :-- | :-- | :-- |
-| `SO_REUSEADDR` | 允许重用处于 TIME_WAIT 的地址 | 服务器端通常启用 |
-| `SO_REUSEPORT` | 允许多个 Socket 绑定同一端口（Linux 3.9+） | 高并发服务器启用 |
-| `SO_LINGER` | close() 时的行为（立即返回 or 等待数据发完） | 根据场景设置 |
-| `SO_BACKLOG` | 连接等待队列长度 | 高并发场景增大 |
-| `TCP_QUICKACK` | 禁用延迟 ACK（Linux） | 交互式场景启用 |
+这两个选项都影响“绑定”，但解决的问题不同，应在 `bind()` 前设置。
+
+`SO_REUSEADDR` 主要处理流式 Socket 的地址复用。对 TCP 而言，它通常允许程序在涉及同一地址的旧连接处于 `TIME_WAIT` 时继续绑定；精确语义取决于 Socket 类型和操作系统。它不会删除或缩短 `TIME_WAIT`，也没有解决所有 `Address already in use` 的能力。
 
 ```java
 ServerSocket serverSocket = new ServerSocket();
 serverSocket.setReuseAddress(true);
-serverSocket.bind(new InetSocketAddress(8080), 1024); // backlog = 1024
+serverSocket.bind(new InetSocketAddress(8080), 1024);
 ```
+
+`SO_REUSEPORT` 允许多个监听 Socket 绑定同一地址和端口。它适合需要多个监听端点的场景，但负载分发方式、健康检查和连接迁移行为取决于操作系统，不能只凭“高并发”就默认启用。
+
+```java
+ServerSocketChannel channel = ServerSocketChannel.open();
+if (channel.supportedOptions().contains(StandardSocketOptions.SO_REUSEPORT)) {
+    channel.setOption(StandardSocketOptions.SO_REUSEPORT, true);
+}
+channel.bind(new InetSocketAddress(8080), 1024);
+```
+
+`SO_REUSEADDR` 和 `SO_REUSEPORT` 在绑定后修改都不会生效。上线前应在目标操作系统上验证绑定结果与流量分布。
+
+### 1.5 其他值得关注的 TCP 参数
+
+| 参数 | 说明 | 推荐设置 |
+| :-- | :-- | :-- |
+| `SO_LINGER` | close() 时的行为（立即返回 or 等待数据发完） | 根据场景设置 |
+| `SO_BACKLOG` | 连接等待队列长度 | 高并发场景增大 |
+| `TCP_QUICKACK` | 禁用延迟 ACK（Linux） | 交互式场景启用 |
 
 ## 2. 用 Java 体验 TCP 通信
 

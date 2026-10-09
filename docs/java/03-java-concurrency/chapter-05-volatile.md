@@ -324,7 +324,7 @@ list.add("hello");        // ArrayList.add 内部不是线程安全
 list.get(0);              // 可能抛 IndexOutOfBoundsException
 ```
 
-`volatile List` 只保证"`list` 这个引用变量被替换时"新引用对其他线程立刻可见——比如 `list = new ArrayList<>()` 这样的重新赋值。它**完全不管** `list` 内部的字段并发访问。要线程安全的列表：`CopyOnWriteArrayList` 或 `Collections.synchronizedList`（第 9 章展开）。
+`volatile List` 只保证"`list` 这个引用变量被替换时"新引用对其他线程立刻可见——比如 `list = new ArrayList<>()` 这样的重新赋值。它**完全不管** `list` 内部的字段并发访问。要线程安全的列表：`CopyOnWriteArrayList` 或 `Collections.synchronizedList`（第 10 章展开）。
 
 ### 4.4 能力边界总表
 

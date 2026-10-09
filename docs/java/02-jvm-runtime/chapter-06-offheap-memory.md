@@ -55,7 +55,7 @@ DirectByteBuffer（堆上，小对象）
                   ↑ 可以减少一次到 JVM 堆的复制
 ```
 
-这是 NIO 和 Netty 使用直接缓冲区的动机之一。实际复制次数取决于使用的 API、缓冲区复用方式和操作系统路径；直接缓冲区不会自动把所有 I/O 变成零拷贝，`sendfile()` 等零拷贝机制仍需显式使用。原理和取舍见 [Java NIO](../04-java-network/chapter-04-nio.md) 与 [Netty](../04-java-network/chapter-05-netty.md)。
+这是 NIO 和 Netty 使用直接缓冲区的动机之一。实际复制次数取决于使用的 API、缓冲区复用方式和操作系统路径；直接缓冲区不会自动把所有 I/O 变成零拷贝，`sendfile()` 等零拷贝机制仍需显式使用。原理和取舍见 [Java NIO](../04-java-network/chapter-05-nio.md) 与 [Netty](../04-java-network/chapter-06-netty.md)。
 
 ## 3. 堆外内存为什么难以排查
 

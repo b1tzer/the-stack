@@ -1,8 +1,8 @@
-# 并发问题诊断与性能优化
+# 并发问题诊断
 
 > 系统卡住了：CPU 空转、请求堆积、Thread Dump 里满屏 `BLOCKED`。这些症状分别对应什么问题？定位到哪一行代码才算根因？找到之后怎么修才不是治标？
 
-并发 bug 的痛点不是"难修"，而是"难复现"。测试环境稳跑一整月，上生产两分钟就死锁。原因是并发问题的暴露时机取决于线程调度的微秒级顺序——你写的每一行同步代码，都是在替 JVM 和 CPU 打赌。**这一章不重讲通用 Thread Dump 语法**（见 [JVM 线上诊断](../01-jvm/chapter-01-jvm-diagnostics.md)），只讨论并发场景下的特化视角：症状识别、根因定位、修复策略。
+并发 bug 的痛点不是"难修"，而是"难复现"。测试环境稳跑一整月，上生产两分钟就死锁。原因是并发问题的暴露时机取决于线程调度的微秒级顺序——你写的每一行同步代码，都是在替 JVM 和 CPU 打赌。**这一章不重讲通用 Thread Dump 语法**（见 [JVM 线上诊断](../01-jvm/chapter-01-jvm-diagnostics.md)），只讨论并发场景下的特化视角：症状识别、根因定位和上线检查。
 
 ## 1. 并发问题的四种典型症状
 
@@ -50,7 +50,7 @@ public class DeadlockDemo {
 }
 ```
 
-两条线程各自持一把锁、又都在等对方那把——形成"环"。这个环一旦形成，除非有超时机制或外部干预，永远解不开。§13.2 会展开死锁的四个必要条件、检测方法和预防策略。
+两条线程各自持一把锁、又都在等对方那把——形成"环"。这个环一旦形成，除非有超时机制或外部干预，永远解不开。本页第 2 章会展开死锁的四个必要条件、检测方法和预防策略。
 
 ### 1.3 活锁（Livelock）
 
@@ -109,7 +109,7 @@ for (int i = 0; i < 100; i++) {
 
 `count++` 结果时对时错，`HashMap` 在并发写下损坏得链表成环，`SimpleDateFormat` 并发解析抛 `NumberFormatException`——都是竞态。
 
-竞态的定位比死锁更难：**它没有可靠的症状**。表现只有一个"数据不对"，且无法稳定复现。诊断方法只有一条：**从数据错乱的形态反推**——比如"少了一条更新"通常对应 `count++` 型漏更新；"看到半初始化对象"通常对应 §4.5 讨论的发布不安全。
+竞态的定位比死锁更难：**它没有可靠的症状**。表现只有一个"数据不对"，且无法稳定复现。诊断方法只有一条：**从数据错乱的形态反推**——比如"少了一条更新"通常对应 `count++` 型漏更新；"看到半初始化对象"通常对应 [JMM 的安全发布](../../03-java-concurrency/chapter-04-jmm.md)讨论的发布不安全。
 
 ## 2. 死锁：机制、检测、预防
 
@@ -180,7 +180,7 @@ Found 1 deadlock.
 - `waiting to lock <地址>`：这条线程正在等的锁
 - 两条线程的"持有"与"等待"交叉——就是环
 
-**局限**：`jstack` 只能检测 `synchronized` 与 `ReentrantLock` 系的死锁。**如果死锁涉及 `LockSupport.park()` 无对象引用的挂起（第 8 章 §8.2），`jstack` 不报告死锁**——只会显示线程在 `park`。这种情况需要下一节的编程式检测。
+**局限**：`jstack` 只能检测 `synchronized` 与 `ReentrantLock` 系的死锁。**如果死锁涉及 `LockSupport.park()` 无对象引用的挂起（第 8 章的 LockSupport 一节），`jstack` 不报告死锁**——只会显示线程在 `park`。这种情况需要下一节的编程式检测。
 
 ### 2.3 编程式死锁检测
 
@@ -242,7 +242,7 @@ grep "java.lang.Thread.State" threads.dump | sort | uniq -c | sort -rn
 
 | 分布形态 | 症状 | 下一步 |
 | :-- | :-- | :-- |
-| 大量 `BLOCKED` 集中在同一把锁 | 严重锁竞争 | §13.3.2 找热点锁 |
+| 大量 `BLOCKED` 集中在同一把锁 | 严重锁竞争 | 本页 §3.2 找热点锁 |
 | 大量 `RUNNABLE` 但 CPU 满、吞吐低 | 活锁 / 空转 | 查重试与退避逻辑 |
 | 少量 `BLOCKED` + 明显的两两互等 | 死锁 | `jstack` 直接看死锁段 |
 | 大量 `WAITING` 在 `LinkedBlockingQueue.take` | 线程池空闲 | 正常，非问题 |
@@ -352,142 +352,11 @@ Arthas 是阿里开源的 Java 在线诊断工具，`thread -b` 一条命令直�
 
 对不能重启、不便开 JFR 的线上环境，Arthas 是最快的定位手段。
 
-## 5. 六种并发性能优化策略
+## 5. 虚拟线程的诊断专项
 
-诊断到问题之后，剩下的是修。生产上被反复验证过的策略只有六种。
+第 13 章介绍了虚拟线程的机制与 pinning 陷阱。诊断层面，虚拟线程带来了三个和平台线程完全不同的坑。
 
-### 5.1 减少锁粒度
-
-大锁拆小锁，把"谁进来都要抢"改成"分区各管各的"。经典案例是 `ConcurrentHashMap` 从 JDK 7 的 Segment 分段锁到 JDK 8 的 bin 级锁的演进：
-
-```txt
-JDK 7：16 个 Segment，16 把锁                    JDK 8+：每个 bin 一把锁
-┌─────────┬─────────┬─────────┐                 ┌───┬───┬───┬───┬───┬───┐
-│Segment 0│Segment 1│Segment 2│ ...             │b 0│b 1│b 2│b 3│b 4│...│
-│ Lock 0  │ Lock 1  │ Lock 2  │                 └───┴───┴───┴───┴───┴───┘
-└─────────┴─────────┴─────────┘                 并发度 = bin 数（默认 16，动态扩展）
-并发度 = 16
-```
-
-工程上直接换 `ConcurrentHashMap` 就够——无锁读、CAS 写、只有哈希冲突到 bin 级才加锁。
-
-### 5.2 无锁化：用 CAS 替代锁
-
-`AtomicLong` / `LongAdder` 是最常见的两种：
-
-```java
-// synchronized：竞争高时慢
-public synchronized void inc() { count++; }
-
-// AtomicLong：CAS 重试，无阻塞
-private final AtomicLong count = new AtomicLong();
-public void inc() { count.incrementAndGet(); }
-
-// LongAdder：分散热点，最后汇总
-private final LongAdder count = new LongAdder();
-public void inc() { count.increment(); }
-```
-
-三者在 8 线程并发递增 100 万次的相对量级：
-
-| 方案 | 相对耗时 | 何时用 |
-| :-- | :-- | :-- |
-| `synchronized` | ~450 ms | 低竞争，同时需要复合原子性 |
-| `AtomicLong` | ~120 ms | 计数器、序列号，中等竞争 |
-| `LongAdder` | ~45 ms | 高竞争的纯累加 / 统计场景 |
-
-判断标准：**只需要"最终一致的累加"用 `LongAdder`；需要"每次读到最新准确值"用 `AtomicLong`**。
-
-### 5.3 读写分离
-
-读多写少的场景，共享读比独占读快一个数量级：
-
-| 方案 | 读性能 | 写性能 | 适用 |
-| :-- | :-- | :-- | :-- |
-| `synchronized` | 低（读也互斥） | 低 | 读写均衡 |
-| `ReentrantReadWriteLock` | 高（读共享） | 低（写独占） | 读多写少 |
-| `StampedLock` 乐观读 | 极高（无 CAS） | 中 | 读极多、读操作短 |
-| `CopyOnWriteArrayList` | 极高（无锁） | 极低（复制整个数组） | 读极多、写极少的**配置类**数据 |
-
-`CopyOnWriteArrayList` 的写成本是 O(N) 数组复制，不适合频繁写入。**只有"读远大于写、且写操作可以合并成批"的场景**（配置、白名单、订阅者列表）才划算。
-
-### 5.4 批处理
-
-减少加锁次数：
-
-```java
-// ❌ 每条数据都获取一次锁
-for (Order o : orders) {
-    synchronized (dbLock) { insert(o); }
-}
-
-// ✅ 一次锁批量提交
-synchronized (dbLock) {
-    batchInsert(orders);
-}
-```
-
-更进一步：**攒批 + 异步 flush**，从"每次入库都同步"变成"入队后立刻返回，后台线程定时批量入库"：
-
-```java
-private final BlockingQueue<Order> queue = new LinkedBlockingQueue<>(10_000);
-
-public void add(Order o) {
-    queue.offer(o);                // 无锁入队
-}
-
-@Scheduled(fixedRate = 100)
-public void flush() {
-    List<Order> batch = new ArrayList<>();
-    queue.drainTo(batch, 500);
-    if (!batch.isEmpty()) batchInsert(batch);
-}
-```
-
-代价：**入库不再立即持久化，异常场景会丢队列里未 flush 的数据**。业务能容忍"一定时间窗口的数据丢失"再上这条策略。
-
-### 5.5 异步化
-
-用户请求的响应路径上只做必要工作，非核心操作丢到异步线程：
-
-```java
-// 优化前：整条链同步串行，总 RT ≈ 290ms
-public OrderResult create(OrderRequest req) {
-    validate(req);          // 10 ms
-    saveToDB(req);          // 50 ms
-    sendNotification(req);  // 200 ms  ← 外部服务
-    updateInventory(req);   // 30 ms
-    return new OrderResult();
-}
-
-// 优化后：核心同步 + 非核心异步，用户可见 RT ≈ 60ms
-public OrderResult create(OrderRequest req) {
-    validate(req);
-    saveToDB(req);
-    CompletableFuture.runAsync(() -> sendNotification(req), notifyPool);
-    CompletableFuture.runAsync(() -> updateInventory(req),  inventoryPool);
-    return new OrderResult();
-}
-```
-
-配合第 11 章 §11.3 的"每类任务用独立线程池"规则——异步任务不能扔到 `commonPool`。
-
-### 5.6 六种策略一览
-
-| 策略 | 核心思路 | 适用场景 | 代表工具 |
-| :-- | :-- | :-- | :-- |
-| 减少锁粒度 | 大锁拆小锁 | 高并发容器 | `ConcurrentHashMap` |
-| 无锁化 | CAS 替代锁 | 计数、累加 | `AtomicLong` / `LongAdder` |
-| 读写分离 | 读不互斥 | 读多写少 | `ReadWriteLock` / COW |
-| 批处理 | 合并加锁 | 高频小操作 | 批量 SQL / 攒批队列 |
-| 异步化 | 请求与处理解耦 | 非核心慢操作 | `CompletableFuture` / MQ |
-| 换工具 | 用无锁数据结构 | 队列、Map | `ConcurrentLinkedQueue` |
-
-## 6. 虚拟线程的诊断专项
-
-第 12 章介绍了虚拟线程的机制与 pinning 陷阱。诊断层面，虚拟线程带来了三个和平台线程完全不同的坑。
-
-### 6.1 pinning：虚拟线程独有的性能陷阱
+### 5.1 pinning：虚拟线程独有的性能陷阱
 
 平台线程被阻塞就是被阻塞，没有"钉住"这一说。虚拟线程不同——它挂在平台线程（carrier thread）上运行，遇到 `park` 会自动卸载，把 carrier 让给其他虚拟线程。但**遇到 `synchronized` 里的阻塞操作，虚拟线程会被"钉住"在 carrier 上，无法卸载**：
 
@@ -498,9 +367,9 @@ synchronized (lock) {
 }
 ```
 
-后果是**吞吐量骤降**：虚拟线程的调度优势建立在"carrier 数量少但可以承载海量虚拟线程"上，pinning 让 carrier 一条条被占死，最坏情况下退化成"平台线程池"。第 12 章 §12.3 有完整讨论。
+后果是**吞吐量骤降**：虚拟线程的调度优势建立在"carrier 数量少但可以承载海量虚拟线程"上，pinning 让 carrier 一条条被占死，最坏情况下退化成"平台线程池"。第 13 章的 pinning 一节有完整讨论。
 
-### 6.2 检测 pinning：`-Djdk.tracePinnedThreads`
+### 5.2 检测 pinning：`-Djdk.tracePinnedThreads`
 
 启动时加上参数，pinning 发生时会打印栈：
 
@@ -521,7 +390,7 @@ Thread[#22,ForkJoinPool-1-worker-3,5,CarrierThreads]
 
 生产环境不建议一直开 `full`（栈打印有开销），可以改用 `short` 或走 JFR。
 
-### 6.3 JFR：生产环境的 pinning 持续监控
+### 5.3 JFR：生产环境的 pinning 持续监控
 
 JFR 有一个专门的事件 `jdk.VirtualThreadPinned`，只在 pinning 发生时记录：
 
@@ -532,9 +401,9 @@ jcmd <pid> JFR.start filename=vt.jfr duration=60s \
 
 在 JMC 里过滤 `VirtualThreadPinned` 事件，能看到每次 pinning 的时长、涉及的锁对象、完整栈。**生产环境推荐这个方式**——开销极低（只在 pinning 时才记录），信息完整。
 
-修复思路一句话：**任何 `synchronized` 包住的阻塞操作，换成 `ReentrantLock`**。`ReentrantLock` 底层是 `LockSupport.park`（第 8 章 §8.2），虚拟线程 park 时能正常卸载。
+修复思路一句话：**任何 `synchronized` 包住的阻塞操作，换成 `ReentrantLock`**。`ReentrantLock` 底层是 `LockSupport.park`（第 8 章的 LockSupport 一节），虚拟线程 park 时能正常卸载。
 
-### 6.4 `jstack` 的输出差异
+### 5.4 `jstack` 的输出差异
 
 虚拟线程在 dump 里的表示和平台线程有明显不同：
 
@@ -558,11 +427,11 @@ jcmd <pid> Thread.dump_to_file -format=json vt-threads.json
 
 JSON 格式便于用工具分析（`jq` 或专用 dump 分析工具），比逐行 grep 高效得多。
 
-### 6.5 `ThreadMXBean` 的能力缺口
+### 5.5 `ThreadMXBean` 的能力缺口
 
 `ThreadMXBean.getThreadCount()` **不统计虚拟线程**——这是 API 设计的历史限制。想统计虚拟线程数、内存占用、状态分布，只能走 JFR 事件流或 Arthas。这一点在虚拟线程场景下的监控体系设计里要提前意识到。
 
-### 6.6 虚拟线程诊断规则速览
+### 5.6 虚拟线程诊断规则速览
 
 | 规则 | 说明 |
 | :-- | :-- |
@@ -587,29 +456,29 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 }
 ```
 
-## 7. 上生产前的并发自检清单
+## 6. 上生产前的并发自检清单
 
 以下是这一卷全部内容凝练出的自检清单。发布前对着走一遍，能过滤掉绝大多数经典并发问题。
 
 | 检查项 | 关注点 | 参考 |
 | :-- | :-- | :-- |
-| 共享可变状态 | 能不共享就不共享；共享的必须同步 | §4.3、§5.4 |
-| 不可变数据 | 优先用 `record` / `final` / `List.of` | §4.5 |
-| 锁对象 | 用 `private final Object`，不锁 `this` / 字符串 / 装箱值 | §6.6 |
-| 锁顺序 | 多锁按全局顺序申请，或用 `tryLock(timeout)` | §13.2.1、§13.2.4 |
-| 临界区大小 | 只锁真正需要保护的最少代码 | §6.1.2 |
-| 队列有界 | 线程池 / 生产者-消费者都用有界队列 | §10.5、§10.8 |
-| 线程池独立 | 不同业务用不同池，禁用 `commonPool` 跑阻塞任务 | §10.8.4、§11.3.2 |
-| 线程命名 | 每个池起有辨识度的名字 | §10.8.2 |
-| 超时兜底 | 所有阻塞操作都有超时 | §13.2.4、§8.6.4 |
-| `submit` 异常 | `submit` 的任务要 `future.get()`，否则异常吞掉 | §10.8.6 |
-| `CompletableFuture` executor | 每个 stage 都显式传 executor | §11.3 |
-| `Condition` 精确唤醒 | 生产/消费用两条 `Condition` 而非 `signalAll` | §8.5.2 |
-| 虚拟线程 pinning | `synchronized` + 阻塞 IO 必须替换成 `ReentrantLock` | §12.3、§13.6 |
-| 死锁监控 | 生产开 `findDeadlockedThreads` 定时检测 | §13.2.3 |
-| JFR 常态录制 | 生产开 `duration=continuous` 的低采样 JFR | §13.4.2 |
+| 共享可变状态 | 能不共享就不共享；共享的必须同步 | [Java 内存模型](../../03-java-concurrency/chapter-04-jmm.md) |
+| 不可变数据 | 优先用 `record` / `final` / `List.of` | [JMM 的安全发布](../../03-java-concurrency/chapter-04-jmm.md) |
+| 锁对象 | 用 `private final Object`，不锁 `this` / 字符串 / 装箱值 | [synchronized](../../03-java-concurrency/chapter-06-synchronized.md) |
+| 锁顺序 | 多锁按全局顺序申请，或用 `tryLock(timeout)` | 本页 §2 |
+| 临界区大小 | 只锁真正需要保护的最少代码 | 本页 §4 |
+| 队列有界 | 线程池 / 生产者-消费者都用有界队列 | [并发集合](../../03-java-concurrency/chapter-10-concurrent-collections.md)、[线程池](../../03-java-concurrency/chapter-11-thread-pool.md) |
+| 线程池独立 | 不同业务用不同池，禁用 `commonPool` 跑阻塞任务 | 第 11 章 §8.4、第 12 章 §5.3 |
+| 线程命名 | 每个池起有辨识度的名字 | 第 11 章 §8.2 |
+| 超时兜底 | 所有阻塞操作都有超时 | 本页 §2.4、第 12 章 §4.4 |
+| `submit` 异常 | `submit` 的任务要 `future.get()`，否则异常吞掉 | 第 11 章 §8.6 |
+| `CompletableFuture` executor | 每个 stage 都显式传 executor | 第 12 章 §5.3 |
+| `Condition` 精确唤醒 | 生产/消费用两条 `Condition` 而非 `signalAll` | 第 9 章 §1.2 |
+| 虚拟线程 pinning | `synchronized` + 阻塞 IO 必须替换成 `ReentrantLock` | 第 13 章 §3.3、本页 §5.1 |
+| 死锁监控 | 生产开 `findDeadlockedThreads` 定时检测 | 本页 §2.3 |
+| JFR 常态录制 | 生产开 `duration=continuous` 的低采样 JFR | 本页 §4.2、§5.3 |
 
-## 8. 本章小结
+## 7. 本章小结
 
 | 症状 | 定位手段 | 修复方向 |
 | :-- | :-- | :-- |
@@ -621,17 +490,17 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 | 虚拟线程 pinning | `-Djdk.tracePinnedThreads` / JFR `VirtualThreadPinned` | `synchronized` → `ReentrantLock` |
 | 长 RT 请求 | Arthas `thread -b` 看谁在阻塞谁 | 缩短临界区 / 异步化 |
 
-## 9. 实战案例集
+## 8. 案例入口
 
 以上内容是并发诊断方法、工具和优化策略的速查手册。以下案例集均为构造或匿名化的教学案例，每个案例都包含完整的背景、排查链路、根因定位和修复验证：
 
-- **[锁与执行模型案例](./chapter-02-cases-lock-execution.md)**
-  - [双十一的死锁 —— 订单与库存的锁序之战](./chapter-02-cases-lock-execution.md#case-1)
-  - [618 的雪崩 —— CallerRunsPolicy 把 Tomcat 线程全拖下水](./chapter-02-cases-lock-execution.md#case-2)
-  - [ConcurrentHashMap 去重失效 —— 可变 key 的 hashCode 陷阱](./chapter-02-cases-mutable-key-pin.md#case-3)
-  - [虚拟线程 pinning —— 同步锁让 5000 QPS 跌到 800](./chapter-02-cases-mutable-key-pin.md#case-4)
+- **[锁与执行模型案例](./chapter-03-cases-lock-execution.md)**
+  - [双十一的死锁 —— 订单与库存的锁序之战](./chapter-03-cases-lock-execution.md#case-1)
+  - [618 的雪崩 —— CallerRunsPolicy 把 Tomcat 线程全拖下水](./chapter-03-cases-lock-execution.md#case-2)
+  - [ConcurrentHashMap 去重失效 —— 可变 key 的 hashCode 陷阱](./chapter-04-cases-mutable-key-pin.md#case-3)
+  - [虚拟线程 pinning —— 同步锁让 5000 QPS 跌到 800](./chapter-04-cases-mutable-key-pin.md#case-4)
 
-- **[异步任务与下游超时案例](./chapter-03-cases-async-timeout.md)**
-  - [CompletableFuture + DiscardPolicy —— 静默丢弃任务导致永久阻塞](./chapter-03-cases-async-timeout.md#case-5)
-  - [线程池 core = max + 无界队列 —— maxPoolSize 永远不触发](./chapter-03-cases-async-timeout.md#case-6)
-  - [虚拟线程静默死锁与下游无超时](./chapter-03-cases-async-timeout.md)
+- **[异步任务与下游超时案例](./chapter-05-cases-async-timeout.md)**
+  - [CompletableFuture + DiscardPolicy —— 静默丢弃任务导致永久阻塞](./chapter-05-cases-async-timeout.md#case-5)
+  - [线程池 core = max + 无界队列 —— maxPoolSize 永远不触发](./chapter-05-cases-async-timeout.md#case-6)
+  - [虚拟线程静默死锁与下游无超时](./chapter-05-cases-async-timeout.md)

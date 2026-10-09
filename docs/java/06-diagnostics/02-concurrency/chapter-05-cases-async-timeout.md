@@ -4,13 +4,13 @@
 
 这组案例关注异步任务静默丢弃、线程池参数失效、虚拟线程调度阻塞和下游超时级联，重点是发现“线程仍在运行但业务已经失去进展”的问题。
 
-## 5. 案例 5：CompletableFuture + DiscardPolicy —— 静默丢弃任务导致永久阻塞 {#case-5}
+## CompletableFuture + DiscardPolicy —— 静默丢弃任务导致永久阻塞 {#case-5}
 
-### 5.1 事故背景
+### 1.1 事故背景
 
 某合同流程引擎服务，上线后偶尔出现"所有接口全部超时，必须重启才能恢复"的问题。监控显示 CPU 和内存都正常，但 `jstack` 显示 200 个 Tomcat 线程全部 `WAITING` 在 `CompletableFuture.join()`。
 
-### 5.2 第一步：线程栈显示了什么
+### 1.2 第一步：线程栈显示了什么
 
 ```bash
 jstack <pid> > thread.dump
@@ -30,7 +30,7 @@ jstack <pid> > thread.dump
 
 全部 WAITING 在 `CompletableFuture.join()`。说明这些 `Future` 的结果永远不会回来。
 
-### 5.3 第二步：看代码
+### 1.3 第二步：看代码
 
 ```java
 @Service
@@ -63,7 +63,7 @@ public class ContractService {
 }
 ```
 
-### 5.4 第三步：重现事故链
+### 1.4 第三步：重现事故链
 
 当并发请求足够大（比如 200 个 Tomcat 线程同时调用 `processFlow`），每个请求提交多个 `CompletableFuture` 任务到 `flowExecutor`：
 
@@ -78,7 +78,7 @@ public class ContractService {
 
 `DiscardPolicy` 不抛异常、不打日志、不通知调用者。被丢弃的那个 `CompletableFuture` 就像从未来过——但它的 `join()` 还在等。
 
-### 5.5 第四步：修复
+### 1.5 第四步：修复
 
 **方案 A：改拒绝策略 + 超时**
 
@@ -137,9 +137,9 @@ public FlowResult processFlow(FlowRequest request) throws InterruptedException {
 }
 ```
 
-`StructuredTaskScope` 的优势（详见第 12 章）：父任务不会被抛弃不管，一个子任务失败时其他子任务自动取消，整个作用域的边界清晰。
+`StructuredTaskScope` 的优势（详见第 14 章）：父任务不会被抛弃不管，一个子任务失败时其他子任务自动取消，整个作用域的边界清晰。
 
-### 5.6 总结：DiscardPolicy 两条禁用场景
+### 1.6 总结：DiscardPolicy 两条禁用场景
 
 | 场景 | 为什么禁用 |
 | :-- | :-- |
@@ -149,9 +149,9 @@ public FlowResult processFlow(FlowRequest request) throws InterruptedException {
 
 **黄金法则：如果任务的结果需要被等待，永远不要用 DiscardPolicy。**
 
-## 6. 案例 6：线程池 core = max + 无界队列 —— maxPoolSize 永远不触发 {#case-6}
+## 线程池 core = max + 无界队列 —— maxPoolSize 永远不触发 {#case-6}
 
-### 6.1 事故背景
+### 2.1 事故背景
 
 2025 年某定时任务服务，凌晨并发处理上千个文件。线程池参数：
 
@@ -177,7 +177,7 @@ new ThreadPoolExecutor(
 
 只有 5 个线程在跑——`maxPoolSize=10` 从未被触发。
 
-### 6.2 根因：ThreadPoolExecutor 的任务提交流程
+### 2.2 根因：ThreadPoolExecutor 的任务提交流程
 
 JDK 的 `ThreadPoolExecutor.execute()` 源码逻辑：
 
@@ -198,7 +198,7 @@ public void execute(Runnable command) {
 
 关键在第 2 步：**只要队列没满，就不会走到第 3 步创建非核心线程。** `LinkedBlockingQueue` 无界（默认 `Integer.MAX_VALUE`），队列永远不会满。因此 `maxPoolSize=10` 永远不触发。
 
-### 6.3 修复
+### 2.3 修复
 
 ```java
 new ThreadPoolExecutor(
@@ -212,7 +212,7 @@ new ThreadPoolExecutor(
 
 关键：**队列必须有界。** 用 `LinkedBlockingQueue<>(500)` 或 `ArrayBlockingQueue<>(500)`。队列满后线程池才会扩容到 maxPoolSize。
 
-### 6.4 参数配置速查
+### 2.4 参数配置速查
 
 | 业务类型 | corePoolSize | maxPoolSize | 队列容量 | 说明 |
 | :-- | :-- | :-- | :-- | :-- |
@@ -220,13 +220,13 @@ new ThreadPoolExecutor(
 | IO 密集型 | CPU 核数 | CPU × 2 | 大（1024~4096） | 线程可在等待 IO 时出让 CPU |
 | 混合型 | CPU 核数 | CPU × 1.5 | 中等（512~1024） | 按实际压测调整 |
 
-### 6.5 为什么还有人用无界队列？
+### 2.5 为什么还有人用无界队列？
 
 因为 JDK 的 `Executors.newFixedThreadPool(10)` 内部用的是 `new LinkedBlockingQueue<>()`（无界）。很多开发者直接调这个工厂方法，不知道它默认无界。阿里巴巴 Java 开发手册第 7 条明确禁止 `Executors` 工厂方法：
 
 > 【强制】线程池不允许使用 Executors 去创建，而是通过 ThreadPoolExecutor 的方式，这样的处理方式让写的同学更加明确线程池的运行规则，规避资源耗尽的风险。
 
-### 6.6 总结
+### 2.6 总结
 
 | 症状 | 根因 | 修复 |
 | :-- | :-- | :-- |
@@ -236,15 +236,15 @@ new ThreadPoolExecutor(
 
 **黄金法则：生产环境的线程池绝不用无界队列。** 队列容量和拒绝策略是线程池安全的两条安全带——不要自作聪明把它们拆掉。
 
-## 7. 案例 7：虚拟线程静默死锁 —— N 个 carrier 全部 pinning 后调度器失灵
+## 虚拟线程静默死锁 —— N 个 carrier 全部 pinning 后调度器失灵
 
-### 7.1 事故背景
+### 3.1 事故背景
 
 2025 年，某团队将核心服务从 JDK 17 升到 JDK 21，将所有 `ExecutorService` 替换为 `Executors.newVirtualThreadPerTaskExecutor()`。服务运行稳定，压测数据也正常。但上线后每隔几小时服务就突然无响应——接口全部超时，`/health` 也挂了。CPU 使用率只有 5%，内存正常，GC 正常。`jstack` 看完没有死锁，日志没有异常。运维重启服务后恢复，但几小时后再次复发。
 
 这个问题在生产中反复出现，直到在 OpenJDK Bug 系统里找到 JDK-8334304，才发现这不是代码 bug——是 JVM 的行为。
 
-### 7.2 第一步：jstack 为什么看不出问题
+### 3.2 第一步：jstack 为什么看不出问题
 
 ```bash
 jstack <pid> > thread.dump
@@ -271,7 +271,7 @@ grep -c "java.lang.Thread.State" thread.dump
 
 所有 carrier 都在 `WAITING`——每个都承载着一个被 `synchronized` pinning 的虚拟线程，这些虚拟线程又在等待另一个尚未被调度的虚拟线程释放某个资源。
 
-### 7.3 第二步：真正的诊断手段 —— JFR
+### 3.3 第二步：真正的诊断手段 —— JFR
 
 传统 `jstack` 对虚拟线程不可见，需要 JFR：
 
@@ -297,7 +297,7 @@ jdk.VirtualThreadPinned {
 
 几百个 `VirtualThreadPinned` 事件，持续时间从几秒到几十分钟。这些虚拟线程被钉在了 carrier 上。
 
-### 7.4 第三步：静默死锁的机制
+### 3.4 第三步：静默死锁的机制
 
 虚拟线程的调度模型：JDK 21 默认 `parallelism = CPU 核数` 个 carrier 线程。正常情况下，虚拟线程在 I/O 阻塞时被自动从 carrier 上卸载，carrier 去跑其他就绪的虚拟线程。
 
@@ -315,7 +315,7 @@ jdk.VirtualThreadPinned {
 
 JDK-8334304 的复现代码清晰地演示了这个问题：当 `pinned VT 数量 > availableProcessors()` 时，调度器不会补偿。
 
-### 7.5 第四步：为什么会触发
+### 3.5 第四步：为什么会触发
 
 该团队使用了 MySQL Connector/J 8.0.x。这个版本的驱动内部有大量 `synchronized` 方法：
 
@@ -326,7 +326,7 @@ public synchronized boolean getAutoCommit() throws SQLException { ... }
 
 当高并发 + 数据库偶发慢查询时，虚拟线程被 pin 在 carrier 上等待 socket read——但因为 `synchronized`，无法卸载。如果 8 个 carrier 都被类似情况 pin 住，其他所有虚拟线程永远得不到调度。
 
-### 7.6 第五步：修复
+### 3.6 第五步：修复
 
 **方案 A（JDK 24+ 一劳永逸）：升级 JDK。** JDK 24 的 JEP 491 消除了 `synchronized` 的 pinning 问题。
 
@@ -340,7 +340,7 @@ private static final Semaphore DB_SEMAPHORE = new Semaphore(4); // 小于 carrie
 
 **方案 D（运营排查期）：** 临时增加 carrier 数 `-Djdk.virtualThreadScheduler.parallelism=32`。
 
-### 7.7 总结
+### 3.7 总结
 
 | 信号 | 含义 | 工具 |
 | :-- | :-- | :-- |
@@ -351,15 +351,15 @@ private static final Semaphore DB_SEMAPHORE = new Semaphore(4); // 小于 carrie
 
 **教训：** 常规 CPU 和线程监控可能看不到虚拟线程的调度问题。`Thread.dump_to_file` 用于查看当前虚拟线程状态，JFR 的 `jdk.VirtualThreadPinned` 事件用于记录 pinning 发生及持续时间，两者用途不同。迁移到虚拟线程前，还必须确保第三方库不依赖 `synchronized` 与阻塞操作的组合。
 
-## 8. 案例 8：RestTemplate 无超时 —— 一个下游挂了 10 秒，整个系统瘫痪 3 小时
+## RestTemplate 无超时 —— 一个下游挂了 10 秒，整个系统瘫痪 3 小时
 
-### 8.1 事故背景
+### 4.1 事故背景
 
 2025 年某支付系统，订单创建接口内部调用风控服务做风险校验。某天下午，风控服务因数据库故障响应变慢，10 秒后才开始出现超时报错。但这 10 秒的变慢造成了比风控服务本身故障更大的灾难——订单服务的 Tomcat 线程池被全部卡死在等风控服务返回，整个支付系统停止响应，持续了 3 小时直到手动重启。
 
 故障链路：风控服务慢 10 秒 → 支付服务的 Tomcat 线程全部卡在 `SocketInputStream.socketRead0()` → 所有接口不可用 → 用户疯狂刷新 → 更多线程卡死。
 
-### 8.2 第一步：jstack 看到什么
+### 4.2 第一步：jstack 看到什么
 
 ```bash
 jstack <pid> > thread.dump
@@ -383,7 +383,7 @@ grep "java.lang.Thread.State" thread.dump | sort | uniq -c | sort -rn
 
 `RUNNABLE` 但 CPU 低的原因是：`socketRead0` 是 Native 方法，线程实际在操作系统层面处于非忙等状态——它在等 TCP 数据到达。
 
-### 8.3 第二步：看代码
+### 4.3 第二步：看代码
 
 ```java
 @Configuration
@@ -408,7 +408,7 @@ public class RiskService {
 
 `new RestTemplate()` 底层使用 `SimpleClientHttpRequestFactory`，基于 `java.net.HttpURLConnection`。**`HttpURLConnection` 的默认超时是 `0`——表示无限等待。**
 
-### 8.4 第三步：事故链
+### 4.4 第三步：事故链
 
 ```txt
 13:00  风控服务数据库故障，响应时间从 50ms → 10s
@@ -422,7 +422,7 @@ public class RiskService {
 
 **3 小时停摆。** 如果 `RestTemplate` 设置了 3 秒 `readTimeout`，10 秒后所有请求快速失败并释放线程，系统在 10 秒后恢复正常。
 
-### 8.5 第四步：修复
+### 4.5 第四步：修复
 
 ```java
 @Configuration
@@ -455,7 +455,7 @@ public class RestTemplateConfig {
 
 **不设超时 = 把服务的生死交给了下游。**
 
-### 8.6 第五步：超时之外 —— 熔断和隔离
+### 4.6 第五步：超时之外 —— 熔断和隔离
 
 ```java
 @Service
@@ -476,7 +476,7 @@ public class RiskService {
 }
 ```
 
-### 8.7 总结：三条防线的体系
+### 4.7 总结：三条防线的体系
 
 ```txt
 第一道防线：超时 —— 每次调用都有截止时间，过期不候
@@ -484,7 +484,7 @@ public class RiskService {
 第三道防线：隔离 —— 为不同下游分配独立线程池
 ```
 
-### 8.8 总结
+### 4.8 总结
 
 | 信号 | 含义 | 工具 |
 | :-- | :-- | :-- |

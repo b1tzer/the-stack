@@ -494,7 +494,7 @@ new Thread(() -> {
 | 按优先级消费 | `PriorityBlockingQueue` |
 | 定时消费（延迟队列） | `DelayQueue` |
 
-第 10 章 `ThreadPoolExecutor` 的 `workQueue` 就是从这里挑一种——不同队列直接决定线程池的调度形态（第 10 章 §10.2）。
+第 11 章 `ThreadPoolExecutor` 的 `workQueue` 就是从这里挑一种——不同队列直接决定线程池的调度形态。
 
 ## 6. 选型：安全、并发度、开销的三角权衡
 

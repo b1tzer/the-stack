@@ -2,7 +2,7 @@
 
 > HikariCP 只做一件事——管好连接；Druid 在做连接池之外，还内置了 SQL 监控、SQL 防火墙、Web 监控和可视化监控台。本章不重复连接池原理，聚焦 Druid 独有的能力、实际输出的日志长什么样，以及怎么用。
 
-## 1. 定位
+## 定位与组件
 
 Druid 是阿里巴巴开源的数据库连接池。它和 HikariCP 解决同一个底层问题——复用物理连接、避免反复建连，但设计取向不同：
 
@@ -16,9 +16,9 @@ Druid 是阿里巴巴开源的数据库连接池。它和 HikariCP 解决同一�
 | 性能 | 实现以 `ConcurrentBag` 为主；实际吞吐需压测 | 功能更全；实际吞吐需压测 |
 | 默认 | Spring Boot 2.x 起默认 | 需手动引入 |
 
-连接池本身的原理——为何建连昂贵、参数如何调——在 [性能优化](./chapter-05-performance.md) §1 已讲，这里不重复。本章只讲 Druid 比 HikariCP 多出来的东西。
+连接池本身的原理——为何建连昂贵、参数如何调——在 [性能优化](./chapter-08-performance.md) §1 已讲，这里不重复。本章只讲 Druid 比 HikariCP 多出来的东西。
 
-## 2. 组件全景
+### 组件全景
 
 Druid 的能力来自三条互相独立的线：
 
@@ -45,9 +45,9 @@ Druid 的能力来自三条互相独立的线：
                                └───────────────────┘
 ```
 
-## 3. 快速接入
+## 快速接入
 
-### 3.1 引入依赖
+### 引入依赖
 
 ```xml
 <dependency>
@@ -61,7 +61,7 @@ Druid 的能力来自三条互相独立的线：
 Spring Boot 3.x 使用 `druid-spring-boot-3-starter`（Jakarta EE 9+、JDK 17+）；Spring Boot 2.x 使用 `druid-spring-boot-starter`。两者配置前缀一致，仅坐标不同。
 :::
 
-### 3.2 最小配置
+### 最小配置
 
 ```yaml
 spring:
@@ -80,7 +80,9 @@ spring:
 
 引入 starter 后，Spring Boot 自动配置会把 `DataSource` 换成 `DruidDataSource`，无需写 Java 代码。
 
-## 4. SQL 监控
+## SQL 观测与防护
+
+### SQL 监控
 
 监控由 `StatFilter` 提供。下面两种写法都能启用统计，但属于任选其一；需要定制阈值或合并 SQL 时通常使用第二种。
 
@@ -105,7 +107,7 @@ spring:
           log-slow-sql: true      # 慢查询打印日志
 ```
 
-### 4.1 慢查询日志长什么样
+#### 慢查询日志长什么样
 
 开启 `log-slow-sql` 后，超过阈值的 SQL 会打到应用日志里：
 
@@ -115,7 +117,7 @@ spring:
 
 关键字段：`slow sql <耗时> millis` 后面紧跟完整 SQL。定位慢查询时直接 `grep "slow sql"` 即可。
 
-### 4.2 逐条 SQL 日志
+#### 逐条 SQL 日志
 
 配合 `slf4j` 日志 Filter，可以把每条 SQL 的耗时打到日志，排查问题时比监控台更顺手：
 
@@ -131,11 +133,11 @@ spring:
 {conn-10001, pstmt-20001} executed. 3.5 millis. select * from users where id = ?
 ```
 
-### 4.3 `merge-sql` 的作用
+#### `merge-sql` 的作用
 
 不加 `merge-sql`，`select * from user where id = 1` 和 `id = 2` 是两条独立统计；开启后合并为 `select * from user where id = ?` 一条。监控台里的 SQL 列表会干净很多，也更能反映「这条 SQL 模板」的真实频次。
 
-## 5. SQL 防火墙
+### SQL 防火墙
 
 `WallFilter` 会解析 SQL，并依据可配置规则识别可疑语句结构。它比单纯匹配关键词更可靠，但不能作为安全边界：解析能力、严格语法检查配置和包装路径都可能造成漏报。参数绑定、最小权限、输入验证和数据库审计仍不可省略。
 
@@ -157,7 +159,9 @@ spring:
 sql injection violation, comment not allow : select * from users where id = 1 or 1=1
 ```
 
-## 6. Web 监控
+## 控制台、Web 监控与 API
+
+### Web 监控
 
 `WebStatFilter` 拦截 HTTP 请求，把「哪个 URI 触发了多少 SQL、耗时多少」关联起来，是监控台「Web 应用」「URI 监控」标签页的数据来源：
 
@@ -175,7 +179,7 @@ spring:
 
 `exclusions` 必须排除静态资源和 `/druid/*`，否则监控台会把对自己的访问也统计进去。
 
-## 7. Spring 监控
+### Spring 监控
 
 通过 AOP 统计 Service/Mapper 方法的调用次数与耗时，需要引入 `spring-boot-starter-aop` 并指定切入点：
 
@@ -188,7 +192,7 @@ spring:
 
 不配置 `aop-patterns` 时，「Spring 监控」标签页为空。
 
-## 8. 监控台
+### 监控台
 
 ```yaml
 spring:
@@ -229,7 +233,7 @@ SQL 监控列表的形态示意：
 `/druid/` 暴露全部 SQL 与表结构。生产环境必须设置 `login-username` / `login-password`，并用 `allow` 限制到运维网段；`deny` 优先于 `allow`。
 :::
 
-## 9. JSON API
+### JSON API
 
 监控台的数据可通过 JSON API 读取，便于接入自建监控或脚本拉取：
 
@@ -243,7 +247,9 @@ GET /druid/spring.json        # Spring 方法监控
 
 返回为 JSON，可直接被 Prometheus exporter 或定时任务消费。
 
-## 10. 连接泄漏检测
+## 连接泄漏与安全
+
+### 连接泄漏检测
 
 在现代 Spring Boot + MyBatis/JPA 项目里连接耗尽故障的根因，几乎都不是「忘了关连接」，连接由事务管理器和连接池自动归还，没人直接操作 `Connection`。真正的泄漏来自连接被持有过久。
 
@@ -285,7 +291,7 @@ spring:
 
 开启 `log-abandoned` 后，日志会输出泄漏连接的获取位置，堆栈顶部即持有过久的事务方法。
 
-## 11. 密码加密
+### 密码加密
 
 数据库密码明文写在 `application.yml` 里是安全隐患。Druid 的 `ConfigFilter` 支持密文配置：
 
@@ -306,7 +312,7 @@ spring:
 
 `ConfigFilter` 在建立连接前用公钥解密密文，配置文件中不再出现明文密码。
 
-## 12. 小结
+## 本章小结
 
 | 要点 | 结论 |
 | :-- | :-- |
