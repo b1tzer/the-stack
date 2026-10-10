@@ -78,7 +78,7 @@ collation-server = utf8mb4_unicode_ci
 
 # InnoDB
 innodb_buffer_pool_size = 4G          # 物理内存的 70%
-innodb_log_file_size = 1G
+innodb_redo_log_capacity = 1G       # MySQL 8.0.30+
 innodb_flush_log_at_trx_commit = 1    # 1=每次提交刷盘
 innodb_flush_method = O_DIRECT
 

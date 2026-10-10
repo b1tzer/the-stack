@@ -6,27 +6,56 @@
 
 先记录响应时间、吞吐、错误率、连接数、慢查询和资源使用情况，再判断瓶颈位于 SQL、锁、内存、I/O 还是架构。每个调整都应保留修改前后的同一组指标，无法验证收益的配置不进入基线。
 
-## 2. 参数优化
+## 2. 性能调优流程 {#performance-tuning-flow}
+
+```txt
+1. 识别瓶颈
+   ├── 慢查询日志分析
+   ├── SHOW PROCESSLIST
+   ├── Performance Schema
+   └── OS 监控 (top, iostat, vmstat)
+
+2. 分析原因
+   ├── 缺少索引 → EXPLAIN
+   ├── 锁等待 → data_lock_waits
+   ├── 硬件瓶颈 → iostat, vmstat
+   └── 配置不当 → SHOW VARIABLES
+
+3. 制定方案
+   ├── SQL 优化
+   ├── 索引优化
+   ├── 参数调优
+   └── 架构优化
+
+4. 实施验证
+   ├── 测试环境验证
+   ├── 灰度发布
+   ├── 监控对比
+   └── 回滚方案
+```
+
+后续章节按这条流程展开：先确认瓶颈，再选择调整项，最后比较修改前后的同一组指标。
+
+## 3. 参数优化
 
 ```ini
 # Buffer Pool
 innodb_buffer_pool_size = 4G          # 物理内存的 70%
 
-# 日志
-innodb_log_file_size = 1G
+# 日志（MySQL 8.0.30+）
+innodb_redo_log_capacity = 1G
 innodb_flush_log_at_trx_commit = 1
 
 # 连接
 max_connections = 500
 thread_cache_size = 64
 
-# 查询缓存 (8.0 移除)
 # 临时表
 tmp_table_size = 64M
 max_heap_table_size = 64M
 ```
 
-## 3. 慢查询分析
+## 4. 慢查询分析
 
 ```sql
 -- 开启慢查询日志
@@ -37,7 +66,7 @@ SET GLOBAL long_query_time = 1;
 SELECT * FROM sys.statements_with_runtimes_in_95th_percentile LIMIT 10;
 ```
 
-## 4. 索引优化
+## 5. 索引优化
 
 索引是否被正确选择先看[执行计划](../04-query-optimization/chapter-01-execution-plan.md)；设计与治理见[索引优化与治理](../03-index/chapter-04-index-optimization.md)。
 
@@ -47,14 +76,14 @@ SELECT * FROM sys.schema_unused_indexes;
 SELECT * FROM sys.schema_redundant_indexes;
 ```
 
-## 5. 架构优化
+## 6. 架构优化
 
 - 读写分离
 - 缓存（Redis）
 - 分库分表
 - 数据归档
 
-## 6. 内存优化
+## 7. 内存优化
 
 ```ini
 # Buffer Pool 配置
@@ -75,7 +104,7 @@ max_heap_table_size = 64M              # 内存表最大大小
 thread_cache_size = 64                 # 线程复用
 ```
 
-## 7. I/O 优化
+## 8. I/O 优化
 
 ```ini
 # InnoDB IO 配置
@@ -85,16 +114,16 @@ innodb_read_io_threads = 8             # 读线程数
 innodb_write_io_threads = 8            # 写线程数
 innodb_flush_method = O_DIRECT         # 跳过 OS 缓存
 
-# Redo Log
-innodb_log_file_size = 2G              # Redo Log 大小
+# Redo Log（MySQL 8.0.30+）
+innodb_redo_log_capacity = 2G
 innodb_log_buffer_size = 64M           # Log Buffer
 
 # 刷盘策略
-innodb_flush_log_at_trx_commit = 1     # 1=安全, 2=性能
-sync_binlog = 1                        # 1=安全, 100=性能
+innodb_flush_log_at_trx_commit = 1     # 每次提交刷盘
+sync_binlog = 1                        # 每次提交同步 Binlog；大于 1 有崩溃丢失风险
 ```
 
-## 8. 应用层优化
+## 9. 应用层优化
 
 ```java
 // 1. 使用批量操作
@@ -135,34 +164,6 @@ public class UserService {
 // ✅ 游标分页
 @Query("SELECT u FROM User u WHERE u.id > :lastId ORDER BY u.id")
 List<User> findByIdAfter(@Param("lastId") Long lastId, Pageable pageable);
-```
-
-## 9. 性能调优流程 {#performance-tuning-flow}
-
-```txt
-1. 识别瓶颈
-   ├── 慢查询日志分析
-   ├── SHOW PROCESSLIST
-   ├── Performance Schema
-   └── OS 监控 (top, iostat, vmstat)
-
-2. 分析原因
-   ├── 缺少索引 → EXPLAIN
-   ├── 锁等待 → data_lock_waits
-   ├── 硬件瓶颈 → iostat, vmstat
-   └── 配置不当 → SHOW VARIABLES
-
-3. 制定方案
-   ├── SQL 优化
-   ├── 索引优化
-   ├── 参数调优
-   └── 架构优化
-
-4. 实施验证
-   ├── 测试环境验证
-   ├── 灰度发布
-   ├── 监控对比
-   └── 回滚方案
 ```
 
 ## 10. 调优工具箱

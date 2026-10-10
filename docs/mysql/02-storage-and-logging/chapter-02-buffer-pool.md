@@ -82,9 +82,9 @@ innodb_old_blocks_time = 1000   # old 区停留阈值，单位毫秒
 
 ## 3. 容量评估与配置运维
 
-### 3.1 命中率：Buffer Pool 健康度的唯一指标
+### 3.1 用命中率判断缓存是否足够
 
-判断 Buffer Pool 够不够大，不看它占了多少内存，看命中率。
+命中率是判断缓存容量是否足够的核心指标之一，但不能单独代表 Buffer Pool 的整体健康度。还要结合物理读次数、读延迟、脏页刷新和业务读写模式判断。
 
 ```sql
 SHOW GLOBAL STATUS LIKE 'Innodb_buffer_pool_read%';
@@ -99,7 +99,7 @@ SHOW GLOBAL STATUS LIKE 'Innodb_buffer_pool_read%';
 命中率 = 1 - reads / read_requests
 ```
 
-生产环境这个值应稳定在 99% 以上。低于 99%，说明 Buffer Pool 太小，频繁发生物理读，该加大 `innodb_buffer_pool_size`。
+对缓存命中应较高的 OLTP 查询，99% 可以作为观察基线，但不是所有业务都适用。低于目标值时，先确认物理读是否确实造成延迟，再结合可用内存决定是否调整 `innodb_buffer_pool_size`。
 
 ### 3.2 参数与实例拆分
 

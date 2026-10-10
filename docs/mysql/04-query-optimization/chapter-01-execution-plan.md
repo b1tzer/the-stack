@@ -2,10 +2,10 @@
 
 ## 1. 执行流程与优化器
 
-### 1.1 完整流程
+### 1.1 MySQL 8.0 执行流程
 
 ```txt
-SQL → 连接器 → 查询缓存(8.0移除) → 解析器 → 优化器 → 执行器 → 存储引擎
+SQL → 连接器 → 解析器 → 优化器 → 执行器 → 存储引擎
 ```
 
 一条 SQL 从发出到返回结果，依次经过连接器、解析器、优化器、执行器，最后到达存储引擎。对性能影响最大的是**优化器**——它决定用哪个索引、按什么顺序连接表，同一个 SQL 可能跑出数量级差异。
@@ -86,7 +86,7 @@ SELECT /*+ HASH_JOIN(o) */ * FROM users u JOIN orders o ON u.id = o.user_id;
 SELECT /*+ MAX_EXECUTION_TIME(1000) */ * FROM users WHERE age > 20;
 ```
 
-### 1.5 查询缓存（MySQL 8.0 已移除）
+### 1.5 历史说明：查询缓存（MySQL 8.0 已移除）
 
 MySQL 5.7 及之前的查询缓存，因三个缺陷被移除：
 
@@ -119,7 +119,7 @@ EXPLAIN ANALYZE SELECT * FROM users WHERE age > 25;  -- 8.0.18+，含实际执�
 | filtered | 过滤比例 |
 | Extra | 额外信息 |
 
-### 2.3 type 访问类型（从差到好）
+### 2.3 type 访问类型
 
 | type | 说明 |
 | :-- | :-- |
@@ -238,5 +238,5 @@ WHERE u.age > 25;
 4. **开发环境用 EXPLAIN ANALYZE** — 拿到实际执行时间，而不只是估算
 5. **关注 rows 和 filtered** — 估算扫描行数越少越好
 6. **关注 Extra 列** — 出现 Using temporary / Using filesort 需要优化
-7. **type 至少达到 range 级别** — ALL 表示全表扫描，必须优化
-8. **key_len 越短越好** — 说明索引使用效率高
+7. **结合查询目标判断 type** — ALL 对小表或无合适索引的查询可能成本最低，出现后先确认行数、过滤率和目标延迟
+8. **用 key_len 判断索引使用范围** — 越短不一定越好；需要结合选择性、回表代价和实际扫描行数判断

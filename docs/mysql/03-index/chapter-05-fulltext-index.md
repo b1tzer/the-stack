@@ -92,7 +92,13 @@ WHERE MATCH(title, content) AGAINST('数据库优化');
 
 ## 4. 停用词与最小词长
 
-即使解析器切出了词，MySQL 也不会把每个词都塞进索引。有两道过滤：**停用词表**过滤 `the / is / at` 这类没有区分度的高频词；**最小词长**过滤过短的词。默认 InnoDB 的 `innodb_ft_min_token_size = 3`，意味着长度小于 3 的英文词不进索引——这就是为什么直接用全文索引搜 `AI`、`Go` 常常没结果。
+即使解析器切出了词，MySQL 也不会把每个词都塞进索引。停用词与最小词长的适用范围取决于解析器，不能混为一谈：
+
+- 默认解析器使用 `innodb_ft_min_token_size`，默认值为 3；长度小于该值的词不进入索引，因此搜 `AI`、`Go` 可能没有结果。最大词长由 `innodb_ft_max_token_size` 控制。
+- ngram 解析器不适用 `innodb_ft_min_token_size` 和 `innodb_ft_max_token_size`，而由只读参数 `ngram_token_size` 控制 token 长度，默认值为 2。
+- 停用词表仍然参与 ngram 过滤，但规则不同：默认解析器排除与停用词完全相等的词；ngram 排除**包含**停用词的 token，且长度大于 `ngram_token_size` 的停用词会被忽略。
+
+`innodb_ft_min_token_size` 和 `ngram_token_size` 都应在首次创建全文索引前确定。`ngram_token_size` 只能在启动时设置，修改后必须重建相关全文索引。
 
 停用词表可以查询与自定义：
 
@@ -100,11 +106,11 @@ WHERE MATCH(title, content) AGAINST('数据库优化');
 -- 查看 InnoDB 默认停用词
 SELECT * FROM information_schema.innodb_ft_default_stopword;
 
--- 自定义停用词表
+-- 在创建索引前指定自定义停用词表
 SET GLOBAL innodb_ft_server_stopword_table = 'db_name/stopword_table';
 ```
 
-调整 `innodb_ft_min_token_size` 或停用词表后，必须重建索引才生效。这两个参数在设计早期就要定，避免上线后重建。
+修改 `innodb_ft_min_token_size`、`ngram_token_size` 或停用词表后，都必须重建全文索引才生效。ngram 默认仍使用英文停用词列表；中文、日文、韩文等语料应按业务测试后提供自己的停用词表。
 
 ## 5. 常见坑与性能注意
 

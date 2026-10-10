@@ -217,17 +217,37 @@ SHOW STATUS LIKE 'Max_used_connections';  -- 历史最大连接数
 SHOW STATUS LIKE 'Max_used_connections_time'; -- 最大连接数发生时间
 ```
 
-## 7. 最佳实践
+## 7. 连接数规划
+
+`max_connections` 是数据库接受连接的上限，不是应用容量目标。规划时先估算所有应用实例、代理、运维连接和突发余量之和，再用压测与线上峰值验证。
+
+```txt
+数据库连接上限 ≥
+  应用实例数 × 单实例连接池上限
+  + 代理和运维连接
+  + 故障切换期间的重连余量
+```
+
+| 规模信号 | 规划动作 |
+| :-- | :-- |
+| `Max_used_connections` 持续接近上限 | 先查连接池、长事务和泄漏，再评估提高上限 |
+| `Threads_connected` 高但 `Threads_running` 低 | 优先处理空闲连接、超时和连接复用 |
+| 应用连接获取等待明显 | 检查应用池大小、查询耗时和代理队列 |
+| 多实例部署 | 按实例数量汇总连接池，不按日活直接换算 |
+
+完成峰值压测后再为 `max_connections` 留出余量。代理层是否启用连接复用，应根据协议能力、事务语义和故障恢复行为决定，而不是仅由业务规模决定。
+
+## 8. 最佳实践
 
 | 配置项 | 推荐值 | 说明 |
 | :-- | :-- | :-- |
-| max_connections | 200-500 | 根据业务调整 |
-| wait_timeout | 300-600 | 5-10 分钟 |
-| interactive_timeout | 300-600 | 与 wait_timeout 一致 |
+| max_connections | 由峰值连接规划决定 | 同时覆盖应用池、代理、运维和重连余量 |
+| wait_timeout | 与连接池空闲回收策略一致 | 避免服务端过早回收仍可能复用的连接 |
+| interactive_timeout | 与 wait_timeout 一致 | 仅在客户端行为明确时调整 |
 | max_connect_errors | 10000 | 防止误封 |
 | connect_timeout | 10 | 连接超时 |
 
-### 7.1 应用层建议
+### 8.1 应用层建议
 
 ```txt
 1. 使用连接池，不要每次创建新连接
@@ -237,32 +257,12 @@ SHOW STATUS LIKE 'Max_used_connections_time'; -- 最大连接数发生时间
 5. 避免长事务占用连接
 ```
 
-### 7.2 数据库层建议
+### 8.2 数据库层建议
 
 ```txt
-1. 根据业务规模设置 max_connections
+1. 根据峰值连接规划设置 max_connections
 2. 配合 ProxySQL 做连接复用
 3. 监控 Threads_connected 告警
-4. 定期清理空闲连接
+4. 由连接池和超时策略回收空闲连接
 5. 使用 SHOW PROCESSLIST 排查问题
-```
-
-## 8. 连接数规划
-
-```txt
-单机 MySQL 连接数建议：
-
-小型应用（日活 < 10万）
-- max_connections = 200
-- 连接池大小 = 10-20
-
-中型应用（日活 10-100万）
-- max_connections = 500
-- 连接池大小 = 20-50
-- 建议使用 ProxySQL
-
-大型应用（日活 > 100万）
-- max_connections = 1000+
-- 必须使用 ProxySQL/MySQL Router
-- 多实例读写分离
 ```

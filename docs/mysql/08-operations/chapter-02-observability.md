@@ -1,6 +1,6 @@
-# 内省与可观测性
+# MySQL 内置诊断数据源
 
-> 本页解释 MySQL 内置观测机制；Prometheus 指标采集、可视化和告警见[监控](./chapter-03-monitoring.md)。
+> 本页解释 `information_schema`、`performance_schema` 和 `sys` 的定位与用法；指标采集、仪表盘和告警见[监控、告警与慢查询](./chapter-03-monitoring.md)。
 
 ## 1. 这套东西解决什么问题
 

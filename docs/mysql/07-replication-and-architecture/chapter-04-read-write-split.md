@@ -1,8 +1,28 @@
 # 读写分离
 
-## 1. 方案配置
+## 1. 整体架构
 
-### 1.1 ProxySQL
+读写分离把普通读请求分发到副本，把写事务和需要读取最新数据的请求发送到主库。启用前必须确认复制健康、副本延迟可接受，并明确写后读、事务内读和锁读的路由规则。
+
+```txt
+                     ┌──────────────┐
+                     │   应用层      │
+                     └──────┬───────┘
+                            │
+                     ┌──────▼───────┐
+                     │   代理层      │  ProxySQL / MySQL Router / ShardingSphere
+                     └──────┬───────┘
+                            │
+              ┌─────────────┼─────────────┐
+              │             │             │
+       ┌──────▼──────┐ ┌───▼──────┐ ┌───▼──────┐
+       │   主库(写)   │ │  副本1(读)│ │  副本2(读)│
+       └─────────────┘ └──────────┘ └──────────┘
+```
+
+## 2. 配置方案
+
+### 2.1 ProxySQL
 
 ```ini
 # proxysql.cnf
@@ -22,19 +42,28 @@ mysql_servers:
       hostgroup: 20  # 读组
 
 mysql_query_rules:
+    - match_pattern: "^SELECT .*FOR UPDATE"
+      destination_hostgroup: 10
+      apply: 1
+    - match_pattern: "^SELECT .*FOR SHARE"
+      destination_hostgroup: 10
+      apply: 1
+    - match_pattern: "^SELECT .*LOCK IN SHARE MODE"
+      destination_hostgroup: 10
+      apply: 1
     - match_pattern: "^SELECT"
       destination_hostgroup: 20
       apply: 1
 ```
 
-### 1.2 MySQL Router
+### 2.2 MySQL Router
 
 ```bash
 mysqlrouter --bootstrap root@192.168.1.100:3306 --user=mysql
 systemctl start mysqlrouter
 ```
 
-### 1.3 Spring Boot 配置
+### 2.3 Spring Boot 配置
 
 ```yaml
 spring:
@@ -45,25 +74,7 @@ spring:
       url: jdbc:mysql://192.168.1.101:3306/mydb
 ```
 
-## 2. 整体架构
-
-### 2.1 读写分离架构
-
-```txt
-                     ┌──────────────┐
-                     │   应用层      │
-                     └──────┬───────┘
-                            │
-                     ┌──────▼───────┐
-                     │   代理层      │  ProxySQL / MySQL Router / ShardingSphere
-                     └──────┬───────┘
-                            │
-              ┌─────────────┼─────────────┐
-              │             │             │
-       ┌──────▼──────┐ ┌───▼──────┐ ┌───▼──────┐
-       │   主库(写)   │ │  从库1(读)│ │  从库2(读)│
-       └─────────────┘ └──────────┘ └──────────┘
-```
+上面的 Spring 配置只声明两个数据源，不会自动完成读写路由；应用还需要使用 `AbstractRoutingDataSource`、注解或 ORM 框架提供的主从路由能力，并把事务内读写固定到主库。
 
 ## 3. 进阶方案
 
@@ -79,10 +90,12 @@ INSERT INTO mysql_servers (hostgroup_id, hostname, port) VALUES
     (20, '192.168.1.101', 3306),  -- 读组
     (20, '192.168.1.102', 3306);  -- 读组
 
--- 配置查询规则
+-- 配置查询规则；锁定读必须优先进入写组
 INSERT INTO mysql_query_rules (rule_id, match_pattern, destination_hostgroup, apply) VALUES
     (1, '^SELECT .* FOR UPDATE', 10, 1),  -- SELECT FOR UPDATE 发往写组
-    (2, '^SELECT', 20, 1);                -- 普通 SELECT 发往读组
+    (2, '^SELECT .* FOR SHARE', 10, 1),   -- SELECT FOR SHARE 发往写组
+    (3, '^SELECT .*LOCK IN SHARE MODE', 10, 1),
+    (4, '^SELECT', 20, 1);                -- 普通 SELECT 发往读组
 
 -- 加载配置
 LOAD MYSQL SERVERS TO RUNTIME;

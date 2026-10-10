@@ -1019,7 +1019,7 @@ export default withOpenInEditor(defineConfig({
           collapsed: true,
           items: [
             { text: '查询执行流程与 EXPLAIN', link: '/mysql/04-query-optimization/chapter-01-execution-plan' },
-            { text: 'SQL 优化', link: '/mysql/04-query-optimization/chapter-02-sql-optimization' },
+            { text: 'SQL 优化技巧', link: '/mysql/04-query-optimization/chapter-02-sql-optimization' },
             { text: '连接优化', link: '/mysql/04-query-optimization/chapter-03-join-optimization' },
             { text: '子查询优化', link: '/mysql/04-query-optimization/chapter-04-subquery-optimization' },
           ],
@@ -1028,7 +1028,7 @@ export default withOpenInEditor(defineConfig({
           text: '事务与锁',
           collapsed: true,
           items: [
-            { text: '综览', link: '/mysql/05-transaction-lock/chapter-01-overview' },
+            { text: '事务与锁：综览', link: '/mysql/05-transaction-lock/chapter-01-overview' },
             { text: '事务与 MVCC', link: '/mysql/05-transaction-lock/chapter-02-transaction' },
             { text: '锁机制', link: '/mysql/05-transaction-lock/chapter-03-lock' },
             { text: '死锁', link: '/mysql/05-transaction-lock/chapter-04-deadlock' },
@@ -1048,7 +1048,7 @@ export default withOpenInEditor(defineConfig({
           ],
         },
         {
-          text: '复制与架构',
+          text: '复制与扩展架构',
           collapsed: true,
           items: [
             { text: '复制机制：异步复制', link: '/mysql/07-replication-and-architecture/chapter-01-binlog-replication' },
@@ -1064,8 +1064,8 @@ export default withOpenInEditor(defineConfig({
           collapsed: true,
           items: [
             { text: '备份恢复', link: '/mysql/08-operations/chapter-01-backup-restore' },
-            { text: '内省与可观测性', link: '/mysql/08-operations/chapter-02-observability' },
-            { text: '监控', link: '/mysql/08-operations/chapter-03-monitoring' },
+            { text: '内置诊断数据源', link: '/mysql/08-operations/chapter-02-observability' },
+            { text: '监控、告警与慢查询', link: '/mysql/08-operations/chapter-03-monitoring' },
             { text: '安全与用户管理', link: '/mysql/08-operations/chapter-04-security' },
             { text: '日常维护', link: '/mysql/08-operations/chapter-05-maintenance' },
             { text: '连接管理', link: '/mysql/08-operations/chapter-06-connection-mgmt' },
@@ -1077,11 +1077,11 @@ export default withOpenInEditor(defineConfig({
           text: '任务指南',
           collapsed: true,
           items: [
-            { text: '版本、产品与部署选型', link: '/mysql/01-basics/chapter-04-version-and-selection' },
-            { text: '安装部署与环境配置', link: '/mysql/10-practice/chapter-02-installation' },
+            { text: '版本、产品与部署选型', link: '/mysql/10-practice/chapter-01-version-and-selection' },
+            { text: '安装部署与配置', link: '/mysql/10-practice/chapter-02-installation' },
             { text: '首次生产部署', link: '/mysql/10-practice/chapter-03-first-production' },
-            { text: '常见问题', link: '/mysql/10-practice/chapter-04-common-issues' },
-            { text: '性能调优', link: '/mysql/10-practice/chapter-05-performance-tuning' },
+            { text: '常见问题与避坑指南', link: '/mysql/10-practice/chapter-04-common-issues' },
+            { text: '性能调优实战', link: '/mysql/10-practice/chapter-05-performance-tuning' },
             { text: 'SQL 规范与最佳实践', link: '/mysql/10-practice/chapter-06-sql-best-practices' },
           ],
         },
@@ -1089,10 +1089,10 @@ export default withOpenInEditor(defineConfig({
           text: '参考手册',
           collapsed: true,
           items: [
-            { text: '参数速查', link: '/mysql/reference/parameters' },
-            { text: '数据类型速查', link: '/mysql/reference/types' },
-            { text: '函数速查', link: '/mysql/reference/functions' },
-            { text: '错误码速查', link: '/mysql/reference/errors' },
+            { text: '常用参数速查', link: '/mysql/reference/parameters' },
+            { text: '常用数据类型速查', link: '/mysql/reference/types' },
+            { text: '常用函数速查', link: '/mysql/reference/functions' },
+            { text: '常用错误码速查', link: '/mysql/reference/errors' },
           ],
         },
       ],
