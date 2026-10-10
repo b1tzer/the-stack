@@ -2,16 +2,119 @@ import { defineConfig } from 'vitepress'
 import { svgEditorPlugin, svgDiagramMarkdownPlugin } from 'vitepress-plugin-svg-editor'
 import { withOpenInEditor } from 'vitepress-plugin-open-in-editor'
 import { withMermaid } from 'vitepress-plugin-mermaid'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+const SITE_URL = 'https://thestack.xpro.wang'
+const DESCRIPTION_LIMIT = 140
+const DOMAIN_LABELS: Record<string, string> = {
+  ai: 'AI',
+  'design-pattern': '设计模式',
+  elasticsearch: 'Elasticsearch',
+  engineering: '软件工程',
+  java: 'Java',
+  kafka: 'Kafka',
+  mysql: 'MySQL',
+  postgresql: 'PostgreSQL',
+  rabbitmq: 'RabbitMQ',
+  redis: 'Redis',
+  scenarios: '场景实战',
+  spring: 'Spring',
+}
+
+function cleanMarkdownInline(value: string): string {
+  return value
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function truncateDescription(value: string): string {
+  if (value.length <= DESCRIPTION_LIMIT) return value
+  return `${value.slice(0, DESCRIPTION_LIMIT - 1).trimEnd()}…`
+}
+
+function deriveDescription(source: string, relativePath: string): string {
+  const body = source.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, '')
+  const lines = body.split(/\r?\n/)
+  let fenced = false
+  let paragraph = ''
+  let title = ''
+  let subheading = ''
+
+  for (const line of lines) {
+    if (/^\s*(```|~~~)/.test(line)) {
+      fenced = !fenced
+      continue
+    }
+    if (fenced) continue
+
+    if (/^#\s/.test(line) && !title) {
+      title = cleanMarkdownInline(line.replace(/^#\s+/, ''))
+      continue
+    }
+    if (/^##\s/.test(line) && !subheading) {
+      subheading = cleanMarkdownInline(line.replace(/^##\s+/, ''))
+      continue
+    }
+    if (/^#{1,6}\s/.test(line)) {
+      if (paragraph) break
+      continue
+    }
+
+    const cleaned = cleanMarkdownInline(line.replace(/^\s*>\s?/, ''))
+    if (!cleaned || /^---+$|^\*\*\*+$|^___+$|^[-*+]\s|^\d+\.\s|^\|/.test(cleaned)) {
+      if (paragraph) break
+      continue
+    }
+
+    paragraph = paragraph ? `${paragraph} ${cleaned}` : cleaned
+  }
+
+  if (paragraph) return paragraph
+
+  const domain = relativePath.split('/')[0]
+  const label = DOMAIN_LABELS[domain] ?? domain
+  if (title && subheading) {
+    return truncateDescription(`${title}：${subheading}，包含相关配置与可执行示例。`)
+  }
+  if (title) return truncateDescription(`${title}：${label} 专题的参考内容。`)
+  return truncateDescription(`${label} 专题内容。`)
+}
 
 export default withOpenInEditor(withMermaid(defineConfig({
   title: 'The Stack',
-  description: '系统化的 Java 后端技术分析',
+  description: '面向中文开发者的 Java 后端技术知识库，覆盖核心原理、生产实践与场景方案。',
   lang: 'zh-CN',
+  srcExclude: [
+    '_snippets/**',
+    'kafka/RESTRUCTURE-PLAN.md',
+  ],
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
   ],
   srcDir: './docs',
   outDir: './site',
+  sitemap: {
+    hostname: SITE_URL,
+  },
+
+  async transformPageData(pageData, context) {
+    if (pageData.description || pageData.frontmatter.description) return
+
+    try {
+      const source = readFileSync(join(context.siteConfig.srcDir, pageData.filePath), 'utf8')
+      const description = deriveDescription(source, pageData.filePath)
+      return description ? { description } : undefined
+    } catch {
+      return undefined
+    }
+  },
 
   vite: {
     plugins: [
@@ -44,32 +147,32 @@ export default withOpenInEditor(withMermaid(defineConfig({
     
     nav: [
       { text: 'Java', link: '/java/', activeMatch: '^/java/' },
-      { text: 'Spring', link: '/spring/01-core/chapter-01-spring-overview', activeMatch: '^/spring/' },
+      { text: 'Spring', link: '/spring/', activeMatch: '^/spring/' },
       { text: 'Redis', link: '/redis/', activeMatch: '^/redis/' },
       {
         text: '数据库',
         activeMatch: '^/(mysql|postgresql)/',
         items: [
           { text: 'MySQL', link: '/mysql/' },
-          { text: 'PostgreSQL', link: '/postgresql/01-pg-unique/chapter-01-pg-overview' },
+          { text: 'PostgreSQL', link: '/postgresql/' },
         ],
       },
       {
         text: '消息队列',
         activeMatch: '^/(kafka|rabbitmq)/',
         items: [
-          { text: 'Kafka', link: '/kafka/01-intro/chapter-01-what-is-kafka' },
-          { text: 'RabbitMQ', link: '/rabbitmq/01-basics/chapter-01-overview' },
+          { text: 'Kafka', link: '/kafka/' },
+          { text: 'RabbitMQ', link: '/rabbitmq/' },
         ],
       },
-      { text: 'Elasticsearch', link: '/elasticsearch/01-basics/chapter-01-overview', activeMatch: '^/elasticsearch/' },
+      { text: 'Elasticsearch', link: '/elasticsearch/', activeMatch: '^/elasticsearch/' },
       {
         text: '工程',
         activeMatch: '^/(design-pattern|engineering|ai)/',
         items: [
-          { text: '设计模式', link: '/design-pattern/00-intro/chapter-01-why-patterns' },
-          { text: '软件工程', link: '/engineering/01-principles/chapter-01-overview' },
-          { text: 'AI 工程', link: '/ai/01-导论' },
+          { text: '设计模式', link: '/design-pattern/' },
+          { text: '软件工程', link: '/engineering/' },
+          { text: 'AI 工程', link: '/ai/' },
         ],
       },
       { text: '场景实战', link: '/scenarios/', activeMatch: '^/scenarios/' },
@@ -145,6 +248,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
       ],
       '/ai/': [
+        { text: 'AI 工程知识库', link: '/ai/' },
         {
           text: 'AI 工程',
           collapsed: true,
@@ -164,6 +268,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
       ],
       '/design-pattern/': [
+        { text: '设计模式知识库', link: '/design-pattern/' },
         {
           text: '入门',
           collapsed: true,
@@ -234,6 +339,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
       ],
       '/elasticsearch/': [
+        { text: 'Elasticsearch 知识库', link: '/elasticsearch/' },
         {
           text: '基础入门',
           collapsed: true,
@@ -354,6 +460,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
       ],
       '/engineering/': [
+        { text: '软件工程知识库', link: '/engineering/' },
         {
           text: '设计原则',
           collapsed: true,
@@ -622,6 +729,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
       ],
       '/kafka/': [
+        { text: 'Kafka 知识库', link: '/kafka/' },
         {
           text: '入门',
           collapsed: true,
@@ -689,6 +797,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
       ],
       '/rabbitmq/': [
+        { text: 'RabbitMQ 知识库', link: '/rabbitmq/' },
         {
           text: '基础入门',
           collapsed: true,
@@ -917,6 +1026,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
       ],
       '/postgresql/': [
+        { text: 'PostgreSQL 知识库', link: '/postgresql/' },
         {
           text: 'PG 到底特殊在哪',
           collapsed: true,
@@ -1127,11 +1237,12 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
       ],
       '/spring/': [
-        { text: 'Spring 概览', link: '/spring/01-core/chapter-01-spring-overview' },
+        { text: 'Spring 知识库', link: '/spring/' },
         {
           text: '核心原理',
           collapsed: true,
           items: [
+            { text: 'Spring 概览', link: '/spring/01-core/chapter-01-spring-overview' },
             { text: 'IoC 容器', link: '/spring/01-core/chapter-02-ioc-container' },
             { text: 'Bean 完整生命周期', link: '/spring/01-core/chapter-03-bean-lifecycle' },
             { text: '依赖注入', link: '/spring/01-core/chapter-04-dependency-injection' },

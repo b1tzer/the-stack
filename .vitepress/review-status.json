@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "cadenceDays": 90,
+  "domains": {
+    "java": {
+      "versionScope": "Java 21 / OpenJDK 21；页面保留必要的历史版本差异",
+      "status": "pending",
+      "lastVerified": null,
+      "nextReview": "2026-11-10"
+    },
+    "spring": {
+      "versionScope": "Spring Framework 6 / Spring Boot 3；页面保留 2.x 差异",
+      "status": "pending",
+      "lastVerified": null,
+      "nextReview": "2026-11-10"
+    },
+    "redis": {
+      "versionScope": "Redis 7.4.11；使用 Redis 8.x 时单独核对",
+      "status": "verified",
+      "lastVerified": "2026-10-10",
+      "nextReview": "2027-01-10"
+    },
+    "mysql": {
+      "versionScope": "MySQL 8.0；页面保留 5.7 和早期 8.0 差异",
+      "status": "pending",
+      "lastVerified": null,
+      "nextReview": "2026-11-10"
+    },
+    "postgresql": {
+      "versionScope": "PostgreSQL 14–16 主线；页面保留其他版本差异",
+      "status": "pending",
+      "lastVerified": null,
+      "nextReview": "2026-11-10"
+    },
+    "kafka": {
+      "versionScope": "Kafka 4.x / KRaft；页面保留 ZooKeeper 时代差异",
+      "status": "pending",
+      "lastVerified": null,
+      "nextReview": "2026-11-10"
+    },
+    "rabbitmq": {
+      "versionScope": "RabbitMQ 3.x；新部署以 Quorum Queue 为主线",
+      "status": "pending",
+      "lastVerified": null,
+      "nextReview": "2026-11-10"
+    },
+    "elasticsearch": {
+      "versionScope": "尚未建立统一基线；按页面标注的版本核对",
+      "status": "pending",
+      "lastVerified": null,
+      "nextReview": "2026-11-10"
+    },
+    "design-pattern": {
+      "versionScope": "概念内容；Spring 与 JDK 示例按页面版本核对",
+      "status": "pending",
+      "lastVerified": null,
+      "nextReview": "2026-11-10"
+    },
+    "engineering": {
+      "versionScope": "通用工程方法；工具和平台版本按页面核对",
+      "status": "pending",
+      "lastVerified": null,
+      "nextReview": "2026-11-10"
+    },
+    "scenarios": {
+      "versionScope": "跨专题方案；组件版本以对应专题为准",
+      "status": "pending",
+      "lastVerified": null,
+      "nextReview": "2026-11-10"
+    },
+    "ai": {
+      "versionScope": "按模型接口、框架和协议页面的适用时间核对",
+      "status": "pending",
+      "lastVerified": null,
+      "nextReview": "2026-11-10"
+    }
+  }
+}
