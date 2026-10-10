@@ -245,7 +245,7 @@ executor.execute(() -> {
 
 ### 3.3 `remove()` 的强制性
 
-正确的姿势永远是 try-finally：
+推荐始终使用 try-finally：
 
 ```java
 // ✅ 正确姿势
@@ -386,7 +386,7 @@ Main 线程                         Worker 线程
 
 - 在**提交时**抓拍，而不是在 Worker 创建时抓拍
 - 在**执行前**灌进 Worker，执行完**还原**，避免污染下一个任务
-- 抓拍—回放的开销与 TTL 数量成正比，通常在纳秒级
+- 抓拍与回放的开销通常随 TTL value 数量及其大小增长；具体量级依实现、对象生命周期和负载而变，需要基准测试
 
 ### 5.2 使用方式
 
@@ -438,7 +438,7 @@ TTL 不是免费午餐——每次任务提交都要抓拍所有已注册的 TTL
 | 在线程池间用 `InheritableThreadLocal` 传递 | traceId / 租户上下文静默丢失 | 换 TTL，或在提交前显式复制 |
 | 一个 `ThreadLocal` 存多种业务字段（Map 混装） | 生命周期不齐、清理时机混乱 | 拆成多个语义单一的 `ThreadLocal` |
 | 把 `ThreadLocal` 当"隐式参数"传递跨越太多层 | 代码可读性下降，重构风险高 | 显式方法参数优先，`ThreadLocal` 只在真正跨层的场景（日志、事务、追踪）用 |
-| `set(null)` 当 `remove` 用 | Entry 槽位仍占着，泄漏依旧 | 明确调用 `remove()` |
+| `set(null)` 当 `remove` 用 | 原 value 被置空，但 Entry/key 和槽位仍残留 | 明确调用 `remove()` |
 
 ## 7. 本章小结
 

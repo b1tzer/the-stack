@@ -2,6 +2,8 @@
 
 > 本页与 [虚拟线程模型与 Pinning（JDK 21）](./chapter-13-virtual-thread.md) 配套，重点说明适用边界、结构化并发、线程池取舍和迁移示例。
 
+> **版本基线**：本页以 JDK 21 LTS 为主线，结构化并发与 Scoped Value 的示例需要启用 Preview API。JDK 25 的 Scoped Value 已由 [JEP 506](https://openjdk.org/jeps/506) 正式定稿；Structured Concurrency 仍由 [JEP 505](https://openjdk.org/jeps/505) 作为第五轮 Preview 提供，API 形态与 JDK 21 不同。
+
 ## 1. 何时不要用虚拟线程
 
 虚拟线程不是万能替代。以下四种场景下，平台线程仍然是更好的选择。
@@ -27,7 +29,7 @@ ExecutorService pool = Executors.newFixedThreadPool(
 );
 ```
 
-**判断规则**：任务的墙钟时间中 CPU 占比超过 50%，就应该用平台线程池。
+**判断方向**：CPU 密集且持续占用处理器时间的任务适合固定大小的平台线程池；任务是否适合虚拟线程不能只看一个 CPU 占比阈值，还要比较单任务的计算时长、阻塞比例、上下文切换开销和压测结果。
 
 ### 1.2 需要严格限流的场景
 
@@ -61,15 +63,15 @@ try (var pool = Executors.newVirtualThreadPerTaskExecutor()) {
 
 ### 1.3 `ThreadLocal` 密集使用的路径
 
-虚拟线程完全支持 `ThreadLocal`（在第 3 章讨论过它的存储结构）。但在 VT 场景下要提防一件事：**百万级 VT × 每 VT 若干 TL 值 = 内存爆炸**。
+虚拟线程完全支持 `ThreadLocal`（在第 3 章讨论过它的存储结构）。虚拟线程数量增加后需要提防：**大量 VT × 每 VT 若干 TL 值，可能显著放大堆内存占用**。
 
-举例：一个请求链路挂了 10 个 TL 值，每个值 1 KB。平台线程模型下同时活跃线程 2 000 条，占 20 MB；虚拟线程模型下同时活跃 200 000 条 VT，占 2 GB。
+下面只按 TL value 本身估算，不包含 Entry、键、对象头和对齐开销：若一个请求链路挂 10 个 TL 值、每个约 1 KB，2 000 条平台线程约对应 20 MB，200 000 条虚拟线程约对应 2 GB。真实占用还要看对象大小、共享引用和生命周期。
 
 应对方向：
 
-- 优先使用 `ScopedValue`（JDK 21 预览，JDK 23 二次预览）替代只在方法调用链里用的 `ThreadLocal`
+- JDK 21 中可使用 Preview API `ScopedValue` 替代只在方法调用链里传递的 `ThreadLocal`；JDK 25 起它已正式定稿
 - 拆分 TL：只把真正需要跨方法透传的东西放进 TL，其余通过参数传递
-- 关键路径改造完之前，用 `-XX:NativeMemoryTracking` 观察堆外增长
+- 关键路径改造完之前，用 JFR、分配分析和堆快照观察 `ThreadLocal` 值与相关对象的增长
 
 ### 1.4 依赖平台线程语义的库
 
@@ -116,7 +118,7 @@ try {
 **结构化并发（Structured Concurrency）** 用一个语法块把父子任务生命周期绑在一起：**作用域内派生的所有任务必须在作用域退出前完成**。
 
 ```java
-// ✅ 结构化并发（JDK 21 preview / JDK 25 GA API 略有调整）
+// ✅ JDK 21 Preview API
 try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
     Subtask<User>  user  = scope.fork(() -> userApi.get(id));
     Subtask<Order> order = scope.fork(() -> orderApi.get(id));
@@ -185,7 +187,7 @@ try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
 
 ### 2.5 API 稳定性提示
 
-`StructuredTaskScope` 在 JDK 21 是 preview（第一轮），JDK 22–24 经过多轮 preview，**JDK 25 正式 GA，API 名称有小幅调整**（例如 `ShutdownOnFailure` 变为 `Joiner.awaitAllSuccessfulOrThrow()` 风格）。生产使用时以目标 JDK 版本的 JEP 为准。
+`StructuredTaskScope` 在 JDK 21 是第一轮 Preview；JDK 22–24 持续调整；JDK 25 仍按 JEP 505 作为第五轮 Preview 提供，并改用 `StructuredTaskScope.open(...)`、`Joiner`、`Subtask` 等 API。JDK 21 示例不能直接视为 JDK 25 GA 示例，迁移时应以目标 JDK 的 JEP 和 API 文档为准。
 
 ## 3. 虚拟线程时代重新评估线程池
 
@@ -193,17 +195,17 @@ try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
 
 | 维度 | 平台线程池的经验 | 虚拟线程时代的调整 |
 | :-- | :-- | :-- |
-| IO 密集处理 | `poolSize = 2 × N_CPU`，队列 + 拒绝策略 | 直接 `newVirtualThreadPerTaskExecutor`，无参数 |
-| CPU 密集计算 | `poolSize = N_CPU + 1` | **保持不变** |
+| IO 密集处理 | 以 `2 × N_CPU` 等经验值作为压测起点，配置队列与拒绝策略 | 通常从 `newVirtualThreadPerTaskExecutor` 开始，并显式限流 |
+| CPU 密集计算 | `poolSize = N_CPU + 1` 可作起点，仍需按任务粒度调整 | 通常继续使用固定大小的平台线程池 |
 | 定时调度 | `ScheduledThreadPoolExecutor` | **保持不变**（VT 无 scheduled 变体） |
 | 天然限流 | 依赖 `maxPoolSize` + `BoundedQueue` | 显式 `Semaphore` 或专用限流器 |
-| 上下文传递 | `TransmittableThreadLocal` | `ScopedValue`（preview） |
+| 上下文传递 | `TransmittableThreadLocal` | JDK 21：`ScopedValue`（Preview）；JDK 25：`ScopedValue`（正式） |
 | 请求超时 | `Future.get(timeout)` | `StructuredTaskScope.joinUntil` |
 | 命名与排查 | `ThreadFactory` + 命名规范 | `Thread.ofVirtual().name(prefix, seq)` |
 
 **判断决策**：
 
-![vt-decision-tree](/java/vt-decision-tree.svg)
+![虚拟线程与平台线程的选型决策树](/java/vt-decision-tree.svg)
 
 ## 4. 一段完整示例：从传统 API 迁移到虚拟线程
 

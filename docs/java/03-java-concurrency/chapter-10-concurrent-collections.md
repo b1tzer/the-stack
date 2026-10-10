@@ -2,7 +2,7 @@
 
 > 多线程直接用 `HashMap` 会出什么问题？`ConcurrentHashMap` 从 JDK 7 到 JDK 8 换掉了 Segment，靠什么把并发度撑起来？想要一个"读完全无锁"的队列，代价是什么？
 
-前面的章节讲的是**如何用锁、原子类、AQS 保护共享变量**。这一章换个视角：**JDK 已经把常见的并发场景封装成了容器**——`ConcurrentHashMap`、`CopyOnWriteArrayList`、`ConcurrentLinkedQueue`、`BlockingQueue` 家族。理解它们的内部结构，一是能选对；二是能推理性能形态——什么场景下这个容器会退化、什么场景下它比自己加锁快十倍。
+前面的章节讲的是**如何用锁、原子类、AQS 保护共享变量**。这一章换个视角：**JDK 已经把常见的并发场景封装成了容器**——`ConcurrentHashMap`、`CopyOnWriteArrayList`、`ConcurrentLinkedQueue`、`BlockingQueue` 家族。理解它们的内部结构，一是能选对；二是能推理性能形态，判断什么场景下锁竞争、复制或遍历会成为瓶颈。
 
 ## 1. 普通集合为什么不能并发使用
 
@@ -47,7 +47,7 @@ JDK 7 的 `HashMap` 有一个上过面试题几百次的 bug：**并发扩容时
      A.next = B, B.next = A     ← 环
 ```
 
-`get()` 触发到这个桶时沿着 `next` 走进环，永远不返回。
+`get()` 触发到这个桶时可能沿着 `next` 进入环，长期不返回并持续消耗 CPU。
 
 JDK 8 换成**尾插法**——迁移时保持链表原顺序，从根本上消除了环形链表。**但 `HashMap` 本身仍然不是线程安全的**：数据丢失、`resize` 期间读到中间状态、并发 put 的结构损坏都还存在。JDK 8 只是修了那一个死循环。
 
@@ -61,7 +61,7 @@ JDK 8 换成**尾插法**——迁移时保持链表原顺序，从根本上消�
 | `HashSet` | 同 `HashMap` | 底层是 `HashMap` |
 | `TreeMap` | 数据丢失、红黑树结构损坏 | 并发修改破坏树平衡 |
 
-粗粒度的 `Collections.synchronizedMap` 能修正确性问题，代价是把整个 Map 变成串行访问——高并发下等于自杀。这是并发集合存在的意义：**用更细的粒度、或者干脆无锁的算法，把安全与并发度同时保住**。
+粗粒度的 `Collections.synchronizedMap` 能修正确性问题，但所有写操作会共用一把锁，高并发写入时吞吐可能明显下降。并发容器的意义是**用更细的粒度或无锁算法，在安全与并发度之间取得更好的平衡**。
 
 ## 2. `ConcurrentHashMap`：从 Segment 到 bin 级锁
 
@@ -152,8 +152,8 @@ final V putVal(K key, V value, boolean onlyIfAbsent) {
 
 反直觉的一件事：JDK 7 用的是 `ReentrantLock`（因为 Segment 继承它），JDK 8 换成了 `synchronized`。三个直接的原因：
 
-- **JDK 6 之后 `synchronized` 已经不慢**：偏向锁、轻量级锁、锁消除、锁粗化把无竞争场景的开销压到几乎为零（[第 6 章的锁优化部分](./chapter-06-synchronized.md#synchronized-lock-optimization)）。
-- **粒度更细意味着单锁的竞争度更低**：每个 bin 的头节点独立当锁，绝大多数并发写落到不同 bin 上，走的都是偏向锁 / 轻量级锁路径。
+- **JDK 6 之后 `synchronized` 获得多条优化路径**：轻量级锁、锁消除和锁粗化降低了无竞争场景的开销（[第 6 章的锁优化部分](./chapter-06-synchronized.md#synchronized-lock-optimization)）。
+- **粒度更细意味着单锁的竞争度更低**：每个 bin 的头节点独立当锁。JDK 15+ 的 HotSpot 默认关闭偏向锁，常见路径从轻量级锁开始；历史版本可能启用偏向锁。
 - **`synchronized` 内部由 JVM 管理，减少对象元数据**：`ReentrantLock` 本身是 Java 对象，每个 Segment 都要单独维护同步状态；`synchronized` 直接用 Node 的对象头，节省内存。
 
 ### 2.4 `size()` 的分散计数
@@ -343,7 +343,7 @@ static final class Node<E> {
 }
 ```
 
-**入队（`offer`）的两步 CAS**：
+**入队（`offer`）的两处 CAS 操作**：
 
 ```txt
 初始：  head → dummy ── tail
@@ -386,9 +386,9 @@ public boolean offer(E e) {
 }
 ```
 
-**关键理解**：`tail` 允许"暂时落后于真实尾"。JVM 依靠"任何线程发现 tail 落后都可以帮忙推进"这条协作规则，把整个入队过程做成完全无锁——**没有一处 `synchronized`，也没有一次 park**。
+**关键理解**：`tail` 允许“暂时落后于真实尾”。算法约定任何线程发现 `tail` 落后都可以协助推进，并处理节点自引用和并发入队；整个过程不使用 `synchronized` 或 `park`。
 
-**出队（`poll`）同样两步 CAS**：把 `head.next.item` CAS 成 null 取出数据，再 CAS 推进 head。
+**出队（`poll`）先原子摘取元素**：通常把队首节点的 `item` CAS 为 `null`，成功后返回原值；推进 `head` 是辅助清理步骤，只在满足条件时执行，并非每次固定再做一次 CAS。
 
 ### 5.2 无锁队列的正确性来源
 
@@ -398,7 +398,7 @@ public boolean offer(E e) {
 - **协作性算法**：任何看到"中间态"的线程都会主动帮忙推进到"完全态"（推 tail、跳过被移除节点）
 - **失败即重试**：`for(;;)` 循环让失败线程立刻重试，不阻塞、不 park
 
-M&S 队列是**无锁**（lock-free）而非**无等待**（wait-free）——不能保证每条线程都在有限步内完成，但保证整体上一定有线程在推进（不会全体死锁）。
+M&S 队列通常被归类为**无锁**（lock-free）而非**无等待**（wait-free）——它不保证每条线程都在有限步内完成，但算法设计目标是保证整体进展。
 
 ### 5.3 `size()` 是 O(N)
 
@@ -416,7 +416,7 @@ public int size() {
 }
 ```
 
-原因是无锁算法里没法用 `AtomicInteger` 维护精确计数——每次入队 / 出队都用 CAS 更新一个全局计数会成为热点，反而拖垮性能。**生产代码里对 `ConcurrentLinkedQueue` 频繁调 `size()` 是常见反模式**：直接把 O(1) 期望的接口用出了 O(N) 的成本。
+该实现不维护全局精确计数：入队或出队都更新一个共享计数会增加热点竞争。**生产代码里频繁调用 `ConcurrentLinkedQueue.size()` 容易造成性能问题**：它把预期为常数时间的查询变成了 O(N) 遍历。
 
 ### 5.4 `LinkedTransferQueue`：`ConcurrentLinkedQueue` + 传递语义
 

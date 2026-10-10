@@ -79,7 +79,7 @@ while (true) {
 }
 ```
 
-吞吐量上来了——多个请求可以并行处理。但问题也来了：如果并发请求有 10000 个，就要创建 10000 个线程。每个线程 1MB 栈，光栈就吃掉 10GB 内存。线程创建和销毁的开销也不小。
+吞吐量上来了——多个请求可以并行处理。但问题也来了：如果并发请求有 10 000 个，就要创建 10 000 个线程。按每条 1 MB 栈参数粗算，栈预留空间约 10 GB；它不等于全部驻留物理内存，但线程创建、内核资源和上下文切换成本仍会随规模上升。
 
 **阶段三：线程池**
 
@@ -126,7 +126,7 @@ try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
 }
 ```
 
-虚拟线程的栈内存按需分配（几百字节到几 KB），可以轻松创建百万个。代码风格像"一请求一线程"那么简单，性能却接近 NIO。这就是 JDK 21 带来的范式转变。
+虚拟线程的栈内存按需分配，单个初始占用通常较小，在内存和 JVM 参数允许时可以创建远多于平台线程的数量。代码可以保留“一请求一线程”的写法，但吞吐和尾延迟仍取决于阻塞点、载体线程数与下游资源，需要压测验证。这就是 JDK 21 带来的范式变化。
 
 这个进化过程本身就回答了本章的核心问题：**并发不是可选的，它是服务端编程的基本要求。** 而 Java 的并发工具一直在演进，目标就是让开发者用更简单的方式写出更高性能的并发程序。
 
@@ -396,9 +396,9 @@ graph TD
 | JDK 1.2 | 1998 | `Thread` 的改进，`ThreadLocal` |
 | JDK 1.4 | 2002 | `java.nio`（非阻塞 I/O），`Selector` |
 | JDK 5 | 2004 | `java.util.concurrent`（JUC），`Executor`、`Future`、`Lock`、`Atomic`、`ConcurrentHashMap` |
-| JDK 6 | 2006 | `Phaser`、并发性能优化 |
-| JDK 7 | 2011 | `ForkJoinPool`、`TransferQueue`、`StampedLock` |
-| JDK 8 | 2014 | `CompletableFuture`、`parallelStream`、`LongAdder` |
+| JDK 6 | 2006 | 并发性能优化 |
+| JDK 7 | 2011 | `Phaser`、`ForkJoinPool`、`TransferQueue` |
+| JDK 8 | 2014 | `StampedLock`、`CompletableFuture`、`parallelStream`、`LongAdder` |
 | JDK 9 | 2017 | `Flow`（响应式流）、`CompletableFuture` 增强 |
 | JDK 19 | 2022 | 虚拟线程（Preview） |
 | JDK 21 | 2023 | 虚拟线程（正式）、Scoped Values、Structured Concurrency（Preview） |

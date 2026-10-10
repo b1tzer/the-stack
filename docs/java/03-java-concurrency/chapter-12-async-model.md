@@ -4,7 +4,7 @@
 
 `Future` 让 Java 在 2004 年拿到了“未来取值”的能力，`CompletableFuture` 在 2014 年补齐了“未来编排”的能力。这中间隔的十年，是异步编程从“能做”到“好用”的十年。这一章聚焦两者的语义边界、线程归属和最容易踩的坑；响应式流只与本专题的 [NIO](../04-java-network/chapter-05-nio.md)、[Netty](../04-java-network/chapter-06-netty.md)建立联系，Actor 模型不作为本专题的主线内容。
 
-## 1. `Future` 的三个致命局限
+## 1. `Future` 的三个主要局限
 
 ### 1.1 有结果，但只能靠阻塞取
 
@@ -150,10 +150,10 @@ String result = pipeline.join();
 
 ### 3.2 `commonPool` 的默认坑
 
-`supplyAsync(fn)` / `thenApplyAsync(fn)` 不传 executor 时，默认使用 `ForkJoinPool.commonPool()`（[第 11 章的 `ForkJoinPool` 一节](./chapter-11-thread-pool.md#fork-join-pool)讨论过）。这个池由 JVM 中的任务共享；常见配置下并行度为可用处理器数减 1，但也可能被 `java.util.concurrent.ForkJoinPool.common.parallelism` 覆盖。并行度低于 2 时，JDK 会为每个任务创建新线程。
+`supplyAsync(fn)` / `thenApplyAsync(fn)` 不传 executor 时，默认使用 `ForkJoinPool.commonPool()`（[第 11 章的 `ForkJoinPool` 一节](./chapter-11-thread-pool.md#fork-join-pool)讨论过）。这个池由 JVM 中的任务共享；默认并行度是 `max(1, 可用处理器数 - 1)`，也可由 `java.util.concurrent.ForkJoinPool.common.parallelism` 覆盖。并行度低于 2 时，JDK 会为每个任务创建新线程。
 
 ```java
-// ❌ 阻塞 IO 塞进 commonPool：一整个 JVM 的 CompletableFuture / parallelStream 陪葬
+// ❌ 阻塞 IO 塞进 commonPool：同池任务的延迟会互相放大
 CompletableFuture.supplyAsync(() -> httpClient.get(url));
 
 // ✅ 阻塞任务用独立线程池
@@ -166,7 +166,7 @@ ExecutorService ioPool = new ThreadPoolExecutor(
 CompletableFuture.supplyAsync(() -> httpClient.get(url), ioPool);
 ```
 
-一条生产规则：**除非任务是纯 CPU 计算且短，否则永远显式传 Executor**。这条规则在 §5.3 会再出现一次。
+默认建议：阻塞 I/O、任务时长差异大或有独立服务目标的 stage 使用专用 Executor。短小、无阻塞且可接受共享池调度的任务，可以显式接受 `commonPool` 的默认行为；是否共享应由压测和隔离目标决定。
 
 ### 3.3 `Async` 变体的选型 {#async-executor-selection}
 
@@ -183,13 +183,13 @@ CompletableFuture
     .thenAccept(this::logResult);                          // 同步：谁完成 heavyCompute 就谁记日志
 ```
 
-这种"每一步都在合适的池上"的写法，是 `CompletableFuture` 在生产环境里的默认姿势。
+这种“每一步都在合适的池上”的写法便于控制线程池边界，适合任务类型差异明显的生产调用链；阶段少且执行很快时，也可通过明确注释接受默认执行器。
 
 ## 4. 异常传播的三条路径
 
 ### 4.1 传播规则
 
-**异常沿着链条向后透传**：链条中任何一步失败，后续所有 stage 都会跳过正常回调，一路走到最近的一个能"截住"异常的方法。截住的方法有三个：`exceptionally` / `handle` / `whenComplete`。
+**异常沿着链条向后透传**：链条中任何一步失败，后续 stage 会跳过正常回调，直到一个能够观察或恢复异常的方法。`exceptionally` 和 `handle` 能产生替代结果；`whenComplete` 只观察结果和异常，不恢复异常。
 
 ### 4.2 三个方法的差异
 
@@ -249,12 +249,19 @@ supplyAsync ──▶ thenApply ──▶ thenApply ──▶ ...
 JDK 9 起 `CompletableFuture` 支持异步超时，不再需要外挂 `ScheduledExecutorService`：
 
 ```java
-future
-    .orTimeout(3, TimeUnit.SECONDS)                       // 超时抛 TimeoutException
-    .completeOnTimeout("fallback", 3, TimeUnit.SECONDS);  // 超时返回默认值
+// 超时作为异常进入后续处理
+CompletableFuture<String> failOnTimeout = CompletableFuture
+    .supplyAsync(() -> query())
+    .orTimeout(3, TimeUnit.SECONDS)
+    .exceptionally(ex -> "unavailable");
+
+// 超时直接返回默认值
+CompletableFuture<String> fallbackOnTimeout = CompletableFuture
+    .supplyAsync(() -> query())
+    .completeOnTimeout("fallback", 3, TimeUnit.SECONDS);
 ```
 
-`orTimeout` 会把超时以异常方式注入链条，走 `exceptionally/handle`；`completeOnTimeout` 直接给出替代值，链条继续。生产上一般组合使用：先 `orTimeout` 触发超时，再 `exceptionally` 决定降级方案。
+`orTimeout` 会把超时以异常方式注入链条，随后可用 `exceptionally` 或 `handle` 决定降级；`completeOnTimeout` 则直接给出替代值，让链条按正常结果继续。两者是对同一 Future 的互斥超时策略，不要用同一期限串联，否则哪个计时器先完成存在竞态。
 
 ## 5. 常见反模式
 
@@ -290,11 +297,11 @@ CompletableFuture.supplyAsync(this::queryDB)
     .thenAccept(this::save);
 ```
 
-`thenApply` 的回调很可能在 `commonPool` 上执行（详见 §3.2）。阻塞 IO 占死 commonPool 后，同 JVM 内的 `parallelStream`、其他 `CompletableFuture` 全部卡住。**含阻塞的 stage 必须用 `xxxAsync(fn, executor)` 换到专用池**。
+`thenApply` 的回调很可能在 `commonPool` 上执行（详见 §3.2）。阻塞 I/O 占住 commonPool 后，同池的 `parallelStream` 和其他 `CompletableFuture` 会明显变慢，但不使用 commonPool 的 `CompletableFuture` 不会因此全部阻塞。**含阻塞且有独立服务目标的 stage 应使用 `xxxAsync(fn, executor)` 换到专用池**。
 
 ### 5.3 未指定 Executor
 
-跨业务共享 `commonPool` 会把彼此的问题传染开来。生产规则：**所有异步 stage 都显式传 executor**。规则本身简单，难在团队养成习惯——一个人图省事写了 `supplyAsync(fn)`，就能拖垮整个 JVM 里的其他 stage。
+跨业务共享 `commonPool` 会让任务时长和故障相互影响。默认建议是为阻塞、重计算或有隔离要求的 stage 显式传 executor；短小且可接受共享调度的 stage 可以省略，但团队应统一约定哪些方法允许省略。
 
 ### 5.4 混用 `get()` 与 `join()`
 
@@ -310,12 +317,21 @@ Stream 里用 `.map(CompletableFuture::join)` 是标准写法（不能用 `.map(
 ### 5.5 `allOf` 后忘记 `join` 各个 CF
 
 ```java
-// ❌ allOf 完成不代表你已经把结果拿在手上
-CompletableFuture.allOf(fu, fo, fc).thenApply(v -> new Profile(...));
-// 传参的时候 fu/fo/fc 用了吗？没有——拿到的 Profile 是空的
+// 先构造三个已完成的 Future
+CompletableFuture<String> futureA = CompletableFuture.completedFuture("A");
+CompletableFuture<String> futureB = CompletableFuture.completedFuture("B");
+CompletableFuture<String> futureC = CompletableFuture.completedFuture("C");
+
+// ❌ 只等待完成，没有读取三个 Future 的结果
+CompletableFuture.allOf(futureA, futureB, futureC)
+    .thenApply(v -> "missing results");
+
+// ✅ allOf 完成后再读取各自结果
+CompletableFuture.allOf(futureA, futureB, futureC)
+    .thenApply(v -> String.join(",", futureA.join(), futureB.join(), futureC.join()));
 ```
 
-`allOf` 的语义是"全部完成"，不是"结果汇集"。汇集必须自己在 `thenApply` 里 `join` 每个 CF（此时都已完成，`join` 立即返回，不再阻塞）。这一步漏掉是 `CompletableFuture` 上最容易写错的一处。
+`allOf` 的语义是“全部完成”，不是“结果汇集”。要合并结果，应在 `thenApply` 中读取每个已完成的 Future，或使用 `thenCombine` / `thenCompose` 表达依赖关系。此时各 Future 已完成，`join()` 通常立即返回；但仍应传播其失败结果，而不是只返回占位值。
 
 ## 6. 其他并发范式：只点名思想
 

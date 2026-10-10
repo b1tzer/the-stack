@@ -34,7 +34,7 @@ public class Worker {
 现实里这段代码可能**永远停不下来**。两条独立失败路径：
 
 - **JIT 提升**：Server 编译器发现 `running` 在循环体内没有被修改，认为它是"循环不变量"，把读取从循环里提出去——等价于把代码改成 `if (running) while (true) doSomething();`。此后无论外部谁改 `running`，工作线程都不会重新读。
-- **缓存驻留**：即便没有 JIT 优化，`stop()` 那次写入可能只落在主线程的 CPU 缓存里，还没刷到主内存；工作线程的缓存副本仍然是 `true`。
+- **缺少同步保证**：即便没有 JIT 优化，普通写与读之间也没有建立跨线程 happens-before，工作线程可能继续观察旧值。
 
 改法只有一步：
 
@@ -42,7 +42,7 @@ public class Worker {
 private volatile boolean running = true;
 ```
 
-**这一步 `volatile` 建立的语义是**：每次 `running` 的读必须从主内存重新拿；每次写必须立刻刷回主内存。JIT 也不再允许把这次读提升出循环。
+**这一步 `volatile` 建立的语义是**：volatile 写与随后的 volatile 读之间具有可见性和顺序约束，JIT 不能把这个循环内的读当作可永久提升的普通循环不变量。它不规定实现必须“从主内存读取”或“立即写回主内存”。
 
 ### 1.2 `volatile` 明面上的两个保证
 
@@ -65,21 +65,21 @@ JVM 层 ─── 在读写两侧插入合适的内存屏障
 CPU 层 ─── 屏障映射到具体架构的一致性协议行为
 ```
 
-`volatile` 的能力和边界都由 JVM 在读写两侧插入的屏障决定。所以要理解 `volatile` "为什么能"和"为什么不能"，接下来要拆开的就是屏障。
+`volatile` 的能力由 JMM 的 happens-before 规则定义，JVM 再通过编译器屏障和机器屏障等手段实现这些语义。因此，理解其“为什么能”和“为什么不能”既要区分语言规范，也要区分具体实现。
 
 ## 2. 四类屏障与 `volatile` 的读写语义
 
 ### 2.1 屏障的作用回顾
 
-[第 4 章的内存屏障规则](./chapter-04-jmm.md#memory-barriers)定义了四类屏障（LoadLoad / LoadStore / StoreStore / StoreLoad）及其作用。`volatile` 用到其中三类，位置固定：
+[第 4 章的内存屏障模型](./chapter-04-jmm.md#memory-barriers)列出四类常见屏障（LoadLoad / LoadStore / StoreStore / StoreLoad）。下面的插入位置是帮助推理语义的经典模型，不是 JMM 对每个 JVM、JDK 版本和 CPU 固定要求的机器指令序列：
 
-| 屏障 | 在 `volatile` 中的插入点 |
+| 屏障 | `volatile` 语义的经典映射 |
 | :-- | :-- |
 | **StoreStore** | `volatile` 写**之前** |
 | **StoreLoad** | `volatile` 写**之后** |
 | **LoadLoad** + **LoadStore** | `volatile` 读**之后** |
 
-`LoadStore` 在其他屏障组合中也有出现，但 `volatile` 的核心行为只由这四种插入位置决定。下面分别看写侧和读侧。
+`LoadStore` 在其他屏障组合中也有出现。JVM 可以根据架构与优化调整具体屏障；下面分别看写侧和读侧要约束的顺序。
 
 ### 2.2 写侧：`StoreStore` + `StoreLoad`
 
@@ -98,9 +98,9 @@ CPU 层 ─── 屏障映射到具体架构的一致性协议行为
 两条屏障各自的用途：
 
 - **`StoreStore` 前置**：保证 `volatile` 写之前的所有普通写不会被重排到 `volatile` 写之后。这就是"你在 `volatile` 变量写之前埋下的所有普通字段，会一起被这次 `volatile` 写发布出去"的机制来源。
-- **`StoreLoad` 后置**：保证 `volatile` 写完成后，后续任何读不会绕过这次写去读取旧值。四类屏障里 **`StoreLoad` 是最贵的**——它既要处理写入的对外可见，又要阻止后续读越过屏障重排，几乎所有 CPU 上都是最重的一条。
+- **`StoreLoad` 后置**：经典模型中，它防止后续读绕过这次 volatile 写。该操作在许多架构上成本较高，但实际开销依 CPU 和 JVM 实现而定。
 
-"`volatile` 写比 `volatile` 读贵得多"的成本差距就在 `StoreLoad`。
+在不少平台上，`volatile` 写比读更容易触发额外同步成本；是否显著仍需按目标平台实测。
 
 ### 2.3 读侧：`LoadLoad` + `LoadStore`
 
@@ -140,18 +140,18 @@ volatile 写：ready = true
 
 一旦 B 看到 `ready = true`，A 在 `volatile` 写之前完成的 `data` 和 `readyExtra` 也一并对 B 可见。这套模式在 JDK 源码里反复出现，一般被称为 **发布-订阅模式**——`volatile` 变量本身只是发布信号，携带的信息是它周围的普通字段。
 
-### 2.5 缓存一致性协议帮 `volatile` 落到硬件
+### 2.5 缓存一致性协议的一种硬件示意
 
-屏障解决顺序问题。可见性还要靠 CPU 的**缓存一致性协议**——最常见的形式是 MESI：
+JMM 负责语言语义。硬件实现可见性时可能使用**缓存一致性协议**，MESI 是常见模型之一，并非所有处理器都采用完全相同的四状态协议：
 
 | 状态 | 含义 |
 | :-- | :-- |
-| **M**odified | 当前核心修改过，尚未同步回主内存，其他核心的副本已失效 |
-| **E**xclusive | 当前核心独占，值与主内存一致 |
+| **M**odified | 当前核心修改过，其他核心的对应缓存副本已失效 |
+| **E**xclusive | 当前核心独占该缓存行 |
 | **S**hared | 多核心共享同一缓存行 |
 | **I**nvalid | 缓存行已失效，下次读必须重新加载 |
 
-`volatile` 写触发的一致性动作：
+下图示意一种可能的缓存一致性动作，不代表所有 volatile 操作的固定流程：
 
 ```txt
 Core 0（线程 A）                 Core 1（线程 B）
@@ -165,17 +165,17 @@ Core 0（线程 A）                 Core 1（线程 B）
                                           │
                                           │ volatile 读 ready
                                           ▼
-                                     重新从主内存/L3 加载
+                                     重新从缓存/内存层级取得数据
 ```
 
-JMM 定义 Java 层语义，JVM 用屏障翻译语义，MESI 让屏障在硬件上真正生效。三者协作，`volatile` 的可见性才成立。
+JMM 定义 Java 层语义，JVM 采用编译器和机器层面的手段实现它，硬件一致性协议参与具体数据传播。三者不能互相替代。
 
 ### 2.6 x86 与 ARM 的差异
 
 不同 CPU 架构下屏障成本差别很大：
 
-- **x86 / x86-64（TSO，较强顺序）**：`volatile` 读几乎没有额外成本，`volatile` 写通常翻译成一条 `lock addl $0, (%rsp)`（`StoreLoad` 屏障）
-- **ARM / AArch64（较弱顺序）**：需要显式的 `dmb ish` 指令，屏障成本明显高于 x86
+- **x86 / x86-64（TSO，较强顺序）**：HotSpot 常见实现中，volatile 写通常需要额外的全序操作；具体指令依 JDK 版本和生成代码而定
+- **ARM / AArch64（较弱顺序）**：常见实现可能需要显式屏障指令，成本通常依访问模式和处理器代际而变化
 
 一段没加 `volatile` 的代码在 x86 上"看着能跑"，只是 x86 帮忙兜住了部分顺序；换到 ARM 常常立刻暴露。真正稳定的保证只有一个来源：**JMM 语义 + JVM 插入的屏障**，不是"这台机器恰好帮我兜住了"。
 
@@ -262,7 +262,7 @@ private static volatile Singleton instance;
 结论：B 拿到的 instance 一定构造完成
 ```
 
-修复的本质不是"volatile 强制刷缓存"这种模糊说法，而是**用 `StoreStore` 关掉了 b/c 之间的重排，用 volatile 写-读的 happens-before 把这个顺序传递给了读端**。
+修复的本质不是“volatile 强制刷缓存”，而是**volatile 写与 volatile 读建立了 happens-before，把构造顺序传递给读端**；屏障是实现这一语义的一种手段。
 
 ## 4. `volatile` 的能力边界
 
@@ -474,8 +474,8 @@ public class TokenBucket {
 
 | 问题 | 根源 | 解决方案 |
 | :-- | :-- | :-- |
-| 停机标志被 JIT 提升出循环 | 编译器优化 + 缓存驻留 | `volatile` 强制每次从主内存读 |
-| DCL 半初始化对象泄漏 | 构造与引用赋值的重排 | `volatile` 的 `StoreStore` 屏障关掉这段重排 |
+| 停机标志未重新读取 | 普通读写缺少跨线程同步 | `volatile` 建立读写边界上的 happens-before |
+| DCL 半初始化对象泄漏 | 构造与引用赋值的重排 | volatile 写-读建立可见性与顺序约束 |
 | `count++` 用 `volatile` 仍出错 | 复合操作非原子 | 换 `synchronized` 或 `AtomicInteger` |
 | `volatile List` 内部不安全 | 只保护引用变量本身 | 用并发容器 |
 | 32 位平台 `long` 撕裂 | 普通 `long` 非原子 | `volatile long` 或 `AtomicLong` |

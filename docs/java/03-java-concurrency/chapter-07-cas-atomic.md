@@ -49,23 +49,27 @@ boolean cas(内存地址 V, 期望值 A, 新值 B) {
 ### 2.2 用 CAS 实现无锁计数器
 
 ```java
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+
 public class CasCounter {
     private volatile int count = 0;
+    private static final VarHandle COUNT;
+
+    static {
+        try {
+            COUNT = MethodHandles.lookup()
+                    .findVarHandle(CasCounter.class, "count", int.class);
+        } catch (ReflectiveOperationException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
 
     public void increment() {
         int oldVal;
         do {
             oldVal = count;                        // 1. 读取当前值
-        } while (!compareAndSwap(oldVal, oldVal + 1)); // 2. CAS 重试
-    }
-
-    // 模拟 CAS 操作（实际由 Unsafe/VarHandle 提供）
-    private boolean compareAndSwap(int expected, int newVal) {
-        if (count == expected) {   // 比较
-            count = newVal;        // 交换
-            return true;
-        }
-        return false;
+        } while (!COUNT.compareAndSet(this, oldVal, oldVal + 1)); // 2. 原子 CAS
     }
 }
 ```
@@ -331,18 +335,15 @@ acc.accumulate(20);
 long max = acc.get(); // 20
 ```
 
-### 5.3 性能对比
+`LongAdder.sum()` 逐个读取 `base` 和所有 `cell`，**不是原子快照**。并发更新期间调用可能观察到不同步的中间状态，因此它适合最终统计和监控，不适合序列号、余额校验等要求瞬时值严格一致的场景。
 
-```txt
-场景：16 线程并发自增，100 万次
+### 5.3 性能取舍
 
-AtomicLong:   ~1200ms   （所有线程竞争同一变量，大量 CAS 失败重试）
-LongAdder:    ~180ms    （分散到 cell，几乎无竞争）
-```
+`AtomicLong` 始终更新同一个值，高竞争下容易发生 CAS 失败重试；`LongAdder` 把写入分散到 `cell`，通常能降低热点竞争，但汇总时需要扫描更多状态。两者没有脱离负载的固定性能倍数，选型应结合争用程度、读取频率、一致性要求和目标 JDK 实测。
 
-> **选型规则**：需要精确的单点值读取（如序列号生成器）用 `AtomicLong`；只需要最终汇总结果（如统计计数器）用 `LongAdder`。
+> **选型方向**：需要稳定的原子读改写或严格瞬时值时用 `AtomicLong`；高写竞争且主要在空闲期汇总时用 `LongAdder`。
 
-### 5.4 字段更新器：节省内存的利器
+### 5.4 字段更新器：减少每个实例的对象开销
 
 当一个类有大量实例，每个实例都需要一个原子字段时，用 `AtomicInteger` 作为字段会导致每个实例多一个对象头。字段更新器可以避免这个问题：
 
@@ -360,7 +361,7 @@ public class Node {
 }
 ```
 
-每个 `Node` 实例只多了一个 `volatile int` 字段（4 字节），而不是一个 `AtomicInteger` 对象（16+ 字节）。ConcurrentHashMap 的 `Node` 节点正是用这种方式来实现桶内节点的 CAS 更新。
+字段更新器要求目标字段具有相应类型并声明为 `volatile`，上例只能更新 `volatile int state`。这种写法让多个实例共享一个更新器对象，不再为每个实例创建独立的 `AtomicInteger`；具体内存收益取决于 JVM 对象布局，不能只按字段宽度推算。
 
 ## 6. CAS vs 锁：何时选择哪种
 
@@ -426,7 +427,7 @@ public class LockFreeStack<T> {
 }
 ```
 
-> 注意：这个栈的 `pop` 操作存在 ABA 问题——如果节点被弹出后又压入一个相同值的新节点，CAS 会错误地成功。实际生产中需要使用 `AtomicStampedReference` 来解决。
+> 注意：这个栈的 `pop` 操作存在 ABA 问题。CAS 比较的是节点引用身份：如果同一个节点 `A` 被弹出，中间经历 `A → B → A`，原引用重新成为栈顶，CAS 仍会成功；压入“值相同但引用不同”的新节点不会触发这个问题。实际生产中可以使用 `AtomicStampedReference` 记录版本，或采用不会复用引用的算法。
 
 ## 7. 本章小结
 
@@ -435,7 +436,7 @@ public class LockFreeStack<T> {
 | CAS | 一条 CPU 指令完成"比较并交换"，是无锁并发的基石 |
 | 自旋 | CAS 失败后重试而非阻塞，适合低竞争场景 |
 | ABA 问题 | 用 `AtomicStampedReference` 加版本号解决 |
-| LongAdder | 高竞争下的分段 CAS，用空间换时间 |
+| LongAdder | 高竞争下分散写入，用空间和非原子汇总换写入吞吐 |
 | 字段更新器 | 大量实例场景下节省内存 |
 | CAS vs 锁 | 低竞争单变量用 CAS，复杂逻辑用锁 |
 
