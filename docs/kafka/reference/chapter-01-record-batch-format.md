@@ -1,6 +1,6 @@
 # RecordBatch v2 格式
 
-> RecordBatch v2 是 Kafka 0.11+ 使用的消息格式（[KIP-98](https://cwiki.apache.org/confluence/display/KAFKA/KIP-98) 引入）。本文是字节级参考，面向需要深入底层的读者。
+> RecordBatch v2 是 Kafka 0.11+ 使用的消息格式（[KIP-98](https://cwiki.apache.org/confluence/spaces/KAFKA/pages/66854913/KIP-98+-+Exactly+Once+Delivery+and+Transactional+Messaging) 引入）。本文是字节级参考，面向需要深入底层的读者。
 
 ## 1. 批头结构
 
@@ -59,4 +59,4 @@ CRC_OFFSET = 17
 ATTRIBUTES_OFFSET = 21
 ```
 
-来源：[DefaultRecordBatch.java](https://github.com/apache/kafka/blob/trunk/clients/src/main/java/org/apache/kafka/common/record/DefaultRecordBatch.java)、[Kafka 官方 Message Format](https://kafka.apache.org/37/implementation/message-format)
+来源：[DefaultRecordBatch.java](https://github.com/apache/kafka/blob/trunk/clients/src/main/java/org/apache/kafka/common/record/internal/DefaultRecordBatch.java)、[Kafka 官方 Message Format](https://kafka.apache.org/37/implementation/message-format)

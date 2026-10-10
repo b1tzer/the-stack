@@ -17,15 +17,15 @@
 | `log.segment.bytes` | `1073741824`（1 GiB） | 默认足够 | 段过小 → 段文件过多；过大 → 清理粒度粗 |
 | `log.index.interval.bytes` | `4096` | 默认 | 稀疏索引密度，详见 [日志分段与索引](./chapter-02-log-segment.md) |
 | `message.max.bytes` | `1048588`（≈ 1 MiB） | 显式设置，且与生产者 `max.request.size`、消费者 `fetch.max.bytes` 一致 | 三处不匹配会导致上游能发、下游拿不到 |
-| `replica.lag.time.max.ms` | `30000`（2.5+）／`10000`（2.4 及以前，[KIP-537](https://cwiki.apache.org/confluence/display/KAFKA/KIP-537)） | 保持默认 | 调小易触发 spurious ISR 收缩 |
+| `replica.lag.time.max.ms` | `30000`（2.5+）／`10000`（2.4 及以前，[KIP-537](https://cwiki.apache.org/confluence/spaces/KAFKA/pages/132321373/KIP-537+Increase+default+zookeeper+session+timeout)） | 保持默认 | 调小易触发 spurious ISR 收缩 |
 | `num.replica.fetchers` | `1` | `2`–`4`（磁盘/网卡富余时） | 提升 Follower 并行度 |
 
 ## 2. Producer 配置
 
 | 参数 | 官方默认 | 生产建议 | 说明与版本 |
 | :-- | :-- | :-- | :-- |
-| `acks` | `all`（3.0+，[KIP-679](https://cwiki.apache.org/confluence/display/KAFKA/KIP-679)）／`1`（3.0 前） | `all` | 与 `min.insync.replicas` 配合才有意义 |
-| `enable.idempotence` | `true`（3.0+，[KIP-679](https://cwiki.apache.org/confluence/display/KAFKA/KIP-679)）／`false`（3.0 前） | `true` | 开启会强制 `acks=all`、`retries=MAX_VALUE`、`max.in.flight ≤ 5` |
+| `acks` | `all`（3.0+，[KIP-679](https://cwiki.apache.org/confluence/spaces/KAFKA/pages/165221843/KIP-679+Producer+will+enable+the+strongest+delivery+guarantee+by+default)）／`1`（3.0 前） | `all` | 与 `min.insync.replicas` 配合才有意义 |
+| `enable.idempotence` | `true`（3.0+，[KIP-679](https://cwiki.apache.org/confluence/spaces/KAFKA/pages/165221843/KIP-679+Producer+will+enable+the+strongest+delivery+guarantee+by+default)）／`false`（3.0 前） | `true` | 开启会强制 `acks=all`、`retries=MAX_VALUE`、`max.in.flight ≤ 5` |
 | `retries` | `Integer.MAX_VALUE`（幂等开启时强制） | 保持默认 | 启用幂等后 Kafka 自动设为 MAX_VALUE；关闭幂等时也应保持较大值靠 `delivery.timeout.ms` 兜底 |
 | `delivery.timeout.ms` | `120000`（2 min） | 与业务超时对齐 | 覆盖 `linger.ms + request.timeout.ms + retry` 总时长 |
 | `max.in.flight.requests.per.connection` | `5` | 幂等模式下 `≤ 5` | 关闭幂等时 `>1` 有乱序风险 |
@@ -43,7 +43,7 @@
 | `enable.auto.commit` | `true` | `false`（业务处理完再手动提交） | 详见 [Offset 管理](../02-core/chapter-03-consumer-group.md) |
 | `max.poll.records` | `500` | 保持默认；处理耗时长时下调 | 与 `max.poll.interval.ms` 联动 |
 | `max.poll.interval.ms` | `300000`（5 min） | > 最坏批处理时长 | 超过则被踢出组触发 rebalance |
-| `session.timeout.ms` | `45000`（3.0+，[KIP-735](https://cwiki.apache.org/confluence/display/KAFKA/KIP-735)）／`10000`（3.0 前） | 保持默认 | 太小则 GC 抖动就触发 rebalance |
+| `session.timeout.ms` | `45000`（3.0+，[KIP-735](https://cwiki.apache.org/confluence/spaces/KAFKA/pages/177051635/KIP-735+Increase+default+consumer+session+timeout)）／`10000`（3.0 前） | 保持默认 | 太小则 GC 抖动就触发 rebalance |
 | `heartbeat.interval.ms` | `3000` | `session.timeout.ms / 3` | 心跳线程独立于 poll |
 | `fetch.min.bytes` | `1` | 高吞吐时可上调 | broker 攒够字节再返回 |
 | `fetch.max.wait.ms` | `500` | 默认 | 与 `fetch.min.bytes` 配合 |

@@ -2,7 +2,7 @@
 
 本页面向需要把 Redis 接入生产应用的后端开发人员，说明如何选择客户端能力、设置连接生命周期，并处理超时、故障转移和集群重定向。内容以 Redis 7.4.11 为基准；客户端库的配置名称不同，但需要解决的问题相同。
 
-连接管理的目标不是让连接永远不断，而是在故障发生时有界地等待、准确地判断结果，并在能力允许时恢复。权威来源见[Redis 客户端处理说明](https://redis.io/docs/latest/operate/oss_and_stack/reference/clients/)、[Sentinel 客户端规范](https://redis.io/docs/latest/operate/oss_and_stack/reference/sentinel-clients/)和 [Redis Cluster 规范](https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/)。
+连接管理的目标不是让连接永远不断，而是在故障发生时有界地等待、准确地判断结果，并在能力允许时恢复。权威来源见[Redis 客户端处理说明](https://redis.io/docs/latest/develop/reference/clients/)、[Sentinel 客户端规范](https://redis.io/docs/latest/develop/reference/sentinel-clients/)和 [Redis Cluster 规范](https://redis.io/docs/latest/develop/reference/cluster-spec/)。
 
 ## 1. 确定连接拓扑 {#topology}
 
@@ -132,6 +132,6 @@ RESP 3 是 Redis 6 引入的协议版本，能返回更丰富的回复类型；R
 
 ## 8. 参考资料
 
-- Redis 官方：[Client handling](https://redis.io/docs/latest/operate/oss_and_stack/reference/clients/)
-- Redis 官方：[Sentinel client specification](https://redis.io/docs/latest/operate/oss_and_stack/reference/sentinel-clients/)
-- Redis 官方：[Redis Cluster specification](https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/)
+- Redis 官方：[Client handling](https://redis.io/docs/latest/develop/reference/clients/)
+- Redis 官方：[Sentinel client specification](https://redis.io/docs/latest/develop/reference/sentinel-clients/)
+- Redis 官方：[Redis Cluster specification](https://redis.io/docs/latest/develop/reference/cluster-spec/)

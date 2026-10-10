@@ -131,7 +131,7 @@ TPC-C 是业界标准的 OLTP 基准测试，模拟电商订单场景（新订�
 
 > 在标准 OLTP 场景下，PG 与 MySQL 性能基本持平。PG 的优势在复杂查询（并行查询、JIT 编译）和高级特性（JSONB、窗口函数）。
 >
-> — [BenchmarkSQL 工具](https://github.com/benchmarksql/benchmarksql) / [EDB TPC-C 测试教程](https://www.enterprisedb.com/blog/how-to-run-a-complex-postgres-benchmark-tpc-c-pgbench)
+> — [BenchmarkSQL 工具](https://github.com/pgsql-io/benchmarksql) / [EDB TPC-C 测试教程](https://www.enterprisedb.com/blog/how-to-run-a-complex-postgres-benchmark-tpc-c-pgbench)
 
 ### 4.3 复杂查询（OLAP）
 

@@ -46,7 +46,7 @@ protected-mode yes
 | 只有单实例且可接受重启后重建 | 单实例 | 没有故障转移，单点可用性 |
 | 需要分片但不要求 Redis 原生高可用 | 客户端分片或代理 | 需要自行处理拓扑、重试和故障转移 |
 
-Sentinel 和 Redis Cluster 默认都使用异步复制，参见官方[复制说明](https://redis.io/docs/latest/operate/oss_and_stack/management/replication/)和 [Cluster 规范](https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/)。Cluster 不等于“不丢数据”，Sentinel 也不等于“一定丢数据”；两者都需要根据 RPO 配置持久化、副本和写入保护。
+Sentinel 和 Redis Cluster 默认都使用异步复制，参见官方[复制说明](https://redis.io/docs/latest/operate/oss_and_stack/management/replication/)和 [Cluster 规范](https://redis.io/docs/latest/develop/reference/cluster-spec/)。Cluster 不等于“不丢数据”，Sentinel 也不等于“一定丢数据”；两者都需要根据 RPO 配置持久化、副本和写入保护。
 
 ## 配置内存和淘汰
 

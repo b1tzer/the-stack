@@ -64,7 +64,7 @@ function report(file, message) {
 const markdownFiles = walk(DOCS_DIR).sort()
 const markdownSet = new Set(markdownFiles)
 
-// 记录每篇文档被多少其他页面引用，用于零入链软告警
+// 记录每篇文档被多少其他正文引用，用于正文互链软告警
 const inboundLinks = new Map(markdownFiles.map(file => [file, 0]))
 
 for (const file of markdownFiles) {
@@ -126,7 +126,9 @@ for (const file of markdownFiles) {
   }
 }
 
-// 零入链软告警：正文页若没有被任何其他页面引用，读者只能靠侧边栏和搜索碰到它。
+// 正文互链软告警：统计没有被任何其他正文引用的页面。
+// 它不测可达性——可达性由下面「每页必须出现在导航里」那条硬检查保证，
+// 这里只反映上下文互链密度：读者能否顺着正文读过去，以及 SEO 内链。
 // 只报告，不阻塞构建；导览页、纯中转说明页和被排除的草稿页不计入。
 function isInboundExempt(file) {
   if (SIDEBAR_EXCLUSIONS.has(file)) return true
@@ -136,22 +138,22 @@ function isInboundExempt(file) {
   return /^#\s[^\n]+\n+\n+>/.test(body) && !/^##\s/m.test(body)
 }
 
-const orphanPages = markdownFiles.filter(file => inboundLinks.get(file) === 0 && !isInboundExempt(file))
-const orphansByDomain = new Map()
+const sidebarOnlyPages = markdownFiles.filter(file => inboundLinks.get(file) === 0 && !isInboundExempt(file))
+const sidebarOnlyByDomain = new Map()
 
-for (const file of orphanPages) {
+for (const file of sidebarOnlyPages) {
   const domain = relative(DOCS_DIR, file).split('/')[0] ?? '(root)'
-  orphansByDomain.set(domain, (orphansByDomain.get(domain) ?? 0) + 1)
+  sidebarOnlyByDomain.set(domain, (sidebarOnlyByDomain.get(domain) ?? 0) + 1)
 }
 
-if (orphanPages.length > 0) {
-  const breakdown = [...orphansByDomain]
+if (sidebarOnlyPages.length > 0) {
+  const breakdown = [...sidebarOnlyByDomain]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([domain, count]) => `${domain} ${count}`)
     .join('、')
-  console.warn(`⚠ ${orphanPages.length} 个正文页暂无其他页面引用（软告警，不阻塞）：${breakdown}`)
+  console.warn(`⚠ ${sidebarOnlyPages.length} 个正文页未被其他正文引用（当前只有侧边栏/搜索入口，软告警，不阻塞）：${breakdown}`)
   if (process.argv.includes('--verbose')) {
-    for (const file of orphanPages) console.warn(`  - ${relative(process.cwd(), file)}`)
+    for (const file of sidebarOnlyPages) console.warn(`  - ${relative(process.cwd(), file)}`)
   } else {
     console.warn('  运行 `node check-docs.mjs --verbose` 查看完整列表。')
   }
@@ -230,5 +232,5 @@ if (errors.length > 0) {
 
 const pendingReviews = Object.values(reviewDomains).filter(record => record.status === 'pending').length
 console.log(
-  `Checked ${markdownFiles.length} Markdown files: headings, links, images, aliases, navigation, and ${pendingReviews} pending review records passed; ${orphanPages.length} pages await inbound links.`
+  `Checked ${markdownFiles.length} Markdown files: headings, links, images, aliases, navigation, and ${pendingReviews} pending review records passed; ${sidebarOnlyPages.length} pages lack prose cross-links.`
 )

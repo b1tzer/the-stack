@@ -1,0 +1,40 @@
+name: 外链检查
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 每周一 03:17 UTC，错开整点高峰
+    - cron: '17 3 * * 1'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - '.github/workflows/links.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  lychee:
+    name: Check external links
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 站内链接由 check-docs.mjs 校验（含根路径、锚点别名、侧边栏），
+      # 这里只查 http(s) 外链；--root-dir 让根路径链接可解析、从而被 scheme 过滤掉。
+      - name: Check links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --timeout 30
+            --max-retries 3
+            --accept '200,204,206,403,429'
+            --scheme https
+            --scheme http
+            --root-dir docs/public
+            --exclude '^https://db-engines\.com'
+            --exclude '^https://blog\.csdn\.net'
+            'docs/**/*.md'
+          fail: true

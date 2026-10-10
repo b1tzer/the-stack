@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitepress'
+import type { DefaultTheme } from 'vitepress'
 import { svgEditorPlugin, svgDiagramMarkdownPlugin } from 'vitepress-plugin-svg-editor'
 import { withOpenInEditor } from 'vitepress-plugin-open-in-editor'
 import { readFileSync } from 'node:fs'
@@ -84,6 +85,21 @@ function deriveDescription(source: string, relativePath: string): string {
   }
   if (title) return truncateDescription(`${title}：${label} 专题的参考内容。`)
   return truncateDescription(`${label} 专题内容。`)
+}
+
+// 本地搜索索引只收录配置类代码块。java/sql 长清单和 ASCII 流程图占了索引正文的
+// 一半以上，却几乎搜不出有用结果；而 yaml/properties/bash 里的标识符正是读者会搜的东西。
+const SEARCH_INDEXED_LANGUAGES = new Set([
+  'bash', 'conf', 'dockerfile', 'env', 'http', 'ini', 'json', 'properties', 'sh', 'shell', 'yaml', 'yml',
+])
+
+async function renderForSearch(source: string, env: any, md: any): Promise<string> {
+  const html = await md.render(source, env)
+  if (env.frontmatter?.search === false) return ''
+  // 代码块的外层是 <div class="language-xxx">…</div>，内部没有嵌套 div
+  return html.replace(/<div class="language-([\w+-]+)[^"]*">[\s\S]*?<\/div>/g, (block, lang) =>
+    SEARCH_INDEXED_LANGUAGES.has(String(lang).toLowerCase()) ? block : ''
+  )
 }
 
 export default withOpenInEditor(defineConfig({
@@ -1446,7 +1462,9 @@ export default withOpenInEditor(defineConfig({
     },
     
     search: {
-      provider: 'local'
+      provider: 'local',
+      // _render 是 VitePress 运行时支持的钩子，公开类型里没声明，这里显式断开类型约束
+      options: { _render: renderForSearch } as unknown as DefaultTheme.LocalSearchOptions,
     }
   }
 }))
