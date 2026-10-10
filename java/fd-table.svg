@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 510 289" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <defs>
+    <marker id="arrowR" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#888888"/>
+    </marker>
+  </defs>
+
+  <text x="255" y="24" text-anchor="middle" font-size="12" font-weight="bold" fill="#333333">进程的文件描述符表</text>
+
+  <!-- 表头 -->
+  <rect x="51" y="41" width="85" height="31" fill="#333333" rx="3"/>
+  <text x="94" y="61" text-anchor="middle" fill="#ffffff" font-weight="bold">fd</text>
+  <rect x="136" y="41" width="323" height="31" fill="#333333" rx="3"/>
+  <text x="298" y="61" text-anchor="middle" fill="#ffffff" font-weight="bold">指向的内核对象</text>
+
+  <!-- fd 0 -->
+  <rect x="51" y="71" width="85" height="31" fill="#eceff1" stroke="#e0e0e0" stroke-width="0.8"/>
+  <text x="94" y="92" text-anchor="middle" fill="#333333" font-weight="bold">0</text>
+  <rect x="136" y="71" width="323" height="31" fill="#ffffff" stroke="#e0e0e0" stroke-width="0.8"/>
+  <text x="153" y="92" fill="#333333">stdin（标准输入）</text>
+
+  <!-- fd 1 -->
+  <rect x="51" y="102" width="85" height="31" fill="#eceff1" stroke="#e0e0e0" stroke-width="0.8"/>
+  <text x="94" y="122" text-anchor="middle" fill="#333333" font-weight="bold">1</text>
+  <rect x="136" y="102" width="323" height="31" fill="#ffffff" stroke="#e0e0e0" stroke-width="0.8"/>
+  <text x="153" y="122" fill="#333333">stdout（标准输出）</text>
+
+  <!-- fd 2 -->
+  <rect x="51" y="133" width="85" height="31" fill="#eceff1" stroke="#e0e0e0" stroke-width="0.8"/>
+  <text x="94" y="153" text-anchor="middle" fill="#333333" font-weight="bold">2</text>
+  <rect x="136" y="133" width="323" height="31" fill="#ffffff" stroke="#e0e0e0" stroke-width="0.8"/>
+  <text x="153" y="153" fill="#333333">stderr（标准错误）</text>
+
+  <!-- fd 3 -->
+  <rect x="51" y="163" width="85" height="31" fill="#eceff1" stroke="#e0e0e0" stroke-width="0.8"/>
+  <text x="94" y="184" text-anchor="middle" fill="#333333" font-weight="bold">3</text>
+  <rect x="136" y="163" width="323" height="31" fill="#ffffff" stroke="#e0e0e0" stroke-width="0.8"/>
+  <text x="153" y="184" fill="#333333">/var/log/app.log</text>
+
+  <!-- fd 4 - Socket -->
+  <rect x="51" y="194" width="85" height="31" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="94" y="214" text-anchor="middle" fill="#0d47a1" font-weight="bold">4</text>
+  <rect x="136" y="194" width="323" height="31" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="153" y="211" fill="#0d47a1" font-size="10">Socket（TCP）</text>
+  <text x="153" y="223" fill="#1565c0" font-size="9">192.168.1.1:8080 → 10.0.0.5:43210</text>
+
+  <!-- fd 5 - Socket -->
+  <rect x="51" y="224" width="85" height="31" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="94" y="245" text-anchor="middle" fill="#0d47a1" font-weight="bold">5</text>
+  <rect x="136" y="224" width="323" height="31" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+  <text x="153" y="241" fill="#0d47a1" font-size="10">Socket（TCP）</text>
+  <text x="153" y="253" fill="#1565c0" font-size="9">192.168.1.1:8080 → 10.0.0.6:51782</text>
+
+  <!-- 右侧注释 -->
+  <line x1="463" y1="204" x2="484" y2="204" stroke="#1565c0" stroke-width="1.3" marker-end="url(#arrowR)"/>
+  <rect x="484" y="187" width="24" height="68" fill="none"/>
+  <text x="496" y="208" text-anchor="middle" fill="#1565c0" font-size="9" font-weight="bold">每</text>
+  <text x="496" y="222" text-anchor="middle" fill="#1565c0" font-size="9" font-weight="bold">个</text>
+  <text x="496" y="235" text-anchor="middle" fill="#1565c0" font-size="9" font-weight="bold">Socket</text>
+  <text x="496" y="249" text-anchor="middle" fill="#1565c0" font-size="9" font-weight="bold">占 1</text>
+  <text x="496" y="263" text-anchor="middle" fill="#1565c0" font-size="9" font-weight="bold">个 fd</text>
+
+  <!-- 底部注释 -->
+  <text x="255" y="280" text-anchor="middle" fill="#888888" font-size="10">Socket 本质是 fd + 协议栈，close(fd) 同时释放两者</text>
+</svg>

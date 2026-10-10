@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 600" width="720" height="600" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif">
+  <style>
+    .root { font-size: 15px; font-weight: bold; fill: #2f6b1e; text-anchor: middle; dominant-baseline: central; }
+    .branch { font-size: 13px; font-weight: bold; fill: #1e293b; text-anchor: middle; dominant-baseline: central; }
+    .leaf { font-size: 11px; fill: #475569; text-anchor: middle; dominant-baseline: central; }
+    .rootbox { fill: #eaf4e3; stroke: #5b9e3a; stroke-width: 2; rx: 8; }
+    .branchbox { fill: #f1f5f9; stroke: #94a3b8; stroke-width: 1.5; rx: 6; }
+    .leafbox { fill: #f8fafc; stroke: #e2e8f0; stroke-width: 1; rx: 5; }
+    .link { stroke: #94a3b8; stroke-width: 1.2; fill: none; }
+  </style>
+
+  <!-- 主干连线 -->
+  <line x1="140" y1="300" x2="185" y2="300" class="link"/>
+  <line x1="185" y1="60" x2="185" y2="540" class="link"/>
+
+  <!-- 根节点 -->
+  <rect x="30" y="275" width="110" height="50" class="rootbox"/>
+  <text x="85" y="300" class="root">Spring 核心</text>
+
+  <line x1="185" y1="60" x2="210" y2="60" class="link"/>
+  <rect x="210" y="39" width="140" height="42" class="branchbox"/>
+  <text x="280" y="60" class="branch">IoC 容器</text>
+  <line x1="350" y1="60" x2="390" y2="60" class="link"/>
+  <line x1="390" y1="60" x2="430" y2="20" class="link"/>
+  <line x1="390" y1="60" x2="430" y2="60" class="link"/>
+  <line x1="390" y1="60" x2="430" y2="100" class="link"/>
+  <rect x="430" y="4" width="120" height="32" class="leafbox"/>
+  <text x="490" y="20" class="leaf">IoC 思想</text>
+  <rect x="430" y="44" width="257" height="32" class="leafbox"/>
+  <text x="558" y="60" class="leaf">BeanFactory vs ApplicationContext</text>
+  <rect x="430" y="84" width="125" height="32" class="leafbox"/>
+  <text x="492" y="100" class="leaf">refresh 十二步</text>
+
+  <line x1="185" y1="156" x2="210" y2="156" class="link"/>
+  <rect x="210" y="135" width="140" height="42" class="branchbox"/>
+  <text x="280" y="156" class="branch">Bean 生命周期</text>
+  <line x1="350" y1="156" x2="390" y2="156" class="link"/>
+  <line x1="390" y1="156" x2="430" y2="136" class="link"/>
+  <line x1="390" y1="156" x2="430" y2="176" class="link"/>
+  <rect x="430" y="120" width="198" height="32" class="leafbox"/>
+  <text x="529" y="136" class="leaf">实例化 → 属性填充 → 初始化</text>
+  <rect x="430" y="160" width="139" height="32" class="leafbox"/>
+  <text x="499" y="176" class="leaf">三个初始化回调顺序</text>
+
+  <line x1="185" y1="252" x2="210" y2="252" class="link"/>
+  <rect x="210" y="231" width="140" height="42" class="branchbox"/>
+  <text x="280" y="252" class="branch">依赖注入</text>
+  <line x1="350" y1="252" x2="390" y2="252" class="link"/>
+  <line x1="390" y1="252" x2="430" y2="232" class="link"/>
+  <line x1="390" y1="252" x2="430" y2="272" class="link"/>
+  <rect x="430" y="216" width="120" height="32" class="leafbox"/>
+  <text x="490" y="232" class="leaf">三种注入方式</text>
+  <rect x="430" y="256" width="191" height="32" class="leafbox"/>
+  <text x="525" y="272" class="leaf">@Autowired vs @Resource</text>
+
+  <line x1="185" y1="348" x2="210" y2="348" class="link"/>
+  <rect x="210" y="327" width="140" height="42" class="branchbox"/>
+  <text x="280" y="348" class="branch">循环依赖</text>
+  <line x1="350" y1="348" x2="390" y2="348" class="link"/>
+  <line x1="390" y1="348" x2="430" y2="328" class="link"/>
+  <line x1="390" y1="348" x2="430" y2="368" class="link"/>
+  <rect x="430" y="312" width="120" height="32" class="leafbox"/>
+  <text x="490" y="328" class="leaf">三级缓存</text>
+  <rect x="430" y="352" width="139" height="32" class="leafbox"/>
+  <text x="499" y="368" class="leaf">构造器注入为何无解</text>
+
+  <line x1="185" y1="444" x2="210" y2="444" class="link"/>
+  <rect x="210" y="423" width="140" height="42" class="branchbox"/>
+  <text x="280" y="444" class="branch">AOP</text>
+  <line x1="350" y1="444" x2="390" y2="444" class="link"/>
+  <line x1="390" y1="444" x2="430" y2="404" class="link"/>
+  <line x1="390" y1="444" x2="430" y2="444" class="link"/>
+  <line x1="390" y1="444" x2="430" y2="484" class="link"/>
+  <rect x="430" y="388" width="120" height="32" class="leafbox"/>
+  <text x="490" y="404" class="leaf">切面与切点</text>
+  <rect x="430" y="428" width="158" height="32" class="leafbox"/>
+  <text x="509" y="444" class="leaf">JDK Proxy vs CGLIB</text>
+  <rect x="430" y="468" width="120" height="32" class="leafbox"/>
+  <text x="490" y="484" class="leaf">代理失效</text>
+
+  <line x1="185" y1="540" x2="210" y2="540" class="link"/>
+  <rect x="210" y="519" width="140" height="42" class="branchbox"/>
+  <text x="280" y="540" class="branch">条件装配</text>
+  <line x1="350" y1="540" x2="390" y2="540" class="link"/>
+  <line x1="390" y1="540" x2="430" y2="520" class="link"/>
+  <line x1="390" y1="540" x2="430" y2="560" class="link"/>
+  <rect x="430" y="504" width="120" height="32" class="leafbox"/>
+  <text x="490" y="520" class="leaf">@Conditional</text>
+  <rect x="430" y="544" width="120" height="32" class="leafbox"/>
+  <text x="490" y="560" class="leaf">@Profile</text>
+
+</svg>

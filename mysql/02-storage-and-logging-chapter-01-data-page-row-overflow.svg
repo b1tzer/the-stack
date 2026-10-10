@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <defs>
+    <marker id="arrOrange" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#e65100"/>
+    </marker>
+    <marker id="arrBlue" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#1565c0"/>
+    </marker>
+  </defs>
+
+  <text x="480" y="24" text-anchor="middle" font-size="14" font-weight="bold" fill="#333333">行溢出（Row Overflow）：大字段如何存进溢出页</text>
+
+  <!-- ① 为什么一行会溢出 -->
+  <rect x="24" y="40" width="912" height="66" rx="6" fill="#e8eaf6" stroke="#3949ab" stroke-width="1.4"/>
+  <text x="36" y="62" fill="#3949ab" font-weight="bold" font-size="12">① 为什么一行会装不下（触发条件）</text>
+  <text x="36" y="80" fill="#555555" font-size="10">页固定 16KB，扣除头尾、页目录、空闲区后，单行可用空间有限</text>
+  <text x="36" y="96" fill="#555555" font-size="10">一行超过约 8KB（页的一半）→ 触发行溢出，把大字段搬进独立的溢出页</text>
+
+  <!-- 主索引页 -->
+  <rect x="24" y="122" width="430" height="280" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="36" y="146" fill="#0d47a1" font-weight="bold" font-size="12">主索引页（16KB）</text>
+
+  <rect x="36" y="156" width="406" height="170" rx="3" fill="#bbdefb" stroke="#1565c0" stroke-width="1"/>
+  <rect x="44" y="166" width="390" height="30" fill="#90caf9" stroke="#1565c0" stroke-width="0.7"/>
+  <text x="52" y="185" fill="#0d47a1" font-size="10">记录头 + 隐藏列（next_record / DB_TRX_ID / DB_ROLL_PTR）</text>
+
+  <rect x="44" y="202" width="390" height="34" fill="#e3f2fd" stroke="#64b5f6" stroke-width="0.7"/>
+  <text x="52" y="223" fill="#0d47a1" font-size="10">短字段：id=1、name='张三'</text>
+
+  <rect x="44" y="242" width="390" height="30" fill="#fff3e0" stroke="#e65100" stroke-width="0.9"/>
+  <text x="52" y="261" fill="#bf360c" font-size="10">20 字节溢出指针 → 指向溢出页</text>
+
+  <text x="36" y="344" fill="#555555" font-size="9">大字段不再放在本行，只留指针</text>
+  <text x="36" y="360" fill="#555555" font-size="9">本页因此能容纳更多行</text>
+  <text x="36" y="376" fill="#888888" font-size="8">读大字段时要多一次「跳溢出页」的 IO</text>
+
+  <!-- 指针箭头 -->
+  <polyline points="446,266 520,266 520,180 560,180" fill="none" stroke="#e65100" stroke-width="1.8" marker-end="url(#arrOrange)"/>
+  <text x="512" y="258" text-anchor="middle" fill="#e65100" font-size="9" font-weight="bold">20 字节指针</text>
+
+  <!-- 溢出页 -->
+  <rect x="560" y="122" width="376" height="280" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="572" y="146" fill="#bf360c" font-weight="bold" font-size="12">溢出页（Overflow Page）</text>
+
+  <rect x="572" y="156" width="352" height="116" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="748" y="196" text-anchor="middle" fill="#bf360c" font-size="11" font-weight="bold">content 大字段完整数据</text>
+  <text x="748" y="218" text-anchor="middle" fill="#6d4c41" font-size="10">（TEXT / BLOB 长内容）</text>
+  <text x="748" y="240" text-anchor="middle" fill="#6d4c41" font-size="9">独立成页，不再占用主索引页空间</text>
+  <text x="748" y="258" text-anchor="middle" fill="#888888" font-size="8">大字段读写在主表之外完成</text>
+
+  <!-- 跨多页示意 -->
+  <rect x="572" y="288" width="352" height="96" rx="3" fill="#fff8e1" stroke="#e65100" stroke-width="0.9" stroke-dasharray="4,3"/>
+  <text x="584" y="308" fill="#bf360c" font-size="10" font-weight="bold">长数据可跨多个溢出页</text>
+  <rect x="584" y="316" width="160" height="52" rx="2" fill="#ffe0b2" stroke="#e65100" stroke-width="0.7"/>
+  <text x="664" y="338" text-anchor="middle" fill="#6d4c41" font-size="8">溢出页 1</text>
+  <text x="664" y="354" text-anchor="middle" fill="#6d4c41" font-size="8">数据块 A</text>
+  <line x1="744" y1="342" x2="764" y2="342" stroke="#e65100" stroke-width="1.2" marker-end="url(#arrOrange)"/>
+  <rect x="764" y="316" width="160" height="52" rx="2" fill="#ffe0b2" stroke="#e65100" stroke-width="0.7"/>
+  <text x="844" y="338" text-anchor="middle" fill="#6d4c41" font-size="8">溢出页 2</text>
+  <text x="844" y="354" text-anchor="middle" fill="#6d4c41" font-size="8">数据块 B</text>
+  <text x="748" y="378" text-anchor="middle" fill="#888888" font-size="8">超过一个溢出页时，用指针串成链</text>
+
+  <!-- ② Compact 对比 -->
+  <rect x="24" y="418" width="450" height="150" rx="6" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.4"/>
+  <text x="36" y="440" fill="#1b5e20" font-weight="bold" font-size="12">② Compact 格式</text>
+  <text x="36" y="460" fill="#555555" font-size="10">主记录：768 字节前缀 + 20 字节指针</text>
+  <text x="36" y="478" fill="#555555" font-size="10">溢出页：其余大字段数据</text>
+
+  <rect x="36" y="490" width="150" height="40" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="0.8"/>
+  <text x="111" y="515" text-anchor="middle" fill="#1b5e20" font-size="9">768 字节前缀</text>
+
+  <rect x="194" y="490" width="70" height="40" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="0.8"/>
+  <text x="229" y="515" text-anchor="middle" fill="#bf360c" font-size="8">20B 指针</text>
+
+  <line x1="264" y1="510" x2="292" y2="510" stroke="#e65100" stroke-width="1.4" marker-end="url(#arrOrange)"/>
+
+  <rect x="292" y="490" width="170" height="40" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="0.8"/>
+  <text x="377" y="515" text-anchor="middle" fill="#bf360c" font-size="9">溢出页：其余数据</text>
+
+  <text x="36" y="552" fill="#888888" font-size="8">部分大字段仍留在主记录，读前缀不跳页</text>
+
+  <!-- ③ Dynamic 对比 -->
+  <rect x="486" y="418" width="450" height="150" rx="6" fill="#f3e5f5" stroke="#8e24aa" stroke-width="1.4"/>
+  <text x="498" y="440" fill="#6a1b9a" font-weight="bold" font-size="12">③ Dynamic 格式（8.0 默认）</text>
+  <text x="498" y="460" fill="#555555" font-size="10">主记录：仅 20 字节指针</text>
+  <text x="498" y="478" fill="#555555" font-size="10">溢出页：整个大字段</text>
+
+  <rect x="498" y="490" width="70" height="40" rx="3" fill="#e1bee7" stroke="#8e24aa" stroke-width="0.8"/>
+  <text x="533" y="515" text-anchor="middle" fill="#6a1b9a" font-size="8">20B 指针</text>
+
+  <line x1="568" y1="510" x2="596" y2="510" stroke="#e65100" stroke-width="1.4" marker-end="url(#arrOrange)"/>
+
+  <rect x="596" y="490" width="328" height="40" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="0.8"/>
+  <text x="760" y="515" text-anchor="middle" fill="#bf360c" font-size="9">溢出页：整个大字段</text>
+
+  <text x="498" y="552" fill="#888888" font-size="8">连 768 字节前缀都去掉，主记录更紧凑</text>
+
+  <text x="480" y="588" text-anchor="middle" fill="#757575" font-size="10" font-weight="bold">TEXT/BLOB 单独拆表的依据：留在主表会让行频繁溢出、拖慢整行扫描</text>
+</svg>

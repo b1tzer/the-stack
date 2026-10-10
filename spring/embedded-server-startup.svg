@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 664" width="820" height="664" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="12">
+  <style>
+    text { text-anchor: middle; dominant-baseline: central; }
+    .title { font-size: 15px; font-weight: bold; fill: #333333; }
+    .footnote { font-size: 10px; fill: #999999; }
+    .stage { font-size: 13px; font-weight: bold; }
+    .card-label { font-size: 12px; font-weight: bold; fill: #333333; }
+    .card-label-emph { font-size: 12px; font-weight: bold; fill: #7b1fa2; }
+    .card-note { font-size: 11px; fill: #666666; }
+    .arrow { stroke: #7b1fa2; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
+    .arrow-dashed { stroke: #7b1fa2; stroke-width: 1.5; fill: none; stroke-dasharray: 4 3; marker-end: url(#arrowhead); }
+    .box { rx: 8; ry: 8; stroke-width: 1.5; }
+    .marker-arrow { fill: #7b1fa2; }
+    .stage-entry { fill: #e3f2fd; stroke: #1565c0; }
+    .stage-refresh { fill: #e0f2f1; stroke: #00796b; }
+    .stage-create { fill: #ede7f6; stroke: #6a1b9a; }
+    .stage-start { fill: #fff3e0; stroke: #e65100; }
+    .stage-text-entry { fill: #1565c0; }
+    .stage-text-refresh { fill: #00796b; }
+    .stage-text-create { fill: #6a1b9a; }
+    .stage-text-start { fill: #e65100; }
+    .card-entry { fill: #e3f2fd; stroke: #1565c0; }
+    .card-refresh { fill: #e0f2f1; stroke: #00796b; }
+    .card-create { fill: #ede7f6; stroke: #6a1b9a; }
+    .card-emph { fill: #e1bee7; stroke: #7b1fa2; }
+    .card-start { fill: #fff3e0; stroke: #e65100; }
+    .side { fill: #fafafa; stroke: #bdbdbd; stroke-dasharray: 4 3; }
+    .side-label { font-size: 11px; font-weight: bold; fill: #555555; }
+    .side-note { font-size: 10px; fill: #777777; }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 9 3.5, 0 7" class="marker-arrow"/>
+    </marker>
+  </defs>
+
+  <text x="410" y="26" class="title">Spring Boot 内嵌容器启动时序</text>
+
+  <rect x="20" y="58" width="140" height="40" class="box stage-entry"/>
+  <text x="90" y="78" class="stage stage-text-entry">入口</text>
+
+  <rect x="20" y="130" width="140" height="40" class="box stage-refresh"/>
+  <text x="90" y="150" class="stage stage-text-refresh">容器刷新</text>
+
+  <rect x="20" y="210" width="140" height="160" class="box stage-create"/>
+  <text x="90" y="290" class="stage stage-text-create">建容器</text>
+
+  <rect x="20" y="402" width="140" height="40" class="box stage-start"/>
+  <text x="90" y="422" class="stage stage-text-start">开始监听</text>
+
+  <rect x="180" y="50" width="450" height="56" class="box card-entry"/>
+  <text x="405" y="71" class="card-label">① SpringApplication.run(App.class, args)</text>
+  <text x="405" y="92" class="card-note">main() 里唯一一行；Web 应用会创建 ServletWebServerApplicationContext</text>
+
+  <line x1="405" y1="106" x2="405" y2="130" class="arrow"/>
+
+  <rect x="180" y="130" width="450" height="56" class="box card-refresh"/>
+  <text x="405" y="151" class="card-label">② refresh() → onRefresh()</text>
+  <text x="405" y="172" class="card-note">refresh() 是容器初始化总流程，onRefresh() 是留给子类的钩子</text>
+
+  <line x1="405" y1="186" x2="405" y2="210" class="arrow"/>
+
+  <rect x="180" y="210" width="450" height="40" class="box card-create"/>
+  <text x="405" y="230" class="card-label">③ createWebServer()</text>
+
+  <line x1="405" y1="250" x2="405" y2="274" class="arrow"/>
+
+  <rect x="180" y="274" width="450" height="40" class="box card-create"/>
+  <text x="405" y="294" class="card-label">③.1 getWebServerFactory() · 从 Spring 容器取工厂 Bean</text>
+
+  <line x1="405" y1="314" x2="405" y2="338" class="arrow"/>
+
+  <rect x="180" y="338" width="450" height="40" class="box card-emph"/>
+  <text x="405" y="358" class="card-label-emph">③.2 factory.getWebServer(initializer) · 工厂造出 WebServer</text>
+
+  <line x1="405" y1="378" x2="405" y2="402" class="arrow"/>
+
+  <rect x="180" y="402" width="450" height="40" class="box card-start"/>
+  <text x="405" y="422" class="card-label">④ webServer.start() · 绑端口，"Tomcat started on port 8080"</text>
+
+  <rect x="650" y="130" width="150" height="76" class="side"/>
+  <text x="725" y="150" class="side-label">上游 · 自动配置</text>
+  <text x="725" y="170" class="side-note">ServletWebServerFactory</text>
+  <text x="725" y="184" class="side-note">AutoConfiguration</text>
+  <text x="725" y="198" class="side-note">按 classpath 选工厂</text>
+
+  <path d="M 725 206 L 725 250 L 634 294" class="arrow-dashed"/>
+
+  <rect x="650" y="298" width="150" height="76" class="side"/>
+  <text x="725" y="318" class="side-label">拦截点 · Customizer</text>
+  <text x="725" y="338" class="side-note">WebServerFactory</text>
+  <text x="725" y="352" class="side-note">Customizer 在此</text>
+  <text x="725" y="366" class="side-note">customize(factory)</text>
+
+  <path d="M 650 344 L 634 358" class="arrow-dashed"/>
+
+  <rect x="180" y="474" width="620" height="140" class="box side"/>
+  <text x="490" y="496" class="side-label">读图三条主线</text>
+  <text x="490" y="518" class="card-note">主线 A：容器不在 main() 里启动，而在 Spring 容器 refresh() 的 onRefresh() 钩子里被顺带拉起</text>
+  <text x="490" y="538" class="card-note">主线 B：工厂 Bean 从 Spring 容器取（③.1），来自自动配置；这是所有可扩展性的地基</text>
+  <text x="490" y="558" class="card-note">主线 C：Customizer 在工厂被使用前生效（③.1 → ③.2 之间），所以只作用于启动期</text>
+  <text x="490" y="592" class="footnote">上层代码只依赖 ServletWebServerFactory 与 WebServer 两个接口，换容器等于换工厂 Bean</text>
+
+  <text x="410" y="638" class="footnote">正文 §2 讲主干（① → ④），§3 讲工厂从哪来（上游），§4 讲三种动手场景（配置 / Customizer / 换容器）</text>
+</svg>
