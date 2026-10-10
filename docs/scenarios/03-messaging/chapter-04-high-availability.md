@@ -190,3 +190,5 @@ rabbitmqctl list_queues     # 确认队列仍在，消息数正确
 | 设置 Prefetch | 防止消息堆积打爆消费者 |
 | 配置 x-delivery-limit | 防止死循环投递 |
 | 上线前跑故障演练 | 四类演练至少各跑一次 |
+
+Confirm、ACK 和副本只保护消息链路的一段；从业务事务提交到消费副作用完成的端到端闭环见 [消息可靠性闭环](./chapter-07-message-reliability.md)。

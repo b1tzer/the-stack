@@ -83,4 +83,4 @@ Saga 把一次长事务拆成多个本地事务，每个本地事务配一个补
 
 ## 7. 相关章节
 
-本地消息表的可靠投递依赖消息不丢，见 [消息系统高可用实战](./chapter-04-high-availability.md)。消息重复投递导致的重复扣减，靠 [幂等控制](../02-concurrency/chapter-03-idempotency.md) 兜底。Spring 生态里分布式事务的框架落地，见 [Spring 分布式事务](../../spring/09-distributed/chapter-02-distributed-transaction.md)。
+本地消息表的可靠投递依赖消息不丢，见 [消息系统高可用实战](./chapter-04-high-availability.md)，从 Outbox 到死信的完整实现见 [消息可靠性闭环](./chapter-07-message-reliability.md)。消息重复投递导致的重复扣减，靠 [幂等控制](../02-concurrency/chapter-03-idempotency.md) 兜底。Spring 生态里分布式事务的框架落地，见 [Spring 分布式事务](../../spring/09-distributed/chapter-02-distributed-transaction.md)。

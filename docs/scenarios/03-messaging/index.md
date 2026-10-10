@@ -8,5 +8,6 @@
 - [消息系统高可用实战](./chapter-04-high-availability.md)
 - [分布式事务](./chapter-05-distributed-transaction.md)
 - [消息顺序性](./chapter-06-message-ordering.md)
+- [消息可靠性闭环](./chapter-07-message-reliability.md)
 
 相关权威章节：[Spring 消息集成](../../spring/07-async-and-messaging/chapter-04-messaging.md)。

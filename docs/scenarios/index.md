@@ -22,3 +22,13 @@ The Stack 其余专项按技术栈组织，本专项按业务需求组织，两�
 | [消息场景](./03-messaging/) | 异步解耦、延迟任务、最终一致性 | 发布订阅、竞争消费者、消息去重 |
 | [数据访问](./04-data-access/) | 读写分离、多租户、分库分表、数据库切换 | 高并发读写、SaaS 隔离、平滑切流 |
 | [综合案例](./05-cases/) | 单点挑战案例集 | 库存扣减、排行榜、秒杀、分布式定时调度 |
+| [架构与发布](./06-architecture/) | 异地多活、容灾切流、压测灰度 | 单元归属、回滚验证、故障演练 |
+
+## 高级面试追问索引
+
+以下场景把方案落到步骤、检查项和可验证证据，可直接用于高级面试题追问和现场设计：
+
+- [消息可靠性闭环：不丢、重复与恢复](./03-messaging/chapter-07-message-reliability.md#interview-questions)
+- [支付回调与对账：乱序、重复与差异修复](./05-cases/chapter-08-payment-reconciliation.md#interview-questions)
+- [异地多活与单元化：归属、复制与切流](./06-architecture/chapter-01-multi-active.md#interview-questions)
+- [压测、灰度发布与故障演练：基线、停止条件与回滚](./06-architecture/chapter-02-release-validation.md#interview-questions)

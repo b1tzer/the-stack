@@ -290,6 +290,7 @@ export default withOpenInEditor(defineConfig({
             { text: '高可用实战', link: '/scenarios/03-messaging/chapter-04-high-availability' },
             { text: '分布式事务', link: '/scenarios/03-messaging/chapter-05-distributed-transaction' },
             { text: '消息顺序性', link: '/scenarios/03-messaging/chapter-06-message-ordering' },
+            { text: '消息可靠性闭环', link: '/scenarios/03-messaging/chapter-07-message-reliability' },
           ],
         },
         {
@@ -316,6 +317,16 @@ export default withOpenInEditor(defineConfig({
             { text: '短链系统', link: '/scenarios/05-cases/chapter-05-short-url' },
             { text: '秒杀', link: '/scenarios/05-cases/chapter-06-seckill' },
             { text: '分布式定时调度', link: '/scenarios/05-cases/chapter-07-scheduled-task' },
+            { text: '支付回调与对账', link: '/scenarios/05-cases/chapter-08-payment-reconciliation' },
+          ],
+        },
+        {
+          text: '架构与发布',
+          collapsed: true,
+          items: [
+            { text: '架构与发布首页', link: '/scenarios/06-architecture/' },
+            { text: '异地多活与单元化', link: '/scenarios/06-architecture/chapter-01-multi-active' },
+            { text: '压测、灰度发布与故障演练', link: '/scenarios/06-architecture/chapter-02-release-validation' },
           ],
         },
       ],
