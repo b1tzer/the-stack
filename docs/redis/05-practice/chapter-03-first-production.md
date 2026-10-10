@@ -33,7 +33,7 @@ protected-mode yes
 4. Redis 与客户端跨越不可信网络时启用 TLS；密码通过密钥管理系统注入，不写入仓库。
 5. 为管理命令设置审计和变更流程，不把 `rename-command` 当作认证措施。
 
-官方[安全文档](https://redis.io/docs/latest/operate/oss_and_stack/management/security/)要求 Redis 端口只能被受信任客户端访问，并把 ACL 作为 Redis 6 之后推荐的认证方式。
+官方[安全文档](https://redis.io/docs/latest/operate/oss_and_stack/management/security/)要求 Redis 端口只能被受信任客户端访问，并把 ACL 作为 Redis 6 之后推荐的认证方式。网络、ACL、TLS 和轮换步骤见[安全与访问控制](../04-operations/chapter-02-security-access.md)。
 
 ## 选择部署拓扑
 
@@ -83,12 +83,12 @@ auto-aof-rewrite-min-size 256mb
 save 3600 1 300 100 60 10000
 ```
 
-`everysec` 允许故障时丢失约一秒窗口的数据。`always` 提供更细的持久化保证，但会显著增加写延迟；是否使用必须通过目标磁盘和真实负载验证。
+`everysec` 允许故障时丢失约一秒窗口的数据。`always` 提供更细的持久化保证，但会显著增加写延迟；是否使用必须通过目标磁盘和真实负载验证。把持久化转化为可执行流程见[备份、恢复与升级](../04-operations/chapter-03-backup-recovery.md)。
 
 ## 配置连接与慢日志
 
 ```conf
-# 0 表示不主动断开空闲连接；不要为了“安全”盲目设置超时
+# 0 表示不主动断开空闲连接；不要为了“安全”盲目设置服务端超时
 timeout 0
 tcp-keepalive 300
 

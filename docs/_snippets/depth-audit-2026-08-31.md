@@ -111,7 +111,7 @@ Engineering 模块的章节多是概念介绍（SOLID、架构风格、DDD 概�
 | P0 | Elasticsearch | 搜索核心章节太薄 | 03-search 7篇 + 05-distributed 7篇 |
 | P1 | Kafka | 原理章节偏浅 | 04-storage-internals + 05-reliability |
 | P1 | MySQL | 外围章节薄弱 | 06-advanced + 07-replication + 08-ops + 09-scaling |
-| P1 | Redis | 单机核心和高可用偏浅 | 02-standalone-core + 04-high-availability |
+| P1 | Redis | 单机核心和高可用偏浅 | 02-standalone-core + 03-high-availability |
 | P2 | Engineering | 概念多实操少 | 全模块 |
 | P2 | PostgreSQL | 整体中等，部分章节可加深 | 待定 |
 | P2 | Design-pattern | 整体中等，实战章节可加深 | 04-practice |

@@ -11,7 +11,7 @@
 - 不一次性读取超大 Hash、List 或 ZSet，按字段或范围分批访问。
 - 客户端使用有上限的连接池，并配置连接超时、读取超时和重试上限。
 
-完整的慢命令判断见[性能优化](./chapter-01-performance.md)，大值处理见[大 Key 与热 Key](./chapter-05-big-hot-key.md)。
+完整的慢命令判断见[性能优化](./chapter-04-performance.md)，大值处理见[大 Key 与热 Key](./chapter-07-big-hot-key.md)，连接与重试边界见[客户端连接与故障处理](./chapter-01-client-connection.md)。
 
 ### 选择合适的数据模型
 
@@ -50,7 +50,7 @@
 - Sentinel 或 Cluster 的故障转移已在非生产环境演练，客户端能够刷新拓扑。
 - 主从默认异步复制的丢失窗口已写入运维文档，并有对应的业务接受结论。
 
-持久化取舍见[持久化 RDB 与 AOF](../02-standalone-core/chapter-05-persistence.md)，拓扑选择见[首次生产部署](../10-practice/chapter-03-first-production.md)。
+持久化取舍见[持久化 RDB 与 AOF](../02-standalone-core/chapter-05-persistence.md)，备份和恢复流程见[备份、恢复与升级](./chapter-03-backup-recovery.md)，拓扑选择见[首次生产部署](../05-practice/chapter-03-first-production.md)。
 
 ### 网络与权限
 
@@ -61,7 +61,7 @@
 - 跨不可信网络时启用 TLS，并验证证书、主机名和轮换流程。
 - `rename-command` 如有使用，只作为减少误操作的补充措施。
 
-网络与认证要求见[首次生产部署](../10-practice/chapter-03-first-production.md)。
+网络、ACL、TLS 和凭据轮换见[安全与访问控制](./chapter-02-security-access.md)，部署入口见[首次生产部署](../05-practice/chapter-03-first-production.md)。
 
 ## 检查可观测性
 
@@ -71,7 +71,7 @@
 - 能按实例、Key 前缀或客户端定位流量突增，不只保留聚合曲线。
 - 已建立正常负载基线，容量评估来自真实数据而不是示例值。
 
-指标定义和告警设计见[监控告警](./chapter-03-monitoring.md)。
+指标定义和告警设计见[监控告警](./chapter-06-monitoring.md)。
 
 ## 检查集群约束
 
@@ -80,7 +80,7 @@
 - 大 Key 在扩缩容前已拆分，迁移窗口经过压测。
 - 客户端正确处理 `MOVED`、`ASK` 和拓扑刷新，不在异常后无限重定向。
 
-集群机制见[集群模式](../04-high-availability/chapter-03-cluster.md)。
+集群机制见[集群模式](../03-high-availability/chapter-04-cluster.md)。
 
 ## 记录上线结论
 

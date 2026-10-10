@@ -6,7 +6,7 @@
 
 哨兵是一个独立的进程（或一组进程），负责监控 Redis 主从节点，并在主节点故障时自动完成切换。
 
-![哨兵集群监控架构](/redis/04-high-availability-chapter-02-sentinel-1.svg)
+![哨兵集群监控架构](/redis/03-high-availability-chapter-03-sentinel-1.svg)
 
 哨兵的三个核心职责：
 
@@ -84,7 +84,7 @@ quorum = 2 → 3 个哨兵中 2 个确认 → ODOWN（客观下线）
 
 ## 4. 故障转移流程 {#failover}
 
-![哨兵故障转移流程](/redis/04-high-availability-chapter-02-sentinel-2.svg)
+![哨兵故障转移流程](/redis/03-high-availability-chapter-03-sentinel-2.svg)
 
 ### 4.1 选新主节点
 

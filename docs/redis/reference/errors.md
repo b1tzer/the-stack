@@ -28,3 +28,5 @@ Redis 通过 [RESP 协议](../02-standalone-core/chapter-02-command-resp.md#resp
 | 连接被拒 | 端口、`bind`、`protected-mode`、`maxclients` 或进程状态异常 | 依次检查服务状态、监听地址、防火墙和 `INFO clients` |
 | 响应变慢 | 大 key / 阻塞命令 | `SLOWLOG GET` 查看慢日志 |
 | 内存持续增长 | 未设过期 / 内存泄漏 | `MEMORY DOCTOR` 诊断 |
+
+连接生命周期、重试边界和拓扑刷新见[客户端连接与故障处理](../04-operations/chapter-01-client-connection.md)；认证与权限错误见[安全与访问控制](../04-operations/chapter-02-security-access.md)。

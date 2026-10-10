@@ -29,7 +29,7 @@ INFO commandstats
 
 ## 2. 排查方法论
 
-![排查方法论循环](/redis/05-operations-chapter-02-troubleshooting-2.svg)
+![排查方法论循环](/redis/04-operations-chapter-05-troubleshooting-2.svg)
 
 ```txt
 观察现象 → 收集指标 → 提出假设 → 验证假设 → 修复 → 监控
@@ -48,7 +48,7 @@ INFO commandstats
 
 延迟突增是最常见的故障，按顺序排查：
 
-![延迟排查顺序](/redis/05-operations-chapter-02-troubleshooting-1.svg)
+![延迟排查顺序](/redis/04-operations-chapter-05-troubleshooting-1.svg)
 
 ### 3.1 慢命令
 

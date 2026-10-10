@@ -6,9 +6,9 @@
 
 适合第一次使用 Redis 的读者。先在本机启动实例，再用基础类型完成计数、缓存、集合运算和排行榜等任务。
 
-- [在本机安装 Redis](./10-practice/chapter-01-installation.md)
-- [常见任务上手](./10-practice/chapter-02-first-app.md)
-- [首次生产部署](./10-practice/chapter-03-first-production.md)
+- [在本机安装 Redis](./05-practice/chapter-01-installation.md)
+- [常见任务上手](./05-practice/chapter-02-first-app.md)
+- [首次生产部署](./05-practice/chapter-03-first-production.md)
 
 ## 理解 Redis 如何工作
 
@@ -18,18 +18,21 @@
 - [五种基础数据类型](./01-data-model/chapter-02-basic-types.md)
 - [线程模型](./02-standalone-core/chapter-01-thread-model.md)
 - [持久化 RDB 与 AOF](./02-standalone-core/chapter-05-persistence.md)
-- [高可用方案选型](./04-high-availability/chapter-00-overview.md)
-- [主从复制](./04-high-availability/chapter-01-replication.md)
+- [高可用方案选型](./03-high-availability/chapter-01-overview.md)
+- [主从复制](./03-high-availability/chapter-02-replication.md)
 
 ## 完成生产运维
 
-适合负责 Redis 上线、监控和故障处理的读者。按性能基线、排障流程和高可用方案逐步建立运维能力。
+适合负责 Redis 应用接入、上线和故障处理的读者。按连接、安全、恢复和可观测性要求逐步建立运维能力。
 
-- [性能优化](./05-operations/chapter-01-performance.md)
-- [阻塞与故障排查](./05-operations/chapter-02-troubleshooting.md)
-- [监控告警](./05-operations/chapter-03-monitoring.md)
-- [大 Key 与热 Key](./05-operations/chapter-05-big-hot-key.md)
-- [上线检查清单](./05-operations/chapter-04-pitfalls.md)
+- [客户端连接与故障处理](./04-operations/chapter-01-client-connection.md)
+- [安全与访问控制](./04-operations/chapter-02-security-access.md)
+- [备份、恢复与升级](./04-operations/chapter-03-backup-recovery.md)
+- [性能优化](./04-operations/chapter-04-performance.md)
+- [阻塞与故障排查](./04-operations/chapter-05-troubleshooting.md)
+- [监控告警](./04-operations/chapter-06-monitoring.md)
+- [大 Key 与热 Key](./04-operations/chapter-07-big-hot-key.md)
+- [上线检查清单](./04-operations/chapter-08-pitfalls.md)
 
 ## 进入场景实战
 
@@ -47,4 +50,4 @@
 
 ## 版本范围
 
-核心配置和示例以 Redis 7.4.11 为验证基准，核对日期为 2026-10-09。页面涉及历史机制时会标注 6.0、7.0 或 7.2 的引入时间；使用 Redis 8.x 时，应先核对[官方命令](https://redis.io/docs/latest/commands/)、配置默认值和许可证说明。
+核心配置和示例以 Redis 7.4.11 为验证基准，核对日期为 2026-10-10。页面涉及历史机制时会标注 6.0、7.0 或 7.2 的引入时间；使用 Redis 8.x 时，应先核对[官方命令](https://redis.io/docs/latest/commands/)、配置默认值和许可证说明。

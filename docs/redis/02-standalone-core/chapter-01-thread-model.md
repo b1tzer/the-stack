@@ -21,7 +21,7 @@ Redis 的核心是单线程执行命令：同一时刻只有一个命令在执�
 | IO 多路复用 | 一个线程通过 epoll 同时监听成千上万个连接 |
 | 高效数据结构 | SDS、跳表、字典等，多数操作 O(1)/O(log n) |
 
-**单线程的边界**：单线程意味着**慢命令会阻塞所有其他请求**。一个耗时 1 秒的命令，会让整个 Redis 停顿 1 秒。所以 Redis 的优化核心是「避免慢命令」（见 [命令与 RESP](./chapter-02-command-resp.md) 与 [性能](../05-operations/chapter-01-performance.md)）。
+**单线程的边界**：单线程意味着**慢命令会阻塞所有其他请求**。一个耗时 1 秒的命令，会让整个 Redis 停顿 1 秒。所以 Redis 的优化核心是「避免慢命令」（见 [命令与 RESP](./chapter-02-command-resp.md) 与 [性能](../04-operations/chapter-04-performance.md)）。
 
 > 辅助线程：虽然命令执行是单线程，但 Redis 有多个后台线程处理耗时操作——AOF 刷盘、UNLINK 异步删除大 Key、Lazy Free 惰性释放，这些不阻塞命令执行。
 

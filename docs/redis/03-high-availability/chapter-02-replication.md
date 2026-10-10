@@ -14,7 +14,7 @@
 
 主从复制引入「一主多从」结构：主节点负责写，从节点复制数据并分担读请求。
 
-![主从复制一主多从架构](/redis/04-high-availability-chapter-01-replication-1.svg)
+![主从复制一主多从架构](/redis/03-high-availability-chapter-02-replication-1.svg)
 
 ## 2. 全量同步 {#full-sync}
 
@@ -22,7 +22,7 @@
 
 ### 2.1 流程
 
-![主从全量同步流程](/redis/04-high-availability-chapter-01-replication-2.svg)
+![主从全量同步流程](/redis/03-high-availability-chapter-02-replication-2.svg)
 
 全量同步的时序：
 
@@ -203,7 +203,7 @@ WAIT 1 5000   # 等待至少 1 个从节点确认，超时 5 秒
 原主节点恢复 → 变成从节点 → 被新主的数据覆盖 → key3 彻底丢失
 ```
 
-哨兵负责选择新主并完成切换，但不会找回原主节点尚未复制的写入（见 [哨兵](./chapter-02-sentinel.md)）。是否可接受该窗口应由 RPO 和 `WAIT`、持久化等保护措施共同决定。
+哨兵负责选择新主并完成切换，但不会找回原主节点尚未复制的写入（见 [哨兵](./chapter-03-sentinel.md)）。是否可接受该窗口应由 RPO 和 `WAIT`、持久化等保护措施共同决定。
 
 ## 6. 配置参考
 

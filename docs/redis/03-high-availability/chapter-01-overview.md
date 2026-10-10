@@ -17,8 +17,8 @@
 
 | 场景 | 推荐 |
 | :-- | :-- |
-| 单实例容量和吞吐可满足目标，可接受手动切换 | [主从复制](./chapter-01-replication.md) |
-| 单实例容量和吞吐可满足目标，需要自动故障转移 | [主从 + Sentinel](./chapter-02-sentinel.md) |
-| 单实例无法满足容量、吞吐或水平扩展目标 | [Redis Cluster](./chapter-03-cluster.md) |
+| 单实例容量和吞吐可满足目标，可接受手动切换 | [主从复制](./chapter-02-replication.md) |
+| 单实例容量和吞吐可满足目标，需要自动故障转移 | [主从 + Sentinel](./chapter-03-sentinel.md) |
+| 单实例无法满足容量、吞吐或水平扩展目标 | [Redis Cluster](./chapter-04-cluster.md) |
 
 拓扑阈值应来自数据增长、单实例压测、RPO/RTO 和运维能力，不以固定的 10GB 数据量作为选型边界。
