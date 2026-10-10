@@ -38,7 +38,7 @@ public class ScheduledTasks {
 
 **fixedRate vs fixedDelay 核心区别**：
 
-```
+```txt
 fixedRate = 5000ms（频率固定）
 |--任务1--|    |--任务2--|    |--任务3--|
 0        3    5        8   10       13
@@ -111,7 +111,7 @@ public class ScheduleConfig {
 
 Spring Cron 表达式为 **6 位**格式（比 Unix Cron 多一个「秒」字段）：
 
-```
+```txt
 ┌──────────── 秒（0-59）
 │ ┌────────── 分（0-59）
 │ │ ┌──────── 时（0-23）

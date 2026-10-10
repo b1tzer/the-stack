@@ -53,7 +53,7 @@ POST /orders/_update_by_query
 
 通过消息队列异步更新冗余数据：
 
-```
+```txt
 用户改名 → 更新 users 表 → 发送 MQ 消息 → 消费者批量更新 orders 索引
 ```
 

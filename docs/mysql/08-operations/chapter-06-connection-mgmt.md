@@ -4,7 +4,7 @@
 
 ## 1. 连接基础架构
 
-```
+```txt
 客户端 → TCP 连接 → 连接线程 → 线程池
                 ↓
         max_connections（最大连接数）
@@ -80,7 +80,7 @@ spring:
 
 ### 3.2 连接池大小计算
 
-```
+```txt
 连接数 = (CPU 核心数 * 2) + 有效磁盘数
 
 示例：
@@ -110,7 +110,7 @@ SHOW STATUS LIKE 'Aborted_clients';    -- 异常断开的客户端
 
 ### 4.1 错误信息
 
-```
+```txt
 ERROR 1040 (HY000): Too many connections
 ```
 
@@ -229,7 +229,7 @@ SHOW STATUS LIKE 'Max_used_connections_time'; -- 最大连接数发生时间
 
 ### 7.1 应用层建议
 
-```
+```txt
 1. 使用连接池，不要每次创建新连接
 2. 连接用完及时归还
 3. 设置合理的连接超时
@@ -239,7 +239,7 @@ SHOW STATUS LIKE 'Max_used_connections_time'; -- 最大连接数发生时间
 
 ### 7.2 数据库层建议
 
-```
+```txt
 1. 根据业务规模设置 max_connections
 2. 配合 ProxySQL 做连接复用
 3. 监控 Threads_connected 告警
@@ -249,7 +249,7 @@ SHOW STATUS LIKE 'Max_used_connections_time'; -- 最大连接数发生时间
 
 ## 8. 连接数规划
 
-```
+```txt
 单机 MySQL 连接数建议：
 
 小型应用（日活 < 10万）

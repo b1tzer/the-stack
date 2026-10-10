@@ -187,7 +187,7 @@ WHERE u.age > 25;
 
 输出示例：
 
-```
+```txt
 -> Nested loop inner join  (cost=4.95 rows=15) (actual time=0.045..0.102 rows=15 loops=1)
     -> Index lookup on u using idx_age (age > 25)  (cost=1.10 rows=5) (actual time=0.028..0.038 rows=5 loops=1)
     -> Index lookup on o using idx_user_id (user_id = u.id)  (cost=0.68 rows=3) (actual time=0.010..0.012 rows=3 loops=5)
@@ -211,7 +211,7 @@ WHERE u.age > 25;
 
 输出：
 
-```
+```txt
 -> Nested loop inner join  (cost=4.95 rows=15)
     -> Index lookup on u using idx_age (age > 25)  (cost=1.10 rows=5)
     -> Index lookup on o using idx_user_id (user_id = u.id)  (cost=0.68 rows=3)

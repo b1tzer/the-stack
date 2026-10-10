@@ -283,7 +283,7 @@ protected void doFilterInternal(HttpServletRequest request,
 
 授权码模式完整流程：
 
-```
+```txt
 用户浏览器                    你的应用                      第三方（GitHub）
     │                            │                              │
     │── 点击"GitHub 登录" ─────►│                              │
@@ -554,7 +554,7 @@ public class OAuth2LoginConfig {
 
 **决策树**：
 
-```
+```txt
 需要第三方登录？
   ├─ 是 → OAuth 2.0 / OIDC
   └─ 否 → 内部系统？

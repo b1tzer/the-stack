@@ -139,7 +139,7 @@ List<User> findByIdAfter(@Param("lastId") Long lastId, Pageable pageable);
 
 ## 9. 性能调优流程 {#performance-tuning-flow}
 
-```
+```txt
 1. 识别瓶颈
    ├── 慢查询日志分析
    ├── SHOW PROCESSLIST

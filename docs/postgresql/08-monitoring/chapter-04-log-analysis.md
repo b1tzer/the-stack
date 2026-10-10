@@ -275,7 +275,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON sensitive_table TO auditor_role;
 
 ### pgAudit 日志示例
 
-```
+```txt
 2024-01-15 10:30:45.123 CST [12345] app_user@mydb LOG:  AUDIT: SESSION,1,1,WRITE,INSERT,,,
 "INSERT INTO orders (user_id, amount) VALUES (123, 99.99);",<none>
 ```
@@ -284,7 +284,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON sensitive_table TO auditor_role;
 
 ### 分层监控体系
 
-```
+```txt
 ┌─────────────────────────────────────────────────────┐
 │                    告警层 (PagerDuty/企微/钉钉)       │
 ├─────────────────────────────────────────────────────┤

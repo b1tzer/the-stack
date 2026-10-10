@@ -218,7 +218,7 @@ ALTER TABLE orders ADD COLUMN remark VARCHAR(500);             -- 也是安全�
 
 PostgreSQL 会自动检测死锁并终止其中一个事务。死锁信息记录在日志中：
 
-```
+```txt
 ERROR: deadlock detected
 DETAIL: Process 12345 waits for ShareLock on transaction 67890; blocked by process 67890.
 Process 67890 waits for ShareLock on transaction 12345; blocked by process 12345.

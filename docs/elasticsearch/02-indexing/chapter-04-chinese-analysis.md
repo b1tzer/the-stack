@@ -235,7 +235,7 @@ PUT /my_index
 
 同义词建议放文件维护：
 
-```
+```txt
 # config/analysis/synonyms.txt
 # 等价同义词
 手机, 手机设备, mobile phone

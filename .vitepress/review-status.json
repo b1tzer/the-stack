@@ -6,7 +6,7 @@
       "versionScope": "Java 21 / OpenJDK 21；页面保留必要的历史版本差异",
       "status": "pending",
       "lastVerified": null,
-      "nextReview": "2026-11-10"
+      "nextReview": "2026-12-01"
     },
     "spring": {
       "versionScope": "Spring Framework 6 / Spring Boot 3；页面保留 2.x 差异",
@@ -24,55 +24,55 @@
       "versionScope": "MySQL 8.0；页面保留 5.7 和早期 8.0 差异",
       "status": "pending",
       "lastVerified": null,
-      "nextReview": "2026-11-10"
+      "nextReview": "2026-12-08"
     },
     "postgresql": {
       "versionScope": "PostgreSQL 14–16 主线；页面保留其他版本差异",
       "status": "pending",
       "lastVerified": null,
-      "nextReview": "2026-11-10"
+      "nextReview": "2026-12-15"
     },
     "kafka": {
       "versionScope": "Kafka 4.x / KRaft；页面保留 ZooKeeper 时代差异",
       "status": "pending",
       "lastVerified": null,
-      "nextReview": "2026-11-10"
+      "nextReview": "2026-11-17"
     },
     "rabbitmq": {
       "versionScope": "RabbitMQ 3.x；新部署以 Quorum Queue 为主线",
       "status": "pending",
       "lastVerified": null,
-      "nextReview": "2026-11-10"
+      "nextReview": "2026-12-22"
     },
     "elasticsearch": {
-      "versionScope": "尚未建立统一基线；按页面标注的版本核对",
+      "versionScope": "Elasticsearch 8.12；7.x 与 8.x 的行为差异按页面标注保留，升级路径覆盖 7.17 → 8.x",
       "status": "pending",
       "lastVerified": null,
-      "nextReview": "2026-11-10"
+      "nextReview": "2026-12-29"
     },
     "design-pattern": {
       "versionScope": "概念内容；Spring 与 JDK 示例按页面版本核对",
       "status": "pending",
       "lastVerified": null,
-      "nextReview": "2026-11-10"
+      "nextReview": "2027-01-12"
     },
     "engineering": {
       "versionScope": "通用工程方法；工具和平台版本按页面核对",
       "status": "pending",
       "lastVerified": null,
-      "nextReview": "2026-11-10"
+      "nextReview": "2027-01-05"
     },
     "scenarios": {
       "versionScope": "跨专题方案；组件版本以对应专题为准",
       "status": "pending",
       "lastVerified": null,
-      "nextReview": "2026-11-10"
+      "nextReview": "2027-01-19"
     },
     "ai": {
       "versionScope": "按模型接口、框架和协议页面的适用时间核对",
       "status": "pending",
       "lastVerified": null,
-      "nextReview": "2026-11-10"
+      "nextReview": "2026-11-24"
     }
   }
 }

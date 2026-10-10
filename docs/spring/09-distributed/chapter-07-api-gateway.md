@@ -75,7 +75,7 @@ spring:
 
 **路径重写与负载均衡工作流程**：
 
-```
+```txt
 客户端 → GET /api/orders/123
          ↓
 Gateway Predicate: Path=/api/orders/**  ✅ 匹配
@@ -183,7 +183,7 @@ public class RequestLogFilter implements GlobalFilter, Ordered {
 
 **Filter 执行顺序**：
 
-```
+```txt
 请求进入
   ↓
 Gateway Filter（配置在路由上的 Filter）

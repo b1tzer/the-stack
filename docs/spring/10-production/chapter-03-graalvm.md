@@ -19,7 +19,7 @@
 
 ### 1.2 Spring Boot 3.x AOT 处理流程
 
-```
+```txt
 mvn spring-boot:process-aot
   ↓
 ┌─────────────────────────────────────────────────┐
@@ -189,7 +189,7 @@ native-image -jar target/app.jar -o target/app
 
 ### 3.1 适用场景决策树
 
-```
+```txt
 你的应用是 Serverless / FaaS（按调用计费）？
   → YES → 用 GraalVM（冷启动时间和内存直接决定成本）
   → NO ↓

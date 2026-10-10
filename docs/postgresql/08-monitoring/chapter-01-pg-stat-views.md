@@ -250,7 +250,7 @@ SELECT pg_wal_lsn_diff(pg_current_wal_lsn(), '0/0')::numeric / 1024 / 1024 AS wa
 
 ## 监控视图关系图
 
-```
+```txt
 pg_stat_activity        → 连接级（每进程一行）
 pg_stat_database        → 数据库级（每库一行）
 pg_stat_user_tables     → 表级（每表一行）

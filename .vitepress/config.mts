@@ -1,7 +1,6 @@
 import { defineConfig } from 'vitepress'
 import { svgEditorPlugin, svgDiagramMarkdownPlugin } from 'vitepress-plugin-svg-editor'
 import { withOpenInEditor } from 'vitepress-plugin-open-in-editor'
-import { withMermaid } from 'vitepress-plugin-mermaid'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -87,7 +86,7 @@ function deriveDescription(source: string, relativePath: string): string {
   return truncateDescription(`${label} 专题内容。`)
 }
 
-export default withOpenInEditor(withMermaid(defineConfig({
+export default withOpenInEditor(defineConfig({
   title: 'The Stack',
   description: '面向中文开发者的 Java 后端技术知识库，覆盖核心原理、生产实践与场景方案。',
   lang: 'zh-CN',
@@ -116,6 +115,28 @@ export default withOpenInEditor(withMermaid(defineConfig({
     }
   },
 
+  async transformHead({ page, title, description }) {
+    // page 是源文件相对路径（如 redis/chapter.md），转成与 sitemap 一致的规范地址
+    const route = page.replace(/^\//, '').replace(/\.md$/, '.html')
+    const isDirectoryIndex = route === 'index.html' || route.endsWith('/index.html')
+    const path = isDirectoryIndex ? route.slice(0, -'index.html'.length) : route
+    const url = `${SITE_URL}/${encodeURI(path)}`
+
+    return [
+      ['meta', { property: 'og:site_name', content: 'The Stack' }],
+      ['meta', { property: 'og:locale', content: 'zh_CN' }],
+      ['meta', { property: 'og:type', content: path === '' ? 'website' : 'article' }],
+      ['meta', { property: 'og:title', content: title }],
+      ['meta', { property: 'og:description', content: description }],
+      ['meta', { property: 'og:url', content: url }],
+      ['meta', { property: 'og:image', content: `${SITE_URL}/og-cover.png` }],
+      ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+      ['meta', { name: 'twitter:title', content: title }],
+      ['meta', { name: 'twitter:description', content: description }],
+      ['link', { rel: 'canonical', href: url }],
+    ]
+  },
+
   vite: {
     plugins: [
       svgEditorPlugin({
@@ -123,7 +144,24 @@ export default withOpenInEditor(withMermaid(defineConfig({
       }),
     ],
     optimizeDeps: {
-      include: ['fastdom', 'fastdom/extensions/fastdom-promised.js'],
+      include: [
+        'fastdom',
+        'fastdom/extensions/fastdom-promised.js',
+        // mermaid 及其依赖：mermaid 现在是按需动态加载的，预打包可避免 dev 首次渲染时的长等待
+        '@braintree/sanitize-url',
+        'cytoscape',
+        'cytoscape-cose-bilkent',
+        'dayjs',
+        'debug',
+      ],
+    },
+    resolve: {
+      alias: [
+        { find: 'dayjs/plugin/advancedFormat.js', replacement: 'dayjs/esm/plugin/advancedFormat' },
+        { find: 'dayjs/plugin/customParseFormat.js', replacement: 'dayjs/esm/plugin/customParseFormat' },
+        { find: 'dayjs/plugin/isoWeek.js', replacement: 'dayjs/esm/plugin/isoWeek' },
+        { find: 'cytoscape/dist/cytoscape.umd.js', replacement: 'cytoscape/dist/cytoscape.esm.js' },
+      ],
     },
   },
   markdown: {
@@ -131,6 +169,23 @@ export default withOpenInEditor(withMermaid(defineConfig({
       conf: 'ini',
     },
     config(md) {
+      // ```mermaid 围栏输出 <Mermaid> 组件标记；组件在 theme 中注册，
+      // 内部动态 import('mermaid')，因此 mermaid 不进入全站预加载。
+      const renderFence = md.renderer.rules.fence
+      md.renderer.rules.fence = (tokens, idx, options, env, self) => {
+        const token = tokens[idx]
+        if (token.info.trim() === 'mermaid') {
+          return [
+            '<Suspense>',
+            '<template #default>',
+            `<Mermaid id="mermaid-${idx}" class="mermaid" graph="${encodeURIComponent(token.content)}"></Mermaid>`,
+            '</template>',
+            '<template #fallback>Loading...</template>',
+            '</Suspense>',
+          ].join('')
+        }
+        return renderFence(tokens, idx, options, env, self)
+      }
       md.use(svgDiagramMarkdownPlugin)
     },
   },
@@ -1394,4 +1449,4 @@ export default withOpenInEditor(withMermaid(defineConfig({
       provider: 'local'
     }
   }
-})))
+}))

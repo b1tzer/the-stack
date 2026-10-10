@@ -4,7 +4,7 @@
 
 APM（Application Performance Monitoring）用于监控应用程序的性能，包括请求延迟、错误率、数据库查询等。
 
-```
+```txt
 应用服务 → APM Agent → APM Server → Elasticsearch → Kibana APM UI
 ```
 

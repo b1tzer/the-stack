@@ -196,7 +196,7 @@ SELECT * FROM java.io.FileInputStream WHERE in.@retainedHeapSize > 0
 
 ### 3.1 排查路径
 
-```
+```txt
 用户反馈慢
   │
   ▼

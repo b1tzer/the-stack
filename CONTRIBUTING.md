@@ -81,6 +81,14 @@
 - 目标标题必须声明稳定、唯一的显式别名，例如 `## 事务边界 {#transaction-boundary}`；链接写成 `../path/chapter.md#transaction-boundary`。
 - 别名使用小写 kebab-case，并与链接文本表达的内容一致。标题文字可以调整，但既有别名应尽量保留，避免站内链接失效。
 - 只有链接目标是整篇文档时才省略 `#anchor`。
+- `npm run check:docs` 会统计零入链页面并给出软告警：正文页被任何其他页面引用，读者才能从上下文走进来。新写章节时顺手在相邻页面加一条相关链接，比事后批量补更省力。
+
+### 代码块
+
+- 开栏必须标注语言，闭合围栏保持裸 ` ``` `。缺少标注或围栏未闭合会让 `npm run check:docs` 直接失败。
+- 真实代码按语言标注：`java`、`sql`、`bash`、`yaml`、`properties`、`json`、`xml`。
+- ASCII 流程图、执行计划输出、日志片段、公式和提示词模板不是代码，统一标 `txt`；`.conf` 类配置标 `conf`（映射到 `ini` 高亮）。
+- 代码块必须给出必要上下文、输入输出和错误情况，避免无法运行的孤立片段。
 
 ### Markdown 强调语法
 
@@ -92,7 +100,7 @@
 
 1. 从 `dev` 分支创建特性分支
 2. 编写或修改文档
-3. 运行 `npm run fix:emphasis` 和 `npm run check:docs`
+3. 运行 `npm run check`（包含强调语法与文档结构检查），必要时先跑 `npm run fix:emphasis`
 4. 本地预览确认格式正确
 5. 运行 `npm run build`
 6. 提交 PR 到 `dev` 分支

@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vitepress dev",
-    "build": "python3 fix-emphasis.py && node check-docs.mjs && vitepress build",
+    "build": "npm run check && vitepress build",
     "preview": "vitepress preview",
     "check": "npm run check:emphasis && npm run check:docs",
     "check:emphasis": "python3 fix-emphasis.py --check",
@@ -14,13 +14,10 @@
     "fix:emphasis": "python3 fix-emphasis.py"
   },
   "devDependencies": {
+    "fabric": "^6.9.1",
     "mermaid": "^11.17.2",
     "vitepress": "^1.6.3",
-    "vitepress-plugin-mermaid": "^2.0.17",
-    "vitepress-plugin-open-in-editor": "^0.1.5"
-  },
-  "dependencies": {
-    "fabric": "^6.9.1",
+    "vitepress-plugin-open-in-editor": "^0.1.5",
     "vitepress-plugin-svg-editor": "^0.5.0"
   },
   "overrides": {

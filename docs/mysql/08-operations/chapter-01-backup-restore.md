@@ -78,7 +78,7 @@ chown -R mysql:mysql /var/lib/mysql
 
 ### 3.1 备份策略设计
 
-```
+```txt
 推荐策略：全量 + 增量 + Binlog
 
 周日：全量备份

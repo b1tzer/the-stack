@@ -93,7 +93,7 @@ GROUP BY s1.table_name, s1.index_name, s2.index_name;
 
 P_S 用一套统一的"事件"模型覆盖几乎所有运行时行为，事件按层级由粗到细：
 
-```
+```txt
 transaction（事务）→ statement（语句）→ stage（阶段）→ wait（等待）
 ```
 

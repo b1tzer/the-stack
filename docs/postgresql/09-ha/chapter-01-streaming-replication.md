@@ -49,7 +49,7 @@ synchronous_standby_names = 'FIRST 1 (standby1, standby2)'
 
 ## 4. 级联复制
 
-```
+```txt
 主库 → 从库1 → 从库2（级联从库）
 ```
 

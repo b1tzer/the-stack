@@ -17,7 +17,7 @@
 
 ### 1.2 Span 树结构
 
-```
+```txt
 Trace: abc123
 │
 ├── Span A: API Gateway (0-500ms)
@@ -37,7 +37,7 @@ Trace: abc123
 
 ### 1.3 Context Propagation 跨服务传递
 
-```
+```txt
 Service A                          Service B
     │                                  │
     │── HTTP Header ──────────────────►│
@@ -128,7 +128,7 @@ public class RestTemplateConfig {
 
 ### 3.1 traceId 是串联三大支柱的钥匙
 
-```
+```txt
 指标（Prometheus）
   │ P99 > 2s @ 10:30
   ▼
@@ -141,7 +141,7 @@ public class RestTemplateConfig {
 
 ### 3.2 排查路径 — 从告警到根因
 
-```
+```txt
 Step 1: Prometheus 告警
   "P99 latency > 2s for /api/orders"
 

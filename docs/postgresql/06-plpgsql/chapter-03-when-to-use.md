@@ -82,7 +82,7 @@ SELECT cron.schedule('refresh-mv', '0 * * * *',
 
 ### 3.1 复杂业务逻辑
 
-```
+```txt
 ❌ 在存储过程中实现订单状态机、支付流程、业务规则引擎
 ✅ 在应用层实现，使用 ORM + 单元测试保证质量
 ```
@@ -95,7 +95,7 @@ SELECT cron.schedule('refresh-mv', '0 * * * *',
 
 ### 3.2 简单的 CRUD 操作
 
-```
+```txt
 ❌ 为每个表写 INSERT/UPDATE/DELETE 存储过程
 ✅ 使用 ORM（JPA/MyBatis）直接操作
 ```

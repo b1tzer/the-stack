@@ -33,7 +33,7 @@ Elasticsearch 是基于 Lucene 的分布式搜索和分析引擎，由 Elastic �
 
 ## 5. Elastic Stack
 
-```
+```txt
 Beats → Logstash → Elasticsearch → Kibana
   ↑        ↑            ↑            ↑
   采集     处理         存储/搜索    可视化
