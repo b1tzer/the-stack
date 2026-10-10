@@ -2,6 +2,8 @@
 
 > 监控是运维的「眼睛」。完善的监控体系能在故障发生前预警，在故障发生后提供定位依据。本章讲解监控维度、关键指标与告警阈值。
 
+每个告警都应绑定正常基线、触发条件、负责人、处理步骤和升级路径。示例阈值只用于说明结构，生产阈值必须来自业务 SLO、压测安全水位和历史分布。
+
 ## 1. 监控架构
 
 Redis 监控从三个维度构建：
@@ -31,7 +33,7 @@ INFO stats
 ### 2.2 延迟
 
 ```bash
-# 基础延迟测试
+# 持续发送 PING，测试网络和服务端往返延迟
 redis-cli --latency
 # min: 0, max: 3, avg: 1 (milliseconds)
 
@@ -39,7 +41,7 @@ redis-cli --latency
 redis-cli --latency-history
 # 1712500000 0 2 1  ← 时间戳 min max avg
 
-# 百分位延迟（需要 redis-cli 6.0+）
+# 合成 PING 的延迟分布，不代表业务命令分位数
 redis-cli --latency-dist
 ```
 
@@ -68,9 +70,9 @@ INFO stats
 
 | 命中率 | 评估 | 可能原因 |
 | :-- | :-- | :-- |
-| > 90% | 良好 | — |
-| 70%~90% | 一般 | TTL 过短、缓存预热不足 |
-| < 70% | 差 | 穿透严重、需要布隆过滤器 |
+| > 90% | 缓存场景常见良好区间 | 仍应与业务命中目标比较 |
+| 70%~90% | 需要结合业务判断 | 检查 TTL、预热和数据访问模式 |
+| < 70% | 缓存收益可能不足 | 检查穿透、TTL、热点和布隆过滤器适用性 |
 
 ### 2.5 连接数
 
@@ -114,9 +116,9 @@ INFO persistence
 | 慢查询数量 | 持续增长 | 存在慢命令 |
 | fork 耗时 | > 1s | fork 停顿明显 |
 | 连接数 | > 80% maxclients | 连接接近上限 |
-| 命中率 | < 70% | 缓存效果差 |
-| 复制延迟 | > 5s | 数据严重不一致 |
-| QPS | > 80% 理论上限 | 接近瓶颈 |
+| 命中率 | 低于业务基线 | 缓存收益下降 |
+| 复制延迟 | 超过业务可接受的读旧窗口 | 检查复制状态和读写路由 |
+| QPS | 超过压测安全水位或持续异常增长 | 容量接近瓶颈 |
 
 > 阈值需结合业务实际情况调整。告警的黄金法则是「宁可在故障前预警，不要在故障后才知道」。
 
@@ -162,15 +164,16 @@ scrape_configs:
       - targets: ['redis-exporter:9121']
 ```
 
-Grafana 导入 Redis Dashboard（ID: 763），即可获得开箱即用的 Redis 监控看板。
+Grafana 可导入与所用 `redis_exporter` 版本匹配的 Redis Dashboard。导入前核对看板版本、指标名和数据源，并记录看板来源；不要仅凭固定 Dashboard ID 假定兼容。
 
 ## 5. 日常巡检
 
 建议每天执行一次巡检：
 
 ```bash
-# 1. 内存状态
-INFO memory | grep -E "used_memory|fragmentation|swap"
+# 1. 内存状态（Redis 不提供 swap 字段）
+INFO memory | grep -E "used_memory|fragmentation"
+grep -E "SwapTotal|SwapFree" /proc/meminfo
 
 # 2. 慢查询
 SLOWLOG GET 5

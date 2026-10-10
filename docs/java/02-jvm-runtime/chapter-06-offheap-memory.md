@@ -2,7 +2,7 @@
 
 堆外内存不受 JVM 堆规范直接约束，却会计入进程总内存。理解它的分配、释放和监控方式，才能解释“堆使用正常但进程仍被 OOMKilled”的现象，也才能判断问题究竟出在 Java 堆、直接缓冲区还是其他本地内存区域。
 
-本页位于[垃圾回收](./chapter-04-gc.md)之后，因为 `DirectByteBuffer` 的释放依赖堆对象回收和引用清理；位于[JIT 编译](./chapter-05-jit.md)之前，因为先完成内存链路，再进入与内存相对独立的执行优化。NIO 的具体使用见 [Java NIO](../04-java-network/chapter-05-nio.md)，堆外泄漏案例从[JVM 线上诊断](../06-diagnostics/01-jvm/chapter-01-jvm-diagnostics.md)进入。
+NIO 的具体使用见 [Java NIO](../04-java-network/chapter-05-nio.md)，堆外泄漏案例从[JVM 线上诊断](../06-diagnostics/01-jvm/chapter-01-jvm-diagnostics.md)进入。
 
 ## 1. 什么是堆外内存
 
@@ -63,23 +63,44 @@ DirectByteBuffer（堆上，小对象）
 
 ### 3.1 不受 `-Xmx` 限制
 
-`-Xmx4g` 只限制 Java 堆。堆外内存另外计算。一个应用可能堆只用了 2GB，但堆外内存用了 3GB，总内存 5GB。
+`-Xmx4g` 只限制 Java 堆。直接缓冲区、线程栈、Metaspace 和 CodeCache 分别受各自机制控制。应用可能只使用了 2GB Java 堆，却因为直接缓冲区和线程栈占用了更多本地内存。
+
+`jstat` 和堆内对象直方图只能反映 Java 堆，无法直接说明进程 RSS 为什么持续增长。诊断时应同时比较三组数据：
+
+- 容器或进程的总内存，例如 RSS 以及 cgroup 内存限制。
+- Java 堆使用量，例如 `jstat -gcutil`。
+- JVM 本地内存分类和变化量，例如 NMT。
+
+### 3.2 使用 NMT 观察本地内存变化
+
+NMT 必须在 JVM 启动时开启。以下命令以 JDK 21 为例：
 
 ```bash
-# 如果 JVM 启动时已开启 NMT，查看本地内存分类
-jcmd <pid> VM.native_memory summary
+# 启动参数
+-XX:NativeMemoryTracking=summary
 
-# 输出示例:
-#                    Total:  reserved=6GB  +  committed=4GB
-#        Java Heap (reserved=2GB, committed=2GB)
-#        Class (reserved=1GB, committed=500MB)
-#        Thread (reserved=500MB, committed=500MB)
-#        Internal (reserved=1GB, committed=1GB)   ← 这里包含堆外内存
+# 查看当前分类
+jcmd <pid> VM.native_memory summary scale=MB
+
+# 记录基线；经过一段稳定运行后再比较
+jcmd <pid> VM.native_memory baseline
+jcmd <pid> VM.native_memory summary.diff scale=MB
 ```
 
-### 3.2 释放依赖 GC 和引用清理
+```bash
+# 示例输出（分类和数值随 JVM 与运行状态变化）：
+#                   Total: reserved=6GB + committed=4GB
+#        Java Heap (reserved=2GB, committed=2GB)
+#        Class     (reserved=1GB, committed=500MB)
+#        Thread    (reserved=500MB, committed=500MB)
+#        Internal  (reserved=1GB, committed=1GB)
+```
 
-释放时机见 [1.2 DirectByteBuffer 的释放路径](#direct-bytebuffer-release)。当分配速度超过清理速度时，堆外内存会持续增长；GC 越晚发生，清理通常也越晚。
+NMT 的分类、单位和具体归属会随 JDK 实现与版本变化。`summary` 适合先判断哪类本地内存增长；需要继续缩小到调用点时，可在目标 JVM 支持的情况下使用 `detail`，但采集开销和输出规模也会增加。
+
+### 3.3 释放依赖 GC 和引用清理
+
+释放时机见 [DirectByteBuffer 的释放路径](#direct-bytebuffer-release)。当分配速度超过清理速度时，堆外内存会持续增长；GC 越晚发生，清理通常也越晚。
 
 ```java
 // 危险：在循环中分配大量 DirectByteBuffer
@@ -90,26 +111,27 @@ while (true) {
 }
 ```
 
-### 3.3 常规堆工具无法直接观测
+## 4. 配置直接缓冲区上限
 
-`jstat` 看不到堆外内存。`jmap -histo` 只能看到堆上的 `DirectByteBuffer` 对象（很小），看不到实际分配的堆外内存大小。
-
-```bash
-# NMT 必须在 JVM 启动时开启；之后才能汇总本地内存
-# 启动参数：-XX:NativeMemoryTracking=summary
-jcmd <pid> VM.native_memory summary
-
-# NMT 开启后，还可以获取与上次基线的差值
-jcmd <pid> VM.native_memory summary.diff
-```
-
-线上症状、命令输出和修复案例见 [TCP 层与堆外内存案例](../06-diagnostics/01-jvm/chapter-05-cases-offheap-network.md)。
-
-## 4. 参数与监控
-
-### 4.1 常用 JVM 参数
+`-XX:MaxDirectMemorySize` 限制 `java.nio` 直接缓冲区的总容量，不限制线程栈、Metaspace 等其他本地内存。它限制的是缓冲区容量总和；由于分页对齐，实际占用的进程内存可能与容量不同。
 
 | 参数 | 说明 |
 | :-- | :-- |
-| `-XX:MaxDirectMemorySize=256m` | 限制直接缓冲区总容量，不影响线程栈、Metaspace 等其他本地内存；未显式设置时默认与最大 Java 堆相同 |
+| `-XX:MaxDirectMemorySize=256m` | 限制直接缓冲区总容量；未设置时由 JVM 自动选择上限 |
 | `-XX:NativeMemoryTracking=summary` | 在 JVM 启动时开启 NMT，按分类收集本地内存用量 |
+| `-XX:NativeMemoryTracking=detail` | 在 JVM 启动时记录更细的分配信息，开销高于 `summary` |
+
+先限制直接缓冲区可以尽早暴露过度分配，但不能替代对缓冲区生命周期的管理。出现 `Cannot reserve ... direct buffer memory` 时，应同时确认业务是否确实需要这个容量，以及未释放的 `DirectByteBuffer` 是否持续累积。
+
+## 5. 按症状定位问题
+
+| 症状 | 优先检查 |
+| :-- | :-- |
+| Java 堆正常，但容器 RSS 持续增长 | cgroup 限制、NMT 分类差值、线程数、Metaspace、CodeCache |
+| 直接缓冲区达到上限并抛出 OOM | `-XX:MaxDirectMemorySize`、缓冲区复用方式、未关闭的资源 |
+| 堆外内存在释放后仍不下降 | `DirectByteBuffer` 是否仍可达、GC 是否触发、是否依赖应用层主动释放 |
+| NMT 无法查询 | JVM 是否以 `-XX:NativeMemoryTracking=summary` 或 `detail` 启动 |
+
+线上症状、命令输出和修复案例见 [TCP 层与堆外内存案例](../06-diagnostics/01-jvm/chapter-05-cases-offheap-network.md)。
+
+> 本章覆盖了直接缓冲区的分配、释放、容量限制和基本监控。NIO 缓冲区的选择与使用见 [Java NIO](../04-java-network/chapter-05-nio.md)，完整故障案例从 [JVM 线上诊断](../06-diagnostics/01-jvm/chapter-01-jvm-diagnostics.md)进入。

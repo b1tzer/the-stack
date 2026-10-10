@@ -1,4 +1,4 @@
-# Pipeline 与 PubSub
+# Pipeline 与 Pub/Sub
 
 > Pipeline 用批量发送优化网络往返，Pub/Sub 用订阅机制实现消息广播。两者都运行在单机 Redis 上，本章讲解各自的用法、局限与适用场景。
 
@@ -63,20 +63,12 @@ String value = getFuture.get();
 | :-- | :-- |
 | 非原子 | Pipeline 只优化网络，不保证命令原子性 |
 | 可被插队 | 其他客户端的命令可能插在 Pipeline 命令中间 |
-| 批量大小 | 单次 Pipeline 不要太大（建议 ≤ 1000 条），避免阻塞服务端 |
+| 批量大小 | 按压测和响应体积分批；大批量命令会连续占用服务端执行线程 |
 | 不适合事务场景 | 需要原子性时用 MULTI/EXEC 或 Lua |
 
-### 1.4 Pipeline vs 事务 vs Lua
+### 1.4 选择 Pipeline
 
-| 维度 | Pipeline | 事务 | Lua |
-| :-- | :-- | :-- | :-- |
-| 核心目的 | 减少网络往返 | 命令原子执行 | 服务端原子脚本 |
-| 原子性 | 否 | 是 | 是 |
-| 逻辑判断 | 否 | 否 | 是 |
-| 网络开销 | 最低 | 中 | 低 |
-| 适用场景 | 批量读写 | 简单打包 | 复杂逻辑 |
-
-> 三者经常被混淆。Pipeline 是网络优化，事务是命令打包，Lua 是服务端编程。
+需要原子性或条件判断时，应改用事务或 Lua 脚本。三种模式的完整差异和选型建议见[选择事务、Lua 或 Pipeline](./chapter-03-transaction-lua.md#choose-transaction-lua-pipeline)。
 
 ## 2. 发布订阅
 

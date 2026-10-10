@@ -16,6 +16,30 @@
 
 先选择接口表达的契约，再选择实现表达的复杂度、顺序和并发能力。不要因为某个类“看起来快”就让它承担不匹配的语义。
 
+### 1.1 枚举专用容器
+
+当 `Set` 的元素或 `Map` 的 key 都是枚举类型时，优先考虑 `EnumSet` 和 `EnumMap`：
+
+```java
+import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.Set;
+
+enum Status {
+    ACTIVE, PAUSED, CLOSED
+}
+
+class EnumCollectionExample {
+    public static void main(String[] args) {
+        Set<Status> enabledStatuses = EnumSet.of(Status.ACTIVE, Status.PAUSED);
+        EnumMap<Status, String> statusLabels = new EnumMap<>(Status.class);
+        statusLabels.put(Status.ACTIVE, "启用");
+    }
+}
+```
+
+`EnumSet` 使用位向量表示成员，通常比通用 `HashSet` 更紧凑；`EnumMap` 使用枚举序号定位数组槽，通常比通用 `HashMap` 更直接。两者都要求 key 不为 `null`，并且本身不提供线程安全保证。只有集合会跨线程修改时，才需要额外同步或并发容器。
+
 ## 2. List：顺序与位置访问
 
 ### 2.1 ArrayList 与 LinkedList 的实际差异
@@ -51,7 +75,14 @@ boolean removed = orders.remove(firstOrder);
 
 Set 根据元素的相等性判断成员资格。把对象放进 `HashSet` 后，如果参与 `hashCode` 或 `equals` 的字段发生变化，对象可能仍占据原 hash 桶，却无法被再次找到。
 
+下面的示例使用 Java 16 起引入的 `record` 表达不可变 key；如果尚未阅读[现代 Java](./chapter-11-modern-language-features.md)，可以先把它理解为一个自动生成值语义的不可变类。
+
 ```java
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Set;
+
 record UserKey(long tenantId, String email) {
     UserKey {
         Objects.requireNonNull(email);
@@ -59,9 +90,13 @@ record UserKey(long tenantId, String email) {
     }
 }
 
-Set<UserKey> activeUsers = new HashSet<>();
-activeUsers.add(new UserKey(7, "Ada@Example.com"));
-boolean exists = activeUsers.contains(new UserKey(7, "ada@example.com"));
+class SetKeyExample {
+    public static void main(String[] args) {
+        Set<UserKey> activeUsers = new HashSet<>();
+        activeUsers.add(new UserKey(7, "Ada@Example.com"));
+        boolean exists = activeUsers.contains(new UserKey(7, "ada@example.com"));
+    }
+}
 ```
 
 规则是：

@@ -4,6 +4,8 @@
 
 [第 6 章的 `synchronized`](./chapter-06-synchronized.md)把互斥锁封装在 JVM 内部。开发者只有一个开关：`synchronized`/不 `synchronized`。这一章讨论的是另一条路：**把锁的实现搬到 Java 代码层面**，让“如何挂起线程”、“如何组织等待队列”、“如何唤醒”这些机制变得可编程。这条路的起点是 `LockSupport`，终点是 AQS。走完这一章，回头再看 `java.util.concurrent.locks` 和 `java.util.concurrent` 包里绝大多数工具，会发现它们其实只有一个骨架。
 
+> **版本基线**：本页按 JDK 21 的 `AbstractQueuedSynchronizer` 实现讲解。JDK 8 时代常见资料使用 `waitStatus`、`SIGNAL`、`unparkSuccessor` 和 `PROPAGATE`；JDK 21 已改用 `Node.status`、`WAITING`、`CANCELLED`、`COND` 与 `signalNext`。概念模型仍然相通，但源码名称和传播路径不能混用。
+
 ## 1. `synchronized` 走不到的地方
 
 ### 1.1 五个 `synchronized` 做不到的诉求
@@ -114,27 +116,26 @@ public class SimpleLock {
      │                                              │
      │   Node head ─→ Node ─→ Node ─→ Node ← tail   │
      │        │        │       │       │            │
-     │        │      thread=B thread=C thread=D     │
-     │        │     ws=SIGNAL ws=SIGNAL   ws=0      │
+│        │      thread=B thread=C thread=D     │
+│        │     status=1 status=1    status=0   │
      │      (虚节点)                                 │
      └──────────────────────────────────────────────┘
 ```
 
 - **`state`**：`volatile int`。语义由子类决定——`ReentrantLock` 里它是"重入次数"，`Semaphore` 里它是"剩余许可数"，`CountDownLatch` 里它是"未完成计数"。修改通过 `compareAndSetState` 保证原子性。
 - **CLH 队列**：一条 FIFO 双向链表，节点类型是 `Node`。抢锁失败的线程被封装成 Node 挂到队尾。队头是一个"虚节点"（sentinel），当前持锁线程本身不在队列中——head 是"下一个要被唤醒的候选人的前驱"。
-- **Node 的 `waitStatus`**：一个 `int` 字段，编码了节点的四种状态。
+- **Node 的 `status`**：一个 `volatile int`，用位组合表示等待、取消和条件等待状态。
 
-### 3.2 Node 的四种状态
+### 3.2 Node 的状态位（JDK 21）
 
-| 常量 | 值 | 含义 |
+| 状态位 | 值 | 含义 |
 | :-- | :-- | :-- |
-| `SIGNAL` | -1 | 当前节点释放锁时**必须**唤醒后继 |
-| `CANCELLED` | 1 | 线程被中断/超时放弃排队，节点作废 |
-| `CONDITION` | -2 | 节点当前挂在某个 `Condition` 的条件队列里 |
-| `PROPAGATE` | -3 | 共享模式下用于把"释放"事件继续向后传播 |
-| 0 | 0 | 初始状态 / 已消费掉 SIGNAL |
+| `WAITING` | `1` | 等待线程可能正在 park，唤醒方需要清除该位再 unpark |
+| `CANCELLED` | `0x80000000` | 线程被中断或超时放弃排队，节点作废 |
+| `COND` | `2` | 节点当前处于 `Condition` 等待 |
+| 0 | 0 | 未设置上述状态位；能否安全 park 仍需配合队列位置复核 |
 
-一条完整的排队线程通常经历：`0 → SIGNAL → 被唤醒后消费掉 → 0`。理解这四个状态，AQS 里让人头晕的 CAS 就有了坐标。
+JDK 21 通过原子位操作避免 park/unpark 竞态：等待线程先设置 `WAITING` 再复核，唤醒方清除 `WAITING` 后调用 `unpark`。旧资料中的“四状态 `waitStatus`”对应的是另一版实现，不能直接套到这里的常量表上。
 
 ### 3.3 模板方法模式：分离"如何获取"与"失败后怎么办"
 
@@ -210,13 +211,12 @@ AQS 从入口就分成两条路径：`acquire` / `release` 走独占，`acquireS
 
 ```java
 public final void acquire(int arg) {
-    if (!tryAcquire(arg) &&
-        acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
-        selfInterrupt();
+    if (!tryAcquire(arg))
+        acquire(null, arg, false, false, false, 0L);
 }
 ```
 
-三步走：
+核心过程仍是“尝试、入队、复核并挂起”，但 JDK 21 将这些步骤集中到内部 `acquire(...)` 方法，不再沿用旧版 `addWaiter + acquireQueued` 的公开结构：
 
 **第一步 `tryAcquire`（子类实现）**：非公平模式直接 CAS 抢，公平模式先看队列有没有前驱。
 
@@ -248,26 +248,21 @@ if (c == 0) {
 }
 ```
 
-**第二步 `addWaiter`（入队）**：把当前线程包成 Node 挂到队尾。快速路径是"tail 非空 + 一次 CAS"，慢路径 `enq` 用自旋 CAS 处理"队列尚未初始化"的边界。
+**第二步（入队）**：把当前线程包成 Node 挂到队尾。快速路径是“`tail` 非空 + 一次 CAS”，慢路径用自旋 CAS 处理“队列尚未初始化”和并发入队的边界。
 
-**第三步 `acquireQueued`（自旋 + 挂起）**：
+**第三步（自旋 + 挂起）**：
 
-```java
-for (;;) {
-    Node p = node.predecessor();
-    if (p == head && tryAcquire(arg)) {   // 前驱是 head，再试一次
-        setHead(node);
-        p.next = null;                     // help GC
-        return interrupted;
-    }
-    if (shouldParkAfterFailedAcquire(p, node))
-        interrupted |= parkAndCheckInterrupt();
-}
+```txt
+重复：
+  若自己是队首候选 → 再次 tryAcquire，成功则更新 head
+  若前驱已取消     → 清理队列并重新检查
+  若 status 尚未标记 → 设置 WAITING 并重新复核
+  否则             → park，被 unpark 后检查中断/取消并重试
 ```
 
-`shouldParkAfterFailedAcquire` 做的事是——**把前驱节点的 `waitStatus` 置为 `SIGNAL`**。这一步的语义是"我要睡了，你解锁时记得叫我"。这个契约让后续的释放变得极简。
+这段是根据 JDK 21 源码压缩后的流程说明，不是逐行方法名对照。关键契约是：线程在确认自己仍需等待后设置 `WAITING`，唤醒方必须先清除此位，避免唤醒与 park 发生竞态。
 
-`parkAndCheckInterrupt` 内部就是 §8.2 讲的 `LockSupport.park(this)`。线程从此挂起，直到前驱调用 `unpark`。
+最终仍通过 `LockSupport.park` 挂起，直到唤醒方调用 `unpark`。
 
 把这三步串起来，完整的 `acquire` 流程如下：
 
@@ -275,48 +270,46 @@ for (;;) {
 flowchart TD
     A["acquire(arg)"] --> B["tryAcquire(arg)\n子类实现，CAS 修改 state"]
     B -->|成功| C["返回，获取锁成功"]
-    B -->|失败| D["addWaiter(EXCLUSIVE)\n创建 Node 加入 CLH 队列尾部"]
+    B -->|失败| D["创建 ExclusiveNode\n加入 CLH 队列尾部"]
     D --> E{"前驱节点是 head？"}
     E -->|是| F["再次 tryAcquire(arg)"]
     F -->|成功| G["setHead(node)\n释放旧 head，返回"]
-    F -->|失败| H["shouldParkAfterFailedAcquire\n将前驱 waitStatus 设为 SIGNAL"]
+    F -->|失败| H["复核队列状态\n必要时设置 WAITING"]
     E -->|否| H
     H --> I["parkAndCheckInterrupt()\nLockSupport.park 挂起"]
-    I -->|被前驱 unpark 唤醒| E
+    I -->|被 signalNext unpark 唤醒| E
     G --> J["结束"]
 ```
 
-整个过程中，`shouldParkAfterFailedAcquire` 可能需要多次自旋：如果前驱节点是 `CANCELLED` 状态（线程超时或被中断放弃），就跳过它往前找一个有效的前驱，再把那个前驱的 `waitStatus` 设为 `SIGNAL`。这个清理过程保证了队列中 `CANCELLED` 节点不会阻塞后续节点的唤醒链。
+获取过程可能多次自旋：如果前驱状态为 `CANCELLED`，线程会调用清理逻辑跳过无效节点；确认进入等待后设置 `WAITING`，再 park 并复核。这个过程保证取消节点不会长期阻塞唤醒链。
 
 ### 4.2 独占模式的 `release`：只干两件事
 
 ```java
 public final boolean release(int arg) {
     if (tryRelease(arg)) {                 // state 归零？
-        Node h = head;
-        if (h != null && h.waitStatus != 0)
-            unparkSuccessor(h);            // 唤醒后继
+        signalNext(head);                  // 清 WAITING 并唤醒后继
         return true;
     }
     return false;
 }
 ```
 
-`tryRelease` 由子类决定"归零"的条件。`ReentrantLock` 里必须减到 0 才算真释放——重入了三次要 `unlock` 三次。归零后，`unparkSuccessor` 找到队列里第一个未取消的节点，`LockSupport.unpark`。被唤醒的线程从 `acquireQueued` 的 `park` 处返回，回到自旋，再次 `tryAcquire`。
+`tryRelease` 由子类决定“归零”的条件。`ReentrantLock` 里必须减到 0 才算真释放——重入了三次要 `unlock` 三次。归零后，`signalNext` 检查 `head.next`，原子清除后继的 `WAITING` 并调用 `LockSupport.unpark`。被唤醒的线程回到获取流程再次尝试。
 
 ```mermaid
 flowchart TD
     A["release(arg)"] --> B["tryRelease(arg)\n子类实现，修改 state"]
     B -->|state 归零| C["锁完全释放"]
-    C --> D{"head != null 且\nwaitStatus != 0？"}
-    D -->|是| E["unparkSuccessor(head)\n从 tail 往回找有效后继"]
+    C --> D{"head.next 存在且\nstatus != 0？"}
+    D -->|是| E["signalNext(head)\n清除 WAITING 并定位后继"]
     D -->|否| F["无需唤醒"]
     E --> G["LockSupport.unpark(后继线程)\n后继从 parkAndCheckInterrupt 返回"]
-    G --> H["后继再次 tryAcquire\n回到 acquireQueued 自旋"]
+    G --> H["后继再次 tryAcquire\n回到获取流程复核"]
     B -->|state 仍 > 0| I["锁仍被持有（重入未完全释放）\n不唤醒任何人"]
 ```
 
-`unparkSuccessor` 里藏着一个反直觉的细节：找后继时**从 tail 往回遍历**。原因是入队的顺序是"先设 prev，再 CAS tail，最后设 prev.next"——`next` 指针可能是过时的，`prev` 链才是可靠的。
+JDK 21 的 `signalNext` 主要沿可见的 `next` 指针定位后继，并用 `status` 协调 park/unpark；取消节点的复杂清理由 `cleanQueue` 等路径处理。不要把旧版 `unparkSuccessor` “从 tail 回溯”的实现细节当作当前 JDK 的固定流程。
 
 ### 4.3 共享模式：唤醒之后还要接力
 
@@ -341,30 +334,19 @@ CountDownLatch(3)：三条线程 A / B / C 都在 await
 最后一次 countDown 唤醒 NodeA。
 ```
 
-如果只唤醒 A，B 和 C 就永远睡下去了。共享模式必须让 A 醒来后**继续 unpark B**、B 醒来后**继续 unpark C**——这就是传播（propagation）。
+如果队首已经完成但仍存在其他共享等待者，就需要继续唤醒下一个共享节点。JDK 21 通过 `SharedNode` 类型和 `signalNextIfShared` 实现这一步。
 
-实现集中在 `doReleaseShared`：
+实现示意（按 JDK 21 源码压缩）：
 
 ```java
-private void doReleaseShared() {
-    for (;;) {
-        Node h = head;
-        if (h != null && h != tail) {
-            int ws = h.waitStatus;
-            if (ws == Node.SIGNAL) {
-                if (!compareAndSetWaitStatus(h, Node.SIGNAL, 0))
-                    continue;
-                unparkSuccessor(h);
-            } else if (ws == 0 &&
-                       !compareAndSetWaitStatus(h, 0, Node.PROPAGATE))
-                continue;
-        }
-        if (h == head) break;    // head 没变，链条走完
-    }
+if (acquired && first) {
+    head = node;
+    if (shared)
+        signalNextIfShared(node);
 }
 ```
 
-`PROPAGATE` 状态的用途就在这里：即便当前节点已经把 `SIGNAL` 消费掉，只要 `state` 里还有资源，链条上的下一个节点也应当被叫醒。
+`signalNextIfShared` 只唤醒 `SharedNode` 类型的后继：清除 `WAITING`，再调用 `unpark`。释放方的 `releaseShared` 同样调用 `signalNext(head)`；配合重新获取后的 `signalNextIfShared`，让共享许可继续向后传递。JDK 21 不再使用旧版 `PROPAGATE` 常量。
 
 ### 4.4 独占 vs 共享的核心差异
 
@@ -383,7 +365,7 @@ private void doReleaseShared() {
 | 需要超时、中断或公平获取 | `synchronized` 把选择权留在 JVM 内部 | `LockSupport` 将挂起与唤醒暴露给 Java 层 |
 | 唤醒可能早于挂起造成丢失 | `notify` 没有许可证语义 | `LockSupport.unpark` 保留许可证 |
 | 每种同步器都要重复实现等待队列 | 队列与业务语义耦合 | AQS 抽出 `state + CLH + park/unpark` 骨架 |
-| 独占与共享的唤醒规则不同 | 单持有者与多持有者的传播方式不同 | 共享模式通过 `PROPAGATE` 继续传播 |
+| 独占与共享的唤醒规则不同 | 单持有者与多持有者的传播方式不同 | 共享模式通过 `SharedNode` + `signalNextIfShared` 继续传播 |
 
 下一页从 `Condition` 的条件队列开始，再集中比较基于 AQS 的常用同步工具。
 

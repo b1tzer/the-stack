@@ -31,7 +31,7 @@ Redis 事务的错误分为两类：
 | 错误类型 | 触发时机 | 事务行为 |
 | :-- | :-- | :-- |
 | 语法错误 | 入队时（命令不存在、参数错误） | 整个事务不执行 |
-| 运行时错误 | 执行时（类型不匹配、key 不存在等） | 出错命令报错，其他命令继续执行 |
+| 运行时错误 | 执行时（类型不匹配、值不能转换为数字等） | 出错命令报错，其他命令继续执行 |
 
 ```bash
 MULTI
@@ -65,10 +65,11 @@ Redis 事务**不支持回滚**：执行到一半出错，前面已执行的命�
 `WATCH` 实现乐观锁：监视一个或多个 key，如果这些 key 在 `EXEC` 前被其他客户端修改，则事务放弃执行。
 
 ```bash
+SET balance 1000       # 示例初值
 WATCH balance          # 监视余额
-val = GET balance      # 读取余额
+GET balance            # 客户端读取 1000，并在本地计算新值
 MULTI
-SET balance (val-100)  # 扣款
+SET balance 900        # 客户端计算出的新值
 EXEC                   # 若 balance 在 WATCH 后被改过，返回 nil（放弃）
 ```
 
@@ -92,7 +93,7 @@ WATCH key → 读取值 → 修改 → EXEC
 | 只能监视同一连接 | 不能跨连接 WATCH |
 | 不适合热点 key | 热点 key 频繁被改，事务几乎永远失败 |
 
-> WATCH 适合低冲突场景（余额扣减、库存扣减）。高冲突场景用 Lua 脚本更合适——Lua 在服务端原子执行，不需要重试。
+> WATCH 适合条件简单且冲突较低的场景。高冲突场景可以考虑 Lua 脚本，把读取、判断和写入放在服务端一次执行，减少客户端重试；Lua 仍需处理超时、脚本错误和 Key 过期等边界。
 
 ## 3. Lua 脚本
 
@@ -108,7 +109,7 @@ EVAL "return redis.call('get', KEYS[1])" 1 mykey
 SCRIPT LOAD "return redis.call('get', KEYS[1])"
 
 # 用 SHA1 执行（节省带宽）
-EVALSHA "a42059b356c875f0717db19a51f6aaca9ae659ea" 1 mykey
+EVALSHA "4e6d8fc8bb01276962cce5371fa795a7763657ae" 1 mykey
 ```
 
 ### 3.2 redis.call 与 redis.pcall
@@ -116,7 +117,7 @@ EVALSHA "a42059b356c875f0717db19a51f6aaca9ae659ea" 1 mykey
 | 方法 | 区别 |
 | :-- | :-- |
 | `redis.call()` | 命令出错时，脚本终止并返回错误 |
-| `redis.pcall()` | 命令出错时，捕获错误继续执行 |
+| `redis.pcall()` | 命令出错时返回错误对象，不向脚本抛出异常 |
 
 ```lua
 -- 原子扣减库存
@@ -163,7 +164,7 @@ else
 end
 ```
 
-**分布式 ID 生成**（INCR 原子递增）：
+**周期序列号生成**（`INCR` 原子递增）：
 
 ```lua
 local id = redis.call('incr', KEYS[1])
@@ -172,6 +173,8 @@ if id == 1 then
 end
 return id
 ```
+
+这段代码只保证同一个 Key 存续期间递增。Key 过期、被删除或重置后，编号会从 1 重新开始；它不能单独承担跨实例、跨周期的全局唯一 ID。
 
 ### 3.4 Lua 脚本的注意事项
 
@@ -197,7 +200,9 @@ redis-cli --ldb --eval script.lua key1 key2 , arg1 arg2
 # b N - 在第 N 行设置断点
 ```
 
-## 4. 事务与 Lua 对比
+## 4. 选择事务、Lua 或 Pipeline {#choose-transaction-lua-pipeline}
+
+### 4.1 事务与 Lua 的差异
 
 | 维度 | 事务（MULTI/EXEC） | Lua 脚本 |
 | :-- | :-- | :-- |
@@ -209,6 +214,16 @@ redis-cli --ldb --eval script.lua key1 key2 , arg1 arg2
 | 调试 | 不支持 | 支持（ldb） |
 | 适用场景 | 简单批量命令 | 复杂读-判断-写逻辑 |
 
+### 4.2 Pipeline、事务与 Lua 的差异
+
+| 维度 | Pipeline | 事务 | Lua |
+| :-- | :-- | :-- | :-- |
+| 核心目的 | 减少网络往返 | 命令原子执行 | 服务端原子脚本 |
+| 原子性 | 否 | 是 | 是 |
+| 逻辑判断 | 否 | 否 | 是 |
+| 网络开销 | 低（批量） | 中（入队+执行） | 低（一次发送） |
+| 主线程占用 | 大批量命令仍可能连续占用 | 命令逐条执行，大批量也可能占用 | 脚本执行期间阻塞 |
+
 选型建议：
 
 | 场景 | 推荐 |
@@ -218,15 +233,5 @@ redis-cli --ldb --eval script.lua key1 key2 , arg1 arg2
 | 需要原子性 + 条件判断 | Lua 脚本 |
 | 需要乐观锁（低冲突） | WATCH + 事务 |
 | 需要乐观锁（高冲突） | Lua 脚本 |
-
-## 5. Pipeline、事务、Lua 三者对比
-
-| 维度 | Pipeline | 事务 | Lua |
-| :-- | :-- | :-- | :-- |
-| 核心目的 | 减少网络往返 | 命令原子执行 | 服务端原子脚本 |
-| 原子性 | 否 | 是 | 是 |
-| 逻辑判断 | 否 | 否 | 是 |
-| 网络开销 | 低（批量） | 中（入队+执行） | 低（一次发送） |
-| 阻塞其他客户端 | 否 | 否（执行期间短暂阻塞） | 是（脚本执行期间阻塞） |
 
 > 三者经常被混淆。记住：Pipeline 是网络优化，事务是命令打包，Lua 是服务端编程。Pipeline 不保证原子性，事务不做条件判断，Lua 两者都能做但会阻塞主线程。

@@ -6,8 +6,10 @@
   "type": "module",
   "scripts": {
     "dev": "vitepress dev",
-    "build": "vitepress build",
-    "preview": "vitepress preview"
+    "build": "python3 fix-emphasis.py && vitepress build",
+    "preview": "vitepress preview",
+    "check:emphasis": "python3 fix-emphasis.py --check",
+    "fix:emphasis": "python3 fix-emphasis.py"
   },
   "devDependencies": {
     "mermaid": "^11.17.2",

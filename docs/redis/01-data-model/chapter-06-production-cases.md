@@ -1,6 +1,6 @@
-# 线上问题案例集
+# 数据模型生产案例
 
-> 学完数据模型五章，得到的是一套「现象 → 机制」的判断框架：内存为什么突然暴涨、删了数据为什么不降、UV 为什么和数据库对不上。这些看似玄学的线上现象，都能在数据结构与编码机制里找到确定解释。本章收集 4 个公开的真实事故，每个案例回答三件事——现象是什么、根因落在哪个知识点、怎么处理和预防。
+> 学完数据模型五章，得到的是一套「现象 → 机制」的判断框架：内存为什么突然暴涨、删了数据为什么不降、UV 为什么和数据库对不上。本章收集 4 个公开事故或技术复盘，每个案例回答三件事——现象是什么、根因落在哪个知识点、怎么处理和预防。
 
 ## 1. 知识地图：数据模型能解释哪些生产问题
 
@@ -58,7 +58,7 @@ String 是单值结构，一个 key 对应一整块 value（见[基础类型 §1
 
 ### 3.2 根因
 
-BitMap 不是独立类型，它建立在 String 之上（见[高级类型 §1](./chapter-03-advanced-types.md#bitmap)）。Redis 按 offset 分配连续内存：把第 N 位设为 1，就分配 `ceil(N/8)` 字节，中间空位全部填 0。
+BitMap 不是独立类型，它建立在 String 之上（见[BitMap 位操作](./chapter-03-advanced-types.md#bitmap)）。Redis 按 offset 分配连续内存：把第 N 位设为 1，就分配 `ceil(N/8)` 字节，中间空位全部填 0。
 
 内存占用 = 最大 offset ÷ 8，与「实际置 1 的位数」无关。稀疏 ID 下，只有少数位是 1，内存却按最大 offset 全量分配：
 
@@ -106,7 +106,7 @@ HDEL h c
 OBJECT ENCODING h                           # 仍是 "hashtable"，不会降回
 ```
 
-intset 有相同的单向机制（见[底层数据结构 §5.2](./chapter-04-data-structures.md#intset-upgrade)）：Set 全存小整数时用 16 位 intset，存入一个 70000 升级为 32 位，删掉后仍是 32 位。
+intset 有相同的单向机制（见[只升级、不降级](./chapter-04-data-structures.md#intset-upgrade)）：Set 全存小整数时用 16 位 intset，存入一个 70000 升级为 32 位，删掉后仍是 32 位。
 
 ### 4.3 处理与预防
 
@@ -127,7 +127,7 @@ intset 有相同的单向机制（见[底层数据结构 §5.2](./chapter-04-dat
 
 两类现象来自两个不同层面，机制不同，不能用一个原因解释。
 
-**单 key 缩短不降，来自 SDS 惰性释放**（见[底层数据结构 §1.3](./chapter-04-data-structures.md#sds-prealloc)）。SDS 缩短字符串（`sdstrim`、`sdsclear` 这类内部操作）只改 `len`、不减小 `alloc`，多出的空间留给同一对象后续写入复用。它只发生在对象内部，规模很小；`SET` 整体覆盖或 `DEL` 会调用 `sdsfree` 真正释放旧值，不属于此列。
+**单 key 缩短不降，来自 SDS 惰性释放**（见[空间预分配](./chapter-04-data-structures.md#sds-prealloc)）。SDS 缩短字符串（`sdstrim`、`sdsclear` 这类内部操作）只改 `len`、不减小 `alloc`，多出的空间留给同一对象后续写入复用。它只发生在对象内部，规模很小；`SET` 整体覆盖或 `DEL` 会调用 `sdsfree` 真正释放旧值，不属于此列。
 
 **进程整体碎片不降，来自分配器**。jemalloc 释放内存后不立即归还操作系统，而是留在自己的内存池复用，导致 RSS 高于逻辑数据量。这是分配器行为，与 SDS 无关。
 
@@ -141,7 +141,7 @@ intset 有相同的单向机制（见[底层数据结构 §5.2](./chapter-04-dat
 | 整体碎片高（RSS >> used_memory） | 需要 | `activedefrag` / `MEMORY PURGE` / 重启 |
 
 - SDS 惰性释放是设计使然，不是 bug，无需针对它做任何处理。
-- 碎片率持续 > 1.5 时，首选 `CONFIG SET activedefrag yes`——这是官方 4.0 起提供的在线内存整理，默认关闭，仅 jemalloc 下生效。
+- 碎片率持续异常时，先确认 `mem_allocator`、版本、RSS 口径、写入模式和 CPU 余量，再决定是否启用 `activedefrag`；该能力默认关闭且仅在受支持的分配器下生效。
 - `MEMORY PURGE` 是手动辅助手段：官方定义是「尝试清理脏页让分配器回收」，仅 jemalloc 有效，属 `@slow` 类别，不建议频繁调用。它只作用于分配器，回收不了 SDS 预留的空间。
 - 重启最彻底，但需配合主从切换与持久化。
 
@@ -158,6 +158,8 @@ intset 有相同的单向机制（见[底层数据结构 §5.2](./chapter-04-dat
 | 关注 `used_memory` 与 RSS 差 | 识别内存碎片 |
 
 ## 7. 参考资料
+
+下列链接包含官方社区文章、技术复盘和二手报道。案例中的精确数字与配置应以原始材料为准，不能把复盘推断写成 Redis 官方结论。
 
 - [一个1.5MB的Redis Key，让整个系统在双十一瘫痪](https://cloud.tencent.com/developer/article/2639616)（京东科技，案例一）
 - [慎用BitMap，小心玩爆你的内存](https://developer.cloud.tencent.com.cn/article/2421953)（案例二）

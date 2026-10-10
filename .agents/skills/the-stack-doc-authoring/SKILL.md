@@ -22,7 +22,7 @@ For small edits, apply the constraints below directly. Before a new article or m
 
 ## Research dependencies
 
-When accuracy, current behavior, version compatibility, comparisons, or external claims matter, use `the-stack-research` before drafting. Do not resolve uncertain technical claims from memory or from existing project prose.
+When accuracy, current behavior, version compatibility, comparisons, or external claims matter, use `the-stack-research` before drafting. It searches `~/projects/source/tech-knowledge` first and uses online sources only when local evidence is absent or insufficient. Do not resolve uncertain technical claims from memory or from existing project prose.
 
 ## Write for function and experience
 

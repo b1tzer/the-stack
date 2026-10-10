@@ -1,225 +1,213 @@
 # HotSpot 对象布局
 
-> 面试官问：`new Object()` 占多少字节？你说 16 字节——说得不错。但加上 `int` 字段就是 16 还是 24？加上引用字段呢？数组头比对象头多了哪 4 个字节？对齐填充什么时候触发？HotSpot 默认 8 字节对齐——你的 Object 到 new Object() 之间，有一整套内存布局规则。这章的目标不是让你背数字，是让你能对着 JOL 输出说清楚每一 bit 在干什么。
+一个 Java 对象由对象头、实例字段和对齐填充组成。本文以 **64 位 OpenJDK 21.0.12.1 HotSpot** 为基线，解释如何计算对象大小、字段为什么不会按声明顺序排列，以及 Mark Word 如何复用同一批位来保存哈希、分代年龄和锁状态。
 
-## 1. new 一个对象发生了什么
+以下计算固定使用 `-XX:+UseCompressedClassPointers`、`-XX:+UseCompressedOops` 和 `-XX:ObjectAlignmentInBytes=8`。不同 JVM、CPU 架构或启动参数会得到不同结果，实际值以目标 JVM 的输出为准。
+
+## 1. new 一个对象发生了什么 {#object-creation}
 
 ```java
 User user = new User();
 ```
 
-JVM 执行的操作：
+HotSpot 执行 `new` 时主要完成五步：
 
-![jvm-object-layout](/java/jvm-object-layout.svg)
+1. 检查 `User` 是否已经加载，必要时先完成类加载。
+2. 计算实例大小，在堆中分配内存。TLAB 内通常只移动分配指针；TLAB 耗尽后才进入共享区竞争。
+3. 将实例字段设置为零值：`int` 为 0、`boolean` 为 false、引用为 null。
+4. 写入对象头，包括 Mark Word 和 Klass Pointer。
+5. 执行构造方法 `<init>`，把字段初始化为程序指定的值。
 
-步骤 3 保证了 Java 的安全特性——字段在使用前一定有确定的值，不会读到脏数据。
+第 3 步保证字段在构造方法执行前已有确定值，避免读取到未初始化的内存；第 5 步才执行开发者编写的初始化逻辑。TLAB 和 Eden 分配机制见[运行时数据区与内存结构](./chapter-02-runtime-data-areas.md)。
 
-## 2. 对象内存布局
+## 2. new Object() 为什么是 16 字节 {#object-size}
 
-HotSpot JVM 中，一个 Java 对象在堆中的结构：
-
-```txt
-┌──────────────────┐
-│     对象头        │
-│  ├─ Mark Word     │  8 字节（64 位 JVM）
-│  └─ Klass Pointer │  4 或 8 字节（压缩指针开启时 4 字节）
-├──────────────────┤
-│     实例数据      │  各个字段的值（父类字段在前，子类在后）
-├──────────────────┤
-│     对齐填充      │  保证对象大小是 8 字节的整数倍
-└──────────────────┘
-```
-
-### 2.1 Mark Word
-
-Mark Word 是对象头的核心，存储了：
-
-- **hashCode**：对象的哈希码（首次调用 `hashCode()` 时计算并存储）
-- **GC 年龄**：对象经历的 Minor GC 次数（达到阈值晋升老年代）
-- **锁状态**：无锁、偏向锁（启用时）、轻量级锁、重量级锁
-
-### 2.2 Klass Pointer
-
-指向方法区中该类的元数据。JVM 通过 Klass Pointer 知道"这个对象是哪个类的实例"。
-
-开启压缩指针（`-XX:+UseCompressedOops`，64 位 JVM 默认开启）时，Klass Pointer 只占 4 字节。
-
-## 3. Mark Word 与锁状态
-
-Mark Word 不是固定不变的。当对象被同步操作时，Mark Word 的内容会根据锁状态变化。
-
-64 位 HotSpot JVM 在**启用偏向锁**时的 Mark Word 位布局：
+在本文的基线配置下，`new Object()` 没有实例字段，大小由对象头和最终填充决定：
 
 ```txt
-64 位 Mark Word（共 64 bit）:
-┌───────────────────────────────────────────────────────────────┐
-│  unused:25 │ hash:31 │ age:4 │ biased_lock:1 │ lock:2        │
-│  (25 bit)  │ (31 bit)│(4 bit)│   (1 bit)     │ (2 bit)       │
-└───────────────────────────────────────────────────────────────┘
-
-lock 标志位: 01=无锁/偏向, 00=轻量级锁, 10=重量级锁, 11=GC 标记
-biased_lock: 1=启用偏向锁, 0=未启用
-age: 对象经历的 Minor GC 次数, 达到阈值(默认15)晋升老年代
-hash: 对象的 hashCode (首次调用 hashCode() 时计算并存储)
+Mark Word             8 字节
+压缩后的 Klass Pointer 4 字节
+实例字段              0 字节
+尾部填充              4 字节
+--------------------------------
+对象总大小            16 字节
 ```
 
-注意：当对象被加锁后，Mark Word 的内容会被覆盖——hashCode 和分代年龄的空间被用来存储锁信息。这就是为什么**加锁的对象调用 hashCode() 时需要特殊处理**（轻量级锁从栈帧的锁记录中恢复，重量级锁存储在 Monitor 中）。
+计算可以概括为：
 
-不同锁状态下 Mark Word 的内容：
+```txt
+对象大小 = align_up(字段布局结束位置, ObjectAlignmentInBytes)
+```
 
-| 锁状态 | Mark Word 内容 | 标志位 |
+字段布局决定字段的起始偏移和结束位置，`ObjectAlignmentInBytes` 再把对象总大小补齐到 8 的整数倍。
+
+关闭压缩类指针后，Klass Pointer 变为 8 字节，`new Object()` 仍是 16 字节。这说明压缩指针改变的是头部结构，不一定改变每一种对象的最终大小；真正是否减少内存，要看字段和填充是否一起减少。
+
+## 3. 普通对象如何排布
+
+64 位 HotSpot 中，普通实例的基本结构如下：
+
+```txt
+字节偏移
+0            8                 12                 16
++------------+-----------------+------------------+
+| Mark Word  | Klass Pointer   | 实例字段或填充     |
+|  8 字节     | 4 字节（压缩）    | 从偏移 12 开始    |
++------------+-----------------+------------------+
+                                   ↑
+                     字段自身仍要满足类型对齐
+```
+
+### 3.1 对象头保存什么
+
+对象头包含两部分：
+
+- **Mark Word**：64 位 HotSpot 固定占 8 字节，保存 identity hash、分代年龄和锁状态等可复用信息。
+- **Klass Pointer**：指向类元数据，让 HotSpot 判断对象的实际类型。启用压缩类指针时占 4 字节，否则占 8 字节。
+
+类的 `static` 字段不属于对象实例，因此不会出现在这里。实例对象只保存当前类和父类的非静态字段。
+
+### 3.2 压缩类指针与压缩引用不是一回事
+
+两个开关压缩的是不同数据：
+
+| 开关 | 压缩对象 | 对布局的影响 |
 | :-- | :-- | :-- |
-| 无锁（默认） | hashCode + 分代年龄，`biased_lock=0` | 01 |
-| 偏向锁（启用时） | ThreadID(54bit) + Epoch(2bit) + 分代年龄 | 01 |
-| 轻量级锁 | 指向栈中锁记录的指针 | 00 |
-| 重量级锁 | 指向 Monitor 的指针 | 10 |
-| GC 标记 | 空 | 11 |
+| `-XX:+UseCompressedClassPointers` | 对象头中的 `Klass*` | Klass Pointer 从 8 字节变为 4 字节 |
+| `-XX:+UseCompressedOops` | 引用字段和引用数组元素 | `Object` 引用从 8 字节变为 4 字节 |
 
-这是 [`synchronized` 锁升级机制](../03-java-concurrency/chapter-06-synchronized.md)的关键前置知识。是否经过偏向锁取决于 JVM 版本和配置；JDK 17 已默认关闭 `-XX:+UseBiasedLocking`。Mark Word 的变化过程如下：
+64 位 HotSpot 默认启用压缩类指针。压缩引用会根据堆地址空间等条件自动选择，因此不能只看参数名称就推断最终状态。使用 `java -XX:+PrintFlagsFinal -version` 查看目标 JVM 的实际值。
 
-```txt
-启用偏向锁：无锁 → 偏向锁 → 轻量级锁 → 重量级锁
-JDK 17 默认：无锁 → 轻量级锁 → 重量级锁
-```
+压缩类指针留下的 4 字节并不总是尾部填充：
 
-### 3.1 Monitor（监视器）
+- 普通实例可以把一个 `int` 或压缩引用放入偏移 12 的位置。
+- 数组可以用这 4 字节保存 `length`，因此数组元素从偏移 16 开始。
 
-当锁升级到重量级锁时，Mark Word 中存储的是指向 **Monitor** 对象的指针。Monitor 是 JVM 实现互斥同步的底层数据结构，每个 Java 对象都可以关联一个 Monitor：
+### 3.3 实例字段按对齐和空洞排列
 
-```txt
-┌─────────────────────────────────┐
-│          Object Monitor         │
-│                                 │
-│  _owner: Thread   (持有锁的线程) │
-│  _count: int      (重入次数)     │
-│  _EntryList: [Thread...]        │
-│             (等待获取锁的线程队列) │
-│  _WaitSet: [Thread...]          │
-│            (调用了 wait() 的线程) │
-└─────────────────────────────────┘
-```
+字段类型决定自身占用空间和对齐要求：
 
-工作流程：
-
-1. **获取锁**（monitorenter）：如果 `_owner` 为空，当前线程成为 `_owner`，`_count` 设为 1。如果已经是 `_owner`，`_count++`（可重入）。
-2. **释放锁**（monitorexit）：`_count--`。当 `_count` 为 0 时，释放 Monitor，`_EntryList` 中的一个线程被唤醒。
-3. **等待/通知**（wait/notify）：线程调用 `wait()` 后进入 `_WaitSet` 并释放 Monitor。`notify()` 从 `_WaitSet` 唤醒一个线程，该线程需重新竞争 Monitor。
-
-### 3.2 wait/notify 的完整流程
-
-很多人觉得 `wait/notify` 就是“等一下”和“醒一醒”。没那么简单。它们是 Monitor 机制的一部分，操作路径比大多数人想的要复杂——线程从 `wait()` 到真正重新执行，中间要经过三个队列的转换。
-
-```txt
-线程 A 调用 obj.wait():
-  1. 线程 A 必须是 obj 的 Monitor 的 _owner（必须持有锁）
-  2. 线程 A 释放 Monitor（_owner = null, _count = 0）
-  3. 线程 A 进入 _WaitSet（等待被 notify）
-  4. 线程 A 变为 WAITING 状态
-
-线程 B 调用 obj.notify():
-  1. 线程 B 必须是 obj 的 Monitor 的 _owner
-  2. 从 _WaitSet 中取出一个线程（如线程 A）
-  3. 线程 A 从 _WaitSet 移到 _EntryList
-  4. 线程 A 变为 BLOCKED 状态（等待重新获取锁）
-  5. 线程 B 释放 Monitor 后，_EntryList 中的线程竞争锁
-  6. 线程 A 重新成为 _owner，从 wait() 返回
-```
-
-关键点：`notify()` 后线程不会立即执行——它从 `_WaitSet` 移到 `_EntryList`，需要重新竞争锁。这就是为什么 `wait()` 必须在 `synchronized` 块中调用，并且通常用 `while` 循环检查条件：
-
-```java
-synchronized (obj) {
-    while (!condition) {   // 用 while 而非 if，防止虚假唤醒
-        obj.wait();
-    }
-    // 条件满足，继续执行
-}
-```
-
-Monitor 是重量级的数据结构，依赖操作系统的 Mutex 实现。JVM 通常先尝试轻量级锁；启用偏向锁的配置才会先经过偏向锁阶段，只有竞争持续存在时才升级到重量级锁。[`synchronized` 章节](../03-java-concurrency/chapter-06-synchronized.md)会展开锁升级的完整过程。
-
-## 4. TLAB（线程本地分配缓冲）
-
-多线程环境下，多个线程同时在 Eden 区分配对象需要同步。TLAB 解决了这个问题：
-
-- 每个线程在 Eden 区有一块**私有缓冲区**
-- TLAB 内分配只需要移动指针，**无需 CAS**
-- TLAB 用完才需要同步申请新缓冲区
-
-```txt
-Eden 区
-├── TLAB for Thread A  [已用: 3KB / 总共: 8KB]
-├── TLAB for Thread B  [已用: 1KB / 总共: 8KB]
-└── TLAB for Thread C  [已用: 5KB / 总共: 8KB]
-```
-
-`-XX:+UseTLAB` 默认开启。这就是为什么 Java 多线程创建对象这么快——大部分情况下不需要真正的同步。
-
-### 4.1 TLAB 的关键参数
-
-| 参数 | 默认值 | 说明 |
+| 字段类型 | 大小 | 对齐要求 |
 | :-- | :-- | :-- |
-| `-XX:+UseTLAB` | 开启 | 是否使用 TLAB |
-| `-XX:TLABSize` | 自适应 | 单个 TLAB 的初始大小 |
-| `-XX:MinTLABSize` | 2KB | TLAB 最小大小 |
-| `-XX:TLABRefillWasteFraction` | 64 | TLAB 浪费比例阈值 |
-| `-XX:+ResizeTLAB` | 开启 | 允许 JVM 动态调整 TLAB 大小 |
+| `boolean`、`byte` | 1 字节 | 1 字节 |
+| `char`、`short` | 2 字节 | 2 字节 |
+| `int`、`float`、压缩引用 | 4 字节 | 4 字节 |
+| `long`、`double`、未压缩引用 | 8 字节 | 8 字节 |
 
-TLAB 有一个"碎片化"问题：TLAB 内部用指针碰撞分配对象，当剩余空间不够下一个对象时，剩余空间被浪费（padding 填充）。`TLABRefillWasteFraction` 控制浪费的容忍度——如果浪费比例超过阈值，JVM 会申请一个新的 TLAB，而不是在剩余空间中硬塞。`-XX:+ResizeTLAB` 让 JVM 根据线程的分配速率动态调整 TLAB 大小，分配速率高的线程获得更大的 TLAB。
+HotSpot 会先排列基本类型字段，再排列引用字段，并尝试复用继承布局中的空洞。因此，**字段声明顺序不是内存偏移顺序，父类字段也不保证全部位于子类字段之前**。`@Contended` 等注解还会主动插入填充。
 
-## 5. 逃逸分析
-
-逃逸分析是 JIT 编译器的一种分析技术，判断对象是否"逃逸"出方法或线程的范围。
-
-### 5.1 什么是逃逸
+以基线配置为例：
 
 ```java
-// 未逃逸：对象只在方法内部使用
-public void process() {
-    User user = new User("Tom");  // user 不会离开这个方法
-    System.out.println(user.getName());
-}
-
-// 逃逸：对象被外部引用
-public User createUser() {
-    User user = new User("Tom");
-    return user;  // user 逃逸到了方法外部
-}
+class Empty {}
+class OneInt { int value; }
+class OneLong { long value; }
+class TwoInts { int first; int second; }
+class OneRef { Object value; }
 ```
 
-### 5.2 未逃逸对象的三种优化
+| 类 | 布局计算 | 大小 |
+| :-- | :-- | --: |
+| `Empty` | 12 字节头部 + 4 字节尾部填充 | 16 字节 |
+| `OneInt` | 12 字节头部 + 4 字节 `int` | 16 字节 |
+| `OneLong` | 12 字节头部 + 4 字节对齐空洞 + 8 字节 `long` | 24 字节 |
+| `TwoInts` | 12 字节头部 + 2 × 4 字节 `int` + 4 字节尾部填充 | 24 字节 |
+| `OneRef` | 12 字节头部 + 4 字节压缩引用 | 16 字节 |
 
-**1. 栈上分配。** 如果对象不逃逸，可以在栈帧上创建，方法结束时自动销毁，不需要 GC 回收。
+如果关闭压缩引用，`OneRef` 的引用字段占 8 字节，大小变为 24 字节。具体偏移属于 HotSpot 实现细节，不能作为跨版本 API；需要核对偏移时，应在目标 JVM 上测量。
 
-**2. 标量替换。** 将对象拆散为基本类型标量：
+### 3.4 对齐填充解决什么问题
 
-```java
-// 原始代码
-Point p = new Point(1, 2);
-int sum = p.x + p.y;
+HotSpot 默认要求对象起始地址和总大小按 8 字节对齐，原因是堆分配器、GC 和访问宽度都依赖稳定的字长边界。填充可能出现在字段之间，也可能位于对象末尾。
 
-// 标量替换后（JIT 优化）
-int x = 1, y = 2;
-int sum = x + y;
-// Point 对象完全消除了
+因此，两个字段的声明大小之和通常不等于实例数据区大小。例如，`OneLong` 的头部结束于偏移 12，而 `long` 必须从 8 的倍数开始，所以偏移 12 到 16 之间必须填充。
+
+## 4. 数组对象如何排布
+
+数组对象在普通对象头之后还要保存 `length`。在本文的压缩类指针配置下：
+
+```txt
+0            8          12       16
++------------+----------+--------+----------------------+
+| Mark Word  | Klass    | length | 元素 0, 元素 1, ...   |
+|  8 字节     | 4 字节   | 4 字节  | 从偏移 16 开始        |
++------------+----------+--------+----------------------+
 ```
 
-**3. 锁消除。** 如果对象不逃逸出方法，不可能被其他线程访问，那么对它的同步操作可以安全去除。
+数组总大小按下式计算：
 
-这三种优化都依赖逃逸分析的结果。JIT 编译器会在编译时分析对象的使用范围，决定是否应用这些优化。
+```txt
+数组大小 = align_up(16 + 数组长度 × 元素大小, ObjectAlignmentInBytes)
+```
 
-### 5.3 逃逸分析的局限
+基线配置下的例子：
 
-逃逸分析并非万能，有几个实际局限：
+| 表达式 | 计算 | 大小 |
+| :-- | :-- | --: |
+| `new byte[1]` | `align_up(16 + 1, 8)` | 24 字节 |
+| `new int[3]` | `align_up(16 + 12, 8)` | 32 字节 |
+| `new long[3]` | `align_up(16 + 24, 8)` | 40 字节 |
+| `new Object[3]` | `align_up(16 + 3 × 4, 8)` | 32 字节 |
 
-1. **栈上分配在 HotSpot 中实现不完善。** HotSpot 的 C2 编译器做逃逸分析后，真正走"栈上分配"路径的情况很少——大部分优化走的是标量替换（更彻底，连栈上的对象都不创建）。栈上分配需要 GC 配合（对象头需要特殊标记以区分栈上对象和堆对象），实现复杂度高。
+关闭压缩引用时，`Object[]` 的每个元素由 4 字节变为 8 字节，`new Object[3]` 变为 40 字节；基本类型数组不变。关闭压缩类指针会改变数组头，所有数组都需要重新计算。
 
-2. **分析本身有开销。** 逃逸分析需要遍历方法的 IR（中间表示），对于大型方法可能增加编译时间。JVM 只对热点方法做逃逸分析。
+## 5. Mark Word 如何编码锁状态 {#mark-word-states}
 
-3. **逃逸是保守估计。** 如果分析器无法确定对象是否逃逸（比如通过数组间接引用），会保守地认为逃逸，放弃优化。
+Mark Word 不是一块固定字段，而是一组按状态复用的位。OpenJDK 21 的 64 位普通对象格式为：
 
-4. **跨方法逃逸分析有限。** HotSpot 的逃逸分析主要在方法内进行，跨方法的分析能力有限。如果对象在方法 A 创建、传给方法 B 使用，即使方法 B 也不逃逸，也可能无法优化。
+```txt
+位范围       63..39       38..8       7       6..3       2       1..0
+字段         unused:25    hash:31     gap     age:4      gap     lock:2
+```
 
-`-XX:+DoEscapeAnalysis` 默认开启，`-XX:+EliminateAllocations`（标量替换）默认开启，`-XX:+EliminateLocks`（锁消除）默认开启。一般不需要手动调整。
+- `hash` 保存最多 31 位的 identity hash。尚未调用 `hashCode()` 时，对应位可以为 0。
+- `age` 占 4 位，记录对象经历的年龄归档次数。`MaxTenuringThreshold=15` 是上限，不保证每次 GC 都晋升到阈值；GC 还可能根据 Survivor 容量选择更低的有效阈值。
+- 最低两位 `lock` 标识对象状态：
 
-> 本章覆盖了对象从创建到消亡的完整生命周期。下一章进入[垃圾回收](./chapter-04-gc.md)，解释 JVM 如何识别和回收不再使用的对象；对象头与 Monitor 的运行方式可继续对照 [`synchronized`](../03-java-concurrency/chapter-06-synchronized.md)。
+| `lock` | 状态 | Mark Word 中的主要内容 |
+| :-- | :-- | :-- |
+| `01` | 普通、未锁定 | identity hash、分代年龄和保留位 |
+| `00` | 已锁定 | 保存锁记录、displaced header 或带锁定标记的 header，具体取决于锁定模式 |
+| `10` | Monitor 已膨胀 | 指向 `ObjectMonitor` |
+| `11` | GC 标记 | GC 运行期间使用的标记信息 |
+
+对象被锁定时，哈希、年龄和锁信息不能同时占据原来的全部位。HotSpot 会在执行 `hashCode()` 或恢复对象头时保留或重建这些信息，而不是简单丢弃。
+
+偏向锁属于历史实现，不进入本文的 OpenJDK 21 基线：
+
+- OpenJDK 8u504 的 64 位 Mark Word 包含 `biased_lock` 位，偏向状态下还保存 ThreadID 和 Epoch。
+- OpenJDK 17 仍接受 `-XX:+UseBiasedLocking`，但会提示该选项自 15 起已弃用。
+- OpenJDK 21.0.12.1 的 HotSpot 源码不再包含偏向锁格式。
+
+锁记录、Monitor 膨胀和锁升级的运行过程见 [`synchronized` 锁优化](../03-java-concurrency/chapter-06-synchronized.md#synchronized-lock-optimization)。
+
+## 6. 如何核对目标 JVM 的布局 {#verify-layout}
+
+先核对决定布局的参数：
+
+```bash
+java -XX:+PrintFlagsFinal -version
+```
+
+重点检查以下输出是否与预期一致：
+
+```txt
+bool  UseCompressedClassPointers  = true
+bool  UseCompressedOops           = true
+int   ObjectAlignmentInBytes      = 8
+```
+
+需要查看具体偏移和字段间距时，使用 [OpenJDK JOL](https://github.com/openjdk/jol)：
+
+```bash
+java -jar /path/to/jol-cli-full.jar internals java.lang.Object
+java -jar /path/to/jol-cli-full.jar internals com.example.User
+```
+
+JOL 必须运行在与目标布局一致的 JVM 配置上。它输出的是当前进程的测量结果，不是跨版本保证。
+
+`-XX:+PrintFieldLayout` 只存在于 HotSpot 的 debug 或 notproduct 构建中；普通发行版会提示该选项不可用，不能把它当作通用布局检查命令。
+
+> 版本依据：布局计算核对 OpenJDK `jdk-21.0.12.1-ga` 中的 `markWord.hpp`、`instanceOop.hpp`、`arrayOop.hpp`、`fieldLayoutBuilder.cpp` 和 `globals.hpp`；偏向锁历史格式对照 `jdk8u504-ga` 中的 `markOop.hpp`，核对日期为 2026-10-09。
+
+> 本章解释对象在堆中的实际排布。对象分配区域和 TLAB 见[运行时数据区与内存结构](./chapter-02-runtime-data-areas.md)，Mark Word 如何服务 GC 见[垃圾回收](./chapter-04-gc.md)，锁状态的运行方式见 [`synchronized` 锁优化](../03-java-concurrency/chapter-06-synchronized.md#synchronized-lock-optimization)。

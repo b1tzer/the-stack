@@ -17,7 +17,7 @@ hash_file() {
 }
 
 fetch_one() {
-  local id=$1 kind=$2 filename=$3 expected_hash=$4 primary_url=$5 fallback_urls=$6
+  local id=$1 archive_kind=$2 filename=$3 expected_hash=$4 primary_url=$5 fallback_urls=$6
   local archive="$download_dir/$filename"
   local destination="$extract_dir/$id"
   local marker="$destination/.complete"
@@ -28,6 +28,9 @@ fetch_one() {
   if [[ ! -f "$archive" ]]; then
     printf 'Downloading %s...\n' "$id"
     for url in "$primary_url" $fallback_urls; do
+      if [[ "$url" == "-" ]]; then
+        continue
+      fi
       printf 'Trying %s\n' "$url"
       if curl \
         --fail \
@@ -64,7 +67,7 @@ fetch_one() {
   printf 'Extracting %s...\n' "$id"
   rm -rf "$destination"
   mkdir -p "$destination"
-  case "$kind" in
+  case "$archive_kind" in
     zip|jar)
       unzip -q "$archive" -d "$destination"
       ;;
@@ -72,7 +75,7 @@ fetch_one() {
       tar -xzf "$archive" -C "$destination" --strip-components=1
       ;;
     *)
-      printf 'Unsupported kind: %s\n' "$kind" >&2
+      printf 'Unsupported kind: %s\n' "$archive_kind" >&2
       return 1
       ;;
   esac
@@ -82,13 +85,13 @@ fetch_one() {
 
 requested_id=${1:-}
 found=false
-while IFS=$'\t' read -r id kind filename expected_hash primary_url fallback_urls; do
+while IFS=$'\t' read -r id archive_kind resource_type product version ref commit filename expected_hash primary_url fallback_urls; do
   [[ "$id" == "id" ]] && continue
   if [[ -n "$requested_id" && "$requested_id" != "$id" ]]; then
     continue
   fi
   found=true
-  fetch_one "$id" "$kind" "$filename" "$expected_hash" "$primary_url" "$fallback_urls"
+  fetch_one "$id" "$archive_kind" "$filename" "$expected_hash" "$primary_url" "$fallback_urls"
 done < "$manifest"
 
 if [[ "$found" != "true" ]]; then

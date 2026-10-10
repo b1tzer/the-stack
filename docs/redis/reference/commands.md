@@ -1,4 +1,8 @@
-# Redis 命令速查
+# Redis 常用命令速查
+
+本页列出五种基础类型和常用通用命令，适用于 Redis 7.4.11。它是任务速查，不是完整命令手册；执行前请结合[官方命令参考](https://redis.io/docs/latest/commands/)核对参数、复杂度和适用版本。
+
+命令说明中的“阻塞”表示命令可能占用主线程到操作完成，实际耗时取决于 Key 大小和数据量。
 
 ## String
 
@@ -16,9 +20,8 @@
 
 | 命令 | 说明 |
 | :-- | :-- |
-| `HSET key field value` | 设置字段 |
+| `HSET key field value [field value ...]` | 设置一个或多个字段 |
 | `HGET key field` | 获取字段 |
-| `HMSET key f1 v1 f2 v2` | 批量设置 |
 | `HGETALL key` | 获取所有字段和值 |
 | `HINCRBY key field n` | 字段自增 |
 | `HDEL key field` | 删除字段 |
@@ -67,11 +70,24 @@
 
 | 命令 | 说明 |
 | :-- | :-- |
-| `DEL key` | 删除（阻塞） |
-| `UNLINK key` | 异步删除（非阻塞） |
+| `DEL key` | 同步删除；大值可能阻塞主线程 |
+| `UNLINK key` | 先解除 Key，再由后台线程回收内存 |
 | `EXISTS key` | 是否存在 |
 | `EXPIRE key seconds` | 设置过期时间 |
 | `TTL key` | 剩余过期时间 |
 | `TYPE key` | 数据类型 |
 | `SCAN cursor [MATCH pattern] [COUNT n]` | 游标迭代（不阻塞） |
 | `KEYS pattern` | 匹配 key（阻塞，仅调试用） |
+
+## 阻塞与复杂度边界
+
+| 命令 | 复杂度或执行特征 | 使用边界 |
+| :-- | :-- | :-- |
+| `HGETALL` / `HKEYS` / `HVALS` | O(N)，返回整个 Hash | 大 Hash 可能长时间占用执行线程和输出带宽，改用 `HSCAN` 或按字段读取 |
+| `SMEMBERS` | O(N)，返回整个 Set | 大 Set 改用 `SSCAN` |
+| `SINTER` / `SUNION` / `SDIFF` | 与输入集合规模相关，可能 O(N+M) | 先评估集合大小和结果规模 |
+| `ZRANGEBYSCORE` / `ZREVRANGE` | O(log(N)+M) | 用 `LIMIT` 控制返回数量 |
+| `DEL` | 按删除的对象结构增长，可能长时间同步回收 | 大值优先评估 `UNLINK` 的后台回收行为 |
+| `KEYS` | O(N) 遍历整个键空间 | 生产环境使用 `SCAN` 迭代 |
+
+`SCAN`、`HSCAN`、`SSCAN` 和 `ZSCAN` 每次调用的游标推进是有界的，但迭代期间发生增删时可能重复或遗漏元素，不能当作一致性快照。

@@ -45,7 +45,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
     nav: [
       { text: 'Java', link: '/java/', activeMatch: '^/java/' },
       { text: 'Spring', link: '/spring/01-core/chapter-01-spring-overview', activeMatch: '^/spring/' },
-      { text: 'Redis', link: '/redis/01-data-model/chapter-01-overview', activeMatch: '^/redis/' },
+      { text: 'Redis', link: '/redis/', activeMatch: '^/redis/' },
       {
         text: '数据库',
         activeMatch: '^/(mysql|postgresql)/',
@@ -457,10 +457,8 @@ export default withOpenInEditor(withMermaid(defineConfig({
       ],
       '/java/': [
         {
-          text: '总览',
-          items: [
-            { text: 'Java 知识库', link: '/java/' },
-          ],
+          text: 'Java 知识库',
+          link: '/java/',
         },
         {
           text: 'Java 语言核心',
@@ -483,12 +481,12 @@ export default withOpenInEditor(withMermaid(defineConfig({
           text: 'JVM 运行时',
           collapsed: true,
           items: [
-            { text: '字节码到 ClassLoader', link: '/java/02-jvm-runtime/chapter-01-bytecode-classloading' },
+            { text: '字节码、类加载与执行', link: '/java/02-jvm-runtime/chapter-01-bytecode-classloading' },
             { text: 'JVM 运行时数据区与内存结构', link: '/java/02-jvm-runtime/chapter-02-runtime-data-areas' },
             { text: 'HotSpot 对象布局', link: '/java/02-jvm-runtime/chapter-03-object-layout' },
             { text: '垃圾回收', link: '/java/02-jvm-runtime/chapter-04-gc' },
-            { text: '堆外内存', link: '/java/02-jvm-runtime/chapter-06-offheap-memory' },
             { text: 'JIT 编译', link: '/java/02-jvm-runtime/chapter-05-jit' },
+            { text: '堆外内存', link: '/java/02-jvm-runtime/chapter-06-offheap-memory' },
           ],
         },
         {
@@ -1058,16 +1056,17 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
       ],
       '/redis/': [
+        { text: 'Redis 知识库', link: '/redis/' },
         {
           text: '数据模型',
           collapsed: true,
           items: [
             { text: '概览', link: '/redis/01-data-model/chapter-01-overview' },
             { text: '基础类型', link: '/redis/01-data-model/chapter-02-basic-types' },
-            { text: '高级类型', link: '/redis/01-data-model/chapter-03-advanced-types' },
+            { text: '高级数据能力', link: '/redis/01-data-model/chapter-03-advanced-types' },
             { text: '数据结构', link: '/redis/01-data-model/chapter-04-data-structures' },
             { text: '对象编码', link: '/redis/01-data-model/chapter-05-object-encoding' },
-            { text: '线上问题案例集', link: '/redis/01-data-model/chapter-06-production-cases' },
+            { text: '数据模型生产案例', link: '/redis/01-data-model/chapter-06-production-cases' },
           ],
         },
         {
@@ -1080,53 +1079,50 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: 'Pipeline 与 Pub/Sub', link: '/redis/02-standalone-core/chapter-04-pipeline-pubsub' },
             { text: '持久化 RDB 与 AOF', link: '/redis/02-standalone-core/chapter-05-persistence' },
             { text: '过期与淘汰', link: '/redis/02-standalone-core/chapter-06-expiration-eviction' },
-            { text: '线上问题案例集', link: '/redis/02-standalone-core/chapter-07-production-cases' },
-          ],
-        },
-        {
-          text: '缓存工程',
-          collapsed: true,
-          items: [
-            { text: '缓存工程场景', link: '/scenarios/01-cache/' },
+            { text: '单机核心生产案例', link: '/redis/02-standalone-core/chapter-07-production-cases' },
           ],
         },
         {
           text: '高可用',
           collapsed: true,
           items: [
-            { text: '主从复制', link: '/redis/04-high-availability/chapter-01-replication' },
-            { text: '哨兵', link: '/redis/04-high-availability/chapter-02-sentinel' },
-            { text: '集群', link: '/redis/04-high-availability/chapter-03-cluster' },
-            { text: '线上问题案例集', link: '/redis/04-high-availability/chapter-04-production-cases' },
+            { text: '高可用方案选型', link: '/redis/03-high-availability/chapter-01-overview' },
+            { text: '主从复制', link: '/redis/03-high-availability/chapter-02-replication' },
+            { text: '哨兵', link: '/redis/03-high-availability/chapter-03-sentinel' },
+            { text: '集群', link: '/redis/03-high-availability/chapter-04-cluster' },
+            { text: '高可用生产案例', link: '/redis/03-high-availability/chapter-05-production-cases' },
           ],
         },
         {
           text: '运维管理',
           collapsed: true,
           items: [
-            { text: '性能', link: '/redis/05-operations/chapter-01-performance' },
-            { text: '排障', link: '/redis/05-operations/chapter-02-troubleshooting' },
-            { text: '监控', link: '/redis/05-operations/chapter-03-monitoring' },
-            { text: '踩坑', link: '/redis/05-operations/chapter-04-pitfalls' },
-            { text: '大 Key 与热 Key', link: '/redis/05-operations/chapter-05-big-hot-key' },
+            { text: '客户端连接与故障处理', link: '/redis/04-operations/chapter-01-client-connection' },
+            { text: '安全与访问控制', link: '/redis/04-operations/chapter-02-security-access' },
+            { text: '备份、恢复与升级', link: '/redis/04-operations/chapter-03-backup-recovery' },
+            { text: '性能', link: '/redis/04-operations/chapter-04-performance' },
+            { text: '排障', link: '/redis/04-operations/chapter-05-troubleshooting' },
+            { text: '监控', link: '/redis/04-operations/chapter-06-monitoring' },
+            { text: '大 Key 与热 Key', link: '/redis/04-operations/chapter-07-big-hot-key' },
+            { text: '上线检查清单', link: '/redis/04-operations/chapter-08-pitfalls' },
           ],
         },
         {
           text: '实战',
           collapsed: true,
           items: [
-            { text: '安装部署与环境配置', link: '/redis/10-practice/chapter-01-installation' },
-            { text: '第一个 Redis 应用', link: '/redis/10-practice/chapter-02-first-app' },
-            { text: '首次生产部署', link: '/redis/10-practice/chapter-03-first-production' },
+            { text: '在本机安装 Redis', link: '/redis/05-practice/chapter-01-installation' },
+            { text: '常见任务上手', link: '/redis/05-practice/chapter-02-first-app' },
+            { text: '首次生产部署', link: '/redis/05-practice/chapter-03-first-production' },
           ],
         },
         {
           text: '参考手册',
           collapsed: true,
           items: [
-            { text: '参数速查', link: '/redis/reference/parameters' },
-            { text: '命令速查', link: '/redis/reference/commands' },
-            { text: '错误码速查', link: '/redis/reference/errors' },
+            { text: '配置参数参考', link: '/redis/reference/parameters' },
+            { text: '常用命令速查', link: '/redis/reference/commands' },
+            { text: '常见错误与连接问题', link: '/redis/reference/errors' },
           ],
         },
       ],

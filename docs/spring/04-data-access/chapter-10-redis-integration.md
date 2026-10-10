@@ -1,6 +1,6 @@
 # Redis 集成（Spring Data Redis）
 
-> 本章是 `RedisTemplate` / `StringRedisTemplate` 直接操作 Redis 数据结构的唯一权威章节。Redis 原生机制（数据结构、命令、持久化、集群）见 [Redis 专项](../../redis/01-data-model/chapter-01-overview)。
+> 本章是 `RedisTemplate` / `StringRedisTemplate` 直接操作 Redis 数据结构的唯一权威章节。Redis 原生机制（数据结构、命令、持久化、集群）见 [Redis 知识库](../../redis/index.md)。
 
 ## 与缓存抽象的分工 {#redis-vs-caching}
 

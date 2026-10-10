@@ -76,7 +76,7 @@ Undo Log 按「回滚需要做什么」分为两类，它们的清理时机完�
 
 ### 2.2 Undo Log 存在哪里：回滚段与 Undo 表空间
 
-Undo Log 不是独立于表空间的文件，它存放在**回滚段（Rollback Segment）**里。回滚段是 Undo 页的组织单元，一个回滚段管理一串 Undo 页链表。
+Undo Log 不是独立于表空间的文件，它存放在**回滚段（Rollback Segment）** 里。回滚段是 Undo 页的组织单元，一个回滚段管理一串 Undo 页链表。
 
 MySQL 8.0 默认配置下：
 

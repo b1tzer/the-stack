@@ -9,15 +9,19 @@ Produce a traceable research result that another writer can safely use. Search r
 
 ## Search
 
-1. Use the `searxng-search` skill as the default web-search backend.
-2. For substantive research, run complementary queries covering:
+1. Search `~/projects/source/tech-knowledge` first for source code, official documentation, specifications, release notes, and version metadata. Prefer its `sources/`, `docs/`, `metadata/`, and search scripts; record the local version, upstream source, and home-relative location used. Do not write personal absolute paths into repository content.
+2. If the knowledge base does not cover the requested resource, search `research-cache/` as a secondary local source. Record its manifest ID, product, version, ref/commit, and primary URL. A cache copy must never override the knowledge base for the same product and version.
+3. When both local sources provide sufficient evidence, inspect the relevant original file and stop. Do not repeat the same query online merely to corroborate it.
+4. Use online search only when both local sources lack the material, lack enough context, or do not cover the required version or current behavior.
+5. When online search is required, use the `searxng-search` skill as the default web-search backend.
+6. For substantive online research, run complementary queries covering:
    - the exact behavior or claim;
    - relevant version and release terminology;
    - primary specifications or official documentation;
    - known limitations, migration notes, or failure modes.
-3. Prefer concise, discriminating queries over repeatedly rephrasing one query.
-4. Use recency filters only when recency matters; do not exclude older primary specifications without reason.
-5. If SearXNG is unavailable, report the exact failure and ask before changing search backends.
+7. Prefer concise, discriminating queries over repeatedly rephrasing one query.
+8. Use recency filters only when recency matters; do not exclude older primary specifications without reason.
+9. If SearXNG is unavailable, report the exact failure and ask before changing search backends.
 
 ## Source policy
 
@@ -29,6 +33,8 @@ Use this order of authority:
 4. Primary engineering publications, conference talks, and maintained books.
 5. Reputable secondary explanations and vendor comparisons.
 6. Community articles and search snippets only for discovery or corroborating context.
+
+Local official mirrors under `~/projects/source/tech-knowledge` retain the authority of their underlying source. Verify version, commit, and provenance through `metadata/sources.yaml` or equivalent metadata. Files under `notes/` are secondary summaries and must not override official originals.
 
 Open and inspect the relevant source. Do not promote a search snippet to a factual claim.
 

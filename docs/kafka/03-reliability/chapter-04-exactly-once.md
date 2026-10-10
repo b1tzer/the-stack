@@ -69,7 +69,7 @@ Transaction Coordinator → __transaction_state：
 
 分两步的意义在于**崩溃恢复**：第一步完成后"提交"决定已持久化，这是 point of no return——即使 Coordinator 此时宕机，重启后读到 PrepareCommit 也会继续完成第二步，最终保证所有参与分区都收到 COMMIT 标记，不会出现一部分分区提交、另一部分回滚的分裂。回滚（abort）是对称的两步：PrepareAbort → 各分区写 ABORT 标记 → CompleteAbort。
 
-**`read_committed` 消费者靠什么感知提交**：Broker 在事务提交时会往各分区写入一条**控制记录（control record）**作为 COMMIT 标记。`read_committed` 消费者读到这个标记，才知道之前那些"未提交"的事务消息现在可以放行；读到 ABORT 标记则跳过整批。这也是事务会引入额外延迟的原因——消费者要多等一个控制消息到达。
+**`read_committed` 消费者靠什么感知提交**：Broker 在事务提交时会往各分区写入一条**控制记录（control record）** 作为 COMMIT 标记。`read_committed` 消费者读到这个标记，才知道之前那些"未提交"的事务消息现在可以放行；读到 ABORT 标记则跳过整批。这也是事务会引入额外延迟的原因——消费者要多等一个控制消息到达。
 
 ### 3.3 事务隔离级别 {#isolation-level}
 

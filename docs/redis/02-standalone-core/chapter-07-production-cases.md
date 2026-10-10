@@ -1,6 +1,6 @@
-# 线上问题案例集
+# 单机核心生产案例
 
-> 学完单机核心六章，得到的是一套「现象 → 机制」的判断框架：CPU 为什么突然 100%、为什么每隔十几分钟卡顿一次、为什么宕机重启后起不来、为什么数据莫名消失。这些看似玄学的线上现象，都能在单线程模型、fork 与 COW、持久化与过期删除机制里找到确定解释。本章收集 6 个公开的真实事故，每个案例回答三件事——现象是什么、根因落在哪个知识点、怎么处理和预防。
+> 学完单机核心六章，得到的是一套「现象 → 机制」的判断框架：CPU 为什么突然 100%、为什么每隔十几分钟卡顿一次、为什么宕机重启后起不来、为什么数据莫名消失。本章收集 6 个公开事故或技术复盘，每个案例回答三件事——现象是什么、根因落在哪个知识点、怎么处理和预防。
 
 ## 1. 知识地图：单机核心能解释哪些生产问题
 
@@ -51,7 +51,7 @@ AWS 支持排查后给出结论：存在长时运行的 `KEYS` 命令阻塞了�
 
 排查落在[命令执行与 RESP §5](./chapter-02-command-resp.md#slowlog) 的慢查询日志上，它是排查性能问题的第一手资料。
 
-第一步看 `SLOWLOG GET`，发现慢查询前十名全部是 `keys *`，单条耗时严重。第二步看 `INFO commandstats`，各命令的 `usec_per_call`（单次平均耗时）里 `keys` 高达 3740 秒——远超其他命令两个数量级。
+第一步看 `SLOWLOG GET`，发现慢查询前十名全部是 `keys *`，单条耗时严重。第二步看 `INFO commandstats`，复盘记录的 `usec_per_call` 为 3740 微秒，即约 3.74 毫秒——仍明显高于同一实例上的其他命令。
 
 两个信息结合，定位到问题不在本应用：是另一个应用配置错误，把连接指到了这台 Redis，用 `keys *` 大量爬数据。修正该配置后，问题解决。
 
@@ -59,7 +59,7 @@ AWS 支持排查后给出结论：存在长时运行的 `KEYS` 命令阻塞了�
 
 ### 3.3 处理与预防
 
-- 先按 `slowlog-log-slower-than` 阈值（生产建议 10ms 以下）与 `slowlog-max-len`（建议 1024 以上）配置慢查询日志。
+- 根据业务延迟目标和命令分布设置 `slowlog-log-slower-than`，并为 `slowlog-max-len` 留出足够容量；示例值需要通过压测和历史数据校准。
 - 监控 `cmdstat_*` 的 `usec_per_call` 趋势，命令耗时漂移在阻塞前就能被看到。
 - 高危命令（`KEYS`、`FLUSHALL`、`MONITOR`）用 `rename-command` 或 ACL 禁用。
 
@@ -75,22 +75,22 @@ AWS 支持排查后给出结论：存在长时运行的 `KEYS` 命令阻塞了�
 
 ### 4.2 根因
 
-两个侧面都源于 [持久化 §2](./chapter-05-persistence.md#fork-cow) 的 fork 与写时复制（COW）。
+两个侧面都源于 [持久化：fork 与写时复制](./chapter-05-persistence.md#fork-cow) 的机制。
 
-**侧面一是 fork 本身的阻塞。** BGSAVE 通过 `fork()` 创建子进程，fork 要复制父进程的页表，页表大小随内存规模线性增长。那个 4.0 实例 RSS 已达 16GB、页表 33MB，`latest_fork_usec` 实测 1014778 微秒——约 1 秒，正好与每 15 分钟一次 BGSAVE、应用每 10 多分钟一次卡顿吻合。fork 期间主线程停顿，所有请求排队。这对应 [持久化 §2.4](./chapter-05-persistence.md#fork-usec)：fork 耗时 > 1s 已是严重问题。
+**侧面一是 fork 本身的阻塞。** BGSAVE 通过 `fork()` 创建子进程，fork 要复制父进程的页表，页表大小随内存规模线性增长。那个 4.0 实例 RSS 已达 16GB、页表 33MB，`latest_fork_usec` 实测 1014778 微秒——约 1 秒，正好与每 15 分钟一次 BGSAVE、应用每 10 多分钟一次卡顿吻合。fork 期间主线程停顿，所有请求排队。是否达到严重程度应以业务延迟预算判断，而不是套用统一毫秒阈值（见 [持久化：查看 fork 耗时](./chapter-05-persistence.md#fork-usec)）。
 
-**侧面二是透明大页（THP）对 COW 的放大。** THP 开启时内核以 2MB 大页分配内存。fork 后父进程写一个字节，就触发整页 2MB 的 COW 复制，而非普通 4KB 页——开销放大 512 倍。写越频繁，子进程复制越多，内存越逼近翻倍。这正是 [持久化 §2.3](./chapter-05-persistence.md#fork-cost) 点名的「另一个易忽略的坑：透明大页」。
+**侧面二是透明大页（THP）对 COW 的放大。** THP 开启时内核以 2MB 大页分配内存。fork 后父进程即使只修改少量字节，也可能复制整个 2MB 页，而不是普通 4KB 页——按页大小计算粒度相差 512 倍。写越频繁，子进程复制越多，内存越逼近翻倍。这正是 [持久化：fork 的代价](./chapter-05-persistence.md#fork-cost) 点名的透明大页风险。
 
 ### 4.3 处理与预防
 
 | 现象 | 手段 |
 | :-- | :-- |
-| fork 耗时高（卡顿） | 控制单实例内存 ≤ 16GB，或集群分片；错开写入高峰；让从节点承担 BGSAVE |
+| fork 耗时高（卡顿） | 按实测页表和延迟预算拆分实例；错开写入高峰；评估副本分担持久化任务 |
 | THP 放大 COW（内存暴涨） | `echo never > /sys/kernel/mm/transparent_hugepage/enabled` 并持久化 |
 
-- 监控 `latest_fork_usec`，超过 500ms（或 20ms/GB）告警。
+- 监控 `latest_fork_usec` 的趋势和分位变化，告警阈值由业务延迟预算与历史基线确定。
 - 确认 `vm.overcommit_memory=1`，否则 fork 可能因内存保守校验而失败。
-- 持久化实例预留至少 50% 内存余量给 COW，`maxmemory` 设为物理内存的 60%~80%。
+- 根据写入率、数据规模和 fork 期间的 COW 实测预留内存，不使用固定比例代替容量测试。
 
 ## 5. 案例四：Cisco AOF 损坏，redis 服务无法启动 {#case-4}
 
@@ -104,9 +104,9 @@ Bad file format reading the append only file: make a backup of your AOF file, th
 
 ### 5.2 根因
 
-AOF 记录每一条写命令（见[持久化 §7](./chapter-05-persistence.md#aof-principle)）。宕机或磁盘异常发生在「命令写到一半」时，AOF 文件末尾会残留一条不完整的命令。
+AOF 记录状态变化（见[持久化：AOF 原理](./chapter-05-persistence.md#aof-principle)）。宕机或磁盘异常发生在「命令写到一半」时，AOF 文件末尾会残留一条不完整的命令。
 
-Redis 启动时先校验 AOF 完整性，发现格式错误就**拒绝加载**、进程退出——宁可起不来，也不服务一份不一致的数据。这就是[持久化 §10](./chapter-05-persistence.md#aof-repair) 讲的「AOF 文件损坏」场景。
+Redis 启动时先校验 AOF 完整性，发现格式错误就**拒绝加载**、进程退出——宁可起不来，也不服务一份不一致的数据。这就是[持久化：文件损坏修复](./chapter-05-persistence.md#aof-repair) 讲的场景。
 
 这个案例由 Cisco 官方支持文档记录，与国内常见的「磁盘故障 → AOF 损坏」根因一致，但给出了完整的官方修复链路。
 
@@ -121,7 +121,7 @@ redis-check-aof --fix /data/redis/appendonly.aof                # 截断损坏�
 
 修复原理是扫描文件、找到第一个格式错误的位置、截断其后所有内容，因此**损坏点之后的数据会丢失**。
 
-- `appendfsync everysec` 能控制最多丢 1 秒，比 `no` 安全得多。
+- `appendfsync everysec` 通常提供秒级恢复点，比 `no` 更易规划，但实际丢失范围仍取决于故障类型、文件系统、磁盘和恢复流程。
 - 开启混合持久化（`aof-use-rdb-preamble yes`），恢复更快。
 - 持久化文件定期异地备份；主从 + 哨兵做冗余，不把持久化当唯一保底。
 
@@ -135,13 +135,13 @@ redis-check-aof --fix /data/redis/appendonly.aof                # 截断损坏�
 
 大量数据在 00:00 这个时间点同时过期，触发了[过期与淘汰 §1.3](./chapter-06-expiration-eviction.md#active-expire) 的定期删除风暴。
 
-Redis 的过期清理靠「惰性删除 + 定期删除」配合。定期删除在**主线程**里执行：随机抽样 20 个键，删掉已过期的；若过期占比超过 25%，就继续这一轮扫描。当海量键集中过期时，抽样几乎每轮都能命中过期键，清理循环持续占用主线程，批量 `unlink` 命令集中产生，CPU 被清理任务占满，正常读写被延迟。
+Redis 的过期清理靠「惰性删除 + 定期删除」配合。定期删除在**主线程**里执行：随机抽样 20 个键，删掉已过期的；默认 effort 下，残留比例仍高于 10% 就继续扫描，同时受 CPU 时间预算约束。当海量键集中过期时，抽样几乎每轮都能命中过期键，清理循环持续占用主线程，批量 `unlink` 命令集中产生，CPU 被清理任务占满，正常读写被延迟。
 
-这正是[过期与淘汰 §1.6](./chapter-06-expiration-eviction.md#production-notes) 点名的「大量键同时过期，触发定期删除风暴，CPU 飙升」。
+这正是[过期删除的生产注意事项](./chapter-06-expiration-eviction.md#production-notes) 点名的「大量键同时过期，触发定期删除风暴，CPU 飙升」。
 
 ### 6.3 处理与预防
 
-- **TTL 加随机偏移**：批量写缓存时不要用固定过期时间，`EXPIRE key (3600 + 随机值)`，把过期时间打散。
+- **TTL 加随机偏移**：批量写缓存时由客户端或 Lua 计算随机秒数，再把结果作为 `EXPIRE key seconds` 的参数，避免整点集中过期。
 - Redis 7.0+ 开启 `lazyfree-lazy-expire yes`，让过期键的内存释放异步化，避免主线程卡在删除上。
 - 调 `active-expire-effort` 需谨慎：调高提升扫描强度，但会持续占用更多 CPU。
 - 监控 `expired_keys` 速率与 `expired_stale_perc`，集中过期前就能预警。
@@ -176,13 +176,15 @@ Redis 的过期清理靠「惰性删除 + 定期删除」配合。定期删除�
 | :-- | :-- |
 | 禁用 `KEYS` 等 O(N) 命令 | 用 `SCAN` 分批替代 |
 | 配好慢查询日志并监控 | 慢命令在阻塞前就被发现 |
-| 关闭透明大页（THP） | 消除 fork/COW 的 512 倍放大 |
-| 监控 `latest_fork_usec` | 超 500ms 说明 fork 在拖累请求 |
+| 评估透明大页（THP）配置 | 避免 2MB 页粒度放大 fork/COW 写入 |
+| 监控 `latest_fork_usec` | 结合业务延迟预算识别 fork 对请求的影响 |
 | 持久化前先备份再修复 | `redis-check-aof --fix` 会截断数据 |
 | TTL 加随机偏移 | 避免整点过期风暴 |
 | 淘汰策略与数据分级匹配 | 可丢的用 `allkeys-*`，不可丢的分开部署 |
 
 ## 9. 参考资料
+
+除官方文档、状态页和 issue 外，下列链接属于二手复盘或社区文章；文中的精确数字以原始材料为准，不应视为 Redis 官方基准。
 
 - [Long-running redis KEYS command caused external MemoryDB storage to hang](https://github.com/ray-project/ray/issues/32537)（案例一，AWS MemoryDB）
 - [记一次线上 Redis 高负载排查经历](https://blog.csdn.net/weixin_36380516/article/details/112386620)（案例二）

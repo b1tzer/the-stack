@@ -100,7 +100,7 @@ ZSet 存「未到期任务」 → 调度器定时搬移到期任务 → Stream �
 - **调度器** 是一个定时任务，把到期的任务从 ZSet 搬到 Stream
 - **Stream 消费组** 负责可靠消费、ACK、超时重试
 
-![ZSet 调度 + Streams 消费组架构](/redis/06-patterns-chapter-03-delay-queue-1.svg)
+![ZSet 调度 + Streams 消费组架构](/scenarios/messaging/delayed-task-zset-streams.svg)
 
 ### 3.3 调度器：搬移到期任务
 

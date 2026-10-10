@@ -167,6 +167,12 @@ new → Eden
 
 这套设计的意义很直接：**让大量短命对象在新生代快速回收，不要过早进入老年代制造更重的回收负担。**
 
+大对象是否直接进入老年代取决于收集器策略。例如，Serial 使用的 DefNew 可以通过 `-XX:PretenureSizeThreshold` 设置直接进入老年代的对象大小阈值；G1 则把覆盖多个 Region 的大对象作为 Humongous 对象管理。因此，“大对象直接进老年代”不是所有收集器都相同的默认行为。
+
+固定年龄阈值并不是唯一的晋升条件。HotSpot 还会进行**动态年龄判定**：从年龄 1 开始累加 Survivor 中同龄对象，当某个年龄及以下的对象总量超过 Survivor 空间的一半时，该年龄及以上的对象会直接进入老年代。这样可以避免下次 Minor GC 时 Survivor 放不下存活对象而发生被动晋升。
+
+例如，Survivor 为 100MB，年龄 1、2、3 的对象分别为 10MB、15MB、20MB，累计到年龄 3 时为 45MB，仍未触发；加入年龄 4 的 18MB 后累计 63MB，超过 50MB，因此年龄不小于 4 的对象进入老年代。
+
 ### 5.3 跨代引用问题
 
 分代思想解决了“不同对象该怎么分别回收”的问题，但也带来了新的工程问题：**如果老年代对象引用了新生代对象，Minor GC 时怎么知道这个新生代对象还活着？**
@@ -338,113 +344,6 @@ Shenandoah 和 ZGC 要解决的是同一类问题，大堆下仍要把停顿压�
 
 如果只记一句，主流服务端默认用 G1；对停顿极度敏感或堆特别大时换 ZGC；吞吐优先的离线任务用 Parallel。
 
-更细的决策树见本页 §7.4，核心参数汇总见 §8。
+具体选择还要结合业务目标、JDK 版本、堆大小和压测结果。GC 日志、常用参数和现场采集流程见 [JVM 线上诊断](../06-diagnostics/01-jvm/chapter-01-jvm-diagnostics.md#gc-logs)。
 
-## 7. GC 日志分析
-
-GC 日志是调优的第一手资料。
-
-### 7.1 开启 GC 日志
-
-```bash
-# JDK 9+ 统一格式
--Xlog:gc*=info:file=gc.log:time,uptime,level,tags
-
-# 更详细的 GC 日志
--Xlog:gc*=debug:file=gc.log:time,uptime,level,tags
-```
-
-### 7.2 解读 G1 GC 日志
-
-```txt
-[2024-01-15T10:30:15.123+0800] GC(42) Pause Young (Normal) 
-    [Eden: 1024M(1024M)->0B(1024M) 
-     Survivors: 128M->128M 
-     Old: 2048M->2100M]
-    Metaspace: 45678K->45678K(1089536K)
-   [123456K->98765K(4096M)]
-    [Times: user=0.15 sys=0.02, real=0.08 secs]
-```
-
-| 字段 | 含义 |
-| :-- | :-- |
-| `Pause Young (Normal)` | Young GC，正常模式 |
-| `Eden: 1024M(1024M)->0B(1024M)` | Eden 从 1024M 清空到 0 |
-| `Old: 2048M->2100M` | 老年代从 2048M 增长到 2100M |
-| `real=0.08 secs` | 该日志记录的墙上时间；是否直接等于应用停顿时间取决于收集器和日志字段定义 |
-| `user=0.15` | GC 线程总 CPU 时间 150ms（多线程累加） |
-
-### 7.3 从 GC 日志发现问题：实战案例
-
-下面以一段构造的 GC 日志演示分析步骤，字段含义和格式会随 JDK 与收集器版本变化。
-
-**现象：** 服务接口响应时间每隔几分钟飙升到 2 秒以上。
-
-**第一步：看 GC 日志中的停顿时间**
-
-```txt
-[10:30:15] Pause Young (Normal)  [Eden: 1024M->0B]  real=0.08 secs  ← 正常
-[10:30:45] Pause Young (Normal)  [Eden: 1024M->0B]  real=0.07 secs  ← 正常
-[10:31:15] Pause Mixed          [Eden: 1024M->0B  Old: 2048M->1800M]  real=0.15 secs
-[10:31:30] Pause Full (Allocation Failure)  [Old: 3500M->3500M]  real=2.1 secs  ← 问题！
-```
-
-**第二步：分析 Full GC 原因**
-
-`Allocation Failure` 意味着老年代空间不足，G1 无法在 Mixed GC 中回收足够空间，被迫 Full GC。老年代 3500M 几乎满。
-
-**第三步：用 jmap 看哪些对象占用了老年代**
-
-```bash
-# 可能触发 Full GC，生产环境仅在可接受额外停顿时使用
-jmap -histo:live <pid> | head -20
-
-# 输出:
-#  num     #instances         #bytes  class name
-#    1:       2500000      200000000  [B  (byte[])
-#    2:       1800000      144000000  java.lang.String
-#    3:         50000       40000000  com.example.CacheEntry
-```
-
-**第四步：定位代码**
-
-`CacheEntry` 数量异常多 → 检查代码发现一个本地缓存没有设置过期策略，对象持续堆积在老年代。
-
-**修复：** 为缓存添加 TTL 和最大条目数限制。修复后 Full GC 消失，接口响应时间稳定。
-
-### 7.4 GC 选择决策树
-
-```txt
-你的应用是什么类型？
-├── 低延迟服务（Web、API、微服务）
-│   ├── 堆 < 4GB → G1（默认，够用）
-│   ├── 堆 4GB~16GB → G1 + 调优 MaxGCPauseMillis
-│   └── 堆 > 16GB 或要求亚毫秒停顿 → ZGC（JDK 17+）
-│
-├── 高吞吐批处理（数据处理、ETL）
-│   └── Parallel Scavenge（吞吐量优先，停顿可接受）
-│
-└── 小应用 / 客户端
-    └── Serial（单线程，简单高效）
-```
-
-## 8. 常用 GC 参数示例
-
-| 参数 | 说明 |
-| :-- | :-- |
-| `-Xms4g -Xmx4g` | 初始/最大堆大小（线上建议设为一致，避免动态扩缩） |
-| `-Xmn2g` | 新生代大小 |
-| `-XX:NewRatio=2` | 老年代:新生代 = 2:1 |
-| `-XX:SurvivorRatio=8` | Eden:S0:S1 = 8:1:1 |
-| `-XX:+UseG1GC` | 使用 G1 收集器 |
-| `-XX:MaxGCPauseMillis=200` | G1 目标最大停顿时间 |
-| `-XX:MaxTenuringThreshold=15` | 对象晋升老年代的年龄阈值 |
-| `-XX:G1HeapRegionSize=8m` | G1 Region 大小 |
-| `-XX:InitiatingHeapOccupancyPercent=45` | 触发并发标记的堆占用阈值 |
-| `-XX:ConcGCThreads=4` | 并发 GC 线程数 |
-| `-XX:+HeapDumpOnOutOfMemoryError` | OOM 时自动 dump |
-| `-Xlog:gc*:file=gc.log:time` | GC 日志（JDK 9+） |
-
-上表仅用于说明 G1 的部分常用参数。新生代比例、暂停目标及默认值会因收集器和 JDK 版本而异，应结合所用版本的官方参数文档与压测结果调整。
-
-> 本章覆盖了 GC 的核心理论。下一步可先看与引用清理紧密相关的[堆外内存](./chapter-06-offheap-memory.md)，再进入[JIT 编译](./chapter-05-jit.md)理解热点代码为何越跑越快；线上 GC 问题从[JVM 线上诊断](../06-diagnostics/01-jvm/chapter-01-jvm-diagnostics.md)进入。
+> 本章覆盖了 GC 的核心理论。下一步进入[JIT 编译](./chapter-05-jit.md)，理解热点代码为何越跑越快；随后再看与引用清理紧密相关的[堆外内存](./chapter-06-offheap-memory.md)。线上 GC 问题从[JVM 线上诊断](../06-diagnostics/01-jvm/chapter-01-jvm-diagnostics.md)进入。

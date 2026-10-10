@@ -27,7 +27,7 @@ features:
   - icon: 🗄️
     title: Redis
     details: 数据模型、持久化、缓存工程、高可用集群与运维。
-    link: /redis/01-data-model/chapter-01-overview
+    link: /redis/
   - icon: 🐘
     title: PostgreSQL
     details: MVCC 与 VACUUM、索引、窗口函数、事务锁与 JSONB。

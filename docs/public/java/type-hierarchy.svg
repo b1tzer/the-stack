@@ -53,5 +53,5 @@
   <rect x="358" y="202" width="42" height="26" rx="3" fill="#eceff1" stroke="#bdbdbd" stroke-width="0.8"/>
   <text x="379" y="219" text-anchor="middle" fill="#999999" font-size="9">...</text>
   <!-- Footer -->
-  <text x="224" y="264" text-anchor="middle" fill="#888888" font-size="10">8 种基本类型是值类型，其余一切皆对象（引用类型）</text>
+  <text x="224" y="264" text-anchor="middle" fill="#888888" font-size="10">Java 类型分为基本类型和引用类型；引用类型的值指向对象</text>
 </svg>
