@@ -139,6 +139,8 @@ SHOW REPLICA STATUS\G
 
 ## 验证与切换
 
+应用侧的写入冻结、集中路由、切流顺序和回滚点见[应用平滑切换数据库](../../scenarios/04-data-access/chapter-05-database-cutover.md)。本页继续说明数据和对象如何校验。
+
 ### 数据校验
 
 `information_schema.tables.TABLE_ROWS` 对 InnoDB 通常是估算值，适合评估规模，不适合做精确一致性核对。

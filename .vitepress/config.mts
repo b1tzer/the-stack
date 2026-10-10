@@ -301,6 +301,7 @@ export default withOpenInEditor(defineConfig({
             { text: '多租户数据隔离', link: '/scenarios/04-data-access/chapter-02-multi-tenant' },
             { text: '分库分表', link: '/scenarios/04-data-access/chapter-03-sharding' },
             { text: '分布式 ID 生成', link: '/scenarios/04-data-access/chapter-04-distributed-id' },
+            { text: '应用平滑切换数据库', link: '/scenarios/04-data-access/chapter-05-database-cutover' },
           ],
         },
         {
