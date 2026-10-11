@@ -261,7 +261,7 @@ default-time-zone = '+08:00'
 
 业务代码优先使用 `java.time` 类型并明确解析、格式化和转换边界。`DATETIME` 不携带时区，`TIMESTAMP` 会按时区转换；选定策略后不要在同一链路混用多套隐式转换。
 
-更多差异见[字符集与排序规则](../01-basics/chapter-03-charset-collation.md)。
+更多差异见[字符集与排序规则](../06-sql-and-schema/chapter-01-charset-collation.md)。
 
 ## 常见错误码
 

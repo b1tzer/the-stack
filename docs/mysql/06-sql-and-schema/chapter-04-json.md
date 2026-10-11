@@ -186,7 +186,7 @@ SELECT * FROM users WHERE city = '北京';
 SELECT * FROM users WHERE data->>'$.city' = '北京';
 ```
 
-`VIRTUAL` 生成列不占行存储、只在读取时计算，但**建了二级索引后值会物化在索引记录里**——这是生成列索引之所以可行的关键。生成列与函数索引的机制在 [生成列与函数索引](./chapter-04-generated-column.md) 里有完整讲解。
+`VIRTUAL` 生成列不占行存储、只在读取时计算，但**建了二级索引后值会物化在索引记录里**——这是生成列索引之所以可行的关键。生成列与函数索引的机制在 [生成列与函数索引](./chapter-05-generated-column.md) 里有完整讲解。
 
 ### 4.2 函数索引：省掉命名生成列
 
