@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 310" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <text x="470" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">Redo Log 记录：物理日志的五个字段</text>
+  <text x="470" y="52" text-anchor="middle" fill="#555555" font-size="11">每条记录回答五个问题：什么类型、哪个表空间、哪一页、哪个偏移、改成什么</text>
+
+  <!-- 记录条带 -->
+  <rect x="60" y="70" width="150" height="64" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="135" y="108" text-anchor="middle" fill="#bf360c" font-size="12" font-weight="bold">Type</text>
+
+  <rect x="210" y="70" width="140" height="64" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="280" y="108" text-anchor="middle" fill="#0d47a1" font-size="12" font-weight="bold">Space ID</text>
+
+  <rect x="350" y="70" width="150" height="64" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="425" y="108" text-anchor="middle" fill="#0d47a1" font-size="12" font-weight="bold">Page Number</text>
+
+  <rect x="500" y="70" width="140" height="64" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="570" y="108" text-anchor="middle" fill="#0d47a1" font-size="12" font-weight="bold">Offset</text>
+
+  <rect x="640" y="70" width="240" height="64" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.4"/>
+  <text x="760" y="108" text-anchor="middle" fill="#1b5e20" font-size="12" font-weight="bold">Data</text>
+
+  <!-- 分段说明 -->
+  <text x="135" y="162" text-anchor="middle" fill="#555555" font-size="10">日志类型</text>
+  <text x="135" y="180" text-anchor="middle" fill="#888888" font-size="10">MLOG_1BYTE 等</text>
+
+  <text x="280" y="162" text-anchor="middle" fill="#555555" font-size="10">表空间 ID</text>
+  <text x="280" y="180" text-anchor="middle" fill="#888888" font-size="10">定位哪个 .ibd</text>
+
+  <text x="425" y="162" text-anchor="middle" fill="#555555" font-size="10">页号</text>
+  <text x="425" y="180" text-anchor="middle" fill="#888888" font-size="10">定位哪一页</text>
+
+  <text x="570" y="162" text-anchor="middle" fill="#555555" font-size="10">页内偏移</text>
+  <text x="570" y="180" text-anchor="middle" fill="#888888" font-size="10">定位哪个字节</text>
+
+  <text x="760" y="162" text-anchor="middle" fill="#555555" font-size="10">修改的数据</text>
+  <text x="760" y="180" text-anchor="middle" fill="#888888" font-size="10">把什么值写进去</text>
+
+  <!-- 底部结论 -->
+  <rect x="60" y="212" width="820" height="70" rx="8" fill="#f5f5f5" stroke="#bdbdbd" stroke-width="1.2"/>
+  <text x="470" y="240" text-anchor="middle" font-size="11" font-weight="bold" fill="#424242">字节级物理日志：恢复时不用重算，照记录把字节写回指定位置</text>
+  <text x="470" y="264" text-anchor="middle" fill="#555555" font-size="11">这也是 Redo（物理日志）与 Binlog（逻辑日志）最本质的区别</text>
+</svg>

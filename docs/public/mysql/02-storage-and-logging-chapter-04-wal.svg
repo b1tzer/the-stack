@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 280" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <defs>
+    <marker id="arrBlue" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#1565c0"/>
+    </marker>
+  </defs>
+
+  <text x="470" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">WAL：先写日志，再写数据</text>
+
+  <!-- 四步 -->
+  <rect x="40" y="80" width="180" height="64" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="130" y="106" text-anchor="middle" fill="#0d47a1" font-size="12" font-weight="bold">① 修改数据页</text>
+  <text x="130" y="126" text-anchor="middle" fill="#555555" font-size="10">Buffer Pool 内存操作</text>
+
+  <line x1="224" y1="112" x2="252" y2="112" stroke="#1565c0" stroke-width="1.8" marker-end="url(#arrBlue)"/>
+
+  <rect x="266" y="80" width="180" height="64" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="356" y="106" text-anchor="middle" fill="#0d47a1" font-size="12" font-weight="bold">② 写 Redo Log</text>
+  <text x="356" y="126" text-anchor="middle" fill="#555555" font-size="10">追加到 Log Buffer</text>
+
+  <line x1="450" y1="112" x2="478" y2="112" stroke="#1565c0" stroke-width="1.8" marker-end="url(#arrBlue)"/>
+
+  <rect x="492" y="80" width="180" height="64" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="582" y="106" text-anchor="middle" fill="#0d47a1" font-size="12" font-weight="bold">③ 提交时刷盘</text>
+  <text x="582" y="126" text-anchor="middle" fill="#555555" font-size="10">按策略 fsync 日志</text>
+
+  <line x1="676" y1="112" x2="704" y2="112" stroke="#1565c0" stroke-width="1.8" marker-end="url(#arrBlue)"/>
+
+  <rect x="718" y="80" width="180" height="64" rx="6" fill="#f5f5f5" stroke="#757575" stroke-width="1.4"/>
+  <text x="808" y="106" text-anchor="middle" fill="#424242" font-size="12" font-weight="bold">④ 数据页异步刷盘</text>
+  <text x="808" y="126" text-anchor="middle" fill="#555555" font-size="10">Checkpoint / 刷脏页线程</text>
+
+  <!-- COMMIT 安全线 -->
+  <line x1="700" y1="56" x2="700" y2="168" stroke="#c62828" stroke-width="1.6" stroke-dasharray="6,5"/>
+  <text x="700" y="46" text-anchor="middle" fill="#c62828" font-size="11" font-weight="bold">COMMIT 安全线：日志已落盘</text>
+
+  <!-- ④ 的注解 -->
+  <text x="808" y="172" text-anchor="middle" fill="#555555" font-size="10">这一步晚做没关系，</text>
+  <text x="808" y="188" text-anchor="middle" fill="#555555" font-size="10">崩溃后靠日志重放</text>
+
+  <!-- 底部结论 -->
+  <rect x="40" y="212" width="858" height="44" rx="8" fill="#f5f5f5" stroke="#bdbdbd" stroke-width="1.2"/>
+  <text x="469" y="239" text-anchor="middle" font-size="11" font-weight="bold" fill="#424242">关键：第 ③ 步日志落盘是「提交成功」的真正边界；数据页可以晚写、批量写</text>
+</svg>

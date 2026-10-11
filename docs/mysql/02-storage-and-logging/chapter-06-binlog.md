@@ -13,7 +13,7 @@ Binlog（Binary Log，二进制日志）是 **MySQL Server 层**产生的日志�
 
 与 Redo Log 的定位差异见 [Redo Log §5.2](./chapter-04-redo-log.md#redo-vs-binlog)，这里先记住一句：**Redo Log 是 InnoDB 的私有账本，管崩溃恢复；Binlog 是 Server 层的公共账本，管复制与恢复。**
 
-![Binlog：Server 层逻辑日志 — 是什么 / 怎么做到 / 干什么](/mysql/02-storage-and-logging-chapter-06-binlog.svg)
+![Binlog：事件序列单向追加 + 主从复制数据流](/mysql/02-storage-and-logging-chapter-06-binlog.svg)
 
 ### 1.2 三种记录格式：同一个事务，三种记法
 
@@ -62,40 +62,17 @@ SET binlog_format = 'ROW';
 
 **方案一：先写 Redo，再写 Binlog**
 
-```txt
-1. 写 Redo Log（提交）        ← 写到这里断电
-2. 写 Binlog
-```
-
 崩溃后主库用 Redo Log 恢复，这个事务**生效了**。但 Binlog 里没有这条记录，从库重放时**少了这笔**。主库有、从库无 → 主从不一致。
 
 **方案二：先写 Binlog，再写 Redo**
 
-```txt
-1. 写 Binlog                 ← 写到这里断电
-2. 写 Redo Log（提交）
-```
-
 崩溃后主库用 Redo Log 恢复，这个事务**没生效**（被回滚）。但 Binlog 里已经写了，从库重放时**多了这笔**。主库无、从库有 → 主从不一致。
+
+![固定顺序的失败：断电发生在两份日志之间，主从总会差一笔](/mysql/02-storage-and-logging-chapter-06-2pc-failures.svg)
 
 无论哪种固定顺序，断电都会打破「主库和从库看到同一批已提交事务」的约定。两阶段提交的解法，是把这个「提交」拆成两段，并在崩溃恢复时**根据 Binlog 的状态反推该不该提交**：
 
-```txt
-阶段一  prepare：Redo Log 写入，标记为 prepare 状态（还未真正提交）
-阶段二  commit：
-        1. 写 Binlog
-        2. Redo Log 标记为 commit 状态（真正提交）
-```
-
-崩溃恢复时的判断规则：
-
-```txt
-扫描 Redo Log，找到处于 prepare 状态的事务
-  ├─ 在 Binlog 里能找到对应记录（事务已完整写进 Binlog）
-  │      → 说明阶段二已经走完至少一半，主库应提交
-  └─ 在 Binlog 里找不到对应记录
-         → 说明阶段二还没开始，主库应回滚
-```
+![两阶段提交：prepare → 写 Binlog → commit，恢复时用 Binlog 裁决](/mysql/02-storage-and-logging-chapter-06-2pc.svg)
 
 **核心在于：Binlog 的写入是「分水岭」。** Binlog 写成功之前，主库和从库都不该有这个事务；Binlog 写成功之后，主库必须提交，才能和已经（或将要）重放这条 Binlog 的从库保持一致。Redo Log 的 prepare 状态，就是「先占个位，等 Binlog 的结果再定去留」。
 
