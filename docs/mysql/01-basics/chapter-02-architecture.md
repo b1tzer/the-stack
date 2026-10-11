@@ -4,52 +4,27 @@
 
 ### 1.1 三层架构
 
-```txt
-┌─────────────────┐
-│   连接层         │  认证、线程池、连接管理
-├─────────────────┤
-│   服务层         │  SQL 解析、优化、执行
-│   ├─ 解析器      │  语法分析、语义分析
-│   ├─ 优化器      │  执行计划选择
-│   └─ 执行器      │  调用存储引擎接口
-├─────────────────┤
-│   存储引擎层     │  InnoDB/MyISAM/Memory
-└─────────────────┘
-```
+![MySQL 三层架构：连接层负责认证与连接管理，服务层包含解析器、优化器、执行器，存储引擎层提供 InnoDB 等引擎](/mysql/01-basics-chapter-02-layers.svg)
+
+从上到下依次是三层：连接层负责认证、线程池和连接管理；服务层负责 SQL 解析、优化和执行，内部包含解析器、优化器、执行器；存储引擎层提供 InnoDB、MyISAM、Memory 等可替换的插件式实现。
 
 ### 1.2 SQL 执行流程
 
-```txt
-Client → 连接器 → 解析器 → 优化器 → 执行器 → 存储引擎
-```
+![一条 SQL 的执行流水线：Client 经连接器、解析器、优化器、执行器到达存储引擎](/mysql/01-basics-chapter-02-sql-pipeline.svg)
+
+执行顺序为：Client → 连接器 → 解析器 → 优化器 → 执行器 → 存储引擎。各阶段的中间产物依次是 SQL 文本、语法树、执行计划，最终由存储引擎返回行数据。
 
 ### 1.3 InnoDB 架构
 
-```txt
-┌─────────────────────────────────────┐
-│           InnoDB 存储引擎            │
-├─────────────────────────────────────┤
-│  内存结构                            │
-│  ├─ Buffer Pool                     │
-│  ├─ Change Buffer                   │
-│  ├─ Adaptive Hash Index             │
-│  └─ Log Buffer                      │
-├─────────────────────────────────────┤
-│  磁盘结构                            │
-│  ├─ 系统表空间                       │
-│  ├─ 独立表空间 (.ibd)                │
-│  ├─ Redo Log                        │
-│  └─ Undo Log                        │
-└─────────────────────────────────────┘
-```
+![InnoDB 架构：内存结构与磁盘结构，页经预读加载进内存，脏页异步刷盘](/mysql/01-basics-chapter-02-innodb.svg)
+
+内存结构包括 Buffer Pool、Change Buffer、Adaptive Hash Index 和 Log Buffer；磁盘结构包括系统表空间、独立表空间（.ibd）、Redo Log 和 Undo Log。磁盘上的页通过预读加载进内存，内存中的脏页再异步刷回磁盘。
 
 ## 2. 各层详解
 
 ### 2.1 连接层详解
 
-```txt
-客户端 → TCP/IP 连接 → 连接器（认证）→ 线程池 → 会话管理
-```
+![连接建立过程：客户端经 TCP 三次握手、身份验证、读取 mysql.user 权限、分配线程后进入会话就绪](/mysql/01-basics-chapter-02-connection.svg)
 
 连接过程：
 1. **TCP 三次握手**建立网络连接
@@ -116,13 +91,10 @@ ALTER TABLE myisam_table ENGINE = InnoDB;
 
 ## 3. 内存与磁盘交互
 
-```txt
-读路径：
-  磁盘 → Buffer Pool（内存）→ 返回客户端
+![读路径与写路径：读从磁盘加载页到 Buffer Pool 再返回客户端；写先在 Buffer Pool 修改，顺序写 Redo Log，经 Checkpoint 异步刷盘](/mysql/01-basics-chapter-02-rw-paths.svg)
 
-写路径：
-  客户端 → Buffer Pool → Redo Log（顺序写）→ Checkpoint → 刷盘（随机写）
-```
+- 读路径：磁盘 → Buffer Pool（内存）→ 返回客户端。
+- 写路径：客户端 → Buffer Pool → Redo Log（顺序写）→ Checkpoint → 刷盘（随机写）。
 
 **关键设计思想：**
 - 将随机写转为顺序写（Redo Log）
