@@ -1,6 +1,6 @@
-# 内省与可观测性
+# MySQL 内置诊断数据源
 
-> 本页解释 MySQL 内置观测机制；Prometheus 指标采集、可视化和告警见[监控](./chapter-03-monitoring.md)。
+> 本页解释 `information_schema`、`performance_schema` 和 `sys` 的定位与用法；指标采集、仪表盘和告警见[监控、告警与慢查询](./chapter-03-monitoring.md)。
 
 ## 1. 这套东西解决什么问题
 
@@ -93,7 +93,7 @@ GROUP BY s1.table_name, s1.index_name, s2.index_name;
 
 P_S 用一套统一的"事件"模型覆盖几乎所有运行时行为，事件按层级由粗到细：
 
-```
+```txt
 transaction（事务）→ statement（语句）→ stage（阶段）→ wait（等待）
 ```
 

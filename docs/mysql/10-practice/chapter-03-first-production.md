@@ -43,7 +43,7 @@ long_query_time = 1
 
 # 安全
 local_infile = OFF
-sql_mode = STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION
+sql_mode = ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 ```
 
 ## 3. 安全加固
@@ -74,7 +74,7 @@ FLUSH PRIVILEGES;
 
 ## 5. 监控
 
-指标采集和告警见[监控](../08-operations/chapter-03-monitoring.md)；需要从数据库内部定位语句、锁和 I/O 时见[内省与可观测性](../08-operations/chapter-02-observability.md)。
+指标采集和告警见[监控、告警与慢查询](../08-operations/chapter-03-monitoring.md)；需要从数据库内部定位语句、锁和 I/O 时见[内置诊断数据源](../08-operations/chapter-02-observability.md)。
 
 - 连接数、QPS、TPS
 - Buffer Pool 命中率

@@ -4,7 +4,7 @@
 
 ### 1.1 垂直拆分
 
-```
+```txt
 用户库: users, user_profiles
 订单库: orders, order_items
 商品库: products, categories

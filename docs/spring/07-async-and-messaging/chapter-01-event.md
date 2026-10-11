@@ -207,7 +207,7 @@ public class TransactionalEventListeners {
 
 什么时候用 Spring Event，什么时候该上消息队列？核心区别在于**边界**。
 
-```
+```txt
 ┌─────────────────────────────────────────────────────┐
 │                   进程内 (JVM)                       │
 │                                                     │

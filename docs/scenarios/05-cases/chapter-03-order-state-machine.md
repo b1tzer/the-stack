@@ -67,4 +67,4 @@ WHERE order_id = ? AND status = 'PENDING';
 
 ## 5. 相关章节
 
-状态流转依赖延迟队列把超时消息准时投递出来，见 [延迟队列](../03-messaging/chapter-01-delayed-task.md)。消息重复投递的完整解法见 [消息去重](../03-messaging/chapter-03-deduplication.md)。库存回补的动作属于库存扣减的逆过程，见 [库存扣减并发控制](./chapter-01-inventory-deduction.md)。
+状态流转依赖延迟队列把超时消息准时投递出来，见 [延迟队列](../03-messaging/chapter-01-delayed-task.md)。消息重复投递的完整解法见 [消息去重](../03-messaging/chapter-03-deduplication.md)，订单支付状态与回调、退款和对账的联动见 [支付回调与对账](./chapter-08-payment-reconciliation.md)。库存回补的动作属于库存扣减的逆过程，见 [库存扣减并发控制](./chapter-01-inventory-deduction.md)。

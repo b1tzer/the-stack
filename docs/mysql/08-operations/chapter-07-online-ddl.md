@@ -2,162 +2,135 @@
 
 > 本页比较结构变更的执行方式与风险；锁和事务行为见[锁机制](../05-transaction-lock/chapter-03-lock.md)，日常维护入口见[日常维护](./chapter-05-maintenance.md)。
 
-## 1. 三种方案概览
+## 先判断可接受的影响
 
-### 1.1 原生 Online DDL
+执行 `ALTER TABLE` 前，先定义四项验收条件：
 
-```sql
--- 8.0+ 支持
-ALTER TABLE users ADD COLUMN age INT, ALGORITHM=INPLACE, LOCK=NONE;
-```
+1. 允许的表级锁时间；
+2. 应用能够承受的延迟、CPU、IO 和临时空间峰值；
+3. 复制延迟上限；
+4. 失败后的回滚方式和切换窗口。
 
-### 1.2 pt-osc
+“在线 DDL”不等于“无阻塞 DDL”。所有变更通常都需要先取得 Metadata Lock；已存在的长事务或长查询可能阻止 DDL 开始，DDL 开始后排队的事务也可能持续堆积。
 
-```bash
-# Percona Toolkit
-pt-online-schema-change \
-    --alter "ADD COLUMN age INT" \
-    --execute \
-    D=mydb,t=users
-```
+## 选择执行方式
 
-### 1.3 gh-ost
+### 原生 ALTER TABLE
 
-```bash
-# GitHub
-gh-ost \
-    --database=mydb \
-    --table=users \
-    --alter="ADD COLUMN age INT" \
-    --execute
-```
-
-### 1.4 对比
-
-| 工具 | 原理 | 优点 | 缺点 |
-| :-- | :-- | :-- | :-- |
-| Online DDL | InnoDB 原生 | 无额外工具 | 大表仍慢 |
-| pt-osc | 触发器复制 | 成熟稳定 | 触发器开销 |
-| gh-ost | Binlog 流 | 无触发器 | 需要 Binlog |
-
-## 2. 各方案详解
-
-### 2.1 原生 Online DDL 详解
+优先评估服务端算法，因为它不引入触发器、影子表或额外复制任务。
 
 ```sql
--- 支持 Online DDL 的操作
-ALTER TABLE users ADD COLUMN age INT, ALGORITHM=INPLACE, LOCK=NONE;
-ALTER TABLE users DROP COLUMN age, ALGORITHM=INPLACE, LOCK=NONE;
-ALTER TABLE users MODIFY name VARCHAR(100), ALGORITHM=INPLACE, LOCK=NONE;
-ALTER TABLE users ADD INDEX idx_name (name), ALGORITHM=INPLACE, LOCK=NONE;
-ALTER TABLE users DROP INDEX idx_name, ALGORITHM=INPLACE, LOCK=NONE;
-
--- 不支持 Online DDL 的操作（需要 COPY）
-ALTER TABLE users CHANGE id id BIGINT, ALGORITHM=COPY;  -- 修改主键
-ALTER TABLE users CONVERT TO CHARACTER SET utf8mb4, ALGORITHM=COPY;  -- 修改字符集
-
--- ALGORITHM 选项
--- INPLACE: 在原表上修改，不需要复制数据
--- COPY: 创建新表，复制数据（锁表）
--- INSTANT: 瞬间完成（MySQL 8.0+，仅部分操作）
-
--- LOCK 选项
--- NONE: 不锁表，允许读写
--- SHARED: 共享锁，允许读，禁止写
--- EXCLUSIVE: 排他锁，禁止读写
-
--- MySQL 8.0 INSTANT DDL
-ALTER TABLE users ADD COLUMN remark VARCHAR(200) DEFAULT '', ALGORITHM=INSTANT;  -- 瞬间完成
-ALTER TABLE users DROP COLUMN remark, ALGORITHM=INSTANT;  -- 瞬间完成
+-- 指定算法和锁级别；不支持时服务端会报错，不会静默降级
+ALTER TABLE users
+  ADD COLUMN age INT NULL,
+  ALGORITHM=INSTANT,
+  LOCK=NONE;
 ```
 
-### 2.2 pt-osc 详解
+不要无条件使用这条语句。目标操作必须在当前服务端版本支持 `INSTANT` 和 `LOCK=NONE`，且列属性、行格式、分区和其他表特性满足官方 Online DDL 支持矩阵。
 
-```bash
-# 基本用法
-pt-online-schema-change \
-    --alter "ADD COLUMN age INT DEFAULT 0" \
-    --user=root --password=secret \
-    --host=192.168.1.100 \
-    --execute \
-    D=mydb,t=users
+### 算法边界
 
-# 常用参数
-pt-online-schema-change \
-    --alter "ADD COLUMN age INT" \
-    --chunk-size=1000          # 每批处理行数
-\    --max-lag=1s               # 从库延迟超过 1s 暂停
-\    --max-load="Threads_running=25"  # 负载过高暂停
-\    --critical-load="Threads_running=50"  # 负载过高终止
-\    --progress=time,30         # 每 30 秒打印进度
-\    --statistics               # 打印统计信息
-\    --dry-run                  # 只检查，不执行
-\    --execute
-
-# 工作原理：
-# 1. 创建与原表结构相同的新表
-# 2. 在新表上执行 ALTER TABLE
-# 3. 创建触发器（INSERT/UPDATE/DELETE）
-# 4. 分批复制数据到新表
-# 5. 重命名表（原子操作）：原表 → old, new → 原表
-# 6. 删除旧表和触发器
-```
-
-### 2.3 gh-ost 详解
-
-```bash
-# 基本用法
-gh-ost \
-    --host=192.168.1.100 \
-    --database=mydb \
-    --table=users \
-    --alter="ADD COLUMN age INT" \
-    --user=root --password=secret \
-    --execute
-
-# 常用参数
-gh-ost \
-    --chunk-size=1000 \
-    --max-lag-millis=1500 \
-    --serve-socket-file=/tmp/gh-ost.sock  # 交互式控制
-\    --initially-drop-ghost-table \
-    --initially-drop-old-table \
-    --execute
-
-# 交互式控制（通过 socket 文件）
-echo "throttle" | nc -U /tmp/gh-ost.sock  # 暂停
-echo "no-throttle" | nc -U /tmp/gh-ost.sock  # 恢复
-echo "chunk-size=500" | nc -U /tmp/gh-ost.sock  # 修改参数
-
-# 工作原理：
-# 1. 创建 ghost 表
-# 2. 在 ghost 表上执行 ALTER TABLE
-# 3. 通过 Binlog 流捕获变更（无触发器）
-# 4. 分批复制数据到 ghost 表
-# 5. 应用 Binlog 中的变更
-# 6. 原子切换表名
-```
-
-## 3. 风险评估
-
-### 3.1 DDL 操作风险评估
-
-| 操作 | 风险 | 建议方案 |
+| 算法 | 适用行为 | 主要边界 |
 | :-- | :-- | :-- |
-| ADD COLUMN (nullable) | 低 | INSTANT DDL |
-| ADD COLUMN (NOT NULL + DEFAULT) | 低 | INSTANT DDL (8.0+) |
-| ADD INDEX | 中 | Online DDL / pt-osc |
-| DROP INDEX | 低 | Online DDL |
-| MODIFY COLUMN | 高 | pt-osc / gh-ost |
-| CHANGE CHARSET | 高 | pt-osc / gh-ost |
-| DROP COLUMN | 中 | Online DDL |
-| ADD PRIMARY KEY | 极高 | pt-osc / gh-ost |
+| `INSTANT` | 对满足条件的元数据修改直接更新表定义 | 版本、操作类型和行格式限制；仍可能等待 Metadata Lock，不代表业务查询一定瞬间完成 |
+| `INPLACE` | 在原表基础上重建索引或重建表结构，避免完整复制为新表 | 可能产生大量 IO、临时空间和后台负载；部分操作不支持并发读写 |
+| `COPY` | 创建新表并复制数据 | 资源消耗和阻塞风险通常最高；需要更严格的窗口和回滚方案 |
 
-## 4. 最佳实践
+同一个 `ALTER` 语句在不同 MySQL 小版本、表引擎、列类型和现有表特性下可能支持不同算法。以目标版本的官方支持矩阵和预发布实测为准。
 
-1. **优先使用原生 Online DDL** — MySQL 8.0 INSTANT DDL 性能最好
-2. **大表 DDL 使用 gh-ost** — 无触发器，可暂停恢复
-3. **操作前评估影响** — 使用 `--dry-run` 检查
-4. **设置负载阈值** — 负载过高自动暂停
-5. **监控从库延迟** — 避免从库延迟过大
-6. **在业务低峰期执行** — 减少对业务影响
+`LOCK=NONE` 只表示请求表级并发写入，不表示：
+
+- 不需要 Metadata Lock；
+- 没有读写延迟或队列阻塞；
+- 从库没有复制延迟；
+- 磁盘、临时空间和 IO 不会成为瓶颈。
+
+如果显式指定的算法或锁级别不可用，语句会失败。失败本身是有用的保护，不要用 `ALGORITHM=DEFAULT` 掩盖对结果的未知，再按运行时结果决定是否接受。
+
+### 选择 pt-osc
+
+`pt-online-schema-change` 适用于原生 DDL 不能满足锁或资源要求、且业务允许触发器和影子表机制的场景。
+
+```bash
+# 先 dry-run，检查触发器、主键、复制和负载条件
+pt-online-schema-change \
+  --alter "ADD COLUMN age INT NULL" \
+  --dry-run \
+  D=mydb,t=users
+
+# 演练通过后再去掉 --dry-run，并加入实际凭据配置
+pt-online-schema-change \
+  --alter "ADD COLUMN age INT NULL" \
+  --max-load "Threads_running=25" \
+  --critical-load "Threads_running=50" \
+  --max-lag 1 \
+  --execute \
+  D=mydb,t=users
+```
+
+该工具会创建影子表和触发器，因此需要可靠主键，并评估触发器冲突、Binlog 流量、外键、已有触发器和清理步骤。
+
+### 选择 gh-ost
+
+`gh-ost` 通过 Binlog 捕获变更，不使用触发器；前提是目标表有可靠主键，复制链路和 Binlog 格式满足工具要求。
+
+```bash
+gh-ost \
+  --host=192.0.2.10 \
+  --database=mydb \
+  --table=users \
+  --alter="ADD COLUMN age INT NULL" \
+  --max-lag-millis=1500 \
+  --max-load="Threads_running=25" \
+  --critical-load="Threads_running=50" \
+  --dry-run
+```
+
+`gh-ost` 可以暂停、限流或取消，但仍需监控复制延迟、追赶速度、切换时间和清理任务。删除影子表或旧表前先确认切换已经成功。
+
+## 常见变更的评估
+
+| 变更 | 不应假设的结论 | 首查项 |
+| :-- | :-- | :-- |
+| 新增或删除索引 | “大表一定瞬间完成” | 索引大小、主键、IO、临时空间和 Metadata Lock |
+| 新增或删除列 | “所有 8.0 版本都支持 INSTANT” | 目标小版本、行格式、默认值、位置限制和唯一约束 |
+| 修改列类型或长度 | “类型相似就不复制” | 是否可无损转换、字符集变化、现有数据范围 |
+| 修改主键 | “只是改索引” | 重复值、全表重建、应用读写路径和切换方式 |
+| 转换字符集或排序规则 | “只会更新元数据” | 比较语义、索引长度、排序结果和应用输出 |
+| 分区表变更 | “与普通 InnoDB 表相同” | 分区数量、交换/重建路径和复制行为 |
+
+风险表不能替代官方支持矩阵。无法确定时，先复制生产规模和数据分布，在预发布执行同一条 `ALTER` 并观察锁、IO、磁盘、复制延迟和错误日志。
+
+## 执行清单
+
+### 变更前
+
+- 记录表大小、索引、行格式、版本、当前 DDL 和复制拓扑；
+- 清理长事务和长查询，确认 Metadata Lock 可以取得；
+- 估算临时空间和 Binlog 增量，确保磁盘有余量；
+- 在同版本、同规模环境完成 dry-run 或完整演练；
+- 准备暂停、取消、失败清理和业务回滚方案；
+- 设置复制延迟、连接积压、CPU、IO 和磁盘告警。
+
+### 变更中
+
+- 持续观察 Metadata Lock、活跃 DDL、复制延迟和目标表状态；
+- 达到预设阈值时暂停或限流，不要只看执行是否仍“进行中”；
+- 记录每个阶段的开始时间、影响范围和异常信息。
+
+### 变更后
+
+- 核对 `SHOW CREATE TABLE`、索引、约束和数据样本；
+- 执行核心查询和写入冒烟测试；
+- 确认从库已追平，Binlog 和备份策略正常；
+- 稳定后再删除触发器、影子表或旧表。
+
+## 最佳实践
+
+1. **先判断算法和锁条件**：版本与操作类型共同决定可行方案。
+2. **把 Metadata Lock 纳入窗口**：`LOCK=NONE` 不能绕过事务和查询排队。
+3. **先演练再生产执行**：用真实数据量验证资源峰值和清理流程。
+4. **设置可触发的阈值**：复制延迟、线程数、IO 和磁盘都要能自动暂停或告警。
+5. **保留回滚路径**：影子表、旧表和复制任务在稳定期前不要清理。
+6. **同时验证正确性与可用性**：结构正确不代表业务结果和延迟都可接受。

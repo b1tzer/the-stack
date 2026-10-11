@@ -9,7 +9,7 @@ title: EXPLAIN 与查询处理
 
 ## 1. 查询处理流程
 
-```
+```txt
 SQL → Parser → Analyzer → Rewriter → Planner/Optimizer → Executor → 结果
 ```
 
@@ -43,7 +43,7 @@ SELECT * FROM users WHERE age > 25;
 
 ## 3. 执行计划解读
 
-```
+```txt
 Hash Join  (cost=1.15..2.45 rows=3) (actual time=0.05..0.08 rows=3 loops=1)
   Hash Cond: (o.user_id = u.id)
   Buffers: shared hit=4

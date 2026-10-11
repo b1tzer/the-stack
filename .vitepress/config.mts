@@ -1,17 +1,157 @@
 import { defineConfig } from 'vitepress'
+import type { DefaultTheme } from 'vitepress'
 import { svgEditorPlugin, svgDiagramMarkdownPlugin } from 'vitepress-plugin-svg-editor'
 import { withOpenInEditor } from 'vitepress-plugin-open-in-editor'
-import { withMermaid } from 'vitepress-plugin-mermaid'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
-export default withOpenInEditor(withMermaid(defineConfig({
+const SITE_URL = 'https://thestack.xpro.wang'
+const DESCRIPTION_LIMIT = 140
+const DOMAIN_LABELS: Record<string, string> = {
+  ai: 'AI',
+  'design-pattern': '设计模式',
+  elasticsearch: 'Elasticsearch',
+  engineering: '软件工程',
+  java: 'Java',
+  kafka: 'Kafka',
+  mysql: 'MySQL',
+  postgresql: 'PostgreSQL',
+  rabbitmq: 'RabbitMQ',
+  redis: 'Redis',
+  scenarios: '场景实战',
+  spring: 'Spring',
+}
+
+function cleanMarkdownInline(value: string): string {
+  return value
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function truncateDescription(value: string): string {
+  if (value.length <= DESCRIPTION_LIMIT) return value
+  return `${value.slice(0, DESCRIPTION_LIMIT - 1).trimEnd()}…`
+}
+
+function deriveDescription(source: string, relativePath: string): string {
+  const body = source.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, '')
+  const lines = body.split(/\r?\n/)
+  let fenced = false
+  let paragraph = ''
+  let title = ''
+  let subheading = ''
+
+  for (const line of lines) {
+    if (/^\s*(```|~~~)/.test(line)) {
+      fenced = !fenced
+      continue
+    }
+    if (fenced) continue
+
+    if (/^#\s/.test(line) && !title) {
+      title = cleanMarkdownInline(line.replace(/^#\s+/, ''))
+      continue
+    }
+    if (/^##\s/.test(line) && !subheading) {
+      subheading = cleanMarkdownInline(line.replace(/^##\s+/, ''))
+      continue
+    }
+    if (/^#{1,6}\s/.test(line)) {
+      if (paragraph) break
+      continue
+    }
+
+    const cleaned = cleanMarkdownInline(line.replace(/^\s*>\s?/, ''))
+    if (!cleaned || /^---+$|^\*\*\*+$|^___+$|^[-*+]\s|^\d+\.\s|^\|/.test(cleaned)) {
+      if (paragraph) break
+      continue
+    }
+
+    paragraph = paragraph ? `${paragraph} ${cleaned}` : cleaned
+  }
+
+  if (paragraph) return paragraph
+
+  const domain = relativePath.split('/')[0]
+  const label = DOMAIN_LABELS[domain] ?? domain
+  if (title && subheading) {
+    return truncateDescription(`${title}：${subheading}，包含相关配置与可执行示例。`)
+  }
+  if (title) return truncateDescription(`${title}：${label} 专题的参考内容。`)
+  return truncateDescription(`${label} 专题内容。`)
+}
+
+// 本地搜索索引只收录配置类代码块。java/sql 长清单和 ASCII 流程图占了索引正文的
+// 一半以上，却几乎搜不出有用结果；而 yaml/properties/bash 里的标识符正是读者会搜的东西。
+const SEARCH_INDEXED_LANGUAGES = new Set([
+  'bash', 'conf', 'dockerfile', 'env', 'http', 'ini', 'json', 'properties', 'sh', 'shell', 'yaml', 'yml',
+])
+
+async function renderForSearch(source: string, env: any, md: any): Promise<string> {
+  const html = await md.render(source, env)
+  if (env.frontmatter?.search === false) return ''
+  // 代码块的外层是 <div class="language-xxx">…</div>，内部没有嵌套 div
+  return html.replace(/<div class="language-([\w+-]+)[^"]*">[\s\S]*?<\/div>/g, (block, lang) =>
+    SEARCH_INDEXED_LANGUAGES.has(String(lang).toLowerCase()) ? block : ''
+  )
+}
+
+export default withOpenInEditor(defineConfig({
   title: 'The Stack',
-  description: '系统化的 Java 后端技术分析',
+  description: '面向中文开发者的 Java 后端技术知识库，覆盖核心原理、生产实践与场景方案。',
   lang: 'zh-CN',
+  srcExclude: [
+    '_snippets/**',
+    'kafka/RESTRUCTURE-PLAN.md',
+  ],
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
   ],
   srcDir: './docs',
   outDir: './site',
+  sitemap: {
+    hostname: SITE_URL,
+  },
+
+  async transformPageData(pageData, context) {
+    if (pageData.description || pageData.frontmatter.description) return
+
+    try {
+      const source = readFileSync(join(context.siteConfig.srcDir, pageData.filePath), 'utf8')
+      const description = deriveDescription(source, pageData.filePath)
+      return description ? { description } : undefined
+    } catch {
+      return undefined
+    }
+  },
+
+  async transformHead({ page, title, description }) {
+    // page 是源文件相对路径（如 redis/chapter.md），转成与 sitemap 一致的规范地址
+    const route = page.replace(/^\//, '').replace(/\.md$/, '.html')
+    const isDirectoryIndex = route === 'index.html' || route.endsWith('/index.html')
+    const path = isDirectoryIndex ? route.slice(0, -'index.html'.length) : route
+    const url = `${SITE_URL}/${encodeURI(path)}`
+
+    return [
+      ['meta', { property: 'og:site_name', content: 'The Stack' }],
+      ['meta', { property: 'og:locale', content: 'zh_CN' }],
+      ['meta', { property: 'og:type', content: path === '' ? 'website' : 'article' }],
+      ['meta', { property: 'og:title', content: title }],
+      ['meta', { property: 'og:description', content: description }],
+      ['meta', { property: 'og:url', content: url }],
+      ['meta', { property: 'og:image', content: `${SITE_URL}/og-cover.png` }],
+      ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+      ['meta', { name: 'twitter:title', content: title }],
+      ['meta', { name: 'twitter:description', content: description }],
+      ['link', { rel: 'canonical', href: url }],
+    ]
+  },
 
   vite: {
     plugins: [
@@ -20,7 +160,24 @@ export default withOpenInEditor(withMermaid(defineConfig({
       }),
     ],
     optimizeDeps: {
-      include: ['fastdom', 'fastdom/extensions/fastdom-promised.js'],
+      include: [
+        'fastdom',
+        'fastdom/extensions/fastdom-promised.js',
+        // mermaid 及其依赖：mermaid 现在是按需动态加载的，预打包可避免 dev 首次渲染时的长等待
+        '@braintree/sanitize-url',
+        'cytoscape',
+        'cytoscape-cose-bilkent',
+        'dayjs',
+        'debug',
+      ],
+    },
+    resolve: {
+      alias: [
+        { find: 'dayjs/plugin/advancedFormat.js', replacement: 'dayjs/esm/plugin/advancedFormat' },
+        { find: 'dayjs/plugin/customParseFormat.js', replacement: 'dayjs/esm/plugin/customParseFormat' },
+        { find: 'dayjs/plugin/isoWeek.js', replacement: 'dayjs/esm/plugin/isoWeek' },
+        { find: 'cytoscape/dist/cytoscape.umd.js', replacement: 'cytoscape/dist/cytoscape.esm.js' },
+      ],
     },
   },
   markdown: {
@@ -28,6 +185,23 @@ export default withOpenInEditor(withMermaid(defineConfig({
       conf: 'ini',
     },
     config(md) {
+      // ```mermaid 围栏输出 <Mermaid> 组件标记；组件在 theme 中注册，
+      // 内部动态 import('mermaid')，因此 mermaid 不进入全站预加载。
+      const renderFence = md.renderer.rules.fence
+      md.renderer.rules.fence = (tokens, idx, options, env, self) => {
+        const token = tokens[idx]
+        if (token.info.trim() === 'mermaid') {
+          return [
+            '<Suspense>',
+            '<template #default>',
+            `<Mermaid id="mermaid-${idx}" class="mermaid" graph="${encodeURIComponent(token.content)}"></Mermaid>`,
+            '</template>',
+            '<template #fallback>Loading...</template>',
+            '</Suspense>',
+          ].join('')
+        }
+        return renderFence(tokens, idx, options, env, self)
+      }
       md.use(svgDiagramMarkdownPlugin)
     },
   },
@@ -44,32 +218,32 @@ export default withOpenInEditor(withMermaid(defineConfig({
     
     nav: [
       { text: 'Java', link: '/java/', activeMatch: '^/java/' },
-      { text: 'Spring', link: '/spring/01-core/chapter-01-spring-overview', activeMatch: '^/spring/' },
+      { text: 'Spring', link: '/spring/', activeMatch: '^/spring/' },
       { text: 'Redis', link: '/redis/', activeMatch: '^/redis/' },
       {
         text: '数据库',
         activeMatch: '^/(mysql|postgresql)/',
         items: [
           { text: 'MySQL', link: '/mysql/' },
-          { text: 'PostgreSQL', link: '/postgresql/01-pg-unique/chapter-01-pg-overview' },
+          { text: 'PostgreSQL', link: '/postgresql/' },
         ],
       },
       {
         text: '消息队列',
         activeMatch: '^/(kafka|rabbitmq)/',
         items: [
-          { text: 'Kafka', link: '/kafka/01-intro/chapter-01-what-is-kafka' },
-          { text: 'RabbitMQ', link: '/rabbitmq/01-basics/chapter-01-overview' },
+          { text: 'Kafka', link: '/kafka/' },
+          { text: 'RabbitMQ', link: '/rabbitmq/' },
         ],
       },
-      { text: 'Elasticsearch', link: '/elasticsearch/01-basics/chapter-01-overview', activeMatch: '^/elasticsearch/' },
+      { text: 'Elasticsearch', link: '/elasticsearch/', activeMatch: '^/elasticsearch/' },
       {
         text: '工程',
         activeMatch: '^/(design-pattern|engineering|ai)/',
         items: [
-          { text: '设计模式', link: '/design-pattern/00-intro/chapter-01-why-patterns' },
-          { text: '软件工程', link: '/engineering/01-principles/chapter-01-overview' },
-          { text: 'AI 工程', link: '/ai/01-导论' },
+          { text: '设计模式', link: '/design-pattern/' },
+          { text: '软件工程', link: '/engineering/' },
+          { text: 'AI 工程', link: '/ai/' },
         ],
       },
       { text: '场景实战', link: '/scenarios/', activeMatch: '^/scenarios/' },
@@ -116,6 +290,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '高可用实战', link: '/scenarios/03-messaging/chapter-04-high-availability' },
             { text: '分布式事务', link: '/scenarios/03-messaging/chapter-05-distributed-transaction' },
             { text: '消息顺序性', link: '/scenarios/03-messaging/chapter-06-message-ordering' },
+            { text: '消息可靠性闭环', link: '/scenarios/03-messaging/chapter-07-message-reliability' },
           ],
         },
         {
@@ -127,6 +302,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '多租户数据隔离', link: '/scenarios/04-data-access/chapter-02-multi-tenant' },
             { text: '分库分表', link: '/scenarios/04-data-access/chapter-03-sharding' },
             { text: '分布式 ID 生成', link: '/scenarios/04-data-access/chapter-04-distributed-id' },
+            { text: '应用平滑切换数据库', link: '/scenarios/04-data-access/chapter-05-database-cutover' },
           ],
         },
         {
@@ -141,10 +317,21 @@ export default withOpenInEditor(withMermaid(defineConfig({
             { text: '短链系统', link: '/scenarios/05-cases/chapter-05-short-url' },
             { text: '秒杀', link: '/scenarios/05-cases/chapter-06-seckill' },
             { text: '分布式定时调度', link: '/scenarios/05-cases/chapter-07-scheduled-task' },
+            { text: '支付回调与对账', link: '/scenarios/05-cases/chapter-08-payment-reconciliation' },
+          ],
+        },
+        {
+          text: '架构与发布',
+          collapsed: true,
+          items: [
+            { text: '架构与发布首页', link: '/scenarios/06-architecture/' },
+            { text: '异地多活与单元化', link: '/scenarios/06-architecture/chapter-01-multi-active' },
+            { text: '压测、灰度发布与故障演练', link: '/scenarios/06-architecture/chapter-02-release-validation' },
           ],
         },
       ],
       '/ai/': [
+        { text: 'AI 工程知识库', link: '/ai/' },
         {
           text: 'AI 工程',
           collapsed: true,
@@ -164,6 +351,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
       ],
       '/design-pattern/': [
+        { text: '设计模式知识库', link: '/design-pattern/' },
         {
           text: '入门',
           collapsed: true,
@@ -234,6 +422,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
       ],
       '/elasticsearch/': [
+        { text: 'Elasticsearch 知识库', link: '/elasticsearch/' },
         {
           text: '基础入门',
           collapsed: true,
@@ -354,6 +543,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
       ],
       '/engineering/': [
+        { text: '软件工程知识库', link: '/engineering/' },
         {
           text: '设计原则',
           collapsed: true,
@@ -622,6 +812,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
       ],
       '/kafka/': [
+        { text: 'Kafka 知识库', link: '/kafka/' },
         {
           text: '入门',
           collapsed: true,
@@ -689,6 +880,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
       ],
       '/rabbitmq/': [
+        { text: 'RabbitMQ 知识库', link: '/rabbitmq/' },
         {
           text: '基础入门',
           collapsed: true,
@@ -839,7 +1031,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
           collapsed: true,
           items: [
             { text: '查询执行流程与 EXPLAIN', link: '/mysql/04-query-optimization/chapter-01-execution-plan' },
-            { text: 'SQL 优化', link: '/mysql/04-query-optimization/chapter-02-sql-optimization' },
+            { text: 'SQL 优化技巧', link: '/mysql/04-query-optimization/chapter-02-sql-optimization' },
             { text: '连接优化', link: '/mysql/04-query-optimization/chapter-03-join-optimization' },
             { text: '子查询优化', link: '/mysql/04-query-optimization/chapter-04-subquery-optimization' },
           ],
@@ -848,7 +1040,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
           text: '事务与锁',
           collapsed: true,
           items: [
-            { text: '综览', link: '/mysql/05-transaction-lock/chapter-01-overview' },
+            { text: '事务与锁：综览', link: '/mysql/05-transaction-lock/chapter-01-overview' },
             { text: '事务与 MVCC', link: '/mysql/05-transaction-lock/chapter-02-transaction' },
             { text: '锁机制', link: '/mysql/05-transaction-lock/chapter-03-lock' },
             { text: '死锁', link: '/mysql/05-transaction-lock/chapter-04-deadlock' },
@@ -868,7 +1060,7 @@ export default withOpenInEditor(withMermaid(defineConfig({
           ],
         },
         {
-          text: '复制与架构',
+          text: '复制与扩展架构',
           collapsed: true,
           items: [
             { text: '复制机制：异步复制', link: '/mysql/07-replication-and-architecture/chapter-01-binlog-replication' },
@@ -884,8 +1076,8 @@ export default withOpenInEditor(withMermaid(defineConfig({
           collapsed: true,
           items: [
             { text: '备份恢复', link: '/mysql/08-operations/chapter-01-backup-restore' },
-            { text: '内省与可观测性', link: '/mysql/08-operations/chapter-02-observability' },
-            { text: '监控', link: '/mysql/08-operations/chapter-03-monitoring' },
+            { text: '内置诊断数据源', link: '/mysql/08-operations/chapter-02-observability' },
+            { text: '监控、告警与慢查询', link: '/mysql/08-operations/chapter-03-monitoring' },
             { text: '安全与用户管理', link: '/mysql/08-operations/chapter-04-security' },
             { text: '日常维护', link: '/mysql/08-operations/chapter-05-maintenance' },
             { text: '连接管理', link: '/mysql/08-operations/chapter-06-connection-mgmt' },
@@ -897,11 +1089,11 @@ export default withOpenInEditor(withMermaid(defineConfig({
           text: '任务指南',
           collapsed: true,
           items: [
-            { text: '版本、产品与部署选型', link: '/mysql/01-basics/chapter-04-version-and-selection' },
-            { text: '安装部署与环境配置', link: '/mysql/10-practice/chapter-02-installation' },
+            { text: '版本、产品与部署选型', link: '/mysql/10-practice/chapter-01-version-and-selection' },
+            { text: '安装部署与配置', link: '/mysql/10-practice/chapter-02-installation' },
             { text: '首次生产部署', link: '/mysql/10-practice/chapter-03-first-production' },
-            { text: '常见问题', link: '/mysql/10-practice/chapter-04-common-issues' },
-            { text: '性能调优', link: '/mysql/10-practice/chapter-05-performance-tuning' },
+            { text: '常见问题与避坑指南', link: '/mysql/10-practice/chapter-04-common-issues' },
+            { text: '性能调优实战', link: '/mysql/10-practice/chapter-05-performance-tuning' },
             { text: 'SQL 规范与最佳实践', link: '/mysql/10-practice/chapter-06-sql-best-practices' },
           ],
         },
@@ -909,14 +1101,15 @@ export default withOpenInEditor(withMermaid(defineConfig({
           text: '参考手册',
           collapsed: true,
           items: [
-            { text: '参数速查', link: '/mysql/reference/parameters' },
-            { text: '数据类型速查', link: '/mysql/reference/types' },
-            { text: '函数速查', link: '/mysql/reference/functions' },
-            { text: '错误码速查', link: '/mysql/reference/errors' },
+            { text: '常用参数速查', link: '/mysql/reference/parameters' },
+            { text: '常用数据类型速查', link: '/mysql/reference/types' },
+            { text: '常用函数速查', link: '/mysql/reference/functions' },
+            { text: '常用错误码速查', link: '/mysql/reference/errors' },
           ],
         },
       ],
       '/postgresql/': [
+        { text: 'PostgreSQL 知识库', link: '/postgresql/' },
         {
           text: 'PG 到底特殊在哪',
           collapsed: true,
@@ -1127,11 +1320,12 @@ export default withOpenInEditor(withMermaid(defineConfig({
         },
       ],
       '/spring/': [
-        { text: 'Spring 概览', link: '/spring/01-core/chapter-01-spring-overview' },
+        { text: 'Spring 知识库', link: '/spring/' },
         {
           text: '核心原理',
           collapsed: true,
           items: [
+            { text: 'Spring 概览', link: '/spring/01-core/chapter-01-spring-overview' },
             { text: 'IoC 容器', link: '/spring/01-core/chapter-02-ioc-container' },
             { text: 'Bean 完整生命周期', link: '/spring/01-core/chapter-03-bean-lifecycle' },
             { text: '依赖注入', link: '/spring/01-core/chapter-04-dependency-injection' },
@@ -1280,7 +1474,9 @@ export default withOpenInEditor(withMermaid(defineConfig({
     },
     
     search: {
-      provider: 'local'
+      provider: 'local',
+      // _render 是 VitePress 运行时支持的钩子，公开类型里没声明，这里显式断开类型约束
+      options: { _render: renderForSearch } as unknown as DefaultTheme.LocalSearchOptions,
     }
   }
-})))
+}))

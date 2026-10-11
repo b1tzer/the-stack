@@ -68,8 +68,8 @@ SELECT COUNT(*) FROM users;      -- 统计所有行（包括 NULL）
 SELECT COUNT(1) FROM users;      -- 等价于 COUNT(*)
 SELECT COUNT(email) FROM users;  -- 不统计 email 为 NULL 的行
 
--- 性能：COUNT(*) ≈ COUNT(1) > COUNT(主键) > COUNT(普通列)
--- InnoDB 下 COUNT(*) 会选最小的索引遍历
+-- COUNT(*) 与 COUNT(1) 结果相同；COUNT(主键) 和 COUNT(普通列) 还会受 NULL 与索引选择影响
+-- InnoDB 通常选择成本较低的索引统计行数，但不能据此简单排序快慢
 
 -- 大表 COUNT 优化方案：
 -- 1. 使用近似值
@@ -94,7 +94,7 @@ CREATE TABLE table_counts (
 SELECT * FROM t WHERE a = 1 ORDER BY b;           -- ✅ 利用索引排序
 SELECT * FROM t WHERE a = 1 ORDER BY b, c;        -- ✅ 利用索引排序
 SELECT * FROM t WHERE a = 1 ORDER BY c;           -- ❌ filesort
-SELECT * FROM t WHERE a = 1 ORDER BY b DESC;      -- ✅ 8.0+ 降序索引支持
+SELECT * FROM t WHERE a = 1 ORDER BY b DESC;      -- ✅ 可反向扫描普通升序索引
 
 -- filesort 排序算法
 -- 1. 双路排序：数据量大时，读取排序列+主键，排序后回表

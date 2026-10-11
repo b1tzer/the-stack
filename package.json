@@ -1,24 +1,23 @@
 {
   "name": "the-stack",
   "version": "1.0.0",
-  "description": "系统化的 Java 后端技术分析与实战沉淀",
+  "description": "面向中文开发者的 Java 后端技术知识库",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vitepress dev",
-    "build": "python3 fix-emphasis.py && vitepress build",
+    "build": "npm run check && vitepress build",
     "preview": "vitepress preview",
+    "check": "npm run check:emphasis && npm run check:docs",
     "check:emphasis": "python3 fix-emphasis.py --check",
+    "check:docs": "node check-docs.mjs",
     "fix:emphasis": "python3 fix-emphasis.py"
   },
   "devDependencies": {
+    "fabric": "^6.9.1",
     "mermaid": "^11.17.2",
     "vitepress": "^1.6.3",
-    "vitepress-plugin-mermaid": "^2.0.17",
-    "vitepress-plugin-open-in-editor": "^0.1.5"
-  },
-  "dependencies": {
-    "fabric": "^6.9.1",
+    "vitepress-plugin-open-in-editor": "^0.1.5",
     "vitepress-plugin-svg-editor": "^0.5.0"
   },
   "overrides": {

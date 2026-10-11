@@ -2,7 +2,7 @@
 
 ## 1. 文档写入流程
 
-```
+```txt
 Client → Coordinating Node → Primary Shard → Replica Shards
 ```
 

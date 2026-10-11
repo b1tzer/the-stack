@@ -2,7 +2,7 @@
 
 选型先确定三个约束：项目能否按季度升级、团队是否有专职 DBA、现有生态依赖哪个数据库。下面的建议以 2026-10-08 核验的信息为界；版本下载入口和生命周期发生变化时，以官方页面为准。
 
-选择完成后的部署步骤见[安装部署](../10-practice/chapter-02-installation.md)；判断 MySQL 是否适合业务场景，先读[MySQL 概览](./chapter-01-overview.md)。
+选择完成后的部署步骤见[安装部署](./chapter-02-installation.md)；判断 MySQL 是否适合业务场景，先读[MySQL 概览](../01-basics/chapter-01-overview.md)。
 
 ## 1. 选择 MySQL 版本
 

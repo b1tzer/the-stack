@@ -2,7 +2,7 @@
 
 ## 1. 架构
 
-```
+```txt
 App/Filebeat → Logstash → Elasticsearch → Kibana
     ↑            ↑            ↑            ↑
   采集         处理         存储/搜索    可视化

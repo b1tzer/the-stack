@@ -88,7 +88,7 @@ Topic 有 3 个分区，消费者组有 5 个消费者
 
 Eager 模式下，Rebalance 期间**所有消费者停止消费**。这不是 bug，而是有意为之——如果在重新分配过程中允许消费，可能出现同一个分区被两个消费者同时消费的窗口。
 
-但"全停"不是唯一选择。Eager 的代价是：哪怕只有一个分区需要迁移，整个组的消费也会整体停顿一次。Kafka 2.4 起（[KIP-429](https://cwiki.apache.org/confluence/display/KAFKA/KIP-429)）引入 **Cooperative（协作式）Rebalance**，把重分配拆成多轮，只暂停真正需要迁移的分区，其余分区照常消费。它由 `CooperativeStickyAssignor` 承载，Kafka 3.0 起成为默认分配策略。两者的取舍见 [§5 分配策略](#assignor)。
+但"全停"不是唯一选择。Eager 的代价是：哪怕只有一个分区需要迁移，整个组的消费也会整体停顿一次。Kafka 2.4 起（[KIP-429](https://cwiki.apache.org/confluence/spaces/KAFKA/pages/103090108/KIP-429+Kafka+Consumer+Incremental+Rebalance+Protocol)）引入 **Cooperative（协作式）Rebalance**，把重分配拆成多轮，只暂停真正需要迁移的分区，其余分区照常消费。它由 `CooperativeStickyAssignor` 承载，Kafka 3.0 起成为默认分配策略。两者的取舍见 [§5 分配策略](#assignor)。
 
 ## 5. 分配策略 {#assignor}
 
@@ -119,9 +119,9 @@ CooperativeSticky（逐步迁移）：
 | :-- | :-- | :-- | :-- |
 | `RangeAssignor` | 早期（长期默认） | Eager | 3.0 前的默认值 |
 | `RoundRobinAssignor` | 早期 | Eager | 与 Range 同属最早两种 |
-| `StickyAssignor` | 0.11.0.0（2017） | Eager | [KIP-54](https://cwiki.apache.org/confluence/display/KAFKA/KIP-54) |
-| `CooperativeStickyAssignor` | 2.4.0（2019） | Eager / Cooperative | [KIP-429](https://cwiki.apache.org/confluence/display/KAFKA/KIP-429) |
-| 默认改为 `CooperativeSticky` | 3.0（2021） | Cooperative | [KIP-726](https://cwiki.apache.org/confluence/display/KAFKA/KIP-726) |
+| `StickyAssignor` | 0.11.0.0（2017） | Eager | [KIP-54](https://cwiki.apache.org/confluence/spaces/KAFKA/pages/62692483/KIP-54+-+Sticky+Partition+Assignment+Strategy) |
+| `CooperativeStickyAssignor` | 2.4.0（2019） | Eager / Cooperative | [KIP-429](https://cwiki.apache.org/confluence/spaces/KAFKA/pages/103090108/KIP-429+Kafka+Consumer+Incremental+Rebalance+Protocol) |
+| 默认改为 `CooperativeSticky` | 3.0（2021） | Cooperative | [KIP-726](https://cwiki.apache.org/confluence/spaces/KAFKA/pages/177048248/KIP-726+Make+the+cooperative-sticky+range+as+the+default+assignor) |
 
 **生产环境选型**：Kafka 3.0 起默认即 `CooperativeStickyAssignor`，无需配置。Kafka 2.4 起同样可用，显式配置即可：
 
@@ -134,7 +134,7 @@ props.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG,
 
 - **2.4+ 可用**：`CooperativeStickyAssignor` 自 2.4.0 引入，2.4 及以后的 2.x 都能用，显式配置即生效，与 3.0 行为等价。
 - **3.0+ 新集群**：默认已是 CooperativeSticky，无需配置，直接受益。
-- **存量老集群迁移**：已在运行的老消费者组要从 `Range/RoundRobin/Sticky` 迁到 Cooperative，必须走 [KIP-429](https://cwiki.apache.org/confluence/display/KAFKA/KIP-429) 的两步滚动升级——第一次滚动把 `CooperativeStickyAssignor` 加到策略列表末尾（此时仍走 Eager），第二次滚动再移除旧的 `Range/RoundRobin/Sticky`。不能一步到位，否则组内新旧消费者混用 Eager / Cooperative 协议，同一分区可能被两个消费者同时认领、都提交 offset。
+- **存量老集群迁移**：已在运行的老消费者组要从 `Range/RoundRobin/Sticky` 迁到 Cooperative，必须走 [KIP-429](https://cwiki.apache.org/confluence/spaces/KAFKA/pages/103090108/KIP-429+Kafka+Consumer+Incremental+Rebalance+Protocol) 的两步滚动升级——第一次滚动把 `CooperativeStickyAssignor` 加到策略列表末尾（此时仍走 Eager），第二次滚动再移除旧的 `Range/RoundRobin/Sticky`。不能一步到位，否则组内新旧消费者混用 Eager / Cooperative 协议，同一分区可能被两个消费者同时认领、都提交 offset。
 - **组内配置必须一致**：`partition.assignment.strategy` 是组级协商出来的，只要组内有一个消费者不支持 Cooperative，整组退回 Eager。
 :::
 

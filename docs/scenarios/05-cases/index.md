@@ -9,3 +9,4 @@
 - [短链系统](./chapter-05-short-url.md)
 - [秒杀](./chapter-06-seckill.md)
 - [分布式定时调度](./chapter-07-scheduled-task.md)
+- [支付回调与对账](./chapter-08-payment-reconciliation.md)

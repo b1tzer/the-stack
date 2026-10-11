@@ -8,7 +8,7 @@ The Stack 是一个综合性的技术知识库，旨在为开发者提供全面�
 
 🔗 **在线访问**：[thestack.xpro.wang](https://thestack.xpro.wang)
 
-## 技术栈
+## 技术栈与专题
 
 | 领域 | 内容 |
 | :--- | :--- |
@@ -18,10 +18,12 @@ The Stack 是一个综合性的技术知识库，旨在为开发者提供全面�
 | **[PostgreSQL](docs/postgresql/)** | PostgreSQL 高级特性 |
 | **[Redis](docs/redis/)** | 缓存设计、高可用架构、分布式锁 |
 | **[Kafka](docs/kafka/)** | 原理与实践、消息可靠性保障 |
+| **[RabbitMQ](docs/rabbitmq/)** | AMQP、交换机、队列与可靠性实践 |
 | **[Elasticsearch](docs/elasticsearch/)** | 核心原理、性能优化、数据同步 |
 | **[设计模式](docs/design-pattern/)** | 常用设计模式的实现与应用场景 |
 | **[软件工程](docs/engineering/)** | SOLID 原则、DDD、系统架构设计 |
 | **[AI](docs/ai/)** | AI 相关技术探索 |
+| **[场景实战](docs/scenarios/)** | 缓存、并发、消息与数据访问的端到端方案 |
 
 ## 🚀 本地开发
 

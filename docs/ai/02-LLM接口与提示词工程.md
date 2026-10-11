@@ -149,7 +149,7 @@ def chat(system_prompt: str, question: str, model: str = "deepseek-chat"):
 
 用 `system` 把「回答口径」锁死：
 
-```
+```txt
 system: 你是资深架构师，只用中文，只给结论和关键代码，不废话。
 ```
 
@@ -159,7 +159,7 @@ system: 你是资深架构师，只用中文，只给结论和关键代码，不
 
 这是**最反直觉但最有效**的一招。要模型稳定输出「分类标签」，与其反复强调「只输出标签」，不如给它看 3 个例子：
 
-```
+```txt
 system: 把问题分类为 BUG / FEATURE / QUESTION，只输出分类。
 
 示例：
@@ -178,7 +178,7 @@ user: 登录按钮点不动了
 
 别让模型返回自然语言再费劲解析，直接要求 JSON：
 
-```
+```txt
 system: 抽取订单信息，只返回 JSON，字段 {orderId, amount, status}，不要解释。
 ```
 

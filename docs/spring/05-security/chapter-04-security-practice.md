@@ -48,7 +48,7 @@ public class UserService {
 
 **BCrypt 强度因子说明**：
 
-```
+```txt
 BCryptPasswordEncoder(4)  → ~0.01 秒，不推荐
 BCryptPasswordEncoder(10) → ~0.1 秒，默认值
 BCryptPasswordEncoder(12) → ~0.5 秒，推荐

@@ -231,7 +231,7 @@ spring:
 
 ### 2.3 启动顺序与健康检查
 
-```
+```txt
 docker compose up -d
   ↓
 MySQL 启动 → healthcheck: mysqladmin ping → ✅ healthy

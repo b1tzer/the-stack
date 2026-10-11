@@ -44,7 +44,7 @@ spring:
 
 ### 2.2 迁移脚本命名
 
-```
+```txt
 db/migration/
 ├── V1__create_user_table.sql
 ├── V2__add_email_to_user.sql

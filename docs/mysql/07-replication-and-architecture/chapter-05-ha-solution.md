@@ -98,7 +98,7 @@ exit 0
 
 ## 3. 故障切换流程
 
-```
+```txt
 1. 故障检测
    ├── 心跳检测（Keepalived/MHA/Orchestrator）
    ├── 应用层检测（连接失败）

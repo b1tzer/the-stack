@@ -41,9 +41,13 @@ PG 的 UPDATE 操作不是"原地修改"，而是**两步走**：
 
 DELETE 操作类似，只是不插入新行，只标记旧行的 `xmax`。
 
-```
+```sql
 UPDATE users SET name = '李四' WHERE id = 1;
+```
 
+这条语句执行前后，表里的行版本变化：
+
+```txt
 执行前：| id=1, name='张三', xmin=100, xmax=0   |  ← 活跃行
 执行后：| id=1, name='张三', xmin=100, xmax=500  |  ← Dead Tuple（旧版本）
         | id=1, name='李四', xmin=500, xmax=0   |  ← 新版本
@@ -116,7 +120,7 @@ VACUUM 不能清理**所有** Dead Tuple。它必须保留比最老活跃事务�
 
 ![长事务阻塞 VACUUM](/pg/long-transaction.svg)
 
-```
+```txt
 时间线：
 事务 A 开始（读取快照）────────────────────────────────────── 还在运行！
 事务 B: UPDATE → 产生 Dead Tuple 1

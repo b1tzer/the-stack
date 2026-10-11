@@ -4,7 +4,7 @@
 
 ES 不是实时搜索引擎，而是近实时搜索引擎。文档写入后需要经过 `refresh` 操作才能被搜索到，默认延迟约 1 秒。
 
-```
+```txt
 写入 → Buffer → refresh（默认1s）→ Segment → 可搜索
               ↓
            Translog（持久化，防止数据丢失）

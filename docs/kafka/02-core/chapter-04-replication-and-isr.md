@@ -134,7 +134,7 @@ T3: B 宕机，A 当选新 Leader
 
 ### 6.3 新的截断协议
 
-**Leader Epoch**（[KIP-101](https://cwiki.apache.org/confluence/display/KAFKA/KIP-101)）让 Follower 不再凭本地 HW 猜测，而是直接问 Leader。协议三步：
+**Leader Epoch**（[KIP-101](https://cwiki.apache.org/confluence/spaces/KAFKA/pages/67634337/KIP-101+-+Alter+Replication+Protocol+to+use+Leader+Epoch+rather+than+High+Watermark+for+Truncation)）让 Follower 不再凭本地 HW 猜测，而是直接问 Leader。协议三步：
 
 ```txt
 1. Follower 重启，向 Leader 报告："我日志里最后一次是在第 X 任 Leader 下写的"

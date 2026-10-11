@@ -97,7 +97,7 @@ log_statement = 'all'
 
 ### pg_hba.conf 认证配置
 
-```
+```conf
 # TYPE  DATABASE  USER       ADDRESS         METHOD
 local   all       postgres                   peer
 local   all       all                        md5

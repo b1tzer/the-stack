@@ -231,7 +231,7 @@ public class Main {
 
 ### 3.3 JDK IO 流的装饰器结构
 
-```
+```txt
 InputStream（抽象组件）
 ├── FileInputStream（具体组件）
 ├── ByteArrayInputStream（具体组件）

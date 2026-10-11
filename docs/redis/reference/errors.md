@@ -2,7 +2,7 @@
 
 Redis 通过 [RESP 协议](../02-standalone-core/chapter-02-command-resp.md#resp-protocol)返回字符串错误，不使用通用的数字错误码。客户端通常应匹配错误前缀或结构化字段（如 `NOAUTH`、`WRONGPASS`、`MOVED`），不要依赖整条文案完全一致。本页以 Redis 7.4.11 为基准；ACL、集群和客户端库可能返回更具体的消息。
 
-权威来源见[官方命令错误说明](https://redis.io/docs/latest/operate/oss_and_stack/reference/protocol-spec/)和 [Redis Cluster 重定向规范](https://redis.io/docs/latest/operate/oss_and_stack/reference/cluster-spec/)。
+权威来源见[官方命令错误说明](https://redis.io/docs/latest/develop/reference/protocol-spec/)和 [Redis Cluster 重定向规范](https://redis.io/docs/latest/develop/reference/cluster-spec/)。
 
 ## 常见错误
 
