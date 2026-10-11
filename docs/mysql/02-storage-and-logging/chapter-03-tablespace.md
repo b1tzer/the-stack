@@ -59,7 +59,7 @@ WHERE table_schema = 'mydb' AND data_free > 0
 ORDER BY data_free DESC;
 ```
 
-![表空间碎片：空闲页散布与行空洞](/mysql/02-storage-and-logging-chapter-03-tablespace-fragmentation.svg)
+![表空间碎片：申请按区、释放按页；空闲页与行空洞散布在已分配空间里，文件不缩小](/mysql/02-storage-and-logging-chapter-03-tablespace-fragmentation.svg)
 
 碎片主要有三个来源：
 
