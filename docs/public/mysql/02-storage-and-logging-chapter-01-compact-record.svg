@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 360" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <text x="470" y="28" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">Compact 行格式：一条记录的内部布局</text>
+
+  <text x="40" y="58" font-size="12" font-weight="bold" fill="#3949ab">记录起始（低地址） →</text>
+
+  <!-- 记录条带 -->
+  <rect x="40" y="70" width="170" height="76" fill="#e8eaf6" stroke="#3949ab" stroke-width="1.4"/>
+  <text x="125" y="113" text-anchor="middle" fill="#3949ab" font-size="12" font-weight="bold">变长字段长度列表</text>
+
+  <rect x="210" y="70" width="140" height="76" fill="#e8eaf6" stroke="#3949ab" stroke-width="1.4"/>
+  <text x="280" y="113" text-anchor="middle" fill="#3949ab" font-size="12" font-weight="bold">NULL 标志位</text>
+
+  <rect x="350" y="70" width="170" height="76" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="435" y="105" text-anchor="middle" fill="#bf360c" font-size="12" font-weight="bold">记录头信息</text>
+  <text x="435" y="126" text-anchor="middle" fill="#bf360c" font-size="10">5 字节</text>
+
+  <rect x="520" y="70" width="190" height="76" fill="#f3e5f5" stroke="#8e24aa" stroke-width="1.4"/>
+  <text x="615" y="113" text-anchor="middle" fill="#6a1b9a" font-size="12" font-weight="bold">隐藏列</text>
+
+  <rect x="710" y="70" width="190" height="76" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.4"/>
+  <text x="805" y="113" text-anchor="middle" fill="#1b5e20" font-size="12" font-weight="bold">用户数据</text>
+
+  <!-- 分段说明 -->
+  <text x="125" y="174" text-anchor="middle" fill="#555555" font-size="10">每个变长字段的实际</text>
+  <text x="125" y="192" text-anchor="middle" fill="#555555" font-size="10">字节数（逆序存放）</text>
+
+  <text x="280" y="174" text-anchor="middle" fill="#555555" font-size="10">位图：1 位对应 1 列，</text>
+  <text x="280" y="192" text-anchor="middle" fill="#555555" font-size="10">标记哪些列是 NULL</text>
+
+  <text x="435" y="174" text-anchor="middle" fill="#555555" font-size="10">next_record、记录类型、</text>
+  <text x="435" y="192" text-anchor="middle" fill="#555555" font-size="10">删除标记等</text>
+
+  <text x="615" y="174" text-anchor="middle" fill="#555555" font-size="10">DB_ROW_ID / DB_TRX_ID</text>
+  <text x="615" y="192" text-anchor="middle" fill="#555555" font-size="10">/ DB_ROLL_PTR</text>
+
+  <text x="805" y="174" text-anchor="middle" fill="#555555" font-size="10">你定义的各列</text>
+  <text x="805" y="192" text-anchor="middle" fill="#555555" font-size="10">（定长 + 变长）</text>
+
+  <!-- 关键标注 -->
+  <rect x="40" y="224" width="430" height="64" rx="6" fill="#fff8e1" stroke="#e65100" stroke-width="1.2"/>
+  <text x="56" y="250" fill="#bf360c" font-size="11" font-weight="bold">记录头里的 next_record</text>
+  <text x="56" y="274" fill="#555555" font-size="11">存「下一条记录的相对偏移」，串起 §1.2 的单链表</text>
+
+  <rect x="490" y="224" width="410" height="64" rx="6" fill="#f3e5f5" stroke="#8e24aa" stroke-width="1.2"/>
+  <text x="506" y="250" fill="#6a1b9a" font-size="11" font-weight="bold">隐藏列 DB_TRX_ID / DB_ROLL_PTR</text>
+  <text x="506" y="274" fill="#555555" font-size="11">MVCC 版本链的载体，见事务与 MVCC §2.2</text>
+
+  <text x="470" y="326" text-anchor="middle" fill="#757575" font-size="11">Dynamic 格式主体与此一致，只有大字段处理不同（见 §2.2）；MySQL 8.0 起默认 Dynamic</text>
+</svg>
