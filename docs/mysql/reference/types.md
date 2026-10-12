@@ -1,6 +1,6 @@
 # 常用数据类型速查
 
-> 本页只记录常用类型的长度、存储和比较语义。字符集与排序规则见[字符集与排序规则](../01-basics/chapter-03-charset-collation.md)，字段与主键选择见[索引设计](../03-index/chapter-02-index-design.md)。
+> 本页只记录常用类型的长度、存储和比较语义。字符集与排序规则见[字符集与排序规则](../06-sql-and-schema/chapter-01-charset-collation.md)，字段与主键选择见[索引设计](../03-index/chapter-02-index-design.md)。
 
 ## 数值类型
 

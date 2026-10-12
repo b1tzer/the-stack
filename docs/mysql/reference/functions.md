@@ -81,4 +81,4 @@
 | `JSON_ARRAY(...)` | 创建 JSON 数组 | `JSON_ARRAY(1, 2, 3)` |
 | `JSON_VALID(expr)` | 判断字符串是否为有效 JSON | `JSON_VALID(payload)` |
 
-JSON 查询、函数索引和生成列的完整用法见 [JSON 类型](../06-sql-and-schema/chapter-03-json.md)。
+JSON 查询、函数索引和生成列的完整用法见 [JSON 类型](../06-sql-and-schema/chapter-04-json.md)。

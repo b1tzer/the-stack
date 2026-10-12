@@ -101,7 +101,7 @@ SHOW CHARACTER SET;
 CREATE DATABASE mydb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-字符集的比较规则、排序行为和常见乱码原因见[字符集与排序规则](../01-basics/chapter-03-charset-collation.md)。
+字符集的比较规则、排序行为和常见乱码原因见[字符集与排序规则](../06-sql-and-schema/chapter-01-charset-collation.md)。
 
 ## 5. 多实例部署
 

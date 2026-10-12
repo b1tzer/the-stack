@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 200" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="12">
+  <defs>
+    <marker id="arrGray" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#757575"/>
+    </marker>
+  </defs>
+
+  <text x="470" y="28" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">连接建立过程</text>
+
+  <!-- 客户端 -->
+  <rect x="22" y="64" width="120" height="64" rx="6" fill="#f5f5f5" stroke="#757575" stroke-width="1.4"/>
+  <text x="82" y="101" text-anchor="middle" font-size="13" font-weight="bold" fill="#424242">客户端</text>
+  <text x="82" y="150" text-anchor="middle" font-size="11" fill="#555555">发起连接</text>
+
+  <!-- 1 三次握手 -->
+  <rect x="177" y="64" width="120" height="64" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="237" y="101" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">① 三次握手</text>
+  <text x="237" y="150" text-anchor="middle" font-size="11" fill="#555555">建立 TCP 连接</text>
+
+  <!-- 2 身份验证 -->
+  <rect x="332" y="64" width="120" height="64" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="392" y="101" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">② 身份验证</text>
+  <text x="392" y="150" text-anchor="middle" font-size="11" fill="#555555">校验用户名、密码</text>
+  <text x="392" y="168" text-anchor="middle" font-size="11" fill="#555555">与 Host</text>
+
+  <!-- 3 权限获取 -->
+  <rect x="487" y="64" width="120" height="64" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="547" y="101" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">③ 权限获取</text>
+  <text x="547" y="150" text-anchor="middle" font-size="11" fill="#555555">读取 mysql.user</text>
+  <text x="547" y="168" text-anchor="middle" font-size="11" fill="#555555">的权限信息</text>
+
+  <!-- 4 分配线程 -->
+  <rect x="642" y="64" width="120" height="64" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="702" y="101" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">④ 分配线程</text>
+  <text x="702" y="150" text-anchor="middle" font-size="11" fill="#555555">一线程一连接</text>
+  <text x="702" y="168" text-anchor="middle" font-size="11" fill="#555555">或线程池复用</text>
+
+  <!-- 会话就绪 -->
+  <rect x="797" y="64" width="120" height="64" rx="6" fill="#f5f5f5" stroke="#757575" stroke-width="1.4"/>
+  <text x="857" y="101" text-anchor="middle" font-size="13" font-weight="bold" fill="#424242">会话就绪</text>
+  <text x="857" y="150" text-anchor="middle" font-size="11" fill="#555555">可以执行 SQL</text>
+
+  <!-- 箭头 -->
+  <line x1="144" y1="96" x2="171" y2="96" stroke="#757575" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <line x1="299" y1="96" x2="326" y2="96" stroke="#757575" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <line x1="454" y1="96" x2="481" y2="96" stroke="#757575" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <line x1="609" y1="96" x2="636" y2="96" stroke="#757575" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <line x1="764" y1="96" x2="791" y2="96" stroke="#757575" stroke-width="1.6" marker-end="url(#arrGray)"/>
+</svg>

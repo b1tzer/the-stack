@@ -41,19 +41,15 @@ WAL 规则只有一条：**在把数据页刷盘之前，必须先把它对应�
 
 反过来「先写日志、后刷数据页」就自洽了：
 
-```txt
-事务修改流程：
-1. 在 Buffer Pool 中修改数据页（内存操作，快）
-2. 把这次修改写成 Redo Log 记录，追加到 Log Buffer
-3. 事务提交时，按 innodb_flush_log_at_trx_commit 的策略把 Log Buffer 刷盘
-4. 数据页在后台由 Checkpoint / 刷脏页线程异步落盘
-```
+![WAL：先写日志再写数据的四步流程，日志落盘即 COMMIT 安全线](/mysql/02-storage-and-logging-chapter-04-wal.svg)
+
+顺序是：① Buffer Pool 改页 → ② 写 Redo 到 Log Buffer → ③ 提交时按策略把日志刷盘 → ④ 数据页由后台线程异步刷盘。
 
 关键在于：**第 2 步的日志一旦落盘，第 4 步的数据页哪怕永远不写，崩溃后也能靠日志重放出来。** 数据页落盘晚一点没关系，日志落盘才是「提交成功」的真正边界。
 
 ## 2. 日志的物理基础
 
-![Redo Log 全景：Log Buffer / 循环缓冲 / 记录格式 / LSN / Checkpoint](/mysql/02-storage-and-logging-chapter-04-redo-log.svg)
+![Redo Log 全景：Log Buffer、循环缓冲与两个 LSN 游标](/mysql/02-storage-and-logging-chapter-04-redo-log.svg)
 
 ### 2.1 LSN：Redo Log 的坐标轴
 
@@ -67,11 +63,7 @@ LSN 是 Redo Log 的字节偏移量，单调递增。每写一个字节的日志
 
 这三个值一比较，就能回答「这个数据页需不需要重放」：**如果某页的 `FIL_PAGE_LSN` 小于某条日志记录的 LSN，说明这条日志对应的修改还没刷进这个页，崩溃恢复时就要重放。**
 
-```txt
-LSN 单调递增 →
-0 ──────────── checkpoint LSN ──────────── 当前 LSN
-     （这部分日志已刷盘）      （这部分日志可能还没刷进数据页）
-```
+![LSN 尺子：checkpoint LSN 之前已刷盘，当前 LSN 之后尚未写入](/mysql/02-storage-and-logging-chapter-04-lsn.svg)
 
 用 LSN 这把尺子，Checkpoint 和崩溃恢复就有了统一的度量，不再需要逐页猜测。
 
@@ -92,15 +84,7 @@ SHOW VARIABLES LIKE 'innodb_redo_log_capacity';    -- 总容量
 
 每条 Redo Log 记录本身是「物理日志」——记录的不是 SQL，而是「哪个页的哪个位置改成了什么」：
 
-```txt
-┌──────────────┬────────────────────────────────┐
-│ Type         │  日志类型（MLOG_XXX）           │
-│ Space ID     │  表空间 ID                     │
-│ Page Number  │  页号                          │
-│ Offset       │  页内偏移                      │
-│ Data         │  修改的数据                    │
-└──────────────┴────────────────────────────────┘
-```
+![Redo Log 记录格式：Type、Space ID、Page Number、Offset、Data 五个字段](/mysql/02-storage-and-logging-chapter-04-record-format.svg)
 
 `MLOG_1BYTE`、`MLOG_2BYTE` 这类类型名表明它精确到「字节级」：崩溃恢复时不需要重算，照着记录把字节写回指定位置即可。这种「物理」特性是 Redo Log 能快速重放的原因，也是它和 Binlog（逻辑日志）最本质的区别。
 
@@ -138,19 +122,15 @@ Log Buffer 刷盘的时机有四种：事务提交时、Log Buffer 写满一半�
 
 三个值的差异，本质在「刷」这个词落到哪一层：
 
-```txt
-Log Buffer（内存） → OS Page Cache（操作系统缓存） → 磁盘
-       └── 值 2 只走到这里        └── 值 1 走到这里（fsync）
-值 0：哪都不主动走，等后台每秒 fsync
-```
+![刷盘三层：Log Buffer、OS Page Cache、磁盘，对应值 0/1/2 各自的落点](/mysql/02-storage-and-logging-chapter-04-flush-levels.svg)
 
-理解数据丢失边界的关键：**值 `0` 和 `2` 的区别不在丢不丢，而在「丢失时丢的是什么粒度」。**
+理解数据丢失边界的关键：**值 `0` 和 `2` 都可能丢「最近 1 秒」的数据，区别在于什么故障才会丢。**
 
 - 值 `0`：事务提交了，日志还停在 Log Buffer，MySQL 进程崩了（不只是断电）就直接没了。
 - 值 `2`：日志已经交给 OS 缓存，MySQL 进程崩了不影响（OS 缓存还在），只有**整机断电**才可能丢 OS 缓存里那 1 秒。
 - 值 `1`：`fsync` 返回后，日志已在磁盘物理扇区上，MySQL 崩溃、断电都不丢。
 
-所以「值 0 和值 2 都丢 1 秒」是简化说法，严谨的边界是：**值 0 怕 MySQL 崩溃，值 2 只怕整机断电，值 1 什么都不怕（代价是每次提交都 fsync，性能最差）。**
+所以「值 0 和值 2 都丢 1 秒」是简化说法，严谨的边界是：**值 0：进程崩溃、整机断电都会丢；值 2：进程崩溃不丢，只有整机断电才丢；值 1：都不丢（代价是每次提交都 fsync，性能最差）。**
 
 生产环境的常见选择：默认 `1` 保安全；对性能极度敏感、又能容忍 1 秒丢失的日志类业务，可降为 `2`；`0` 基本不推荐。
 
@@ -158,12 +138,7 @@ Log Buffer（内存） → OS Page Cache（操作系统缓存） → 磁盘
 
 Redo Log 是循环写的，容量有限。它覆盖旧日志的前提，是「旧日志对应的数据页已经刷盘」。这个「刷盘推进到哪里」的标记，就是 **Checkpoint**。
 
-```txt
-             checkpoint LSN
-                  ↓
-redo 文件: [已刷盘部分][未刷盘部分][空闲]
-             ↑ 可被覆盖     ↑ 崩溃恢复要用的
-```
+![Checkpoint：redo 文件三段分区，checkpoint LSN 之前可安全覆盖](/mysql/02-storage-and-logging-chapter-04-checkpoint.svg)
 
 Checkpoint 做的事：把 Buffer Pool 里「LSN 小于某个值」的脏页批量刷盘，然后把 Checkpoint LSN 推进到那个值。推进之后，Checkpoint LSN 之前的日志就可以安全覆盖了。
 
@@ -180,12 +155,7 @@ Checkpoint 做的事：把 Buffer Pool 里「LSN 小于某个值」的脏页批�
 
 把前面几节串起来，MySQL 崩溃重启后做这样几件事：
 
-```txt
-1. 找到最近一次 Checkpoint LSN
-2. 从 Checkpoint LSN 开始，向后扫描 Redo Log
-3. 对每条日志：若目标数据页的 FIL_PAGE_LSN < 这条日志的 LSN，就重放这条日志
-4. 重放完成后，通过 Undo Log 把「未提交事务」的修改回滚掉
-```
+![崩溃恢复流程：定位 Checkpoint、扫描 Redo、按 FIL_PAGE_LSN 重放或跳过、Undo 回滚未提交](/mysql/02-storage-and-logging-chapter-04-recovery.svg)
 
 第 3 步里 `FIL_PAGE_LSN` 的比较，正是 §2.1 那把尺子的落地：数据页上记的 LSN 比日志旧，说明日志对应的修改没刷进页里，需要重放；比日志新或相等，说明页已经是新状态，跳过即可。这个判断让恢复变得幂等——重复重放同一段日志也不会出错。
 
@@ -199,33 +169,15 @@ Redo Log 只解决「InnoDB 自己崩溃不丢数据」。但 MySQL 还有第二
 
 难点在于：写两份日志是两次独立的磁盘写，崩溃可能发生在「只写完了一份」的瞬间。如果不管先后顺序，都会出问题：
 
-```txt
-方案一：先写 Redo，再写 Binlog
-  写完 Redo 后崩溃 → 主库恢复了该事务，但 Binlog 里没有
-  → 从库基于 Binlog 重放，少了一条数据，主从不一致
+![固定顺序的失败：断电发生在两份日志之间，主从总会差一笔](/mysql/02-storage-and-logging-chapter-06-2pc-failures.svg)
 
-方案二：先写 Binlog，再写 Redo
-  写完 Binlog 后崩溃 → Binlog 里有，但 Redo 没有
-  → 主库回滚了该事务，但从库重放 Binlog 会多出一条数据，主从不一致
-```
+两种失败的后果正好相反：方案一断电，主库靠 Redo 恢复了这笔、Binlog 里没有，从库少一笔；方案二断电，主库回滚了这笔、Binlog 里已有，从库多一笔。
 
-InnoDB 用**两阶段提交**解决这个「两份日志无法原子写」的难题。事务提交分三步：
+无论哪种固定顺序，断电都会打破「主库和从库看到同一批已提交事务」的约定。两阶段提交的解法，是把这个「提交」拆成两段，并在崩溃恢复时**根据 Binlog 的状态反推该不该提交**：
 
-```txt
-1. InnoDB：写 Redo Log，标记为 prepare（准备）状态
-2. Server：写 Binlog
-3. InnoDB：把 Redo Log 标记为 commit（提交）状态
-```
+![两阶段提交：prepare → 写 Binlog → commit，恢复时用 Binlog 裁决](/mysql/02-storage-and-logging-chapter-06-2pc.svg)
 
-崩溃恢复时，扫描 Redo Log 里处于 `prepare` 状态的事务，用「Binlog 是否完整」来裁决它的命运：
-
-```txt
-崩溃恢复对 prepare 事务的判定：
-- 对应 Binlog 完整（能查到该事务的 XID 事件）→ 提交（补写 redo commit）
-- 对应 Binlog 不完整（没有 XID）→ 回滚
-```
-
-为什么这个规则能保证一致？核心观察是：**Binlog 的写是原子标志。** 只要 Binlog 完整落地，就说明这个事务「对外已经算提交」了，从库迟早会重放到它，主库必须跟着提交；只要 Binlog 没落地，就说明事务还没对外生效，主库回滚它，从库也不会知道。于是无论崩溃发生在第 1 步和第 2 步之间，还是第 2 步和第 3 步之间，主从最终都收敛到同一状态。
+为什么这个规则能保证一致？核心观察是：**Binlog 的写入是原子标志。** 只要 Binlog 完整落地，就说明这个事务「对外已经算提交」了，从库迟早会重放到它，主库必须跟着提交；只要 Binlog 没落地，就说明事务还没对外生效，主库回滚它，从库也不会知道。于是无论崩溃发生在 prepare 之后还是 commit 之前，主从最终都收敛到同一状态。两阶段提交因此把「要不要提交」的裁决权交给了 Binlog：Redo Log 的 prepare 状态只是「先占个位，等 Binlog 的结果再定去留」。
 
 Binlog 的格式、事件类型与参数见 [Binlog](./chapter-06-binlog.md)。
 

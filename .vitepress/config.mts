@@ -1000,7 +1000,6 @@ export default withOpenInEditor(defineConfig({
           items: [
             { text: 'MySQL 概览', link: '/mysql/01-basics/chapter-01-overview' },
             { text: '整体架构', link: '/mysql/01-basics/chapter-02-architecture' },
-            { text: '字符集与排序规则', link: '/mysql/01-basics/chapter-03-charset-collation' },
           ],
         },
         {
@@ -1051,12 +1050,13 @@ export default withOpenInEditor(defineConfig({
           text: 'SQL 与 Schema 特性',
           collapsed: true,
           items: [
-            { text: '窗口函数', link: '/mysql/06-sql-and-schema/chapter-01-window-function' },
-            { text: 'CTE', link: '/mysql/06-sql-and-schema/chapter-02-cte' },
-            { text: 'JSON', link: '/mysql/06-sql-and-schema/chapter-03-json' },
-            { text: '生成列', link: '/mysql/06-sql-and-schema/chapter-04-generated-column' },
-            { text: '分区表', link: '/mysql/06-sql-and-schema/chapter-05-partition' },
-            { text: '存储过程与触发器', link: '/mysql/06-sql-and-schema/chapter-06-stored-procedure' },
+            { text: '字符集与排序规则', link: '/mysql/06-sql-and-schema/chapter-01-charset-collation' },
+            { text: '窗口函数', link: '/mysql/06-sql-and-schema/chapter-02-window-function' },
+            { text: 'CTE', link: '/mysql/06-sql-and-schema/chapter-03-cte' },
+            { text: 'JSON', link: '/mysql/06-sql-and-schema/chapter-04-json' },
+            { text: '生成列', link: '/mysql/06-sql-and-schema/chapter-05-generated-column' },
+            { text: '分区表', link: '/mysql/06-sql-and-schema/chapter-06-partition' },
+            { text: '存储过程与触发器', link: '/mysql/06-sql-and-schema/chapter-07-stored-procedure' },
           ],
         },
         {

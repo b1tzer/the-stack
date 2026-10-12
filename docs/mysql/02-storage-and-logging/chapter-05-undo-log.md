@@ -4,7 +4,7 @@
 
 ## 1. Undo Log 是什么
 
-![Undo Log 全景：逆向操作日志 + MVCC 版本链载体](/mysql/02-storage-and-logging-chapter-05-undo-log.svg)
+![Undo Log 全景：回滚段里的存储结构，服务回滚与 MVCC 两个用途](/mysql/02-storage-and-logging-chapter-05-undo-log.svg)
 
 ### 1.1 从一次回滚说起
 
@@ -33,23 +33,17 @@ Undo Log 与 Redo Log 是两份目的相反的日志：
 
 ### 1.2 Undo Log 记录的不是数据快照，是「逆向操作」
 
-Undo Log 是**逻辑日志**，它不复制整行数据，而是记录「如何撤销这次修改」。同样是把 `balance` 从 500 改成 400，Undo Log 记录的语义是「把这一行的 balance 加 100」，而不是「旧值是 500」。
+Undo Log 是**逻辑日志**，它不复制整行、更不复制整页，只记录撤销这次修改所需的最小信息：**被修改列的旧值、主键等定位信息**。同样是把 `balance` 从 500 改成 400，这一行的其他列、页里其他行都不会被复制进来。
 
-这个区别决定了 Undo Log 的体积和用途：
+这个取舍决定了 Undo Log 的体积和用途：
 
-- **体积小**：只记操作指令，不复制整页；
-- **可回放**：回滚时执行逆向操作即可；
-- **可被 MVCC 复用**：记录里保留了旧字段值，旧版本正是从这些逆向信息里重建出来的。
+- **体积小**：只记被修改的列和定位信息，不复制整行、不复制整页；
+- **可回放**：回滚时把旧值写回原位，逻辑上等价于执行了逆向操作（`INSERT` 变删除、`UPDATE` 变回旧值）；
+- **可被 MVCC 复用**：记录里的旧字段值正是历史版本的来源，快照读看到的旧版本就是从这些 undo 信息里重建的。
 
 一条 `UPDATE` 产生的 Undo 记录，大致包含这些内容：
 
-```txt
-Undo 记录（简化）
-├─ undo_no         本次操作在事务内的序号
-├─ 表 ID / 主键     定位到哪一行
-├─ 被修改的列及旧值   balance 的旧值 500（用于回滚和 MVCC）
-└─ 指向前一条 Undo   构成同事务内的 Undo 链
-```
+![一条 Undo 记录的四个字段，语义是逆向操作而非数据快照](/mysql/02-storage-and-logging-chapter-05-undo-record.svg)
 
 事务内连续多次修改同一行，会形成一条事务内部的 Undo 链；而不同事务对同一行的修改，则通过行记录里的 `DB_ROLL_PTR` 串成跨事务的**版本链**（见 §3.1）。
 
@@ -72,11 +66,11 @@ Undo Log 按「回滚需要做什么」分为两类，它们的清理时机完�
 
 - `UPDATE` / `DELETE` 修改的是**已存在的行**。这行的旧值，可能正被某个并发事务的 Read View 引用（那个事务需要一个「修改前」的版本才能做到可重复读）。因此旧值必须保留，直到**所有可能看见它的 Read View 都结束**，才能删。
 
-这就是「同一份 Undo Log，两类记录，两套生命周期」的由来。也解释了为什么频繁 `INSERT` 的表 Undo 压力小，而频繁 `UPDATE` / `DELETE` 的表 Undo 容易堆积。
+这就是「同一份 Undo Log，两类记录，两套生命周期」的由来，也解释了为什么频繁 `INSERT` 的表 Undo 压力小，而频繁 `UPDATE` / `DELETE` 的表 Undo 容易堆积。
 
 ### 2.2 Undo Log 存在哪里：回滚段与 Undo 表空间
 
-Undo Log 不是独立于表空间的文件，它存放在**回滚段（Rollback Segment）** 里。回滚段是 Undo 页的组织单元，一个回滚段管理一串 Undo 页链表。
+Undo 记录并不散落在用户数据里，它统一存放在**回滚段（Rollback Segment）** 中：回滚段是 Undo 页的组织单元，管理着一串 Undo 页链表；回滚段本身位于 Undo 表空间内，8.0 默认是独立的 `undo_001` / `undo_002`。
 
 MySQL 8.0 默认配置下：
 
@@ -97,17 +91,7 @@ MySQL 5.6 之前，Undo Log 存放在系统表空间 `ibdata1` 里，无法独�
 
 一个 Undo 页的内部结构：
 
-```txt
-┌──────────────────┐
-│ Undo Page Header │  页元信息（链表指针等）
-├──────────────────┤
-│ Undo Record      │  一条逆向操作记录
-├──────────────────┤
-│ Undo Record      │  ...
-├──────────────────┤
-│ Free Space       │
-└──────────────────┘
-```
+![Undo 页内部结构：页头、Undo Record、Free Space，页链前后相连](/mysql/02-storage-and-logging-chapter-05-undo-page.svg)
 
 多个事务的 Undo 记录可以共享同一个回滚段、同一组 Undo 页，通过链表串起来。这里的存储细节不需要全部记住，需要理解的是：**Undo Log 占用的是独立空间，且这段空间只有在 Purge 清理后才会真正释放。**
 
@@ -117,10 +101,7 @@ MySQL 5.6 之前，Undo Log 存放在系统表空间 `ibdata1` 里，无法独�
 
 Undo Log 除了回滚，还支撑 MVCC。 [事务与 MVCC §2.3](../05-transaction-lock/chapter-02-transaction.md#version-chain) 已经详细讲过：每行记录的 `DB_ROLL_PTR` 指向 Undo 中的旧版本，多次修改串成一条从当前版本通到最老版本的链。
 
-```txt
-当前记录 → Undo v3 → Undo v2 → Undo v1
-(trx=105)  (trx=104) (trx=102) (trx=101)
-```
+![版本链：当前记录经 DB_ROLL_PTR 串起 Undo 中的历史版本](/mysql/05-transaction-lock-chapter-01-transaction-version-chain.svg)
 
 快照读时，事务沿这条链，用 Read View 判定每个版本是否可见。**版本链与可见性判定的完整算法见 [事务与 MVCC §3.2](../05-transaction-lock/chapter-02-transaction.md#visibility-judgment)，本文不再重复。** 这里只强调 Undo 视角下的一个推论：
 
