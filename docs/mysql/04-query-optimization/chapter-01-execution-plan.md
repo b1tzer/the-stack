@@ -100,46 +100,95 @@ MySQL 5.7 及之前的查询缓存，因三个缺陷被移除：
 
 ### 2.1 EXPLAIN 基本用法
 
-`EXPLAIN` 是观察执行计划、验证优化器决策的主要工具：
+`EXPLAIN` 是观察执行计划、验证优化器决策的主要工具。它**并不执行查询**——只是让优化器把「打算怎么执行」输出出来；真正执行并报告实际耗时的是 `EXPLAIN ANALYZE`（MySQL 8.0.18+，见 §3.2）。
 
 ```sql
 EXPLAIN SELECT * FROM users WHERE age > 25;
-EXPLAIN ANALYZE SELECT * FROM users WHERE age > 25;  -- 8.0.18+，含实际执行时间
+
+-- UPDATE / DELETE 同样可以 EXPLAIN（MySQL 5.6+），用于看改写后的执行计划
+EXPLAIN UPDATE users SET name = 'x' WHERE age = 25;
 ```
+
+多表查询时，EXPLAIN 为参与的每张表各输出一行（用到临时表时还会多出一行 `table=temporary`），`id` 列标明这些行的执行顺序。读任何一份 EXPLAIN，建议固定三步：
+
+1. **type 定性质**：这一步是全表扫、走索引，还是精准定位（§2.3）；
+2. **key / rows / filtered 定量**：实际用了哪个索引、预估扫描多少行、其中多少行能通过过滤；
+3. **Extra 定动作**：有没有额外的回表、临时表、排序（§2.4）。
 
 ### 2.2 核心字段
 
 | 字段 | 说明 |
 | :-- | :-- |
-| type | 访问类型 |
-| possible_keys | 可能使用的索引 |
-| key | 实际使用的索引 |
-| key_len | 索引使用长度 |
-| rows | 预估扫描行数 |
-| filtered | 过滤比例 |
-| Extra | 额外信息 |
+| `id` | 执行顺序：`id` 相同的行属于同一组，按出现顺序从上到下执行；`id` 不同则数值大的先执行（子查询、派生表） |
+| `select_type` | 查询类型：`SIMPLE`（简单查询，无子查询/UNION）、`PRIMARY`（最外层）、`SUBQUERY`、`DERIVED`、`UNION` 等 |
+| `table` | 当前步骤访问的表；出现 `temporary` 表示这一步用到了临时表 |
+| `type` | 访问类型，决定这一步的性质，详见 §2.3 |
+| `possible_keys` | 优化器**评估过**的候选索引，只是候选 |
+| `key` | 优化器**实际选用**的索引；`NULL` 表示没有用上索引 |
+| `key_len` | 实际用到了联合索引的前多少字节——据此判断是哪几列参与了定位 |
+| `ref` | 等值匹配使用的值：常量（`const`）、别的表的列（如 `u.id`），或 `NULL` |
+| `rows` | 该步骤的**预估扫描行数**，不是最终返回的结果行数 |
+| `filtered` | 扫描行中能通过 WHERE 的百分比；交给下一步的行数约为 `rows × filtered%` |
+| `Extra` | 额外动作，详见 §2.4 |
+
+拿 §3.2 用过的同一条两表连接，跑一次传统格式的 EXPLAIN：
+
+```sql
+EXPLAIN SELECT u.name, o.amount
+FROM users u JOIN orders o ON u.id = o.user_id
+WHERE u.age > 25;
+```
+
+```txt
+id  select_type  table  type   possible_keys  key          key_len  ref    rows  filtered  Extra
+1   SIMPLE       u      range  idx_age        idx_age       5       NULL   5     100.00   Using where
+1   SIMPLE       o      ref    idx_user_id    idx_user_id   8       u.id   3     100.00   NULL
+```
+
+逐列把这份输出读一遍：
+
+- **`id` 都是 1、`select_type` 都是 `SIMPLE`**：没有子查询，两张表属于同一组，按行的先后顺序执行——先扫 `u`，再对 `u` 的每一行去查 `o`。
+- **`type=range` + `key=idx_age`**：`u` 上的 `age > 25` 形成一个区间，按范围扫描 `idx_age`；`possible_keys` 只有 `idx_age`，说明优化器没有别的候选。
+- **`key_len=5`**：`age` 是 `INT`（4 字节）且允许 `NULL`（+1 字节）。如果查询还用到了联合索引的其他列，key_len 会接近索引总长度；明显偏短就说明只有前几列参与了定位——这正是用 key_len 判断「索引用到了哪几列」的依据。
+- **`ref`**：`u` 是 `NULL`——range 扫描不走等值匹配；`o` 用 `u.id` 匹配——「驱动表在前、被驱动表按关联列跟随」在 EXPLAIN 里就是这个样子。
+- **`rows`**：`u` 预估扫 5 行；`o` 的 3 是**每次查找**的预估行数，嵌套循环的总扫描量约为 5 × 3。
+- **`filtered=100.00`**：扫出来的行全部通过过滤。这个值越低，说明白扫的比例越高——比如 10.00 就意味着九成的行取回来后被丢弃。
+- **`Extra=Using where`**：存储引擎交出行之后，Server 层还要再过滤一次；对 `u` 而言就是 `age > 25` 的判断落在这一步。
+
+同一查询换 `EXPLAIN ANALYZE`（§3.2）后，actual rows 的 5 和 3 正好可以与这里的估算对照。估算与实际长期偏差大，通常意味着统计信息过期，先执行 `ANALYZE TABLE`（见 §1.2）。
 
 ### 2.3 type 访问类型
 
+type 回答「这一步怎么找行」，是整份 EXPLAIN 里最先要看的一列。按访问代价从高到低（从差到好）：
+
 | type | 说明 |
 | :-- | :-- |
-| ALL | 全表扫描 |
-| index | 全索引扫描 |
-| range | 范围扫描 |
-| ref | 非唯一索引等值查询 |
-| eq_ref | 唯一索引等值查询 |
-| const | 主键/唯一索引等值查询 |
-| system | 系统表 |
+| `ALL` | 全表扫描：逐行读主键索引，代价最高 |
+| `index` | 全索引扫描：扫完整棵索引树（通常是二级索引），比 `ALL` 略好，但仍是全量 |
+| `range` | 范围扫描：按区间读索引；`>`、`BETWEEN`、`LIKE '张%'`、聚合 min/max 都属于这一档 |
+| `ref` | 非唯一索引的等值（或前缀等值）查找：命中索引中的一组行 |
+| `eq_ref` | 连接中用唯一索引/主键做等值匹配：每个外层行只对应一行，最优的连接访问 |
+| `const` | 主键/唯一索引等值匹配常量，优化阶段直接当成常量，至多查一次 |
+| `system` | 系统表或只有一行的表，开销可忽略 |
+
+判读要点：
+
+- 看到 **`ALL` / `index` 先查 `rows` 和 `filtered`**：小表、或行数有限的覆盖索引扫描，代价可能完全可接受（见 §4 最佳实践第 7 条）；
+- 大表上 `ALL` 且 `rows` 接近表的总行数，基本可以判定要补索引或改写条件；
+- 连接查询的优化目标，是把被驱动表压到 **`eq_ref` / `ref`**；范围查询停在 `range` 就是正常水平；`const`、`system` 只在常量查询和特殊表上出现。
 
 ### 2.4 Extra 常见值
 
-| Extra | 说明 |
+Extra 描述「type 之外还发生了什么」，每一项都对应一个明确动作：
+
+| Extra | 场景与处理 |
 | :-- | :-- |
-| Using index | 覆盖索引 |
-| Using where | 存储引擎返回后再过滤 |
-| Using temporary | 使用临时表 |
-| Using filesort | 文件排序 |
-| Using index condition | 索引下推 |
+| `Using index` | 索引本身就答完了查询，不回表——覆盖索引，高效且应争取 |
+| `Using where` | 引擎交出行后 Server 层再过滤；若 `rows` 大而 `filtered` 低，说明白扫严重，考虑把过滤列纳入索引 |
+| `Using index condition` | 索引下推（ICP）生效：过滤在引擎层提前完成，回表次数减少，是好事 |
+| `Using temporary` | `GROUP BY`、`DISTINCT`、`UNION` 等需要临时表；结果集大时会落磁盘，优先让分组列命中索引 |
+| `Using filesort` | `ORDER BY` 无法由索引完成；给排序列建联合索引，让排序顺着索引读出来 |
+| `Using join buffer` | 连接列上没有可用索引，只能整批匹配（block nested loop）；给被驱动表的关联列补索引 |
 
 ## 3. EXPLAIN 进阶格式
 

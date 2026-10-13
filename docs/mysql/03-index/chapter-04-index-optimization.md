@@ -30,6 +30,8 @@ MySQL 5.6+ 引入。MRR 解决的是「回表时的随机磁盘 IO」。
 
 MRR 改的是回表顺序：先把所有主键收集进缓冲区，**按主键排序后再回表**。因为 InnoDB 表数据按主键物理存放，按主键顺序读就变成了顺序扫描，把多次随机寻道换成一次连续读取。
 
+![MRR 对比：传统逐个回表产生随机 IO；MRR 排序后顺序回表](/mysql/03-index-chapter-04-mrr.svg)
+
 ```sql
 SELECT * FROM users WHERE age BETWEEN 20 AND 30;
 -- EXPLAIN 的 Extra 显示 Using MRR

@@ -13,17 +13,7 @@ CREATE INDEX idx_email_prefix ON users(email(10));
 
 联合索引是把多个列组成一个索引键。它和单列索引一样是一棵 B+ 树，区别只在叶子节点按**多列的字典序**排序：先比第一列，第一列相同再比第二列，以此类推。
 
-```txt
-联合索引 idx_a_b_c (a, b, c) 的叶子节点，按 (a, b, c) 字典序排列
-┌─────────────┐
-│ (1, 1, 1)   │
-│ (1, 1, 2)   │
-│ (1, 2, 1)   │  ← a=1 的区间内，b 有序
-│ (1, 2, 5)   │
-│ (2, 1, 1)   │  ← a 变到 2，b 又重新从 1 开始
-│ (2, 1, 3)   │
-└─────────────┘
-```
+![联合索引叶子按 (a,b,c) 字典序排列，只有 a 区间内 b 才有序](/mysql/03-index-chapter-02-composite-order.svg)
 
 这张图解释了最左前缀的由来：**每一列都依赖它左边的列先确定，才有全局有序可言。**
 
@@ -34,12 +24,12 @@ CREATE INDEX idx_email_prefix ON users(email(10));
 ```sql
 -- 最左前缀原则
 CREATE INDEX idx_a_b_c ON users(a, b, c);
--- ✅ 能用：WHERE a=1
--- ✅ 能用：WHERE a=1 AND b=2
--- ✅ 能用：WHERE a=1 AND b=2 AND c=3
--- ❌ 不能用：WHERE b=2          （a 未确定，b 全局乱序）
--- ❌ 不能用：WHERE c=3          （a、b 都未确定，c 更无从定位）
--- ❌ 不能用：WHERE a=1 AND c=3  （跳过了 b，c 依赖 b 先确定）
+-- 能用：WHERE a=1
+-- 能用：WHERE a=1 AND b=2
+-- 能用：WHERE a=1 AND b=2 AND c=3
+-- 不能用：WHERE b=2          （a 未确定，b 全局乱序）
+-- 不能用：WHERE c=3          （a、b 都未确定，c 更无从定位）
+-- 不能用：WHERE a=1 AND c=3  （跳过了 b，c 依赖 b 先确定）
 ```
 
 关键结论：**联合索引里每一列的可用性，取决于它左边所有列是否都作为等值条件出现。** 中间跳过一列，后面的列就无法沿树定位。这就是「最左前缀」的字面意思——只能从最左边开始，连续命中。
@@ -104,7 +94,7 @@ SELECT * FROM orders WHERE user_id = 100 AND status = 'paid' AND amount > 100;
 最终结论：
 
 ```sql
--- ✅ 一个联合索引覆盖两条高频查询
+-- 推荐：一个联合索引覆盖两条高频查询
 CREATE INDEX idx_user_status_time ON orders(user_id, status, created_at);
 ```
 
@@ -127,7 +117,7 @@ FROM orders;
 
 **反模式 1：过多索引**
 ```sql
--- ❌ 每个查询都建索引
+-- 反模式：每个查询都建索引
 CREATE INDEX idx_a ON t(a);
 CREATE INDEX idx_b ON t(b);
 CREATE INDEX idx_c ON t(c);
@@ -135,24 +125,24 @@ CREATE INDEX idx_a_b ON t(a, b);
 CREATE INDEX idx_a_c ON t(a, c);
 -- 索引过多影响写入性能
 
--- ✅ 合并索引
+-- 推荐：合并索引
 CREATE INDEX idx_a_b_c ON t(a, b, c);  -- 覆盖多个查询
 ```
 
 **反模式 2：索引列顺序不当**
 ```sql
--- ❌ 范围查询列放前面
+-- 错误：范围查询列放前面
 CREATE INDEX idx_age_name ON users(age, name);
 -- WHERE age > 20 AND name = '张三' → age 范围后 name 无法用索引
 
--- ✅ 等值查询列放前面
+-- 正确：等值查询列放前面
 CREATE INDEX idx_name_age ON users(name, age);
 -- WHERE name = '张三' AND age > 20 → 两个条件都能用索引
 ```
 
 **反模式 3：重复索引**
 ```sql
--- ❌ 重复索引
+-- 反模式：重复索引
 CREATE INDEX idx_name ON users(name);
 CREATE INDEX idx_name_email ON users(name, email);
 -- idx_name 是 idx_name_email 的前缀，完全多余
@@ -173,13 +163,13 @@ SELECT * FROM sys.schema_redundant_indexes;
 | GROUP BY 列 | 分组列可以纳入联合索引 |
 | 覆盖索引 | 查询列都在索引中避免回表 |
 | 无冗余索引 | 检查是否有重复或被包含的索引 |
-| 无过多索引 | 一般不超过 5-6 个索引 |
+| 无过多索引 | 一般不超过 5~6 个索引 |
 
 ### 3.2 最佳实践
 
-1. **先分析查询模式再设计索引** — 根据实际 SQL 建索引
-2. **联合索引优先于多个单列索引** — 一个联合索引可以覆盖多个查询
-3. **覆盖索引是最优解** — 查询列都在索引中，无需回表
-4. **前缀索引用于长字符串** — 减少索引空间，但不能用于 ORDER BY
-5. **定期审查索引使用情况** — 删除未使用和重复的索引
-6. **使用 EXPLAIN 验证索引效果** — 确认索引被正确使用
+1. **先分析查询模式再设计索引**：根据实际 SQL 建索引
+2. **联合索引优先于多个单列索引**：一个联合索引可以覆盖多个查询
+3. **覆盖索引优先**：查询列都在索引中，无需回表
+4. **前缀索引用于长字符串**：减少索引空间，但不能用于 ORDER BY
+5. **定期审查索引使用情况**：删除未使用和重复的索引
+6. **使用 EXPLAIN 验证索引效果**：确认索引被正确使用

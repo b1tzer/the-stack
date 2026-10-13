@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 400" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <defs>
+    <marker id="arrGreen" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#2e7d32"/>
+    </marker>
+    <marker id="arrRed" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#c62828"/>
+    </marker>
+  </defs>
+
+  <text x="470" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">插入位置决定页分裂：自增追加 vs 随机落位</text>
+
+  <!-- 自增 -->
+  <rect x="40" y="56" width="430" height="270" rx="8" fill="#fafafa" stroke="#2e7d32" stroke-width="1.4"/>
+  <text x="56" y="84" fill="#1b5e20" font-size="12" font-weight="bold">自增主键：总是追加到最右</text>
+
+  <rect x="64" y="130" width="100" height="76" rx="4" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.2"/>
+  <text x="114" y="162" text-anchor="middle" fill="#1b5e20" font-size="11" font-weight="bold">页 A</text>
+  <text x="114" y="184" text-anchor="middle" fill="#555555" font-size="10">…999</text>
+
+  <line x1="168" y1="168" x2="200" y2="168" stroke="#a5d6a7" stroke-width="1.4"/>
+
+  <rect x="204" y="130" width="100" height="76" rx="4" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.2"/>
+  <text x="254" y="162" text-anchor="middle" fill="#1b5e20" font-size="11" font-weight="bold">页 B</text>
+  <text x="254" y="184" text-anchor="middle" fill="#555555" font-size="10">1000</text>
+
+  <line x1="308" y1="168" x2="330" y2="168" stroke="#2e7d32" stroke-width="1.8" marker-end="url(#arrGreen)"/>
+
+  <rect x="344" y="130" width="100" height="76" rx="4" fill="#e8f5e9" stroke="#2e7d32" stroke-width="2"/>
+  <text x="394" y="162" text-anchor="middle" fill="#1b5e20" font-size="11" font-weight="bold">新页</text>
+  <text x="394" y="184" text-anchor="middle" fill="#555555" font-size="10">1001</text>
+
+  <text x="255" y="248" text-anchor="middle" fill="#555555" font-size="10">新 id 总比现有大 → 追加在链表末尾</text>
+  <text x="255" y="270" text-anchor="middle" fill="#1b5e20" font-size="10" font-weight="bold">旧页不动，分裂只发生在最右一页</text>
+  <text x="255" y="296" text-anchor="middle" fill="#555555" font-size="10">物理顺序与主键顺序一致，范围扫描连续</text>
+
+  <!-- 随机 -->
+  <rect x="510" y="56" width="420" height="270" rx="8" fill="#fafafa" stroke="#c62828" stroke-width="1.4"/>
+  <text x="526" y="84" fill="#b71c1c" font-size="12" font-weight="bold">随机主键（UUID）：插进中间，触发分裂</text>
+
+  <rect x="534" y="112" width="120" height="52" rx="4" fill="#ffebee" stroke="#c62828" stroke-width="1.4"/>
+  <text x="594" y="143" text-anchor="middle" fill="#c62828" font-size="11" font-weight="bold">新 id=600</text>
+
+  <line x1="658" y1="138" x2="686" y2="138" stroke="#c62828" stroke-width="1.8" marker-end="url(#arrRed)"/>
+
+  <rect x="700" y="112" width="204" height="52" rx="4" fill="#ffebee" stroke="#c62828" stroke-width="1.4"/>
+  <text x="802" y="134" text-anchor="middle" fill="#c62828" font-size="11" font-weight="bold">页 X（500..1000，已满）</text>
+  <text x="802" y="152" text-anchor="middle" fill="#b71c1c" font-size="10">目标页在链表中间且写满</text>
+
+  <text x="724" y="196" text-anchor="middle" fill="#c62828" font-size="10" font-weight="bold">↓ 强制分裂</text>
+
+  <rect x="534" y="216" width="170" height="60" rx="4" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="619" y="242" text-anchor="middle" fill="#bf360c" font-size="11" font-weight="bold">页 X</text>
+  <text x="619" y="262" text-anchor="middle" fill="#555555" font-size="10">500..750（留一半）</text>
+
+  <rect x="720" y="216" width="184" height="60" rx="4" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="812" y="242" text-anchor="middle" fill="#bf360c" font-size="11" font-weight="bold">页 Y（新下半部分）</text>
+  <text x="812" y="262" text-anchor="middle" fill="#555555" font-size="10">751..1000 + 600 插入</text>
+
+  <text x="720" y="300" text-anchor="middle" fill="#b71c1c" font-size="10">约一半数据搬迁 · 父节点加指针 · 可能向上递归分裂</text>
+
+  <!-- 底部结论 -->
+  <rect x="40" y="344" width="890" height="36" rx="8" fill="#f5f5f5" stroke="#bdbdbd" stroke-width="1.2"/>
+  <text x="485" y="367" text-anchor="middle" font-size="11" font-weight="bold" fill="#424242">插入位置决定分裂频率——顺序追加几乎无分裂，中间插入频繁分裂并让页的物理顺序与主键脱节</text>
+</svg>

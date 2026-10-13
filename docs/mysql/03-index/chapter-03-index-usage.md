@@ -10,6 +10,8 @@
 
 回顾 [B+ 树索引 §1](./chapter-01-btree-index.md#btree-clustered-index)：InnoDB 的索引是一棵 B+ 树，叶子节点按索引列的值有序排列，查找时先沿树定位到目标区间，再顺着双向链表顺序读取。因此索引只擅长两件事——等值定位（`=`）和范围定位（`>`、`BETWEEN`、`LIKE 'x%'`）。下面每个失效场景，本质都是破坏这两件事之一：要么条件无法翻译成有序区间，要么翻译出的区间太大、回表代价超过全表扫描。
 
+![索引失效判定框架：先看能否翻译成区间，再看回表代价是否划算](/mysql/03-index-chapter-03-failure-framework.svg)
+
 ### 1.2 条件无法翻译成有序区间
 
 #### 1.2.1 函数操作：索引存的是原始值
@@ -17,10 +19,10 @@
 二级索引的叶子节点存的是**列的原始值**，并按原始值排序。`WHERE YEAR(created_at) = 2024` 里，索引中只有 `created_at` 的原始时间戳，没有 `YEAR(created_at)` 这个值。B+ 树想定位「`YEAR(created_at) = 2024`」的区间，就必须对每一行现算 `YEAR()`，无法沿树定位，只能全表扫描。
 
 ```sql
--- ❌ 函数作用在索引列上，索引失效
+-- 函数作用在索引列上，索引失效
 SELECT * FROM users WHERE YEAR(created_at) = 2024;
 
--- ✅ 函数移到常量一侧，索引列保持原样
+-- 函数移到常量一侧，索引列保持原样
 SELECT * FROM users WHERE created_at >= '2024-01-01' AND created_at < '2025-01-01';
 ```
 
@@ -36,10 +38,10 @@ SELECT * FROM users WHERE created_at >= '2024-01-01' AND created_at < '2025-01-0
 
 ```sql
 -- phone 是 VARCHAR
--- ❌ 等价于 CAST(phone AS DOUBLE) = 13800138000，列被函数包裹，索引失效
+-- 等价于 CAST(phone AS DOUBLE) = 13800138000，列被函数包裹，索引失效
 SELECT * FROM users WHERE phone = 13800138000;
 
--- ✅ 常量一侧是字符串，列保持原样，走索引
+-- 常量一侧是字符串，列保持原样，走索引
 SELECT * FROM users WHERE phone = '13800138000';
 ```
 
@@ -55,10 +57,10 @@ EXPLAIN FORMAT=TREE SELECT * FROM users WHERE phone = 13800138000;
 字符串索引按字典序排序，`LIKE` 走索引的前提是**能确定一个前缀**。`LIKE '张%'` 能定位到以「张」开头的连续区间；`LIKE '%张'` 开头是通配符，MySQL 不知道从哪个字符开始，区间无法确定，只能全表扫描。
 
 ```sql
--- ❌ 通配符在开头，无法确定前缀区间
+-- 通配符在开头，无法确定前缀区间
 SELECT * FROM users WHERE name LIKE '%张';
 
--- ✅ 通配符在末尾，可定位前缀区间
+-- 通配符在末尾，可定位前缀区间
 SELECT * FROM users WHERE name LIKE '张%';
 ```
 
@@ -71,10 +73,10 @@ SELECT * FROM users WHERE name LIKE '张%';
 索引一次定位只能确定**一个**区间，`OR` 要求「多个区间取并集」。当 `OR` 两侧只有一侧有索引时，另一侧仍需全表扫描，优化器索性整体全表扫描。两侧都有索引时，MySQL 可能用 `index_merge` 分别扫两个索引再合并。
 
 ```sql
--- ❌ b 无索引，OR 的另一侧需全表扫描，整体放弃索引
+-- b 无索引，OR 的另一侧需全表扫描，整体放弃索引
 SELECT * FROM t WHERE a = 1 OR b = 2;
 
--- ✅ 拆成两条，分别走各自的索引
+-- 拆成两条，分别走各自的索引
 SELECT * FROM t WHERE a = 1
 UNION
 SELECT * FROM t WHERE b = 2;
@@ -91,10 +93,10 @@ SELECT * FROM t WHERE b = 2;
 关键结论：**这不是语法禁止，是优化器基于成本的主动选择。** 当排除后剩余的行很少时，优化器会重新选择索引：
 
 ```sql
--- ❌ status 取值均匀分布时，排除一个值仍命中绝大部分行，优化器选择全表扫描
+-- status 取值均匀分布时，排除一个值仍命中绝大部分行，优化器选择全表扫描
 SELECT * FROM users WHERE status != 'deleted';
 
--- ✅ 排除后剩余很少时，索引可能生效，取决于数据分布
+-- 排除后剩余很少时，索引可能生效，取决于数据分布
 SELECT * FROM users WHERE status IN ('active', 'pending', 'completed');
 -- 用 EXPLAIN 验证，数据分布决定执行计划，不要凭经验猜测
 ```
@@ -108,10 +110,10 @@ SELECT * FROM users WHERE status IN ('active', 'pending', 'completed');
 `IS NOT NULL` 是「NULL 区间之外的整段」，能否走索引取决于 NULL 的占比：NULL 少、非 NULL 多时，`IS NOT NULL` 命中太多行，优化器倾向全表扫描。
 
 ```sql
--- ✅ IS NULL 通常走索引（定位 NULL 区间）
+-- IS NULL 通常走索引（定位 NULL 区间）
 SELECT * FROM users WHERE email IS NULL;
 
--- ⚠ IS NOT NULL 是否走索引取决于 NULL 占比，用 EXPLAIN 验证
+-- IS NOT NULL 是否走索引取决于 NULL 占比，用 EXPLAIN 验证
 SELECT * FROM users WHERE email IS NOT NULL;
 
 -- 若 email 声明为 NOT NULL，IS NULL 恒为假，优化器直接跳过该条件
@@ -187,8 +189,8 @@ SELECT * FROM users IGNORE INDEX(idx_age) WHERE age > 25;
 
 ### 2.2 最佳实践
 
-1. **避免在索引列上使用函数** — 改用范围查询或函数索引
-2. **保持数据类型一致** — 避免隐式类型转换
+1. **避免在索引列上使用函数**：改用范围查询或函数索引
+2. **保持数据类型一致**：避免隐式类型转换
 3. **LIKE 查询以通配符开头时考虑全文索引**
-4. **OR 条件确保两边都有索引** — 或改用 UNION
-5. **定期用 EXPLAIN 验证关键查询** — 确保索引被正确使用
+4. **OR 条件确保两边都有索引**：或改用 UNION
+5. **定期用 EXPLAIN 验证关键查询**：确保索引被正确使用
