@@ -8,11 +8,22 @@
 
 ### 1.1 Error、Exception 与 RuntimeException
 
-Java 的异常体系从 `Throwable` 分出两条主要路径：
+Java 的异常类型都继承自 `Throwable`，它有两个直接子类 `Error` 和 `Exception`，`RuntimeException` 又继承自 `Exception`：
+
+```txt
+java.lang.Throwable
+├── java.lang.Error
+└── java.lang.Exception
+    └── java.lang.RuntimeException
+```
+
+`Exception` 除 `RuntimeException` 以外的直接子类（如 `IOException`、`SQLException`）就是受检异常；它们是一组各不相同的类型，不画成树的单个节点。
+
+从编译器是否要求显式处理的角度，可以把异常分成两类。受检异常是除 `RuntimeException` 及其子类、`Error` 及其子类以外的异常，方法需要捕获或在 `throws` 中声明；非受检异常是 `RuntimeException` 及其子类和 `Error` 及其子类，编译器不要求显式处理。受检与非受检描述的是语言层面的处理要求，不等同于可恢复与不可恢复。
 
 | 类型 | 代表含义 | 应用代码通常如何处理 |
 | :-- | :-- | :-- |
-| `Error` | JVM 或运行环境层面的严重问题，如 `OutOfMemoryError` | 尽量完成必要清理后终止当前任务；不要包装成普通业务失败继续运行 |
+| `Error` | JVM 或运行环境层面的严重问题，如 `OutOfMemoryError` | 不包装成普通业务失败继续运行 |
 | 受检异常 `Exception` | 调用者可能需要知道并处理的外部失败 | 明确传播、转换或处理，并保留原因 |
 | 非受检异常 `RuntimeException` | 参数、状态或程序契约错误 | 先修正代码或状态；调用方是否显式捕获取决于边界 |
 
@@ -27,7 +38,7 @@ Java 的异常体系从 `Throwable` 分出两条主要路径：
 3. 失败是否来自 I/O、配置、网络或外部系统，且替换实现后仍会发生？可以定义领域异常或转换为稳定的开放异常类型。
 4. 到达应用边界后，调用者是否还需要恢复？多数 Web、消息和定时任务边界应把内部失败转换为状态码、错误码或失败结果。
 
-不要让库异常直接穿透所有层。异常穿越层次时应增加业务上下文，同时用 cause 保留原始堆栈。
+如果上层不应该依赖底层库的异常类型，可以在合适的边界进行转换，并通过 cause 保留原始异常；若底层异常本身就是公开 API 契约的一部分，则不必为包装而额外定义异常类。异常穿越层次时应增加业务上下文，同时用 cause 保留原始堆栈。
 
 ## 2. 构造可恢复的异常
 
@@ -37,8 +48,13 @@ Java 的异常体系从 `Throwable` 分出两条主要路径：
 public final class OrderNotFoundException extends RuntimeException {
     private final long orderId;
 
+    public OrderNotFoundException(long orderId) {
+        super("order not found: " + orderId);
+        this.orderId = orderId;
+    }
+
     public OrderNotFoundException(long orderId, Throwable cause) {
-        super("order not found: " + orderId, cause);
+        super("failed to load order: " + orderId, cause);
         this.orderId = orderId;
     }
 
@@ -47,19 +63,17 @@ public final class OrderNotFoundException extends RuntimeException {
     }
 }
 
-// 下例假设项目使用 Spring Data；使用其他数据访问框架时，捕获对应的查询失败类型。
-try {
-    return orderRepository.findById(orderId);
-} catch (EmptyResultDataAccessException ex) {
-    throw new OrderNotFoundException(orderId, ex);
-}
+// Spring Data 的 findById 返回 Optional，记录不存在时返回 Optional.empty()，
+// 查询失败（如数据库连接失败）才抛异常。下面把「缺值」转为领域异常。
+return orderRepository.findById(orderId)
+        .orElseThrow(() -> new OrderNotFoundException(orderId));
 ```
 
 消息回答“发生了什么”，字段回答“影响哪个对象”，cause 回答“底层为什么失败”。不要把密码、令牌或完整请求体拼进异常消息；这些信息可能进入日志和监控。
 
 ### 2.2 按调用者能采取的行动划分异常
 
-一个方法抛出的异常越稳定，调用者越容易处理。底层 `SQLException` 包含驱动和 SQL 细节，不应迫使所有业务方法都理解它。数据库访问层可以转换成领域稳定异常，同时保留原始 cause：
+异常类型应当对应调用者需要采取的处理动作，而不是追求越稳定越好。底层 `SQLException` 包含驱动和 SQL 细节，不应迫使所有业务方法都理解它。数据库访问层可以转换成领域异常，同时保留原始 cause：
 
 ```java
 public final class OrderCommitException extends RuntimeException {
@@ -83,13 +97,13 @@ try {
 - 不要用 `catch (Exception e) {}` 消除编译错误。
 - 捕获后继续执行前，必须确认当前对象、事务和资源仍处于一致状态。
 - 不要记录后原样抛出，导致同一异常被多层重复记录。通常只在应用边界记录一次。
-- `InterruptedException` 表示取消或关闭信号。至少恢复中断状态并停止当前阻塞任务，不能只打印后继续等待。
+- `InterruptedException` 表示取消或关闭信号。能向上传播时，继续抛出该异常；不能传播时，恢复线程的中断状态，并按取消语义退出或结束当前任务，不能只打印后继续等待。
 
 ## 3. 用 try-with-resources 管理资源
 
 ### 3.1 让资源生命周期跟随作用域
 
-实现 `AutoCloseable` 的连接、流、锁或通道，应优先放进 try-with-resources：
+对于由当前方法负责关闭、并实现了 `AutoCloseable` 的资源，例如输入流、读取器、JDBC 连接或通道，应优先放进 try-with-resources：
 
 ```java
 try (InputStream input = Files.newInputStream(path);
@@ -100,15 +114,28 @@ try (InputStream input = Files.newInputStream(path);
 }
 ```
 
-资源按声明的逆序关闭。无论正常返回、抛异常还是提前退出，关闭都会执行。对于没有实现 `AutoCloseable` 的资源，才退回 `try/finally`，并确保初始化失败时不会关闭尚未创建的对象。
+资源按声明的逆序关闭。无论正常返回、抛异常还是提前退出，关闭都会执行。
+
+`Lock`、`ReentrantLock` 没有实现 `AutoCloseable`，需要显式释放，应在成功获取锁后进入 try，在 finally 中解锁：
+
+```java
+lock.lock();
+try {
+    updateSharedState();
+} finally {
+    lock.unlock();
+}
+```
+
+先获取锁再进入 try，获取锁失败时就不会错误执行 `unlock()`。对于其他没有实现 `AutoCloseable` 的资源，同样退回 `try/finally`，并确保初始化失败时不会关闭尚未创建的对象。
 
 ### 3.2 理解关闭阶段的第二个异常
 
-如果 try 块已经抛出异常，而资源 `close()` 又失败，原异常仍然是主异常，`close()` 异常会作为 suppressed exception 附加。读取 `Throwable.getSuppressed()` 或完整堆栈可以同时看到两者。
+如果 try 块已经抛出异常，而资源 `close()` 又失败，原异常仍然是主异常，`close()` 异常会作为 suppressed exception 附加。如果 try 块正常结束，但 `close()` 失败，关闭异常本身会被抛出。读取 `Throwable.getSuppressed()` 或完整堆栈可以同时看到两者。
 
 这不会让第二个异常消失，也不代表可以忽略关闭失败。对事务连接尤其要区分：
 
-- 提交或回滚失败是主失败。
+- 提交失败时，客户端有时无法确定事务是否真的提交成功，可能服务端已提交但确认消息丢失，不能简单判定事务一定回滚。
 - 归还连接时再次失败可能说明连接状态已经不可信。
 - 已经由 Spring 等框架管理的连接不应在业务代码中重复提交或回滚。
 
@@ -146,6 +173,6 @@ JDBC 的事务边界见[JDBC 与 Connection 管理事务](../05-java-data-access
 
 ## 6. 下一步
 
-异常负责表达失败，集合负责组织数据。下一步进入[标准集合](./chapter-09-collections.md)，重点检查 `equals`/`hashCode` 契约和容器选择；函数式处理中的缺值与失败组合由[Stream 与 Optional](./chapter-10-stream-optional.md)承接，生产问题再进入[诊断总览](../06-diagnostics/index.md)。
+下一步进入[标准集合](./chapter-09-collections.md)，重点检查 `equals`/`hashCode` 契约和容器选择；函数式处理中的缺值与失败组合由[Stream 与 Optional](./chapter-10-stream-optional.md)承接，生产问题再进入[诊断总览](../06-diagnostics/index.md)。
 
 > **官方参考：** [Java SE 21 `Throwable`](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Throwable.html)、[`AutoCloseable`](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/AutoCloseable.html)。

@@ -1,12 +1,12 @@
 # 泛型
 
-> 泛型不是一组需要死记的规则，而是一连串「上一个方案不够用」逼出来的演化：`Object` 存不了类型约束 → 引入类型变量 → 类型变量带来不变性 → 不变太死引出 `extends` / `super` → 编译器检查完，类型信息无处安放 → JVM 只能擦除 → 擦除破坏了多态 → 桥接方法补上。本章沿这条因果链展开。
+> 泛型主要解决两件事，让编译器知道集合或方法应当处理什么类型，让一份代码安全地用于多种类型。类型参数也带来了新问题，`List<String>` 为什么不能赋给 `List<Object>`，只接受父类型的集合能否安全传入子类型集合，编译器完成检查后 JVM 又如何执行这些代码。本章从原始集合的局限出发，依次解释类型参数、通配符、类型擦除和桥接方法。
 
 ## 1. Object 为什么不够
 
-### 1.1 泛型出现之前：集合只能存 Object
+### 1.1 泛型出现之前：集合 API 没有类型参数
 
-Java 5 之前，集合类只能存 `Object`：
+Java 5 之前，标准集合 API 没有泛型类型参数，`List.add` 接收 `Object`，`List.get` 返回 `Object`：
 
 ```java
 List list = new ArrayList();
@@ -23,7 +23,7 @@ String s2 = (String) list.get(1); // ClassCastException！运行时崩溃
 
 `Object` 是所有类的父类，存什么都能放下。但「能放下」不等于「安全」，它带来三个问题：
 
-1. **强制类型转换**：每次取出元素都要强转，代码冗余
+1. **强制类型转换**：按具体类型使用时，调用方必须自行强转，代码冗余
 2. **运行时错误**：类型错误只能在运行时发现，编译器帮不了你
 3. **无法表达约束**：`List` 不能表达「这个列表只能放 String」
 
@@ -41,9 +41,9 @@ list.add("hello");
 list.add(123);           // 编译错误！编译器直接拒绝
 ```
 
-`T` 是一个占位符：`List<String>` 声明「这个列表装的是 `String`」。编译器拿到这个声明后，就能在**编译期**验证每次 `add` 是否合法，把本页第 1 节的三类问题一次性消掉——强转不需要了、错误提前暴露了、约束表达出来了。
+`T` 是一个占位符：`List<String>` 声明「这个列表装的是 `String`」。编译器拿到这个声明后，就能在**编译期**验证每次 `add` 是否合法。使用 `List<String>` 后，取出元素不再需要显式转换为 `String`，许多类型错误在编译期就被拦住。不过原始类型和未经检查的转换仍可能绕过这些检查。
 
-核心动作只有一句：**把类型检查从运行期提前到编译期。** 2.2 ~ 2.5 讲清 `T` 的各种写法。
+核心动作是：**把类型检查从运行期提前到编译期。** 2.2 ~ 2.5 讲清 `T` 的各种写法。
 
 ### 2.2 泛型类
 
@@ -160,22 +160,35 @@ Integer max = findMax(nums);  // 5
 public static <T extends Serializable & Comparable<T>> void process(T item) { ... }
 ```
 
+通用工具方法更常写成 `Comparable<? super T>`，让比较参数的声明类型可以是 T 的某个父类型，适用范围更广。另外上面的示例默认数组非空，空数组会在 `array[0]` 处抛 `ArrayIndexOutOfBoundsException`；这是方法的前置条件，属于业务约定，不是泛型语法能解决的问题。
+
 ### 2.5 泛型构造方法
 
-构造方法也可以有自己的类型参数（少见）：
+构造方法也可以声明自己的类型参数（少见）：
 
 ```java
-public class Event<T> {
-    private T data;
+import java.util.function.Function;
 
-    // 泛型构造方法：方法自己的 <T> 遮蔽了类的 <T>
-    public <T> Event(T data) {
-        this.data = (T) data;  // 注意：这里的 T 是方法的 T，不是类的 T
+public class Event<T> {
+    private final T data;
+
+    // 构造方法自己的类型参数 <U>，独立于类的 <T>。
+    // U 是构造时接收的输入类型，T 是最终保存的类型，转换由 converter 完成。
+    public <U> Event(U source, Function<U, T> converter) {
+        this.data = converter.apply(source);
+    }
+
+    public T data() {
+        return data;
     }
 }
+
+// 使用：输入 String，转换后保存 Integer
+Event<Integer> event = new Event<>("42", Integer::parseInt);
+Integer data = event.data();  // 42
 ```
 
-这种情况很少用到，知道即可。
+`<U>` 是构造方法自己的类型参数，`T` 仍是类的类型参数。这个例子中，`U` 是构造时接收的输入类型，`T` 是最终保存的类型，`converter` 把两者关联起来，`String` 转 `Integer` 由编译器检查，无需在构造方法内强转。泛型构造方法只在构造过程需要独立于类的类型推断时才有意义，大多数构造方法直接复用类的类型参数即可。
 
 ## 3. 为什么泛型默认不变
 
@@ -201,7 +214,7 @@ List<String> list = new ArrayList<>();  // OK
 List<Object> objects = list;            // 编译错误！
 ```
 
-不变性不是额外加的规定，它是「类型变量」这个设计本身的必然结果：只要 `List<X>` 能按 X 读写，`List<String>` 和 `List<Object>` 就必须是两个不同的类型，否则编译期检查名存实亡。
+Java 的普通泛型类型默认不变，不是额外加的规定，而是因为 `List` 既允许读也允许写：只要 `List<X>` 能按 X 读写，`List<String>` 和 `List<Object>` 就必须是两个不同的类型，否则编译期检查名存实亡。Java 通过使用点通配符（`? extends`、`? super`）在具体使用场景里受控地放宽类型关系，而不是让泛型本身协变或逆变。
 
 ## 4. 为什么出现 extends / super
 
@@ -234,6 +247,8 @@ Object obj = list.get(0); // OK，但只能读取为 Object
 ```
 
 为什么读只能是 `Object`？`list` 实际可能是 `List<Number>`，取出的元素可能是 `Double`，无法保证是 `Integer`。`? super` 因此**只保证写安全**。
+
+这里的「读」「写」说的是对元素类型的读写安全，不是集合在操作层面真的只读或只写。`List<?>` 依然可以 `clear()`、`remove()`，只是不能添加任意非 null 元素。
 
 ### 4.3 PECS：两条规则合起来的口诀
 
@@ -276,17 +291,17 @@ list.add(null);            // OK，null 是任何类型的合法值
 
 前四章讲了泛型「是什么」和「怎么用」，但没回答一个基础问题：编译器凭什么能执行这些检查？
 
-答案很简单：**编译器拿得到类型参数。** 源码里写的是 `List<String>`，`<String>` 这个信息在编译期是完整存在的，编译器用它做三件事：
+**编译器拿得到类型参数。** 源码里写的是 `List<String>`，`<String>` 这个信息在编译期是完整存在的，编译器用它做三件事：
 
 1. **代入**：把 `T` 换成实际类型 `String`，得到 `add(String)`、`get()` 返回 `String`
 2. **验证**：检查每次调用传入的类型是否匹配（`list.add(123)` 不匹配 `add(String)`，报错）
 3. **推导**：能推断时不要求显式写（`Util.printArray(names)` 推断出 `T = String`）
 
-关键点在于：**这套检查只在编译期存在。** 一旦编译器验证完毕、生成字节码，`<String>` 这个信息就「用完即弃」——它不进入字节码。为什么要丢弃？下一章回答。
+关键点在于：**这套检查只在编译期存在。** 编译器验证完毕、生成字节码后，`<String>` 这个类型参数会按擦除规则转换为它的上界（无界时是 `Object`），不再作为独立的运行时类型参数存在。但这不等于 Class 文件里完全没有泛型信息——类、字段和方法的泛型声明可以保存在 `Signature` 属性中，供反射读取。执行期的类型描述会擦除，反射读的泛型签名则可能保留，这是两回事。为什么执行期要擦除？下一章回答。
 
 ## 6. JVM 为什么类型擦除
 
-### 6.1 一个反直觉的事实
+### 6.1 先看运行时的结果
 
 ```java
 List<String> strings = new ArrayList<>();
@@ -297,7 +312,7 @@ strings.getClass() == integers.getClass()  // true!
 
 运行时，`List<String>` 和 `List<Integer>` 是同一个类。这说明：**类型参数在编译完成后被擦掉了。**
 
-注意这里的精确表述：JVM 并非不知道对象本身是什么类型——每个对象头里都存着指向其类元数据的指针，`getClass()` 能准确告诉你它是 `ArrayList`。JVM 唯一不知道的，只是 `List<String>` 里 `<String>` 这个**编译期参数**。擦除擦的是参数，不是对象类型。
+注意这里的精确表述：JVM 并非不知道对象本身是什么类型，`getClass()` 能准确告诉你它是 `ArrayList`。在 HotSpot 等具体实现里，对象头存有指向其类元数据的指针，但这属于实现细节，不是 Java 语言层面的保证。JVM 唯一不知道的，只是 `List<String>` 里 `<String>` 这个**编译期参数**。擦除擦的是参数，不是对象类型。
 
 ### 6.2 擦除的机制
 
@@ -319,15 +334,13 @@ public class Box {
 }
 ```
 
-擦除发生在上界处：`<T extends Number>` 的 T 被擦成 `Number`，无界的 `T` 被擦成 `Object`。
+擦除发生在上界处：`<T extends Number>` 的 T 被擦成 `Number`，无界的 `T` 被擦成 `Object`。上面的对照只展示擦除后执行层面的类型形态，不代表 Class 文件只包含这些信息，泛型签名可能另外保存在 `Signature` 属性中。
 
-### 6.3 为什么必须擦除：字节码兼容
+### 6.3 为什么选择类型擦除：兼容既有字节码
 
-原因只有一个——**不动字节码格式**。
+Java 5 引入泛型时，已有海量 Java 4（无泛型）时代的代码和编译好的类库在运行。类型擦除让泛型主要由编译器负责检查和转换，运行时仍沿用原有的类和方法描述形式，从而降低新旧代码互操作的成本——带泛型的新代码和旧代码可以跑在同一个 JVM 上。
 
-Java 5 引入泛型时，已有海量 Java 4（无泛型）时代的代码和库在运行。JVM 的字节码格式和指令集是固定协议，不能为泛型加新的操作码。要在这套旧格式上表达泛型，唯一办法是：编译期检查完，运行时把 `T` 擦掉，让带泛型的新代码和旧代码跑在同一个 JVM 上。
-
-擦除不是 bug，是「不改字节码」这个约束下的唯一解。但它有代价，体现在下一节。
+这不是唯一可行的方案，而是在兼容既有运行时生态这一目标下做出的设计决策。擦除也带来了代价：运行时无法把不同实参的 `List` 当作不同类，部分类型检查要靠编译器插入的强制转换完成。代价体现在下一节。
 
 ### 6.4 擦除的代价：三类限制
 
@@ -353,16 +366,16 @@ public <T> T create() {
 **不能做参数化类型的 instanceof**：
 
 ```java
-List<String> a = new ArrayList<>();
-List<Integer> b = new ArrayList<>();
-// 运行时无法区分 a 和 b 的泛型类型
+Object value = new ArrayList<String>();
 
-if (list instanceof List<String>) { }  // 编译错误，运行时没有 List<String> 这个类型
+if (value instanceof List<String>) { }  // 编译错误
 ```
 
-## 7. 为什么需要 Bridge Method
+`List<String>` 不是可具体化类型（reifiable type），运行时没有足够信息确认元素的类型实参是否为 `String`，所以普通 `instanceof` 无法做这个检查。这里的问题不是「运行时没有 `List<String>` 这个类型」这么简单——泛型声明可能仍保存在 `Signature` 属性里，但泛型实参没有作为普通运行时类型信息供 `instanceof` 使用。
 
-擦除留下两道裂缝：读取时要强转，继承时多态被破坏。编译器用三件事补上，其中 Bridge Method 是核心。
+## 7. 擦除后的编译器处理
+
+类型擦除改变了字节码中的部分类型描述，编译器需要生成相应代码来维持源码层面的类型检查和方法覆写语义。其中 Bridge Method 是核心，checkcast 是运行时类型检查指令，Signature 是泛型声明元数据，三者不是同一种「补丁」。
 
 ### 7.1 checkcast：读取处的强转
 
@@ -389,7 +402,7 @@ String s = list.get(0);   // checkcast 处抛 ClassCastException
 
 ### 7.2 桥接方法（Bridge Method）
 
-泛型与继承结合时，擦除会破坏多态：
+泛型与继承结合时，擦除会改变方法描述符：
 
 ```java
 public interface Container<T> {
@@ -402,7 +415,7 @@ public class StringContainer implements Container<String> {
 }
 ```
 
-擦除后，`Container.set(T)` 变成 `Container.set(Object)`，而 `StringContainer.set(String)` 参数类型不同，不再是覆写——多态失效。
+擦除后，`Container.set(T)` 变成 `Container.set(Object)`，而 `StringContainer.set(String)` 参数类型不同，擦除后的方法描述符不再直接匹配，覆写语义需要额外手段维持。
 
 编译器生成一个桥接方法来修补：
 
@@ -421,7 +434,7 @@ public class StringContainer implements Container<String> {
 
 桥接方法不是新概念，它只是「擦除后签名不一致」这道裂缝上的补丁——父类调用 `set(Object)` 时，通过它转发到真正的 `set(String)`。
 
-### 7.3 Signature 属性：擦掉但没完全擦掉
+### 7.3 Signature 属性：反射可读的泛型签名
 
 运行时虽然擦除了类型参数，但 Class 文件里还留了一份——存在 `Signature` 属性中，供反射和框架读取：
 
@@ -442,16 +455,16 @@ Spring、MyBatis 等框架大量利用这个能力获取泛型参数。[字节�
 本页 7.3 节留下一个可追问的点：`Signature` 属性在运行时仍可读，框架究竟怎么利用它？Jackson 的 `TypeReference` 是最典型的例子。
 
 ```java
-// ❌ 擦除导致的问题
+// ❌ List.class 只提供原始集合类型，没有元素类型信息
 List<String> list = objectMapper.readValue(json, List.class);
-// 返回的是 List<Object>，不是 List<String>
+// 把结果赋给 List<String>，也不代表 Jackson 已验证每个元素都是 String
 
 // ✅ TypeReference 通过匿名子类保留泛型信息
 List<String> list = objectMapper.readValue(json, new TypeReference<List<String>>() {});
 // 正确返回 List<String>
 ```
 
-`TypeReference` 依赖 `Signature` 属性：匿名子类的 `getGenericSuperclass()` 能取回 `TypeReference<List<String>>` 的完整泛型信息。这正是本页第 6 节「运行期擦除、Signature 留底」在真实框架里的落地——擦除没有让泛型信息消失，只是把它从字节码挪进了 `Signature` 属性，谁需要谁去取。
+`TypeReference` 依赖 `Signature` 属性：匿名子类的 `getGenericSuperclass()` 能取回 `TypeReference<List<String>>` 的完整泛型信息。擦除没有让泛型信息消失，只是把它从字节码挪进了 `Signature` 属性，谁需要谁去取。
 
 ## 9. 未来方向（Project Valhalla）
 
@@ -460,7 +473,7 @@ List<String> list = objectMapper.readValue(json, new TypeReference<List<String>>
 - **Specialized Generics**：让 `List<int>` 合法，对应 6.4 的「不能用基本类型」
 - **Value Types**：消除装箱，对应 6.4 里 `List<Integer>` 的装箱开销
 
-两条路指向同一件事：让基本类型也能作类型参数。目前仍在开发，但它若落地，本页第 6 节整条「擦除」因果链会被重写。
+这些工作的目标之一是减少部分场景的装箱成本，让泛型更好地支持不同的值表示。目前仍在开发，具体能力和兼容性方案应以正式发布的 JDK 版本为准；即使落地，也未必会整体取代现有的类型擦除机制，兼容既有泛型代码仍是必须处理的问题。
 
 ## 10. 本页位置
 

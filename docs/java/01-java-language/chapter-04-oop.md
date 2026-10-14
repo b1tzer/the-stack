@@ -1,6 +1,6 @@
 # 面向对象
 
-> 你写了三年 Spring——Controller、Service、Repository 泾渭分明。但你最后一次按业务场景选抽象类还是接口，是哪一年？"接口定义契约，抽象类复用代码"——你背过面试答案，但当 `PaymentService` 既要校验参数又要记账时，该抽出一个接口还是加上一个 `abstract` 基类？"组合优于继承"不是教条，是同行们用无数次深夜事故换来的教训。
+> 本章解释封装、继承、多态和接口，并说明它们分别在什么场景下适用。设计上的关键取舍有两个：抽象类与接口如何选择，继承与组合如何取舍。这两个问题没有放之四海皆准的答案，需要结合代码要应对的变化来判断。
 
 ## 1. 为什么需要面向对象
 
@@ -33,8 +33,6 @@ void withdraw(struct Account* acc, double amount) {
 
 **3. 修改牵动全身。** 如果 `Account` 结构体加了一个字段，所有操作 `Account` 的函数都可能需要修改。
 
-核心问题：**如何让软件的结构更接近现实世界？**
-
 ### 1.2 面向对象的核心思想
 
 现实世界是由对象组成的：一个订单、一个用户、一辆汽车。每个对象有自己的**状态**（数据）和**行为**（操作）。
@@ -65,7 +63,7 @@ public class Account {
 
 ## 2. 封装：控制状态与行为边界
 
-封装是面向对象最核心的思想，也是最容易被误解的思想。
+封装是面向对象的基础，也常被简化成 getter/setter。
 
 ### 2.1 封装不是隐藏变量
 
@@ -175,12 +173,14 @@ Dog is-a Animal       ✅ 合理的继承
 Dog is-a Vehicle      ❌ 荒谬的继承
 ```
 
-判断是否应该用继承，问自己一个问题：**子类对象能不能被当作父类对象使用？** 即里氏替换原则（LSP）。
+判断是否应该用继承，问的是里氏替换原则（Liskov Substitution Principle，LSP）：子类对象替换父类对象后，依赖父类行为契约的代码仍应正确运行。
 
 ```java
-Animal animal = new Dog();  // Dog 可以当作 Animal 使用
-animal.eat();               // 正常工作
+Animal animal = new Dog();  // 向上转型，Dog 可以当作 Animal 使用
+animal.eat();               // 调用 Animal 契约里声明的方法
 ```
+
+这个例子只展示了向上转型和方法调用，不足以说明 LSP。LSP 更关键的约束是：子类不能强化父类方法的前置条件，也不能弱化后置条件或不变量。比如 `Dog` 重写 `eat()` 时若抛出 `Animal` 契约里没有声明的异常，或要求调用方先做额外准备，就破坏了替换性。
 
 ### 3.3 继承的问题
 
@@ -230,16 +230,25 @@ public String toString() {
 }
 ```
 
-IDE 可以一键生成。`toString()` 的输出会出现在日志、调试器、异常堆栈中——不重写就是在给未来的自己挖坑。
+IDE 可以一键生成。`toString()` 的输出会出现在日志、调试器、异常堆栈中，不重写会让排查问题时缺少对象状态的上下文。
 
 ### 4.2 clone()：一个被广泛认为是设计失误的 API
 
 `clone()` 的意图是"复制对象"，但它的默认行为是**浅拷贝**——只复制字段值，不复制字段指向的对象：
 
 ```java
-public class User {
+public class User implements Cloneable {
     private String name;
     private String[] hobbies;
+
+    @Override
+    public User clone() {
+        try {
+            return (User) super.clone();  // 默认浅拷贝
+        } catch (CloneNotSupportedException e) {
+            throw new AssertionError(e);
+        }
+    }
 }
 
 User original = new User("Tom", new String[]{"reading", "gaming"});
@@ -287,7 +296,7 @@ clazz.getDeclaredFields();  // 获取所有字段
 
 ## 5. 多态：面向对象扩展性的核心
 
-多态是面向对象最重要、最有价值的特性。
+多态让调用方依赖抽象而不是具体实现，是面向对象扩展性的来源。
 
 ### 5.1 什么是多态
 
@@ -354,11 +363,13 @@ public void processPayment(Payment payment, BigDecimal amount) {
 
 这就是**开闭原则（OCP）** 的体现：对扩展开放（可以新增 `Payment` 实现），对修改关闭（`processPayment` 方法不需要改）。
 
+条件分支并没有消失，而是集中到了创建 `Payment` 实例的地方，比如工厂方法或依赖注入容器。新增支付方式时，分支判断在那里增加，业务方法本身保持稳定。
+
 ### 5.3 多态的实现机制
 
 Java 的多态通过**动态绑定（Dynamic Binding）** 实现。编译时，编译器只知道变量的声明类型（`Payment`）；运行时，JVM 根据对象的实际类型（`AlipayPayment`）决定调用哪个方法。
 
-在字节码层面，这对应 `invokevirtual` 指令——JVM 在运行时查找对象的实际类，找到正确的方法实现。[字节码与类加载](../02-jvm-runtime/chapter-01-bytecode-classloading.md)会进一步解释方法分派如何落到字节码与运行时数据结构。
+在字节码层面，通过接口引用调用方法对应 `invokeinterface` 指令，通过类引用调用则对应 `invokevirtual`；二者都在运行时根据对象的实际类型定位到正确的方法实现。[字节码与类加载](../02-jvm-runtime/chapter-01-bytecode-classloading.md)会进一步解释方法分派如何落到字节码与运行时数据结构。
 
 ## 6. 接口 vs 抽象类
 
@@ -402,7 +413,7 @@ public abstract class AbstractList<E> implements List<E> {
 | 定义能力契约 | 接口 | 任何类都可以实现，不受继承限制 |
 | 提供通用实现 | 抽象类 | 子类继承后自动获得默认行为 |
 | 需要多继承 | 接口 | Java 类只能继承一个父类，但可以实现多个接口 |
-| 需要状态（字段） | 抽象类 | 接口不能有实例字段（Java 8 之前） |
+| 需要状态（字段） | 抽象类 | 接口的字段只能是常量（`public static final`），不能持有实例状态 |
 
 ### 6.4 Java 接口的演进
 
