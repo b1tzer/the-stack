@@ -48,7 +48,7 @@ private volatile boolean running = true;
 
 `volatile` 给单个变量的读写建立了两条硬承诺：
 
-1. **可见性**：写发生后，其他线程后续对同一变量的读一定能看到这个新值
+1. **可见性**：对同一个 volatile 变量，写入与同步顺序中后续的读取建立同步关系；通过这条关系，写入前的操作也可以对读取线程可见。这里的保证是 JMM 的内存语义，不是要求 CPU 立即刷新缓存
 2. **有序性**：`volatile` 变量相关的读写不允许被重排到"它应该在的位置"之外
 
 一句更精确的表述：**`volatile` 建立的是变量读写边界上的 happens-before 关系**——[第 4 章的 JMM 规则](./chapter-04-jmm.md#happens-before)。理解这一点，`volatile` 剩下所有行为都能推理出来。
@@ -88,9 +88,9 @@ CPU 层 ─── 屏障映射到具体架构的一致性协议行为
 ```txt
      普通写 1
      普通写 2
-   ─────────── StoreStore（前面的写要先完成）
+   ─────────── StoreStore（约束前面的写与这次写之间的重排序）
      volatile 写
-   ─────────── StoreLoad（这次写要先对其他线程可见）
+   ─────────── StoreLoad（约束这次写与后续读之间的重排序）
      后续读
      后续写
 ```
@@ -98,7 +98,7 @@ CPU 层 ─── 屏障映射到具体架构的一致性协议行为
 两条屏障各自的用途：
 
 - **`StoreStore` 前置**：保证 `volatile` 写之前的所有普通写不会被重排到 `volatile` 写之后。这就是"你在 `volatile` 变量写之前埋下的所有普通字段，会一起被这次 `volatile` 写发布出去"的机制来源。
-- **`StoreLoad` 后置**：经典模型中，它防止后续读绕过这次 volatile 写。该操作在许多架构上成本较高，但实际开销依 CPU 和 JVM 实现而定。
+- **`StoreLoad` 后置**：在经典屏障模型中，约束这次写与后续读之间的重排序。该操作在许多架构上成本较高，但实际开销依 CPU 和 JVM 实现而定。
 
 在不少平台上，`volatile` 写比读更容易触发额外同步成本；是否显著仍需按目标平台实测。
 
@@ -177,7 +177,7 @@ JMM 定义 Java 层语义，JVM 采用编译器和机器层面的手段实现它
 - **x86 / x86-64（TSO，较强顺序）**：HotSpot 常见实现中，volatile 写通常需要额外的全序操作；具体指令依 JDK 版本和生成代码而定
 - **ARM / AArch64（较弱顺序）**：常见实现可能需要显式屏障指令，成本通常依访问模式和处理器代际而变化
 
-一段没加 `volatile` 的代码在 x86 上"看着能跑"，只是 x86 帮忙兜住了部分顺序；换到 ARM 常常立刻暴露。真正稳定的保证只有一个来源：**JMM 语义 + JVM 插入的屏障**，不是"这台机器恰好帮我兜住了"。
+某些缺少同步的代码在 x86 上可能长期没有暴露问题，但这并不意味着代码符合 JMM。不同架构的内存顺序保证不同，不能依赖某台机器上的偶然表现来判断代码是否正确。真正稳定的保证只有一个来源：**JMM 语义 + JVM 插入的屏障**，不是"这台机器恰好帮我兜住了"。
 
 ## 3. 用 `volatile` 完整修复 DCL
 
@@ -185,7 +185,7 @@ JMM 定义 Java 层语义，JVM 采用编译器和机器层面的手段实现它
 
 ### 3.1 `new Singleton()` 不是原子的
 
-一行 `instance = new Singleton()` 在字节码层面有三步：
+从理解对象创建与引用发布的角度，可以把 `instance = new Singleton()` 概念性地拆成三个步骤（这不是固定的三条字节码指令，而是用于分析执行顺序的简化模型）：
 
 ```txt
 a. 分配内存空间
@@ -246,7 +246,7 @@ b. 执行构造函数                       访问 instance 字段 → 全部是
 private static volatile Singleton instance;
 ```
 
-`volatile` 写前会插入 `StoreStore` 屏障（§5.2.2）。这条屏障禁止"构造函数中的普通写"重排到"引用赋值"之后——**步骤 b 必须早于步骤 c 完成**。同时 `volatile` 写的 `StoreLoad` 让这次写的结果对其他线程立刻可见。
+将 `instance` 声明为 `volatile` 后，JMM 对 volatile 写的发布语义约束了引用发布与构造期间初始化操作之间的顺序，构造期间的字段写入不能在其他线程可观察的结果中落到引用发布之后。读端通过 volatile 读取得到该引用时，可以利用 volatile 访问之间的同步关系，以及 happens-before 的传递性，推导出构造期间的初始化操作对读端可见。具体 JVM 如何实现这些约束，可能涉及编译器重排序限制、处理器内存屏障以及目标架构自身的内存顺序保证。
 
 推导修复后的正确性用 §4.4 的 happens-before：
 
@@ -257,8 +257,9 @@ private static volatile Singleton instance;
 线程 B（读端）：
   外层 if (instance == null)（volatile 读）  ──程序顺序 hb──►  访问 instance 字段
 
-由 volatile 规则：A 的 volatile 写  hb  B 的 volatile 读
-由传递性：           b. 字段初始化   hb   B 访问字段
+当 B 的 volatile 读观察到 A 发布的该引用时：
+  由 volatile 规则：A 的 volatile 写  hb  B 的 volatile 读
+  由传递性：           b. 字段初始化   hb   B 访问字段
 结论：B 拿到的 instance 一定构造完成
 ```
 
@@ -270,7 +271,7 @@ private static volatile Singleton instance;
 
 ### 4.1 `count++` 为什么撑不住
 
-`count++` 在字节码层面是三步：
+以静态 `int` 字段的 `count++` 语句为例，省略与表达式结果保留有关的细节，编译后的字节码可以概括为：
 
 ```txt
 getstatic  count      // 1. 读
@@ -279,7 +280,7 @@ iadd                  // 3. 加
 putstatic  count      // 4. 写
 ```
 
-`volatile` 保证的是**每一步单独的可见性**——不是三步一起的原子性。两条线程并发执行时：
+`volatile` 约束的是对该变量的 volatile 读写，读、加、写这几个动作仍然是一个非原子的复合操作。两条线程并发执行时：
 
 ```txt
 时间 →
@@ -330,7 +331,7 @@ list.get(0);              // 可能抛 IndexOutOfBoundsException
 
 | 能力 | 结论 | 说明 |
 | :-- | :-- | :-- |
-| 单变量可见性 | ✅ | 一线程写，其他线程立即看到最新值 |
+| 单变量可见性 | ✅ | volatile 写与后续 volatile 读建立同步关系，读端可据此观察到写入及其发布的数据 |
 | 单变量有序性 | ✅ | 屏障禁止相关重排 |
 | 复合操作原子性 | ❌ | `i++` / `check-then-act` 仍会竞态 |
 | 临界区互斥 | ❌ | 不能替代锁保护一段代码 |
@@ -384,11 +385,11 @@ public class ConfigHolder {
 }
 ```
 
-前提是 **`Config` 是不可变对象**——所有字段 `final`、构造完成后不再修改。这样：
+前提是 **`Config` 真正不可变**——构造完成后其可观察状态不再改变，对外暴露的集合、数组和其他可变对象也不能被调用方任意修改；字段使用 `final` 有助于初始化安全，但仅仅把所有字段声明为 `final` 并不足以保证深层不可变性。这样：
 
 - `Config` 的字段由 `final` 语义保证初始化安全（见[第 4 章的 `final` 规则](./chapter-04-jmm.md#final-semantics)）
 - 引用发布由 `volatile` 保证可见性
-- 后续所有线程通过 `snapshot()` 拿到的都是"完整构造 + 立刻可见"的对象
+- 线程通过 `snapshot()` 读取到某次 volatile 发布的引用时，能够依据 volatile 的同步语义看到发布前的状态
 
 如果 `Config` 内部字段还会被修改，`volatile` 就守不住了——`Config` 内部的修改不在 `volatile` 的保护范围里。
 
@@ -406,8 +407,8 @@ public class AtomicInteger {
 }
 ```
 
-- **`volatile`**：让 `value` 的最新写立即被其他线程看到——CAS 才能读到当前值
-- **CAS**：把"读当前值 + 判等 + 写新值"合并成一步硬件级原子操作，弥补 `volatile` 不解决的复合原子性
+- **`volatile`**：让 `value` 的写入与读取具有规定的可见性与顺序语义
+- **CAS**：以原子方式比较当前值与预期值，并在匹配时更新值，弥补 `volatile` 不解决的复合原子性
 
 [`AtomicInteger` 的完整机制在第 7 章展开](./chapter-07-cas-atomic.md)。
 
@@ -441,7 +442,7 @@ public class AtomicInteger {
 - 保护一段临界区，而不是单个变量
 - 需要在临界区内做条件等待（配合 `wait/notify`）
 
-选型规则的一条简短版本：**只发布不修改，用 `volatile`；要修改，用 `synchronized` 或原子类**。
+选型时先看操作需要什么保证：如果只需要单个变量的读写可见性与顺序约束，且不依赖复合操作的原子性，可以考虑 `volatile`；如果需要让多个操作作为一个整体执行，或需要条件更新的原子性，应使用 `synchronized`、原子类或其他合适的并发机制。
 
 ### 6.4 两个都用的常见组合
 

@@ -37,13 +37,13 @@ Java 21 把虚拟线程从预览特性升级为 GA。它不是一种新语言语
         组装返回
 ```
 
-以下用一个假设场景计算平均并发数：线程 95% 的时间在等待 I/O，QPS = 10 000，平均 RT = 200 ms。按 Little 定律得到：
+以下用一个假设场景估算平均并发数：QPS = 10 000，平均 RT = 200 ms。按 Little 定律得到：
 
 ```txt
 N = QPS × RT = 10 000 × 0.2s = 2 000
 ```
 
-在这个假设下，约有 2 000 条线程同时处于等待状态。它是否触及平台上限取决于服务配置；如果可用并发额度不足，提高 QPS 后可能排队或拒绝请求。
+这表示系统中平均有 2 000 个请求处于处理中。如果请求有 95% 的时间用于等待 I/O，那么在简化假设下，约有 1 900 个请求处于等待阶段。这个结果是平均并发量，不是线程池容量建议；实际需要多少并发额度，还取决于请求分布、下游处理能力和系统的排队策略。
 
 过去应对这个矛盾有两条路：
 
@@ -75,14 +75,12 @@ Order loadOrder(String id) {
 }
 ```
 
-Reactor 版本换来的是吞吐，付出的是：
+响应式方案换来的是高并发 I/O 场景下更好的资源利用率，付出的代价是业务执行链跨越多个异步边界：
 
-- **异常栈丢失**：`onError` 拿到的 stack trace 通常停在 Reactor 内部
-- **`ThreadLocal` 失效**：跨算子切线程后 MDC、事务、租户上下文全断
-- **调试困难**：断点打不到业务逻辑，`step over` 直接跳出方法
+- **异常栈**：异步执行边界使普通调用栈无法自然呈现整个业务调用过程，`onError` 拿到的 stack trace 通常停在框架内部；Reactor 提供 assembly tracing 等调试支持，但有额外开销
+- **`ThreadLocal`**：依附于当前线程，跨线程切换时不会自动携带原值；MDC、事务、租户上下文需要额外的上下文传播机制才能跨算子传递
+- **调试**：异步链上的执行时机和线程切换增加单步跟踪难度，断点命中业务代码变得不那么直观
 - **心智负担**：`flatMap` / `zipWith` / `switchIfEmpty` 的语义精确性要求高
-
-也就是说，Reactor 让 CPU 更闲了，但让人更累了。
 
 ### 1.4 虚拟线程要解决的问题
 
@@ -109,9 +107,7 @@ Reactor 版本换来的是吞吐，付出的是：
 - **running**：栈帧在某条 Carrier 的调用栈上
 - **frozen**：栈帧被复制到堆上，等待被"解冻"
 
-`Continuation.yield(scope)` 触发从 running 到 frozen 的转换：JVM 把当前 Carrier 上属于这个 VT 的所有栈帧、局部变量、返回地址复制到堆上的一段内存里，然后 Carrier 上的 `run()` 方法返回，Carrier 继续挑下一个 VT。
-
-`Continuation.run()` 触发从 frozen 到 running：JVM 把堆上保存的栈帧复制回 Carrier 的调用栈顶，代码从 yield 点继续执行。
+`Continuation.yield(scope)` 触发从 running 到 frozen 的转换，`Continuation.run()` 触发从 frozen 到 running 的恢复。虚拟线程使用堆上的栈块（stack chunks）保存可挂起的 Java 执行状态，挂载和卸载涉及这些栈块与实际执行栈之间的协调，并非每次挂起都把所有栈帧完整复制到堆上、恢复时再完整复制回来。`jdk.internal.vm.Continuation` 是 JDK 内部实现，不是业务代码可依赖的公开 API；这里的 `yield` 和 `run` 用于解释机制，不是应用开发中直接调用的接口。
 
 对读者的意义是：**虚拟线程不是操作系统线程，也不是协程库，而是"栈可搬家的 Java 线程"**。Java 语言不需要 `async` / `await` 关键字，因为搬家的动作发生在 JDK 内部的 IO 调用里，业务代码看不见。
 
@@ -126,7 +122,7 @@ Reactor 版本换来的是吞吐，付出的是：
 # 最大并行度上限
 -Djdk.virtualThreadScheduler.maxPoolSize=256
 
-# 最小活跃 Carrier 数（发生 pinning 时新增）
+# 调度器用于控制可运行线程补偿行为的参数
 -Djdk.virtualThreadScheduler.minRunnable=1
 ```
 
@@ -139,7 +135,7 @@ Reactor 版本换来的是吞吐，付出的是：
 | `Thread.startVirtualThread(runnable)` | 一次性异步任务 | 最简洁，立即启动 |
 | `Thread.ofVirtual().name(...).start(runnable)` | 需要命名、异常处理器 | 通过 builder 配置 |
 | `Executors.newVirtualThreadPerTaskExecutor()` | 替换现有 `ExecutorService` | 兼容既有代码 |
-| `StructuredTaskScope`（第 14 章 §2.5） | 有生命周期约束的子任务组 | 结构化并发入口 |
+| `StructuredTaskScope`（第 14 章 §2.5） | 有生命周期约束的子任务组 | 结构化并发入口，JDK 21 为预览 API |
 
 ```java
 // 场景 1：一次性任务
@@ -165,7 +161,7 @@ try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
 
 ### 3.1 什么是 pinning
 
-虚拟线程遇到阻塞点时，JVM 应当把它从 Carrier 卸载下来，让 Carrier 空出手服务别的 VT。但在两种情况下卸载会失败——这条 VT 被"钉"在了 Carrier 上，直到阻塞返回。这种现象叫 **pinning**。
+虚拟线程遇到阻塞点时，JVM 应当把它从 Carrier 卸载下来，让 Carrier 空出手服务别的 VT。但在某些情况下卸载会失败——这条 VT 被"钉"在了 Carrier 上，直到阻塞返回。这种现象叫 **pinning**。在 JDK 21 中，如果虚拟线程在 `synchronized` 块或方法内执行了需要阻塞的操作，且该操作无法让虚拟线程从 Carrier 上卸载，就可能发生 pinning。进入 `synchronized` 本身并不等于出现了有害的 pinning，更值得关注的是阻塞持续时间、发生频率，以及它对整体吞吐量的影响。
 
 被钉住时的现场：
 
@@ -185,7 +181,7 @@ try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
 
 | 场景 | 原因 | JDK 21 表现 | JDK 24 表现 |
 | :-- | :-- | :-- | :-- |
-| `synchronized` 块内执行阻塞 IO | monitor 与 Carrier 强绑定，无法搬走栈帧 | 钉住 | 已修复（JEP 491） |
+| `synchronized` 块内执行阻塞 IO | monitor 与 Carrier 强绑定，无法搬走栈帧 | 钉住 | JEP 491 消除了 synchronized 导致的 pinning 限制 |
 | 本地方法（JNI）内阻塞 | JVM 无法感知 native 栈帧 | 钉住 | 仍钉住 |
 
 JDK 21–23 里 `synchronized` 是 pinning 的主要来源之一。JDK 24（2025-03）通过 JEP 491 让 `synchronized` 内的虚拟线程也能挂起，消除了这一类来源；JNI 等其他 pinning 原因仍需单独分析。生产环境停留在 JDK 21 LTS 时，应继续评估这段组合。
@@ -223,7 +219,7 @@ public class OrderService {
 }
 ```
 
-`ReentrantLock` 通过 `LockSupport.park` 挂起，JDK 21 的虚拟线程会把这段等待从 Carrier 上卸载。**在 JDK 21–23 中，应重点排查 `synchronized` 与阻塞 I/O 的组合；运行在 JDK 24+ 时再按 JEP 491 后的行为重新评估**。
+`ReentrantLock` 通过 `LockSupport.park` 挂起，JDK 21 的虚拟线程会把这段等待从 Carrier 上卸载。**在 JDK 21–23 中，应重点排查 `synchronized` 与阻塞 I/O 的组合；运行在 JDK 24+ 时再按 JEP 491 后的行为重新评估**。但这不意味着所有 `synchronized` 都要替换，只有确实存在频繁、长时间的阻塞与 pinning 组合时，才值得针对性改造。
 
 ### 3.4 pinning 的检测手段
 
@@ -231,8 +227,8 @@ public class OrderService {
 
 ```bash
 # 1. 启动参数：VT 一旦 pinning 就打印栈
--Djdk.tracePinnedThreads=short   # 只打印栈顶
--Djdk.tracePinnedThreads=full    # 打印完整栈
+-Djdk.tracePinnedThreads=short   # 只显示相关问题栈帧
+-Djdk.tracePinnedThreads=full    # 显示完整栈，并标出相关帧
 
 # 2. JFR 事件
 jcmd <pid> JFR.start settings=profile
@@ -240,7 +236,8 @@ jcmd <pid> JFR.start settings=profile
 
 # 3. 线程快照
 jcmd <pid> Thread.dump_to_file -format=json /tmp/vt-dump.json
-# 输出中 state=RUNNABLE 且 carrier != null 的 VT 值得关注
+# 线程转储用于观察虚拟线程的状态和调用栈；是否存在有害的 pinning，
+# 应结合 jdk.VirtualThreadPinned 事件、jdk.tracePinnedThreads 输出及实际阻塞情况判断
 ```
 
 `jdk.tracePinnedThreads=short` 的输出片段示例：

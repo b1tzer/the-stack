@@ -2,7 +2,7 @@
 
 > 有了线程池，也有了 `Future`，为什么 Java 8 还要再加一个 `CompletableFuture`？异步链条上，任务到底跑在哪条线程上？异常又是从哪一段冒出来的？
 
-`Future` 让 Java 在 2004 年拿到了“未来取值”的能力，`CompletableFuture` 在 2014 年补齐了“未来编排”的能力。这中间隔的十年，是异步编程从“能做”到“好用”的十年。这一章聚焦两者的语义边界、线程归属和最容易踩的坑；响应式流只与本专题的 [NIO](../04-java-network/chapter-05-nio.md)、[Netty](../04-java-network/chapter-06-netty.md)建立联系，Actor 模型不作为本专题的主线内容。
+`Future` 提供异步结果的查询能力，但缺少回调与组合接口；Java 8 引入的 `CompletableFuture` 将结果转换、阶段组合和异常处理纳入同一套 API。这一章聚焦两者的语义边界、线程归属和最容易踩的坑；响应式流只与本专题的 [NIO](../04-java-network/chapter-05-nio.md)、[Netty](../04-java-network/chapter-06-netty.md)建立联系，Actor 模型不作为本专题的主线内容。
 
 ## 1. `Future` 的三个主要局限
 
@@ -50,9 +50,9 @@ Future<String> c = pool.submit(() -> {
 
 ## 2. `CompletableFuture` 的两组 API
 
-### 2.1 API 全景：只有两条主线
+### 2.1 API 全景：两类常见操作与三类独立能力
 
-`CompletableFuture` 方法数看着吓人，但都是围绕两件事：**单个 Future 上做转换** 和 **多个 Future 之间做合并**。抓住这两条主线，其余方法都是变体。
+`CompletableFuture` 方法数看着吓人，但可以从**单个 Future 上做转换** 和 **多个 Future 之间做合并**两类常见操作入手，再单独掌握执行器选择、异常处理与完成控制。
 
 ### 2.2 转换：单输入 → 单输出
 
@@ -63,7 +63,7 @@ Future<String> c = pool.submit(() -> {
 | `thenAccept(cons)` | `T → void` | `CF<Void>` | 消费结果 |
 | `thenRun(runnable)` | 忽略结果 | `CF<Void>` | 只关心"完成了" |
 
-关键区别：`thenApply` 用于"结果 → 新值"，`thenCompose` 用于"结果 → 新的异步任务"。对应函数式语言里的 `map` 和 `flatMap`。混用会得到嵌套的 `CompletableFuture<CompletableFuture<R>>`——一层多余。
+关键区别：`thenApply` 用于"结果 → 新值"，`thenCompose` 用于"结果 → 新的异步任务"。对应函数式语言里的 `map` 和 `flatMap`。混用会得到嵌套的 `CompletableFuture<CompletableFuture<R>>`——一层多余。`thenCompose` 负责展开异步依赖，不负责切换执行线程；需要显式指定后续阶段的执行器时，应使用相应的 `thenComposeAsync` 重载。
 
 ```java
 // ❌ 用 thenApply 处理返回 CF 的函数，得到嵌套
@@ -82,6 +82,8 @@ CompletableFuture<Order> good =
 | `thenCombine(other, bi)` | 两个 CF | 都完成后合并两个结果 |
 | `allOf(cf...)` | N 个 CF | 全部完成后触发（返回 `CF<Void>`） |
 | `anyOf(cf...)` | N 个 CF | 任一完成后触发（返回 `CF<Object>`） |
+
+`allOf` 表示等待所有输入阶段完成，不表示所有任务都成功。任一输入阶段异常完成时，聚合阶段也会异常完成，其他输入阶段不会因此自动取消。`anyOf` 返回 `CF<Object>` 是因为不同输入阶段可能具有不同的结果类型；它在任意一个输入阶段完成时完成，包括以异常方式完成的情况，因此是"任一完成"而非"任一成功"。
 
 `allOf` 返回 `Void`——想拿到各个 CF 的结果，还得在完成后手动 `join` 每一个。这是初学者最容易忽视的一处：
 
@@ -142,15 +144,15 @@ String result = pipeline.join();
 
 | 写法 | 执行线程 |
 | :-- | :-- |
-| `thenApply(fn)` | 谁完成上一个 CF，谁执行 `fn`（可能是提交线程，也可能是上一个 stage 的线程） |
-| `thenApplyAsync(fn)` | 默认使用 `ForkJoinPool.commonPool()`；其并行度低于 2 时，为每个任务创建新线程 |
+| `thenApply(fn)` | 不指定执行器。回调可能在完成上游阶段的线程执行；若上游已完成，也可能在注册回调的线程执行 |
+| `thenApplyAsync(fn)` | 默认异步执行器，OpenJDK 21 常规配置下为 `ForkJoinPool.commonPool()` |
 | `thenApplyAsync(fn, executor)` | 提交到指定的 `executor` |
 
 **同步版本 `thenApply` 的"急切执行"**：如果上一个 CF 在调用 `thenApply` 时已经完成，回调**立即在当前线程运行**——不再是异步。这是很多"看起来应该异步、实际在业务线程上跑了阻塞任务"的根源。
 
 ### 3.2 `commonPool` 的默认坑
 
-`supplyAsync(fn)` / `thenApplyAsync(fn)` 不传 executor 时，默认使用 `ForkJoinPool.commonPool()`（[第 11 章的 `ForkJoinPool` 一节](./chapter-11-thread-pool.md#fork-join-pool)讨论过）。这个池由 JVM 中的任务共享；默认并行度是 `max(1, 可用处理器数 - 1)`，也可由 `java.util.concurrent.ForkJoinPool.common.parallelism` 覆盖。并行度低于 2 时，JDK 会为每个任务创建新线程。
+`supplyAsync(fn)` / `thenApplyAsync(fn)` 不传 executor 时，默认使用 `ForkJoinPool.commonPool()`（[第 11 章的 `ForkJoinPool` 一节](./chapter-11-thread-pool.md#fork-join-pool)讨论过）。这个池由 JVM 中的任务共享；默认并行度是 `max(1, 可用处理器数 - 1)`，也可由 `java.util.concurrent.ForkJoinPool.common.parallelism` 覆盖。在 OpenJDK 21 中，当公共池并行度低于 2 时，`CompletableFuture` 的默认异步执行路径会回退到按任务创建线程的执行器，而不是依靠公共池的常规工作线程调度；显式传入 Executor 的重载不使用这条默认回退路径。
 
 ```java
 // ❌ 阻塞 IO 塞进 commonPool：同池任务的延迟会互相放大
@@ -199,6 +201,8 @@ CompletableFuture
 | `handle(bi)` | ✅ | ✅ 正常和异常都能替换 | 无论上游正常还是异常都执行 |
 | `whenComplete(bi)` | ✅ | ❌ 只做副作用，不改变结果 | 正常和异常都执行 |
 
+`whenComplete` 用于观察结果、记录日志或执行清理动作，它不会主动恢复上游异常；但回调本身也应尽量避免抛出异常。上游正常完成而 `whenComplete` 回调抛出异常时，返回阶段会异常完成；上游已经异常完成时，原异常优先传播。
+
 ```java
 future
     .thenApply(this::riskyStep)
@@ -242,7 +246,7 @@ supplyAsync ──▶ thenApply ──▶ thenApply ──▶ ...
         跳过后续 thenApply，直到 exceptionally / handle
 ```
 
-因此从 `exceptionally` 拿到的 `ex` 通常是 `CompletionException`，真正的业务异常在 `ex.getCause()` 里。写异常处理时如果不 unwrap，日志和监控上会全部显示成 `CompletionException`，看不到真正的原因。
+`CompletableFuture` 会通过异常完成状态在依赖链中传播失败。对于执行过程中抛出的异常，依赖阶段和 `join()` 常见的观察形式是 `CompletionException`；调用 `get()` 时，执行失败通常通过 `ExecutionException` 暴露。异常的包装层次取决于具体的完成路径，排查时应检查 `getCause()`，必要时逐层展开原因链，而不是假定所有异常都只有一层包装。
 
 ### 4.4 超时保护（JDK 9+） {#async-timeout}
 
@@ -261,7 +265,7 @@ CompletableFuture<String> fallbackOnTimeout = CompletableFuture
     .completeOnTimeout("fallback", 3, TimeUnit.SECONDS);
 ```
 
-`orTimeout` 会把超时以异常方式注入链条，随后可用 `exceptionally` 或 `handle` 决定降级；`completeOnTimeout` 则直接给出替代值，让链条按正常结果继续。两者是对同一 Future 的互斥超时策略，不要用同一期限串联，否则哪个计时器先完成存在竞态。
+`orTimeout` 会把超时以异常方式注入链条，随后可用 `exceptionally` 或 `handle` 决定降级；`completeOnTimeout` 则直接给出替代值，让链条按正常结果继续。两者控制的是 `CompletableFuture` 的完成状态，不等同于取消底层任务。超时后，原始计算可能仍在运行；如果业务要求停止数据库查询、HTTP 请求或其他耗时操作，还需要调用底层客户端提供的取消机制，并处理取消与任务完成之间的竞态。
 
 ## 5. 常见反模式
 
@@ -297,7 +301,7 @@ CompletableFuture.supplyAsync(this::queryDB)
     .thenAccept(this::save);
 ```
 
-`thenApply` 的回调很可能在 `commonPool` 上执行（详见 §3.2）。阻塞 I/O 占住 commonPool 后，同池的 `parallelStream` 和其他 `CompletableFuture` 会明显变慢，但不使用 commonPool 的 `CompletableFuture` 不会因此全部阻塞。**含阻塞且有独立服务目标的 stage 应使用 `xxxAsync(fn, executor)` 换到专用池**。
+`thenApply` 不负责切换执行线程，其回调可能在完成上游阶段的线程执行，也可能在注册回调的线程执行。如果上游阶段由公共池中的 Worker 完成，阻塞回调可能占用该 Worker；如果上游已经完成，回调也可能直接在注册回调的线程执行。**含阻塞且有独立服务目标的 stage 应使用 `thenApplyAsync(fn, executor)` 换到专用池**，避免执行线程受到上游完成时机的意外影响。
 
 ### 5.3 未指定 Executor
 
@@ -377,7 +381,7 @@ Actor 与前述所有模型的分野在**编程思维**：从“共享内存 + �
 | `allOf` 后拿不到各自结果 | `allOf` 返回 `Void` | 手动 `join` 每个 CF |
 | 阻塞 IO 拖垮 `commonPool` | 默认走 `ForkJoinPool.commonPool` | 显式传 executor |
 | 链尾完成或失败状态不可见 | 链末端没有消费 future | 按需要 `join()`，或补齐异常、监控和生命周期处理 |
-| 异常总是显示成 `CompletionException` | 未 unwrap `getCause()` | 处理异常时取 `ex.getCause()` |
+| 异常常见形式为 `CompletionException` | 未展开 `getCause()` 原因链 | 处理异常时逐层取 `ex.getCause()` |
 | 异步超时 | JDK 9 之前没原生 API | `orTimeout` / `completeOnTimeout` |
 
 ## 8. 下一步
