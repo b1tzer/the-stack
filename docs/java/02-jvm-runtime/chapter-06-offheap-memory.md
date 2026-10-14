@@ -14,50 +14,40 @@ NIO 的具体使用见 [Java NIO](../04-java-network/chapter-05-nio.md)，堆外
 
 ```txt
 普通对象:
-  new byte[1024]  →  分配在 Eden  →  GC 自动回收
+  new byte[1024]  →  Java 堆  →  不再可达后由 GC 回收
 
-堆外内存:
-  ByteBuffer.allocateDirect(1024)  →  分配在本地内存  →  DirectByteBuffer 被 GC 时通过 Cleaner 释放
+直接缓冲区:
+  ByteBuffer.allocateDirect(1024)
+    →  堆上的 DirectByteBuffer + 本地数据区
+    →  清理动作释放本地数据区
 ```
 
 ### 1.2 DirectByteBuffer 的释放路径 {#direct-bytebuffer-release}
 
-`DirectByteBuffer` 本身是堆上的小对象，它关联的内存在堆外。堆外内存的释放通常依赖 `DirectByteBuffer` 被回收后触发的清理任务。[垃圾回收](./chapter-04-gc.md)会解释虚引用和引用队列，这里先建立直觉：
+`ByteBuffer.allocateDirect()` 创建的 `DirectByteBuffer` 是堆上的 Java 对象，缓冲区的数据区位于本地内存。以 JDK 21 的典型 HotSpot 实现为例，直接缓冲区会关联清理对象及释放本地内存的动作：
 
 ```txt
-DirectByteBuffer（堆上，小对象）
-  └─ 持有一个 Cleaner 对象
-       └─ Cleaner 关联一个虚引用 + 回收动作（释放本地内存）
+ByteBuffer.allocateDirect(size)
+  → 创建堆上的 DirectByteBuffer
+  → 在本地内存分配数据区，并注册清理动作
 
-当 DirectByteBuffer 不再被任何 GC Root 引用 → GC 回收它
-  → 虚引用被放入 ReferenceQueue
-  → Cleaner 线程从队列中取出虚引用
-  → 执行回收动作：Unsafe.freeMemory(address)
+DirectByteBuffer 不再被强可达引用保留
+  → GC 的引用处理识别到相应的清理条件
+  → Cleaner 执行清理动作
+  → 释放本地内存，并更新直接缓冲区的内存计数
 ```
 
-关键点：堆外内存的释放依赖 GC 触发。如果 GC 不频繁，大量 DirectByteBuffer 堆积在堆中，对应的堆外内存就一直不释放。这就是为什么 NIO 框架（如 Netty）会主动管理堆外内存，而不是依赖 GC。
+这条链路不是同步析构。对象变得不可达，不等于本地内存会在同一时刻释放；引用处理和清理任务还需要执行。应用也不应依赖某次 GC 必然及时释放某个直接缓冲区。
+
+直接缓冲区分配速度很快、清理又跟不上时，本地内存可能在一段时间内持续增长。需要明确控制生命周期的代码，应考虑可显式管理生命周期的缓冲区或内存段方案，而不是把 GC 当成确定的释放时钟。这就是为什么 NIO 框架（如 Netty）会主动管理堆外内存，而不是依赖 GC。
 
 ## 2. NIO 为什么需要堆外内存
 
-### 2.1 减少用户空间中的堆内存拷贝
+### 2.1 为什么直接缓冲区可能减少复制
 
-传统的 I/O 操作需要在用户空间（堆）和内核空间之间拷贝数据：
+Java 堆是用户空间内存的一部分，但用户空间不等于 Java 堆。使用堆缓冲区执行某些 NIO 操作时，JDK 可能需要通过临时的直接缓冲区在 Java 堆与本地 I/O 接口之间复制数据；直接缓冲区的数据区位于本地内存，某些 I/O 路径可以直接使用这块内存，从而减少中间复制。
 
-```txt
-使用 Java 堆缓冲区:
-  内核缓冲区 → Java 堆缓冲区 → Socket/文件缓冲区
-                 ↑ 需要在 JVM 堆与本地内存之间复制
-```
-
-使用直接缓冲区后，某些 I/O 路径可以减少一次到 Java 堆的拷贝：
-
-```txt
-使用直接缓冲区:
-  内核缓冲区 ↔ 直接缓冲区 ↔ Socket/文件缓冲区
-                  ↑ 可以减少一次到 JVM 堆的复制
-```
-
-这是 NIO 和 Netty 使用直接缓冲区的动机之一。实际复制次数取决于使用的 API、缓冲区复用方式和操作系统路径；直接缓冲区不会自动把所有 I/O 变成零拷贝，`sendfile()` 等零拷贝机制仍需显式使用。原理和取舍见 [Java NIO](../04-java-network/chapter-05-nio.md) 与 [Netty](../04-java-network/chapter-06-netty.md)。
+是否减少复制以及减少几次，取决于具体 API、操作系统和实现。直接缓冲区并不等于零拷贝，`sendfile()` 等机制是另一类需要单独理解的技术。原理和取舍见 [Java NIO](../04-java-network/chapter-05-nio.md) 与 [Netty](../04-java-network/chapter-06-netty.md)。
 
 ## 3. 堆外内存为什么难以排查
 
@@ -65,7 +55,7 @@ DirectByteBuffer（堆上，小对象）
 
 `-Xmx4g` 只限制 Java 堆。直接缓冲区、线程栈、Metaspace 和 CodeCache 分别受各自机制控制。应用可能只使用了 2GB Java 堆，却因为直接缓冲区和线程栈占用了更多本地内存。
 
-`jstat` 和堆内对象直方图只能反映 Java 堆，无法直接说明进程 RSS 为什么持续增长。诊断时应同时比较三组数据：
+`jstat` 的常用选项可以观察 GC、类加载等运行状态，堆内对象直方图则用于了解 Java 堆中各类对象的数量和占用。它们不能单独解释进程 RSS 的全部变化。诊断时应同时比较三组数据：
 
 - 容器或进程的总内存，例如 RSS 以及 cgroup 内存限制。
 - Java 堆使用量，例如 `jstat -gcutil`。
@@ -88,32 +78,55 @@ jcmd <pid> VM.native_memory summary.diff scale=MB
 ```
 
 ```bash
-# 示例输出（分类和数值随 JVM 与运行状态变化）：
-#                   Total: reserved=6GB + committed=4GB
-#        Java Heap (reserved=2GB, committed=2GB)
-#        Class     (reserved=1GB, committed=500MB)
-#        Thread    (reserved=500MB, committed=500MB)
-#        Internal  (reserved=1GB, committed=1GB)
+# 以下为格式示意，不是一次真实运行的完整输出：
+# Native Memory Tracking:
+#
+# Total: reserved=6144MB, committed=4096MB
+# -                 Java Heap (reserved=2048MB, committed=2048MB)
+# -                     Class (reserved=1024MB, committed=512MB)
+# -                    Thread (reserved=512MB, committed=256MB)
 ```
 
-NMT 的分类、单位和具体归属会随 JDK 实现与版本变化。`summary` 适合先判断哪类本地内存增长；需要继续缩小到调用点时，可在目标 JVM 支持的情况下使用 `detail`，但采集开销和输出规模也会增加。
+实际输出还会包含其他分类和更细的 malloc、mmap 等信息；分类名称、字段和数值取决于目标 JVM 及运行状态。不要把这里的示意值当成相互精确对应的真实内存账目。
+
+NMT 的 reserved 表示 JVM 为相关内存区域预留的地址空间，committed 表示已提交的部分；两者都不能直接当作进程 RSS。NMT 只覆盖它能够跟踪的 JVM 内部内存，不能替代操作系统层面的进程和容器内存监控。`summary` 适合先判断哪类本地内存增长；需要继续缩小到调用点时，可在目标 JVM 支持的情况下使用 `detail`，但采集开销和输出规模也会增加。
+
+NMT 主要跟踪 HotSpot 内部内存，不是整个进程的完整内存分配账本。直接缓冲区、JNI 代码或第三方本地库的内存，不能假设都会完整出现在 NMT 分类中。排查直接缓冲区增长时，应额外观察 `BufferPoolMXBean` 提供的 direct 缓冲区指标：
+
+```java
+import java.lang.management.BufferPoolMXBean;
+import java.lang.management.ManagementFactory;
+
+for (BufferPoolMXBean pool : ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class)) {
+    if ("direct".equals(pool.getName())) {
+        System.out.printf("count=%d, totalCapacity=%d MB, memoryUsed=%d MB%n",
+                pool.getCount(),
+                pool.getTotalCapacity() / 1024 / 1024,
+                pool.getMemoryUsed() / 1024 / 1024);
+    }
+}
+```
+
+这些指标也不是整个进程的内存总量，但更适合直接观察 JVM 暴露的直接缓冲区池。若 RSS 持续增长，而 Java 堆和这些指标都没有相应变化，再结合 NMT、线程数、JNI 或本地库分配情况继续缩小范围。
 
 ### 3.3 释放依赖 GC 和引用清理
 
 释放时机见 [DirectByteBuffer 的释放路径](#direct-bytebuffer-release)。当分配速度超过清理速度时，堆外内存会持续增长；GC 越晚发生，清理通常也越晚。
 
 ```java
-// 危险：在循环中分配大量 DirectByteBuffer
 while (true) {
-    ByteBuffer buf = ByteBuffer.allocateDirect(10 * 1024 * 1024);  // 10MB
-    // buf 在下次 GC 前不会被释放
-    // 如果循环速度快于 GC → 堆外内存持续增长 → OOM
+    ByteBuffer buf = ByteBuffer.allocateDirect(10 * 1024 * 1024);
+
+    // 示例：如果持续快速分配，而旧缓冲区的清理跟不上，
+    // 直接缓冲区的容量或本地内存可能持续增长。
 }
 ```
 
+这段代码用于说明风险，不是一个每次运行都会稳定复现 OOM 的测试。实际表现取决于分配速度、引用可达性、GC 和 Cleaner 的执行进度，以及直接缓冲区容量上限。生产代码应复用缓冲区，或采用明确的资源生命周期管理，不要依赖"不断创建对象，等 GC 自己清理"来管理大量直接内存。
+
 ## 4. 配置直接缓冲区上限
 
-`-XX:MaxDirectMemorySize` 限制 `java.nio` 直接缓冲区的总容量，不限制线程栈、Metaspace 等其他本地内存。它限制的是缓冲区容量总和；由于分页对齐，实际占用的进程内存可能与容量不同。
+`-XX:MaxDirectMemorySize` 限制的是 `java.nio` 直接缓冲区的容量总和，不是整个进程的本地内存上限，也不是对 RSS 的限制。HotSpot 会分别跟踪直接缓冲区的总容量和实际为其分配的本地内存大小，两者可能不同，例如页对齐会带来额外分配。因此，即使直接缓冲区容量没有超过该参数的上限，进程的实际内存占用仍可能更高；线程栈、Metaspace、CodeCache、JNI 和其他本地分配也不受这个参数统一限制。如果未显式设置，JVM 会自动选择直接缓冲区分配上限，具体值应以目标 JDK 和运行环境为准，不能简单理解为"默认无限制"。
 
 | 参数 | 说明 |
 | :-- | :-- |
@@ -121,7 +134,7 @@ while (true) {
 | `-XX:NativeMemoryTracking=summary` | 在 JVM 启动时开启 NMT，按分类收集本地内存用量 |
 | `-XX:NativeMemoryTracking=detail` | 在 JVM 启动时记录更细的分配信息，开销高于 `summary` |
 
-先限制直接缓冲区可以尽早暴露过度分配，但不能替代对缓冲区生命周期的管理。出现 `Cannot reserve ... direct buffer memory` 时，应同时确认业务是否确实需要这个容量，以及未释放的 `DirectByteBuffer` 是否持续累积。
+设置 `MaxDirectMemorySize` 可以限制直接缓冲区容量的增长，并让超出上限的分配较早失败，但它不会自动解决缓冲区泄漏。遇到 `Cannot reserve ... direct buffer memory` 时，应同时检查当前直接缓冲区容量、缓冲区创建和复用方式、引用是否仍然存活，以及清理是否跟得上分配速度；不要在未确认原因时只提高上限。
 
 ## 5. 按症状定位问题
 
@@ -131,6 +144,7 @@ while (true) {
 | 直接缓冲区达到上限并抛出 OOM | `-XX:MaxDirectMemorySize`、缓冲区复用方式、未关闭的资源 |
 | 堆外内存在释放后仍不下降 | `DirectByteBuffer` 是否仍可达、GC 是否触发、是否依赖应用层主动释放 |
 | NMT 无法查询 | JVM 是否以 `-XX:NativeMemoryTracking=summary` 或 `detail` 启动 |
+| RSS 持续增长，但 NMT 分类变化不明显 | `BufferPoolMXBean` 的 direct 指标、JNI 和第三方本地库分配、线程栈、容器内存统计 |
 
 线上症状、命令输出和修复案例见 [TCP 层与堆外内存案例](../06-diagnostics/01-jvm/chapter-05-cases-offheap-network.md)。
 
