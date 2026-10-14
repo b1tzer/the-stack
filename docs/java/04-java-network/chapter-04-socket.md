@@ -1,6 +1,6 @@
 # Java Socket 编程：网络抽象的起点
 
-> **核心问题：** 你线上报过 `Too many open files`，调过 `ulimit -n 65535`，配过连接池的 `maxConnections`——但你有没有想过，fd 到底是什么？一个 `new Socket()` 在内核里到底分配了什么？`read()` 卡住的时候，线程去哪了？一台机器到底能撑多少连接？本章从 OS 内核视角出发，把 Socket 从"一个 Java 对象"拆回它的本质：一个文件描述符、两块内核缓冲区、两对队列。
+> **核心问题：** 你线上报过 `Too many open files`，调过 `ulimit -n 65535`，配过连接池的 `maxConnections`——但你有没有想过，fd 到底是什么？一个 `new Socket()` 在内核里到底分配了什么？`read()` 卡住的时候，线程去哪了？一台机器到底能撑多少连接？本章从 OS 内核视角出发，把 Socket 从"一个 Java 对象"拆回它的本质：一个通过 fd 访问的内核通信端点、两块内核缓冲区、两对队列。
 
 ## 1. Socket 的本质：OS 如何抽象网络通信
 
@@ -14,21 +14,21 @@
 
 Socket 的价值就在这里：**它把复杂的网络协议栈封装成了一个"读写缓冲区"**。对应用程序而言，网络通信和读写文件在接口层面几乎没有区别。
 
-### 1.2 Socket = 文件描述符 + 协议栈
+### 1.2 Socket 通过文件描述符访问
 
-在 Unix/Linux 中，Socket 本质上是一个**文件描述符（File Descriptor, fd）**。操作系统把一切 I/O 资源都抽象为 fd——普通文件、管道、设备、网络连接，对应用来说都是一个 `int` 数字。
+在 Unix/Linux 中，应用程序通过**文件描述符（File Descriptor, fd）**访问 Socket。操作系统把一切 I/O 资源都抽象为 fd——普通文件、管道、设备、网络连接，对应用来说都是一个 `int` 数字。fd 是应用访问 Socket 的入口，不是 Socket 本身。
 
 ![fd-table](/java/fd-table.svg)
 
 创建一个 Socket 时，内核做的事情：
 
-1. 分配一个 **`struct socket`**（内核中的 Socket 对象）
-2. 在进程的**文件描述符表**中找一个空位，填入指向该 Socket 的指针
+1. 在内核中建立 Socket 相关的通信对象（含协议栈状态）
+2. 在进程的**文件描述符表**中分配一个空位，让它关联到这个 Socket
 3. 返回这个 fd 的编号给应用
 
 后续所有操作——`read`、`write`、`close`——都通过这个 fd 编号进行。这就是为什么 `socket()` 系统调用的返回值是一个 `int`，而不是一个"连接对象"。
 
-> **Java 层面的映射**：Java 的 `Socket` 和 `ServerSocket` 对象内部持有一个 OS fd。`socket.close()` 最终调用的就是 OS 的 `close(fd)`。如果 Java 对象被 GC 回收但没有显式 `close()`，fd 的释放要等 `finalize()`（JDK 9+ 改为 `Cleaner`），期间 fd 一直被占着——这就是为什么必须用 try-with-resources 显式关闭 Socket。
+> **Java 层面的映射**：Java 的 `Socket` 和 `ServerSocket` 对象内部持有一个 OS fd，`socket.close()` 最终调用的就是 OS 的 `close(fd)`。如果 Java 对象被 GC 回收但没有显式 `close()`，fd 的释放时机并不可靠——不同 JDK 版本的底层清理实现不同，`finalize()` 在 JDK 9 已被标记废弃，不能依赖 GC 或 `Cleaner` 来及时释放连接。这就是为什么必须用 try-with-resources 显式关闭 Socket。
 
 ### 1.3 五元组与连接标识
 
@@ -58,15 +58,13 @@ Client C (10.0.0.6:51782) ──连接──► Server:8080  → accept() → fd
 
 三个连接共享同一个监听端口，但五元组各不相同。
 
-**理论容量分析：**
+**一个监听端口能承载多少连接？**
 
-| 维度 | 上限 | 制约因素 |
-| :-- | :-- | :-- |
-| 单个客户端 → 单个服务端端口 | ~65,535 条 | 客户端临时端口范围（`/proc/sys/net/ipv4/ip_local_port_range`，默认 32768~60999） |
-| 单个服务端 IP 的所有端口 | ~65,535 × 65,535 条（理论） | 实际受 fd 限制和内存限制 |
-| 多网卡多 IP 的服务端 | IP 数 × 65,535 × 客户端数 | 网卡带宽、内存、fd 上限 |
+服务端可以在同一个本地 IP 和端口上接受大量 TCP 连接：每条已建立连接由本地地址、本地端口、远端地址、远端端口和协议共同区分，不需要独占监听端口。
 
-实际生产中，连接数的瓶颈**从来不是端口数**，而是下一节要讲的 fd 限制和内核资源。
+容量上限不能只按端口数量相乘来估算。客户端固定本地 IP 连接同一个服务端地址时，可用源端口空间（`/proc/sys/net/ipv4/ip_local_port_range`，默认 32768~60999）会限制同时存在的连接组合；服务端则更早受 fd 上限、内核内存、线程模型和 `accept()` 处理速度的限制。多个本地 IP 能增加可用的地址组合，但不会消除内存、fd 和应用处理能力的限制。
+
+对服务端而言，fd、内核内存和应用处理能力通常是优先检查的容量限制；对客户端和经过 NAT 的连接路径，临时端口与端口映射容量也可能成为瓶颈。评估容量应看实际连接数、fd 使用量、内存占用和连接状态，而不是用一个端口乘法推算整机承载能力。
 
 ### 1.4 Socket 的两种类型
 
@@ -96,7 +94,7 @@ ServerSocket serverSocket = new ServerSocket();   // 内部调用 socket()
 Socket clientSocket = new Socket();               // 内部调用 socket()
 ```
 
-Java 的 `new ServerSocket()` 在构造时就调用了 OS 的 `socket()`，拿到一个 fd。
+Java 的 `new ServerSocket()` 在构造时会创建底层 Socket 端点并拿到一个 fd。这里把它与传统 Linux 阻塞式 Socket 的 `socket()` 系统调用对应，是一种概念映射，而非所有 JDK 实现都必须遵守的逐行调用关系。另外，`new Socket()` 创建的是未连接的 Socket，`new ServerSocket()` 创建的是未绑定的监听端点，此时还没有开始监听。
 
 ### 2.2 `bind()` + `listen()`：绑定端口、开始监听
 
@@ -109,7 +107,7 @@ listen(fd, 128);                                    // 开始监听，backlog=12
 
 `bind()` 把 Socket 和一个 **IP:Port** 绑定。绑定后，操作系统知道"目标端口是 8080 的 TCP 包应该送给这个 Socket"。
 
-`listen()` 把 Socket 从"主动连接"模式切换为"被动监听"模式，并告诉内核：**为这个 Socket 创建两个队列**——半连接队列（SYN queue）和全连接队列（accept queue）。`backlog` 参数控制全连接队列的大小。
+`listen()` 把 Socket 从"主动连接"模式切换为"被动监听"模式。在 Linux TCP 实现中，监听 Socket 关联着两个队列——半连接队列（SYN queue）和全连接队列（accept queue），前者跟踪尚未完成三次握手的连接请求，后者保存已完成握手、等待 `accept()` 的连接。`backlog` 参数影响全连接队列的容量，但实际上限还受 `net.core.somaxconn` 等内核参数影响。
 
 ```java
 // Java 层
@@ -175,8 +173,7 @@ Socket socket = new Socket("192.168.1.1", 8080);  // 内部调用 socket() + con
 ```java
 // Java 层
 OutputStream out = socket.getOutputStream();
-out.write("hello".getBytes());   // 数据进入内核发送缓冲区
-out.flush();                     // 强制刷新（见 §2.5）
+out.write("hello".getBytes(StandardCharsets.UTF_8));  // 交给底层 Socket 输出实现，进入内核发送缓冲区
 
 InputStream in = socket.getInputStream();
 byte[] buf = new byte[1024];
@@ -192,7 +189,7 @@ close(fd);
 
 `close()` 做两件事：
 
-1. **TCP 层**：发起四次挥手，关闭连接（主动关闭方进入 `FIN_WAIT` 状态）
+1. **TCP 层**：关闭本端 Socket，正常关闭通常通过 TCP 终止过程通知对端；但具体报文和状态迁移取决于连接状态、未发送数据以及 `SO_LINGER` 等配置，不能把每次 `close()` 都等同于必然完成标准的四次挥手
 2. **OS 层**：释放 fd 编号，回收内核中的 Socket 对象
 
 ```java
@@ -253,15 +250,15 @@ close(connFd)  ◄── 四次挥手 ──── close(fd)
 └────────────────────────────────────────────────┘
 ```
 
-缓冲区大小由 Socket 选项 `SO_SNDBUF` 和 `SO_RCVBUF` 控制；Java 设置方法见 §4.2，参数取舍见 [TCP 性能参数与 Java 实践](./chapter-03-tcp-performance-java.md)。默认值因 OS 而异，Linux 通常为 **128KB ~ 256KB**，并会根据内存压力自动调整（`tcp_rmem` / `tcp_wmem` 内核参数）。
+缓冲区大小由 Socket 选项 `SO_SNDBUF` 和 `SO_RCVBUF` 控制；Java 设置方法见 §4.2，参数取舍见 [TCP 性能参数与 Java 实践](./chapter-03-tcp-performance-java.md)。默认值因 OS 而异，Linux 的实际值受 `tcp_rmem` / `tcp_wmem` 等内核参数和自动调优机制影响，应用通过 Socket 选项请求的值不一定等于内核最终采用的容量。
 
-**发送缓冲区满会怎样？** `write()` 会**阻塞**，直到内核发出了一些数据腾出空间。这就是"写阻塞"——它不是因为网络慢，而是因为发送缓冲区满了。
+**发送缓冲区满会怎样？** `write()` 可能**阻塞**，直到内核发出一些数据腾出空间。这就是"写阻塞"——它可能源于发送缓冲区背压，也可能受对端接收窗口、网络传输和对端处理速度影响。
 
-**接收缓冲区空会怎样？** `read()` 会**阻塞**，直到有数据到达。这就是"读阻塞"——它不是因为没有连接，而是因为对方还没发数据。
+**接收缓冲区空会怎样？** `read()` 可能**阻塞**，直到有数据到达。这就是"读阻塞"——但阻塞不是唯一结果：对端关闭输出后，`read()` 会返回 `-1` 表示流结束；连接被重置或发生 I/O 错误时，则会抛出异常。
 
 ### 3.2 全连接队列与半连接队列
 
-> **活动期间，你发现新连接全部超时，但服务端 CPU 和内存都正常。** 同事怀疑是网络设备问题，你用 `ss -tln | grep 8080` 看了一眼—— `Recv-Q` 已经超过了 `Send-Q`。请求不慢，是它们根本没进到应用层。accept queue 满了，内核已经在悄悄丢包了。
+> **活动期间，你发现新连接全部超时，但服务端 CPU 和内存都正常。** 同事怀疑是网络设备问题，你用 `ss -ltn | grep 8080` 看了一眼—— `Recv-Q` 已经接近甚至超过了 `Send-Q`。已经完成握手、等待 `accept()` 的连接积压了，应用接受连接的速度可能跟不上到达速度。
 
 `listen()` 之后，内核为这个监听 Socket 维护两个队列：
 
@@ -281,7 +278,7 @@ State   Recv-Q  Send-Q  Local Address:Port
 LISTEN  129     128     0.0.0.0:8080
 #        ↑       ↑
 #   当前排队数  backlog 上限
-# Recv-Q > Send-Q 时，说明全连接队列溢出
+# Recv-Q 持续接近或达到 Send-Q 时，需结合溢出计数器确认是否溢出
 ```
 
 **排查时关注的内核计数器：**
@@ -304,7 +301,7 @@ $ netstat -s | grep "listen"
 内核检查接收缓冲区 → 空
       │
       ▼
-线程状态: RUNNING → TASK_INTERRUPTIBLE（睡眠）
+内核任务状态: RUNNING → TASK_INTERRUPTIBLE（睡眠）
 线程从 CPU 运行队列中移除
 线程被挂到 Socket 的"等待队列"上
       │
@@ -312,11 +309,13 @@ $ netstat -s | grep "listen"
       │
       ▼
 内核中断处理 → 数据写入接收缓冲区 → 唤醒等待队列上的线程
-线程状态: TASK_INTERRUPTIBLE → RUNNING
+内核任务状态: TASK_INTERRUPTIBLE → RUNNING
 线程从 read() 处返回
 ```
 
-**阻塞不是"线程在忙等/自旋"**，而是**线程被操作系统挂起了**——它不占 CPU 时间片，不消耗 CPU 资源。代价是占用了一块线程栈内存（~1MB）和一个内核调度实体。
+**阻塞不是"线程在忙等/自旋"**，而是**线程被操作系统挂起了**——它不占 CPU 时间片，不消耗 CPU 资源。代价是占用线程相关的内存（线程栈、线程对象、内核调度结构）和调度资源。
+
+注意这里的 `TASK_INTERRUPTIBLE` 是 Linux 内核的任务状态，与 Java 的 `Thread.State`（如 `RUNNABLE`、`WAITING`）是不同层次的概念，不能直接画等号。线程栈大小也取决于 JVM 配置和平台，不能把 1MB 当作固定值。
 
 这就是 BIO 的核心代价：**线程不消耗 CPU，但消耗内存和调度资源**。一个阻塞在 `read()` 上的线程，CPU 利用率为 0，但内存和 fd 一直被占着。
 
@@ -341,12 +340,12 @@ $ netstat -s | grep "listen"
   每个 Socket 内核开销 5KB → 65535 × 5KB ≈ 320MB（可接受）
   每个连接的业务线程栈 1MB → 65535 × 1MB ≈ 64GB（BIO 模型下不可能）
 
-如果用 NIO（无线程阻塞）：
-  一个线程管理 10000 个连接 → 65535 个连接只需要 ~6 个线程
-  内存开销 ≈ 320MB（Socket 内核对象） + 6MB（线程栈） → 完全可行
+如果改用 NIO 的事件驱动模型：
+  一个线程通过 Selector 等待多个连接的就绪事件，不必为每个连接阻塞一个线程
+  内存开销 ≈ 320MB（Socket 内核对象） + 少量线程栈 → 可行
 ```
 
-这就是为什么高并发场景必须用 NIO——不是因为 BIO "慢"，而是因为 BIO 用线程做等待，内存扛不住。
+当连接数很大、连接大部分时间都在等待 I/O 时，一连接一线程的 BIO 模型会先被线程栈和调度资源限制住。NIO 用 Selector 复用线程等待多个连接的 I/O 事件，能降低这部分成本——但不是所有高并发场景的唯一选择，JDK 21 的虚拟线程也能降低大量阻塞式任务的线程管理成本。是否用 NIO，应结合实际连接负载、业务处理方式和资源瓶颈判断。
 
 ## 4. 在 Java 中设置 Socket 选项
 
@@ -354,10 +353,10 @@ Socket 选项最终由 `setsockopt()` 或等价的系统调用设置。Java 的�
 
 ### 4.1 先确定设置时机
 
-- `SO_REUSEADDR`、`SO_REUSEPORT` 必须在 `bind()` 前设置；绑定后再修改不会生效。
+- `SO_REUSEADDR`、`SO_REUSEPORT` 应在 `bind()` 前设置；绑定后再修改通常不会生效。
 - `SO_RCVBUF`、`SO_SNDBUF` 应在绑定或连接前设置，设置值只是建议，实际值可能被系统限制或调整。
-- `TCP_NODELAY` 和 `SO_KEEPALIVE` 只适用于已建立的 TCP 连接，可在连接前后按具体 API 设置。
-- 使用 Channel 时，先通过 `supportedOptions()` 确认当前实现和协议支持该选项，再调用 `setOption()`。
+- `TCP_NODELAY` 和 `SO_KEEPALIVE` 属于已建立的 TCP 连接，可在创建 Socket 后、连接前设置，也可在连接后设置，具体取决于 API 和平台实现。
+- 使用 Channel 时，先通过 `supportedOptions()` 确认当前实现和协议支持该选项，再调用 `setOption()`；`SO_REUSEPORT` 的可支持性存在操作系统差异，不能当作所有平台统一语义。
 
 ### 4.2 Java API 对应关系
 
@@ -397,25 +396,32 @@ import java.util.concurrent.*;
 public class EchoServer {
     public static void main(String[] args) throws IOException {
         ServerSocket serverSocket = new ServerSocket(8080);
-        ExecutorService pool = Executors.newFixedThreadPool(100);
+        ExecutorService pool = new ThreadPoolExecutor(
+                100, 100, 0L, TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(500),
+                new ThreadPoolExecutor.AbortPolicy());
         System.out.println("Echo Server started on port 8080");
 
         while (true) {
             Socket client = serverSocket.accept();            // 阻塞等待连接
-            pool.submit(() -> {
-                try (client) {
-                    InputStream in = client.getInputStream();
-                    OutputStream out = client.getOutputStream();
-                    byte[] buf = new byte[1024];
-                    int len;
-                    while ((len = in.read(buf)) != -1) {     // 阻塞读取
-                        out.write(buf, 0, len);                // Echo 回写
-                        out.flush();
+            try {
+                pool.execute(() -> {
+                    try (client) {
+                        InputStream in = client.getInputStream();
+                        OutputStream out = client.getOutputStream();
+                        byte[] buf = new byte[1024];
+                        int len;
+                        while ((len = in.read(buf)) != -1) {     // 阻塞读取
+                            out.write(buf, 0, len);                // Echo 回写
+                            out.flush();
+                        }
+                    } catch (IOException e) {
+                        // 客户端断开
                     }
-                } catch (IOException e) {
-                    // 客户端断开
-                }
-            });
+                });
+            } catch (RejectedExecutionException e) {
+                client.close(); // 队列已满，拒绝该连接，避免任务无限积压
+            }
         }
     }
 }
@@ -429,31 +435,43 @@ import java.net.*;
 
 public class EchoClient {
     public static void main(String[] args) throws IOException {
-        Socket socket = new Socket("localhost", 8080);
-        OutputStream out = socket.getOutputStream();
-        InputStream in = socket.getInputStream();
+        try (Socket socket = new Socket("localhost", 8080)) {
+            OutputStream out = socket.getOutputStream();
+            InputStream in = socket.getInputStream();
 
-        out.write("hello\n".getBytes());
-        out.flush();
+            out.write("hello\n".getBytes(StandardCharsets.UTF_8));
+            out.flush();
 
-        byte[] buf = new byte[1024];
-        int len = in.read(buf);
-        System.out.println("Server replied: " + new String(buf, 0, len));
-
-        socket.close();
+            byte[] buf = new byte[1024];
+            int len = in.read(buf);
+            if (len != -1) {
+                System.out.println("Server replied: "
+                        + new String(buf, 0, len, StandardCharsets.UTF_8));
+            }
+        }
     }
 }
 ```
 
 ### 5.3 代码剖析
 
-**为什么 `out.flush()` 是必要的？**
+**`out.flush()` 在这里是否必要？**
 
-`OutputStream.write()` 默认使用缓冲区，数据不会立即进入内核发送缓冲区。`flush()` 强制把应用层缓冲区的数据写入内核。不调 `flush()`，对方可能一直收不到数据。
+直接使用 `socket.getOutputStream()` 返回的输出流时，`write()` 会把数据交给底层 Socket 输出实现，并不存在一个默认的独立应用层缓冲区，因此这里的 `flush()` 实际没有额外作用。只有当你显式包了一层 `BufferedOutputStream` 时，`write()` 才可能先把数据留在 Java 缓冲区，此时 `flush()` 才有意义，它把缓冲区数据交给底层输出流。
 
-**为什么用 `FixedThreadPool` 而不是 `CachedThreadPool`？**
+无论是否调用 `flush()`，都不能据此断定对端已经收到数据：TCP 传输、对端读取和业务处理是三个不同阶段。
 
-`CachedThreadPool` 无上限，连接暴涨时会创建过多线程。`FixedThreadPool` 限制并发线程数，超出的任务在队列中等待——这是保护服务端的基本手段。
+**为什么要用有界线程池而不是 `CachedThreadPool`？**
+
+`CachedThreadPool` 无上限，连接暴涨时会创建过多线程。上面的 `ThreadPoolExecutor` 限制了并发线程数和等待队列长度，超出队列容量的任务会被拒绝而不是无限积压——这是保护服务端的基本手段。队列满时的拒绝策略需要显式处理：要么关闭刚接入的连接快速失败，要么记录拒绝计数，不能只靠"任务在队列里等着"来兜底。
+
+**单次 `read()` 读到的是完整的消息吗？**
+
+不是。TCP 是字节流，不保留应用层消息边界。客户端发 `hello\nworld\n`，服务端一次 `read()` 可能只读到 `hello\n`，也可能一次读到两行，甚至只读到半个字符（多字节 UTF-8 字符被截断时，对这一段单独解码会产生替换字符）。上面的示例只演示"读一次拿到多少字节"，不代表读完一条完整业务消息。真实协议需要定义消息边界——固定长度、长度字段或分隔符——并按约定循环读取、解析。
+
+**阻塞 `read()` 会一直等下去吗？**
+
+不会，除非你希望它一直等。`socket.setSoTimeout(30000)` 可以给阻塞读设置超时，超时会抛 `SocketTimeoutException`，让工作线程有机会退出，而不是被一个"连上后什么都不发"的空闲连接永久占用。它只约束读操作，不约束 `accept()` 的等待，也不约束写操作；是否设置、设多大，应由业务对空闲连接的处理策略决定，30 秒只是示例，不是通用生产值。
 
 ### 5.4 一连接一线程的局限
 
@@ -464,13 +482,13 @@ public class EchoClient {
 10000 个连接 → 10000 个线程 → ~10GB 栈内存 → 不可行
 ```
 
-这个局限不是 Socket 的问题，而是 **BIO 线程模型**的问题。解决方案是 NIO——用一个线程通过 **Selector** 监听多个 Channel 的事件，线程只在"有数据可读"时才被唤醒，不需要为每个连接阻塞一个线程。这是下一章的内容。
+这个局限不是 Socket 的问题，而是 **BIO 线程模型**的问题。解决方案之一是 NIO——用一个线程通过 **Selector** 监听多个 Channel 的事件，线程只在"有数据可读"时才被唤醒，不需要为每个连接阻塞一个线程；JDK 21 的虚拟线程也能缓解大量阻塞式任务的线程成本。NIO 是下一章的内容。
 
 ## 6. 本章小结
 
 | 概念 | 要点 |
 | :-- | :-- |
-| Socket 的本质 | OS 提供的网络编程抽象，本质是 fd + 协议栈 |
+| Socket 的本质 | OS 提供的网络编程抽象，通过 fd 访问，由协议栈支撑 |
 | 五元组 | `{源IP, 源端口, 目标IP, 目标端口, 协议}` 唯一标识一条连接 |
 | 一个端口多条连接 | 服务端一个监听端口可以 accept 出成千上万条连接 |
 | 系统调用链 | `socket()` → `bind()` → `listen()` → `accept()` → `read()`/`write()` → `close()` |
@@ -478,4 +496,4 @@ public class EchoClient {
 | 全连接队列 | accept queue 溢出时连接被丢弃，需关注 `ss -ltn` 中的 Recv-Q |
 | fd 限制 | 单进程默认 1024，高并发需调 `ulimit -n` |
 | Socket 选项 | Java API 提供设置入口；参数含义和调参边界见 TCP 性能参数章节 |
-| BIO 的局限 | 一连接一线程，内存扛不住 → 需要 NIO |
+| BIO 的局限 | 一连接一线程，内存和调度资源扛不住；NIO 或虚拟线程可缓解 |

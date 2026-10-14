@@ -6,7 +6,7 @@
 
 ### 1.1 连接池优化
 
-连接池是高并发网络调用的基础设施。配置不当会导致连接耗尽或性能低下。
+连接池是高并发网络调用的基础设施。配置不当会导致连接耗尽或性能低下。以下示例基于 Apache HttpClient 4.5.x API，HttpClient 5.x 的包名和超时配置 API 存在差异，不能直接混用。连接池容量应根据并发请求数、平均连接占用时间、下游容量和超时预算共同确定，扩大连接池可能增加下游压力，并不必然提高吞吐量。
 
 ```java
 // Apache HttpClient 连接池配置
@@ -47,10 +47,11 @@ CloseableHttpClient httpClient = HttpClients.custom()
 @Scheduled(fixedDelay = 30000)
 public void logPoolStats() {
     PoolStats stats = cm.getTotalStats();
-    log.info("连接池状态: 活跃={}, 空闲={}, 最大={}",
-            stats.getAvailable(), stats.getLeased(), stats.getMax());
-    // 活跃连接数持续接近最大值 → 连接池可能不够用
-    // 空闲连接数持续为 0 → 连接全部被占用，新请求在排队
+    log.info("连接池状态: 已租用={}, 空闲={}, 最大={}",
+            stats.getLeased(), stats.getAvailable(), stats.getMax());
+    // 已租用连接数持续接近最大值，且等待队列增长 → 可能存在池容量不足、请求过慢或连接未及时释放
+    // 空闲连接数为零本身不能证明新请求正在排队，应同时检查待租用请求数和获取连接耗时
+    // 连接池使用率高也不等于池一定太小，下游响应变慢同样会让连接占用时间变长
 }
 ```
 
@@ -58,11 +59,13 @@ public void logPoolStats() {
 
 | 特性 | BIO（阻塞 I/O） | NIO（非阻塞 I/O） | AIO（异步 I/O） |
 | :-- | :-- | :-- | :-- |
-| 线程模型 | 1 连接 = 1 线程 | 1 线程管理多连接 | 回调通知 |
-| 阻塞点 | read/write 阻塞 | Selector 轮询 | 无阻塞 |
-| 适用场景 | 连接数少，每个连接数据量大 | 连接数多，每个连接数据量小 | 极端高并发 |
+| 编程模型 | 常见阻塞式服务端为每个连接分配工作线程 | 一个线程等待多个通道的就绪事件 | 通过 Future 或 CompletionHandler 获取异步结果 |
+| 阻塞点 | read/write 阻塞 | 等待多个通道就绪事件，就绪后由应用读写 | 异步提交，回调或轮询结果 |
+| 适用条件 | 连接数少、每连接数据量大时更直观 | 大量连接、多数时间空闲时资源开销更低 | 需评估平台实现与工作负载是否匹配 |
 | 复杂度 | 低 | 中 | 高 |
-| Java 生态 | Tomcat BIO | Netty / Tomcat NIO | 不成熟，少用 |
+| Java 生态 | 旧版 Tomcat BIO Connector（历史） | Netty / Tomcat NIO | 实现与平台相关，不应仅凭"异步"选择 |
+
+表中是编程模型与资源管理成本的比较，不是固定的性能排名。Tomcat 的连接器实现随版本演进，旧版 BIO Connector 不能作为当前主流部署的默认示例。
 
 ```java
 // NIO 基本模式 —— Selector 多路复用
@@ -80,10 +83,12 @@ while (true) {
     while (iter.hasNext()) {
         SelectionKey key = iter.next();
         if (key.isAcceptable()) {
-            // 新连接接入
+            // 新连接接入；非阻塞 accept() 可能返回 null
             SocketChannel client = serverChannel.accept();
-            client.configureBlocking(false);
-            client.register(selector, SelectionKey.OP_READ);
+            if (client != null) {
+                client.configureBlocking(false);
+                client.register(selector, SelectionKey.OP_READ);
+            }
         } else if (key.isReadable()) {
             // 有数据可读
             SocketChannel client = (SocketChannel) key.channel();
@@ -101,14 +106,18 @@ while (true) {
 }
 ```
 
+这是 Selector 多路复用的最小演示，省略了异常处理、SelectionKey 有效性检查、对端关闭清理，以及 TCP 字节流的粘包拆包处理。非阻塞 `read()` 返回 0 表示当前没有数据可读，不等于对端关闭；返回 -1 才表示对端已关闭。TCP 不保证一次 `read()` 就返回一条完整业务消息，真实实现还需要协议拆包和业务缓冲区管理，不应把这段代码直接用于生产。
+
 ### 1.3 TCP 参数调优
+
+以下是 Linux 内核参数示例，不是通用生产配置。修改前应记录当前值、确认内核版本和网络环境，并通过队列溢出、重传、延迟及资源指标验证效果，不要为追求更高并发一次性套用全部参数。调大缓冲区上限也不意味着所有连接都会立即占用相同大小的内存。
 
 ```bash
 # ====== 内核网络参数调优（/etc/sysctl.conf） ======
 
 # --- 连接管理 ---
-net.core.somaxconn = 65535           # SYN 队列 + Accept 队列最大长度
-net.ipv4.tcp_max_syn_backlog = 65535 # SYN 半连接队列大小
+net.core.somaxconn = 65535           # 监听 socket 的 accept 队列上限
+net.ipv4.tcp_max_syn_backlog = 65535 # 未完成握手的 SYN 请求队列参数
 net.core.netdev_max_backlog = 65535  # 网卡接收队列大小
 
 # --- 缓冲区 ---
@@ -133,12 +142,15 @@ net.core.default_qdisc = fq           # BBR 配套的队列调度
 ```
 
 ```java
-// Java 应用层面的 Socket 参数设置
+// Java 应用层面的 Socket 参数设置（监听端）
 ServerSocketChannel serverChannel = ServerSocketChannel.open();
 serverChannel.setOption(StandardSocketOptions.SO_REUSEADDR, true);
 serverChannel.setOption(StandardSocketOptions.SO_RCVBUF, 256 * 1024);
-serverChannel.setOption(StandardSocketOptions.SO_BACKLOG, 1024);
 
+// backlog 是 bind() 的参数，不是 StandardSocketOptions 的成员
+serverChannel.bind(new InetSocketAddress(8080), 1024);
+
+// 已接受连接的参数（在 accept() 拿到非空的 SocketChannel 后设置）
 SocketChannel clientChannel = serverChannel.accept();
 clientChannel.setOption(StandardSocketOptions.TCP_NODELAY, true);    // 禁用 Nagle
 clientChannel.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
@@ -147,6 +159,8 @@ clientChannel.setOption(StandardSocketOptions.SO_RCVBUF, 256 * 1024);
 ```
 
 ### 1.4 KeepAlive 与连接复用
+
+这里涉及三个不同机制：HTTP 持久连接允许多个 HTTP 请求复用同一条连接；TCP keepalive 是操作系统对空闲 TCP 连接的探测；gRPC keepalive 是 gRPC 传输层的连接健康探测。三者机制不同，不要混为一谈。
 
 ```java
 // HTTP 连接复用配置示例（OkHttp）
@@ -168,12 +182,17 @@ ManagedChannel channel = ManagedChannelBuilder
         .build();
 ```
 
+`keepAliveTime` 表示配置的探测时间间隔，不等于对端一定允许该频率的探测。应根据 gRPC 客户端与服务端的 keepalive 策略配置，避免过于频繁的探测导致服务端拒绝连接或增加无效流量。OkHttp 的 `ConnectionPool(50, ...)` 中 50 是最大空闲连接数，不是最大总连接数，也不是并发请求的硬上限。
+
 ### 1.5 限流与熔断
 
-高并发场景下，网络调用必须有保护机制：
+高并发场景下，网络调用必须有保护机制。示例中的 `java.net.http.HttpClient` 自 JDK 11 起提供，不适用于 JDK 8；Resilience4j 的 API 与依赖版本相关，需按所用版本核对。`timeoutDuration` 是限流器获取许可时的等待上限，`HttpRequest.timeout(3s)` 是单次请求超时，两者都不是整个远程调用的总超时。
 
 ```java
 // 基于 Resilience4j 的熔断 + 限流配置
+// 注意：单独定义 Config Bean 不会自动应用到 registry 创建的实例，
+// 需通过 registry.of(name, config) 创建实例，或用 Spring Boot 的
+// resilience4j.circuitbreaker.instances.<name>.* 配置绑定
 @Configuration
 public class ResilienceConfig {
 
@@ -222,8 +241,11 @@ public class ExternalApiService {
             try {
                 return httpClient.send(request, HttpResponse.BodyHandlers.ofString())
                         .body();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("HTTP 调用被中断", e);
+            } catch (IOException e) {
+                throw new RuntimeException("HTTP 调用失败", e);
             }
         };
 
@@ -239,6 +261,8 @@ public class ExternalApiService {
     }
 }
 ```
+
+这里的 `recover` 把调用失败统一转换成字符串，是教学简化写法。生产代码应采用明确的错误类型或结果类型，让调用方能区分真实业务结果和失败结果，不能把「服务熔断中」当作成功业务数据返回。
 
 **限流与熔断的关系：**
 
@@ -277,10 +301,13 @@ public class ExternalApiService {
 | 性能优化 | 启用 TCP_NODELAY（低延迟场景） | 禁用 Nagle 算法 |
 | 性能优化 | 合适的缓冲区大小 | 避免过大浪费内存，过小影响吞吐 |
 | 性能优化 | 监控连接池/线程池使用率 | 提前预警资源耗尽 |
-| 安全 | 使用 TLS 加密 | 生产环境必须 HTTPS/WSS |
-| 安全 | 验证服务端证书 | 避免 MITM 攻击 |
+| 安全 | 对外 HTTP/WS 使用 TLS | 生产环境通常应使用 HTTPS/WSS |
+| 安全 | RPC/自定义 TCP 协议 | 按协议能力配置 TLS 等传输安全机制 |
+| 安全 | 验证对端身份与证书 | 避免 MITM 攻击 |
 
 ### 2.2 常见陷阱与解决方案
+
+下面每个陷阱都是独立的代码片段，不要直接拼进同一个方法。真实项目还应根据 HTTP 客户端版本核对 API 归属。
 
 ```java
 // ❌ 陷阱 1: 没有设置超时 → 线程永久阻塞
@@ -294,49 +321,49 @@ conn.setConnectTimeout(3000);   // 连接超时 3s
 conn.setReadTimeout(5000);      // 读超时 5s
 
 
-// ❌ 陷阱 2: 忘记读取响应体 → 连接无法归还池
+// ❌ 陷阱 2: 忘记读取响应体 → 连接可能无法复用
 HttpResponse response = client.execute(request);
 int statusCode = response.getStatusLine().getStatusCode();
-// 只看了状态码，没读 body，连接一直被占用
+// 只看了状态码，没读 body，响应处理未完成，连接可能无法立即复用
 
-// ✅ 正确做法: 确保响应体被读取或关闭
+// ✅ 正确做法: 确保响应被读取或关闭（Apache HttpClient 4.x）
 try (CloseableHttpResponse response = client.execute(request)) {
     int statusCode = response.getStatusLine().getStatusCode();
     EntityUtils.consume(response.getEntity()); // 消费/丢弃响应体
 }
+// 连接能否复用取决于响应实体的消费或关闭方式、连接状态以及协议实现
 
 
-// ❌ 陷阱 3: 在 finally 中创建新连接去关闭 → 又泄漏一个
-public void doRequest() {
-    HttpURLConnection conn = null;
-    try {
-        conn = (HttpURLConnection) new URL("http://service/api").openConnection();
-        // ...
-    } finally {
-        if (conn != null) {
-            conn.disconnect();
-        }
+// ❌ 陷阱 3: 只读响应流却忘记断开连接
+HttpURLConnection conn =
+        (HttpURLConnection) new URL("https://example.com").openConnection();
+conn.setConnectTimeout(3000);
+conn.setReadTimeout(5000);
+// URL.openConnection() 返回连接对象，通常此时还未建立底层 TCP 连接
+
+// ✅ 正确做法: 正确关闭响应流，并在生命周期结束时断开连接
+try (InputStream in = conn.getInputStream()) {
+    byte[] buffer = new byte[4096];
+    while (in.read(buffer) != -1) {
+        // 处理响应数据
     }
+} finally {
+    conn.disconnect();
 }
-// 如果 openConnection() 本身抛异常，conn 为 null 但可能底层连接已创建
-
-// ✅ 正确做法: 使用 try-with-resources
-try (InputStream is = conn.getInputStream()) {
-    // 读取数据
-} // 自动关闭
+// try-with-resources 管理的是响应流；HttpURLConnection 没有实现 AutoCloseable，
+// 不能由 try-with-resources 直接关闭
 
 
 // ❌ 陷阱 4: DNS 缓存导致故障期间无法切换
 // Java 的 DNS 缓存默认值随 JDK 版本和 Security Manager 状态变化，不能假定为永久缓存
 
-// ✅ 正确做法: 设置合理的 DNS 缓存时间
-// 方式一: JVM 参数
-// -Dnetworkaddress.cache.ttl=60       # 成功解析缓存 60s
-// -Dnetworkaddress.cache.negative.ttl=10  # 失败缓存 10s
-
-// 方式二: 代码设置
+// ✅ 正确做法: 通过安全属性设置 DNS 缓存时间
+// networkaddress.cache.ttl / networkaddress.cache.negative.ttl 是 Java 安全属性，
+// 不要假设 -Dnetworkaddress.cache.ttl 这种系统属性写法一定生效
 java.security.Security.setProperty("networkaddress.cache.ttl", "60");
 java.security.Security.setProperty("networkaddress.cache.negative.ttl", "10");
+// 属性应在 DNS 解析发生前设置；应用启动后修改不代表已有缓存立即失效
+// 生产环境应验证实际生效的缓存策略，并确认 DNS 客户端、代理是否有独立缓存
 ```
 
 ### 2.3 监控指标体系
@@ -357,7 +384,7 @@ java.security.Security.setProperty("networkaddress.cache.negative.ttl", "10");
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐    │
 │  │  应用层指标                                      │    │
-│  │  - HTTP 请求延迟（P50 / P99 / P999）             │    │
+│  │  - HTTP 请求延迟（P50 / P99 / P99.9）           │    │
 │  │  - 连接池使用率（活跃 / 空闲 / 最大）             │    │
 │  │  - 请求成功率 / 失败率                            │    │
 │  │  - 超时次数 / 重试次数                            │    │
@@ -383,6 +410,4 @@ java.security.Security.setProperty("networkaddress.cache.negative.ttl", "10");
 
 > **本章与其他章节的联系：**
 >
-> - **纵向（本专题内）：** 第 1-6 章建立网络基础与 Java I/O 模型，第 7-11 章覆盖 HTTP、Servlet、RPC 和长连接应用。本章在这些内容之上讨论高并发连接配置、验证方法与生产约束。
->
-> - **横向（跨专题）：** 本章涉及的连接池、线程池监控与 [Java 并发问题诊断](../06-diagnostics/02-concurrency/chapter-01-concurrency-diagnostics.md)中的线程管理和资源调优直接相关；Arthas 诊断工具在 Java 各专题中都可使用；TCP 参数调优和拥塞控制的知识也适用于跨机房通信场景。限流熔断机制则是构建高可用分布式系统的通用基础设施。
+> 本章的参数和配置示例不能代替性能诊断。遇到请求延迟上升或连接资源耗尽时，应先使用 [网络性能分析与故障排查](../06-diagnostics/03-network/chapter-01-network-diagnostics.md) 定位问题，再回到连接池、线程模型和 TCP 参数中寻找对应的调整点。连接池与线程池的监控和调优与 [Java 并发问题诊断](../06-diagnostics/02-concurrency/chapter-01-concurrency-diagnostics.md) 中的资源管理相关。跨机房通信还需要结合链路 RTT、丢包和带宽时延积评估 TCP 参数，不能直接套用单机房配置。

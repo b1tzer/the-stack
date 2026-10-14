@@ -1,6 +1,6 @@
 # 网络通信基础：程序如何跨越机器边界
 
-> 你在本地写了一个 `userService.findById(1)`，跑得飞快——0.1ms。把 UserService 拆成独立服务后，同一个调用变成了 40ms。你以为是代码慢了，加了缓存、优化了 SQL，降到 35ms。但你没想过的那个问题才是根本：你的机器在北京，另一台在东京，光缆里一个往返就是 80ms。拆服务之前，先看一下网络延迟在你眼里和在现实里到底差了多大。
+> 本地调用 `userService.findById(1)` 和把它拆成独立服务后的远程调用，表面都是「调用一个方法」，成本却差了几个数量级：前者主要消耗在方法调用和业务执行，后者还要经过网络传输、请求排队、服务端处理和响应返回。远程调用变慢，不一定是 SQL 或业务代码的问题。只有把 DNS 解析、连接建立、网络传输和服务端处理分开测量，才能定位时间到底消耗在哪。本章从这些基础机制讲起。
 
 ## 1. 为什么程序需要网络
 
@@ -32,8 +32,6 @@
 
 这些服务可能分布在不同的机器、不同的机房、甚至不同的国家。网络就是连接这一切的"血管"。
 
-**对 Java 开发者而言，理解网络不是"加分项"，而是"基本功"。**
-
 ### 1.3 分布式系统的代价
 
 网络不是免费的午餐。引入分布式后，你必须面对一系列单机时代不存在的问题：
@@ -41,12 +39,12 @@
 | 问题 | 单机 | 分布式 |
 | :-- | :-- | :-- |
 | **延迟** | 内存访问 ~100ns | 网络往返 ~0.5-100ms（差 5-6 个数量级） |
-| **可靠性** | 硬件故障 = 整体停机 | 部分节点故障，系统仍可运行 |
-| **一致性** | 共享内存，天然一致 | 需要共识协议（Paxos/Raft） |
+| **可靠性** | 单机故障即整体不可用 | 部分节点故障仍可继续服务，但需冗余与故障处理机制 |
+| **一致性** | 进程内共享状态，可由同步机制协调 | 跨节点状态需明确一致性模型，靠复制、协调或共识实现 |
 | **安全性** | 本地通信，无需加密 | 网络窃听、中间人攻击 |
 | **调试** | 单进程栈追踪 | 分布式链路追踪（Jaeger/Zipkin） |
 
-Jeff Dean 的经典延迟数字（2020 年数据）：
+Jeff Dean 的经典延迟数字（数量级参考，具体值随硬件与网络环境变化）：
 
 ```txt
 L1 cache reference               0.5 ns
@@ -61,7 +59,7 @@ Read 1 MB from disk              20  ms
 Send packet CA→Netherlands→CA     150 ms
 ```
 
-**网络往返（0.5ms）比内存访问（100ns）慢 5000 倍。** 这就是为什么分布式系统设计的核心挑战，本质上都是在与网络延迟和不可靠性做斗争。
+**网络往返（0.5ms）比内存访问（100ns）慢 5000 倍。** 远程调用的成本不只包括传输时延，还可能包括排队、协议处理和服务端执行。因此分布式系统设计要同时考虑延迟、故障和跨节点协调，而不能只盯着单次调用的网络耗时。
 
 ## 2. 网络通信的本质
 
@@ -81,7 +79,7 @@ Send packet CA→Netherlands→CA     150 ms
         "Hello"                              "Hello"
 ```
 
-不管上层用的是 HTTP、gRPC、WebSocket 还是自定义协议，最终落到网线/光纤上传输的都是字节。**理解这一点，是理解所有网络编程的关键。**
+不管上层用的是 HTTP、gRPC、WebSocket 还是自定义协议，最终落到网线/光纤上传输的都是字节。应用层要处理的是协议定义的数据，底层网络负责传递这些数据的字节表示。
 
 ### 2.2 协议是对字节流的抽象封装
 
@@ -100,7 +98,7 @@ Send packet CA→Netherlands→CA     150 ms
 - **HTTP**：简单、通用、无状态，适合请求-响应模式
 - **WebSocket**：全双工、持久连接，适合实时推送
 - **gRPC**：基于 HTTP/2 + Protobuf，高性能、强类型，适合微服务间通信
-- **TCP**：可靠、有序的字节流传输，是上述协议的共同基础
+- **TCP**：可靠、有序的字节流传输，是 HTTP/1.1、HTTP/2 等许多应用层协议的传输基础
 
 ### 2.3 一个思想实验：如果让你设计协议
 
@@ -120,8 +118,8 @@ int n = inputStream.read(buf);
 但这立刻就会遇到问题：
 
 1. **消息边界**：如果发送方连续发了 "Hello" 和 "World"，接收方可能一次读到 "HelloWorld"，也可能分两次读到 "Hel" 和 "loWorld"——你无法知道原始消息的边界在哪里。
-2. **编码**：`"Hello".getBytes()` 用的是什么字符集？UTF-8？GBK？如果不约定，接收方解码就会乱码。
-3. **大消息**：如果消息有 10MB，一次 `write()` 可能成功，但接收方的 `read()` 可能只读到 4KB——你需要循环读取，但怎么知道什么时候读完了？
+2. **编码**：`"Hello".getBytes()` 用的是什么字符集？UTF-8？GBK？如果不约定，接收方解码就会乱码。正确做法是显式指定字符集，如 `getBytes(StandardCharsets.UTF_8)`。
+3. **大消息**：如果消息有 10MB，一次 `write()` 可能成功，但接收方的 `read()` 每次返回的是实际读到的字节数，可能远小于 10MB——你需要循环读取，但怎么知道什么时候读完了？
 4. **错误处理**：如果网络断了，`read()` 会怎样？阻塞？抛异常？返回 -1？
 
 这些问题，就是协议要解决的。**每一层协议都是对下层的一次"标准化"**——它规定了数据格式、交互时序和错误处理方式，让通信双方有共同的语言。
@@ -164,7 +162,7 @@ TCP/IP 四层模型是互联网实际运行的模型。OSI 七层是理论参考
 | **网际层** | 路由寻址，把数据包从源送到目标 | IP, ICMP, ARP | ⭐ 了解即可 |
 | **网络接口层** | 物理信号传输，帧的封装与解析 | Ethernet, Wi-Fi, PPP | 几乎不关心 |
 
-**关键认知：** Java 的 `java.net.Socket` 对应的是传输层（TCP），而 `HttpURLConnection`、Spring 的 `RestTemplate` 对应的是应用层（HTTP）。你写的每一行网络代码，都处于这个分层结构中的某个位置。
+从 API 的职责看，`java.net.Socket` 提供 TCP 连接与字节流读写能力，`HttpURLConnection` 和 Spring 的 `RestTemplate` 提供 HTTP 请求与响应的操作接口。它们处于不同的抽象层次，并非与协议层一一对应；调用 HTTP 客户端时，底层仍要经过 TCP 建连、报文发送与响应读取。理解分层的目的，是弄清每个 API 替调用方承担了哪些工作，而不是给每个类贴唯一的协议层标签。
 
 ### 3.3 分层的代价
 
@@ -179,7 +177,7 @@ TCP/IP 四层模型是互联网实际运行的模型。OSI 七层是理论参考
 头部开销占比：40 / 1500 ≈ 2.7%
 ```
 
-对于大文件传输，这个开销可以忽略。但对于大量小消息（如实时交易系统），头部开销可能成为瓶颈。这也是 QUIC 协议（HTTP/3 的基础）选择在 UDP 上重新设计的原因之一——它用更紧凑的头部格式来减少开销。
+对于大文件传输，这个开销可以忽略。对小消息而言，固定的协议与处理开销可能更显著，但实际瓶颈还受系统调用、网络往返、加密和排队等因素影响，需要测量后才能下结论。QUIC（HTTP/3 的传输基础）选择在 UDP 之上重新实现传输层：它在 UDP 上补齐可靠传输、拥塞控制和多路复用，并集成 TLS 1.3，价值在于缩短连接建立、避免一个流丢包阻塞其他独立流，以及更灵活地演进传输机制，而不只是把头部做得更紧凑。
 
 ## 4. 数据如何从一台机器到另一台机器
 
@@ -205,7 +203,7 @@ TCP/IP 四层模型是互联网实际运行的模型。OSI 七层是理论参考
             │
             ▼  链路层加上帧头帧尾（源MAC、目标MAC、CRC校验等）
 ┌──────────────────────────────────────────────────────────────────┐
-│ Ethernet Header │ IP Header │ TCP Header │ "Hello" │ FCS Trailer│
+│ Ethernet Header │ IP Header │ TCP Header │ "Hello"  │ FCS Trailer│
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -213,7 +211,7 @@ TCP/IP 四层模型是互联网实际运行的模型。OSI 七层是理论参考
 
 ### 4.2 一次完整的 HTTP 请求之旅
 
-以你在浏览器输入 `http://example.com/index.html` 为例：
+以你在浏览器输入 `http://example.com/index.html` 为例。下面展示的是首次通过 HTTP/1.1 建立新 TCP 连接时的简化流程；实际请求可能复用已有连接，HTTPS 还需 TLS 握手，HTTP/3 则走 QUIC：
 
 ```txt
 1. DNS 解析：example.com → 93.184.216.34
@@ -231,24 +229,25 @@ TCP/IP 四层模型是互联网实际运行的模型。OSI 七层是理论参考
 
 ### 4.3 MTU、MSS 与分片
 
-以太网帧的最大传输单元（MTU）通常是 1500 字节。如果一个 IP 数据包超过了 MTU，它会被**分片（Fragmentation）**：
+以太网链路层的 MTU（最大传输单元）通常是 1500 字节，它限制的是一个 IP 数据包的总长度。若一个 IP 数据包超过 MTU 且沿途设备允许，它会被**分片（Fragmentation）**：
 
 ```txt
-原始 IP 数据包 (3000 bytes payload)
+原始 IP 数据包：总长 3000 字节 = 20 字节 IP 头 + 2980 字节 payload
 ┌──────────────────────────────────────────────┐
-│              3000 bytes                       │
+│ IP 头(20B) │         payload(2980B)          │
 └──────────────────────────────────────────────┘
                     │
-                    ▼ 分片
+                    ▼ 分片（每片带各自的 20 字节 IP 头）
 ┌───────────────┐ ┌───────────────┐ ┌───────────────┐
-│ Fragment 1    │ │ Fragment 2    │ │ Fragment 3    │
-│ 1500 bytes    │ │ 1500 bytes    │ │ (剩余)        │
-│ offset=0      │ │ offset=1480   │ │ offset=2960   │
+│ 分片 1        │ │ 分片 2         │ │ 分片 3         │
+│ IP头+payload  │ │ IP头+payload  │ │ IP头+payload   │
+│  20+1480B     │ │  20+1480B     │ │  20+20B       │
+│ offset=0      │ │ offset=185    │ │ offset=370    │
 │ MF=1          │ │ MF=1          │ │ MF=0          │
 └───────────────┘ └───────────────┘ └───────────────┘
 ```
 
-分片会降低网络效率（任何一个分片丢失，整个包要重传），所以 TCP 会通过 **MSS（Maximum Segment Size）** 协商来尽量避免分片。MSS 通常 = MTU - IP 头(20) - TCP 头(20) = 1460 字节。
+分片会降低网络效率。IP 层本身不提供可靠传输：任何一个分片丢失，接收端都无法重组出完整的数据报，但 IP 层不会重传。对 TCP 流量，丢失最终表现为某个 TCP 段未被确认，由 TCP 层的确认与重传机制处理，代价是额外的延迟。因此工程上应尽量避免依赖 IP 分片，TCP 会通过 **MSS（Maximum Segment Size）** 协商把段大小压在 MTU 之内，从源头减少分片。MSS 通常 = MTU - IP 头(20) - TCP 头(20) = 1460 字节。图中 offset 是 IPv4 头 Fragment Offset 字段的值，以 8 字节为单位，185 对应字节偏移 1480。
 
 ### 4.4 IP 地址与端口号：通信的地址体系
 
@@ -264,13 +263,15 @@ TCP/IP 四层模型是互联网实际运行的模型。OSI 七层是理论参考
 └───────────────── IP 地址（32 位 IPv4 / 128 位 IPv6）
 ```
 
-端口号的分配有约定俗成的规则：
+端口号由 IANA 划分为三段：
 
-| 范围 | 用途 | 示例 |
+| 范围 | 类别 | 示例 |
 | :-- | :-- | :-- |
-| 0-1023 | 知名端口（需要 root 权限） | HTTP=80, HTTPS=443, SSH=22 |
-| 1024-49151 | 注册端口 | MySQL=3306, Redis=6379, Tomcat=8080 |
+| 0-1023 | 系统端口 | HTTP=80, HTTPS=443, SSH=22 |
+| 1024-49151 | 用户端口 | MySQL=3306, Redis=6379, Tomcat=8080 |
 | 49152-65535 | 动态/私有端口 | 客户端临时端口 |
+
+在 Linux 等系统中，绑定 1024 以下的端口通常需要相应权限，但具体限制随操作系统与配置而异，并非跨平台统一规则。
 
 **在 Java 中，ServerSocket 绑定的就是端口号：**
 
@@ -305,10 +306,11 @@ try (DatagramChannel channel = DatagramChannel.open()) {
 
 这段代码只说明数据报的接收边界，不提供业务协议。若需要确认、重传、顺序、流控或拥塞控制，必须在应用层补齐，或者改用提供这些语义的协议。典型选择如下：
 
-| 需求 | UDP 的直接能力 | 选择方向 |
+| 需求 | 为什么可能选 UDP | 需要补充的机制 |
 | :-- | :-- | :-- |
-| 音视频、遥测、DNS | 允许丢包，重视低延迟 | 可直接使用 UDP 语义 |
-| RPC、文件传输、命令下发 | 需要可靠和有序 | TCP、QUIC 或应用层确认机制 |
+| 实时音视频、遥测 | 控制延迟优先，部分过期数据价值下降 | 丢包恢复、拥塞控制，必要时重传 |
+| DNS | 小型请求-响应，常用 UDP 传输 | 超时、重试，必要时回退 TCP |
+| RPC、文件传输、命令下发 | 需要可靠和有序 | 改用 TCP、QUIC 或应用层确认机制 |
 | 大量并发小消息 | 数据报独立、无连接握手 | 仍需自行设计重试、幂等和限流 |
 
 UDP 报文还受 MTU、网络分片和中间设备策略影响。应用必须定义最大消息大小、解析失败策略和重复消息的幂等性；“收到了发送成功”不等于对端已经处理。
@@ -341,7 +343,7 @@ JDK 会对成功和失败结果进行缓存，具体策略受 JDK 版本、安�
   → HTTP 响应
 ```
 
-这条链上的错误要分开判断：域名不存在通常是 DNS 问题；拿到地址后连接超时更可能是路由、端口或防火墙问题；TCP 成功但 TLS 失败则要检查证书链和主机名匹配。`curl -w` 的 `time_namelookup`、`time_connect` 和 `time_appconnect` 正好对应这些阶段，详见 [HTTP 协议、Java 客户端与 TLS/HTTPS](./chapter-07-http.md)。
+这条链上的错误要分开判断：抛出 UnknownHostException 表示本次主机名解析失败，应检查域名是否正确、解析器配置以及 DNS 服务可用性；拿到地址后连接超时更可能是路由、端口或防火墙问题；TCP 成功但 TLS 失败则要检查证书链和主机名匹配。`curl -w` 的 `time_namelookup`、`time_connect` 和 `time_appconnect` 可以辅助观察这些阶段的耗时，详见 [HTTP 协议、Java 客户端与 TLS/HTTPS](./chapter-07-http.md)。
 
 ## 6. Java 网络编程全景
 
@@ -352,10 +354,10 @@ Java 的网络编程经历了几个明显的阶段，每个阶段都是对前一
 ```txt
 JDK 1.0 (1996)          JDK 1.4 (2002)         JDK 7 (2011)
 ┌─────────────┐         ┌─────────────┐         ┌─────────────┐
-│  java.net    │         │  java.nio    │         │  NIO.2      │
-│  Socket      │         │  Channel     │         │  Asynchronous│
-│  ServerSocket│         │  Buffer      │         │  Channel    │
-│  BIO 阻塞 I/O│         │  Selector    │         │  FileSystem │
+│  java.net    │        │  java.nio    │        │  NIO.2      │
+│  Socket      │        │  Channel     │        │  Asynchronous│
+│  ServerSocket│        │  Buffer      │        │  Channel    │
+│  BIO 阻塞 I/O│         │  Selector    │        │  FileSystem │
 └─────────────┘         └─────────────┘         └─────────────┘
      ▲                       ▲                       ▲
      │                       │                       │
@@ -365,9 +367,9 @@ JDK 1.0 (1996)          JDK 1.4 (2002)         JDK 7 (2011)
 
 | 阶段 | API | 模型 | 优点 | 缺点 |
 | :-- | :-- | :-- | :-- | :-- |
-| **BIO** | `java.net.Socket` | 阻塞式 I/O | 简单直观 | 一个连接占一个线程，万级连接就崩 |
+| **BIO** | `java.net.Socket` | 阻塞式 I/O | 简单直观 | 一个连接占一个线程，连接数增长时线程栈内存与调度开销随之上升 |
 | **NIO** | `java.nio.channels` | 非阻塞 + 多路复用 | 少量线程管理大量连接 | 编程模型复杂，Buffer 操作反直觉 |
-| **NIO.2** | `java.nio.channels.AsynchronousChannel` | 异步 I/O | 真正的异步，回调通知 | 生态不如 NIO 成熟 |
+| **NIO.2** | `java.nio.channels.AsynchronousSocketChannel` | 异步 I/O | 通过回调或 Future 表达完成结果 | 生态不如 NIO 成熟 |
 | **Netty** | 第三方框架 | Reactor 模式 | 高性能、易用、生态丰富 | 额外依赖，学习曲线 |
 
 ### 6.2 从 Socket 到框架的抽象层次
@@ -377,20 +379,20 @@ JDK 1.0 (1996)          JDK 1.4 (2002)         JDK 7 (2011)
 │                    业务框架层                             │
 │   Spring MVC / Spring WebFlux / Dubbo / gRPC-Java       │
 ├─────────────────────────────────────────────────────────┤
-│                    Web 容器层                             │
+│                    Web 容器层                            │
 │   Tomcat / Jetty / Undertow                             │
 ├─────────────────────────────────────────────────────────┤
 │                    通信框架层                             │
 │   Netty / Mina                                          │
 ├─────────────────────────────────────────────────────────┤
-│                    JDK 标准库                             │
+│                    JDK 标准库                            │
 │   java.net.Socket / java.nio.channels / HttpClient      │
 ├─────────────────────────────────────────────────────────┤
 │                    操作系统内核                           │
-│   TCP/IP 协议栈 / Socket API / epoll / kqueue           │
+│   TCP/IP 协议栈 / Socket API / epoll / kqueue            │
 ├─────────────────────────────────────────────────────────┤
-│                    硬件层                                 │
-│   网卡 / 交换机 / 路由器 / 光纤                          │
+│                    硬件层                                │
+│   网卡 / 交换机 / 路由器 / 光纤                            │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -404,12 +406,12 @@ JDK 1.0 (1996)          JDK 1.4 (2002)         JDK 7 (2011)
 | :-- | :-- | :-- |
 | **传统 Socket** | `java.net.Socket`, `ServerSocket` | 阻塞式 TCP 通信 |
 | **传统 UDP** | `java.net.DatagramSocket`, `DatagramPacket` | UDP 数据报通信 |
-| **URL/HTTP** | `java.net.URL`, `HttpURLConnection` | HTTP 请求（已过时） |
+| **传统 HTTP** | `java.net.URL`, `HttpURLConnection` | 传统 HTTP 请求，维护旧代码时仍会遇到 |
 | **NIO 核心** | `java.nio.channels.SocketChannel`, `ServerSocketChannel` | 非阻塞 TCP 通信 |
 | **NIO 多路复用** | `java.nio.channels.Selector` | 单线程管理多连接 |
 | **NIO 缓冲区** | `java.nio.ByteBuffer` | 高效数据读写 |
 | **NIO.2 异步** | `java.nio.channels.AsynchronousSocketChannel` | 异步非阻塞通信 |
-| **现代 HTTP** | `java.net.http.HttpClient` (JDK 11+) | HTTP/2 客户端 |
+| **现代 HTTP** | `java.net.http.HttpClient` (JDK 11+) | 支持 HTTP/1.1 与 HTTP/2，同步与异步调用 |
 
 ```java
 // 传统 Socket（阻塞）
@@ -419,9 +421,13 @@ out.write("Hello".getBytes());
 
 // NIO Channel（非阻塞）
 SocketChannel channel = SocketChannel.open();
+channel.configureBlocking(false);
 channel.connect(new InetSocketAddress("localhost", 8080));
+// 非阻塞模式下 connect() 返回 false 表示连接尚未完成，
+// 需配合 Selector 关注 OP_CONNECT，就绪后调用 finishConnect()
 ByteBuffer buffer = ByteBuffer.wrap("Hello".getBytes());
 channel.write(buffer);
+// write() 可能只写入部分数据，需检查返回值
 
 // HttpClient（JDK 11+，推荐）
 HttpClient client = HttpClient.newHttpClient();
@@ -460,7 +466,7 @@ HttpResponse<String> response = client.send(request,
     └── Netty + 自定义编解码器
 ```
 
-**记住：大多数 Java 开发者不需要直接操作 Socket。** 但理解 Socket 层的工作原理，是理解上层所有框架的前提。
+大多数 Java 开发者不需要直接操作 Socket。但理解连接、字节流、超时和关闭语义，有助于排查 HTTP 客户端、RPC 和服务容器中的网络问题。
 
 ### 6.5 本专题后续章节导读
 

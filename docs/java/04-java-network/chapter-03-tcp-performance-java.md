@@ -6,7 +6,7 @@
 
 ### 1.1 Nagle 算法与 TCP_NODELAY
 
-> **你的 Dubbo 接口 P99 延迟突然从 20ms 涨到 60ms。你没改任何代码。** 排查发现：压测脚本每次 `write()` 一小段数据后没调 `flush()`——数据被 Nagle 算法按住，等上一个 ACK 回来才放行，硬生生等了一个 RTT。一行 `socket.setTcpNoDelay(true)`，P99 回到 20ms。
+> **一个 RPC 客户端把逻辑请求拆成多个小段发送时，P99 延迟明显升高。** 排查时先要分清两层：`write()` 后没调 `flush()`，数据可能还停在 Java 缓冲区；数据真正到达 TCP 层后，如果发送端还有未确认数据，Nagle 算法可能暂缓后续小段，直到收到 ACK 或满足发送条件。前者是应用层缓冲，后者是 TCP 层行为，不能混为一谈。是否禁用 Nagle（`setTcpNoDelay(true)`），应由发送时序、ACK 行为和延迟测试决定，不能只看 P99 上升就下结论。
 
 **Nagle 算法**的设计初衷是减少网络中小包的数量。它的规则是：
 
@@ -15,17 +15,17 @@
 - 否则，等收到 ACK 或者攒够 MSS 再发送
 
 ```txt
-没有 Nagle:                         有 Nagle:
-发送 "H" → 立即发送                  发送 "H" → 等待
-发送 "e" → 立即发送                  发送 "e" → 等待（还有未确认数据）
-发送 "l" → 立即发送                  收到 ACK → 发送 "Hel"
-发送 "l" → 立即发送
-发送 "o" → 立即发送
-
-4 个包 → 1 个包（节省带宽，但增加延迟）
+发送端                           接收端
+  |                                |
+  |--- "Hel" ------------------->  |  首段无未确认数据，立即发送
+  |                                |
+  | 写入 "l"，有未确认数据，暂缓       |
+  | 写入 "o"，继续等待               |
+  |<------------- ACK -------------|
+  |---  "lo" 合并后发送 ----------->|
 ```
 
-**Nagle 算法在交互式场景中是个灾难。** 假设你在玩在线游戏，每次按键都要等一个 RTT 才能发送——体感延迟直接翻倍。
+Nagle 算法可能增加交互式请求的延迟，尤其是应用把一个逻辑请求拆成多个小段发送、而接收端暂时没有数据可回送时。但这不意味着所有交互式应用都应禁用 Nagle：是否调整 `TCP_NODELAY`，应由实际的发送时序、ACK 行为和延迟测试决定。
 
 **解决方案：** 设置 `TCP_NODELAY` 选项禁用 Nagle 算法：
 
@@ -36,13 +36,13 @@ socket.setTcpNoDelay(true); // 禁用 Nagle 算法
 
 **什么时候该禁用 Nagle？**
 
-| 场景 | Nagle | TCP_NODELAY |
-| :-- | :-- | :-- |
-| 文件传输 | ✅ 保留（减少小包） | ❌ 不需要 |
-| HTTP API 请求 | ❌ 禁用 | ✅ 启用 |
-| 在线游戏 | ❌ 禁用 | ✅ 启用 |
-| SSH 远程终端 | ❌ 禁用 | ✅ 启用 |
-| 日志批量上报 | ✅ 保留 | ❌ 不需要 |
+表格中的建议是排查方向，不是普遍规则，最终决定应由实测支持：
+
+| 常见场景 | 排查建议 |
+| :-- | :-- |
+| RPC / 交互式协议 | 先测量小写入是否引入等待，再比较 TCP_NODELAY 开关前后的延迟与报文数量 |
+| 大块文件传输 | 优先检查吞吐、窗口、丢包与读写速率，不要默认调整 Nagle |
+| 批量日志发送 | 优先通过应用层批量聚合减少写入次数，再测量是否需要禁用 Nagle |
 
 ### 1.2 KeepAlive
 
@@ -60,17 +60,18 @@ Socket socket = new Socket();
 socket.setKeepAlive(true); // 启用 TCP KeepAlive
 ```
 
-**但 2 小时太长了！** 在实际应用中，我们通常使用**应用层心跳**来更快地检测连接断开：
+对于需要及时感知连接失效的 RPC、长连接协议或经过 NAT 的连接，2 小时才开始的探测太慢，通常改用**应用层心跳**更快检测连接断开：
 
 ```java
-// 应用层心跳（比 TCP KeepAlive 更灵活）
+// 应用层心跳：仅示意，生产需定义完整的请求-响应协议与超时判定
 ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 scheduler.scheduleAtFixedRate(() -> {
     try {
-        outputStream.writeInt(0x01); // 心跳包
-        outputStream.flush();
+        out.write(0x01); // 心跳请求
+        out.flush();
+        // 还需读取对端的心跳响应，记录最后有效响应时间；
+        // 超过期限未收到响应，才判定连接可能失效
     } catch (IOException e) {
-        // 连接已断开
         reconnect();
     }
 }, 30, 30, TimeUnit.SECONDS); // 每 30 秒一次
@@ -97,18 +98,18 @@ socket.setReceiveBufferSize(256 * 1024); // 接收缓冲区 256KB
 
 **带宽-延迟积（BDP, Bandwidth-Delay Product）：**
 
-最佳的缓冲区大小 = 带宽 × 延迟（RTT）：
+BDP 用于估算链路在一个 RTT 内需要容纳多少在途数据：
 
 ```txt
 例如：带宽 1Gbps，RTT 10ms
-BDP = 1,000,000,000 × 0.01 / 8 = 1.25 MB
-
-→ 缓冲区至少设为 1.25MB，才能充分利用带宽
+BDP = 1,000,000,000 bit/s × 0.01s / 8 = 1,250,000 bytes ≈ 1.25 MB
 ```
 
-如果缓冲区太小，发送方会频繁等待 ACK（窗口被填满），带宽利用率下降。如果太大，浪费内存且可能增加延迟。
+BDP 不是 Socket 缓冲区的统一配置下限。如果接收窗口或拥塞窗口长期小于所需的在途数据量，发送端就无法持续以链路允许的速率发送，吞吐量可能因此下降。但瓶颈也可能在应用层处理速度、丢包或拥塞控制，单纯增大缓冲区并不一定提高吞吐。缓冲区过大还会增加内存占用，应结合实际 RTT、吞吐、窗口与丢包情况测量后再调整。
 
-**Linux 内核参数调优：**
+**Linux 缓冲区相关参数示例（sysctl 配置，非直接执行的 shell 命令）：**
+
+以下参数适用于 Linux，具体默认值与行为取决于内核版本。应写入系统配置文件，修改前先检查当前值，并通过吞吐、RTT、窗口与内存使用情况验证收益。
 
 ```bash
 # 最大 TCP 缓冲区大小
@@ -147,17 +148,17 @@ channel.bind(new InetSocketAddress(8080), 1024);
 
 `SO_REUSEADDR` 和 `SO_REUSEPORT` 在绑定后修改都不会生效。上线前应在目标操作系统上验证绑定结果与流量分布。
 
-### 1.5 其他值得关注的 TCP 参数
+### 1.5 关闭行为与平台特有参数
 
-| 参数 | 说明 | 推荐设置 |
+| 参数/机制 | 说明 | 调优依据 |
 | :-- | :-- | :-- |
-| `SO_LINGER` | close() 时的行为（立即返回 or 等待数据发完） | 根据场景设置 |
-| `SO_BACKLOG` | 连接等待队列长度 | 高并发场景增大 |
-| `TCP_QUICKACK` | 禁用延迟 ACK（Linux） | 交互式场景启用 |
+| `SO_LINGER` | 控制关闭 Socket 时对待发送数据的处理与 close() 的等待行为 | 根据协议关闭语义决定 |
+| ServerSocket 的 `backlog` 参数 | 请求操作系统设置监听端连接队列容量 | 结合连接建立速率与队列溢出检查 |
+| `TCP_QUICKACK`（Linux 特有） | 控制特定情况下的 ACK 行为 | 仅明确的性能诊断和平台验证后考虑 |
 
 ## 2. 用 Java 体验 TCP 通信
 
-### 2.1 最简单的 TCP 示例
+### 2.1 阻塞式 Echo 示例
 
 ```java
 // 服务端
@@ -167,8 +168,9 @@ public class SimpleTcpServer {
             System.out.println("Server listening on port 8080...");
             try (Socket socket = serverSocket.accept();
                  BufferedReader in = new BufferedReader(
-                     new InputStreamReader(socket.getInputStream()));
-                 PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
+                     new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+                 PrintWriter out = new PrintWriter(
+                     new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true)) {
                 
                 String line;
                 while ((line = in.readLine()) != null) {
@@ -184,11 +186,12 @@ public class SimpleTcpServer {
 public class SimpleTcpClient {
     public static void main(String[] args) throws IOException {
         try (Socket socket = new Socket("localhost", 8080);
-             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+             PrintWriter out = new PrintWriter(
+                 new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
              BufferedReader in = new BufferedReader(
-                 new InputStreamReader(socket.getInputStream()));
+                 new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
              BufferedReader console = new BufferedReader(
-                 new InputStreamReader(System.in))) {
+                 new InputStreamReader(System.in, StandardCharsets.UTF_8))) {
             
             String input;
             while ((input = console.readLine()) != null) {
@@ -200,16 +203,16 @@ public class SimpleTcpClient {
 }
 ```
 
-这段代码展示了 TCP 通信的基本模式：**Socket 是连接的抽象，InputStream/OutputStream 是数据流的抽象。** 但这是阻塞式 I/O——每个连接占用一个线程，无法支撑高并发。这个痛点将驱动我们在后续章节引入 NIO 和 Netty。
+这段代码展示了 TCP 的字节流通信方式：Socket 表示一条已建立的连接，输入流与输出流分别用于接收和发送字节。示例使用阻塞式 I/O，并且在主线程中串行处理客户端——处理第一个客户端时会一直阻塞在 `readLine()` 上。要同时处理多个客户端，可以为每个连接分配线程或使用线程池，也可以改用 NIO 多路复用；后续章节会进一步比较这些模型。
 
 ### 2.2 用 Wireshark 观察 TCP 行为
 
-理论不如实践。强烈建议你用 Wireshark 抓包，亲眼看到三次握手、数据传输、四次挥手的全过程：
+运行客户端与服务端后，可以用 Wireshark 抓包检查连接建立、数据传输和连接关闭过程。以下命令为 Linux 示例，回环接口是 `lo`；macOS 通常为 `lo0`，需先确认本机接口名称：
 
 ```bash
 # 启动抓包
 sudo tcpdump -i lo -w /tmp/tcp_capture.pcap port 8080
-
+```
 # 运行上面的 Java 程序，发送几条消息
 
 # 用 Wireshark 打开

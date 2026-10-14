@@ -17,28 +17,32 @@ curl -w "DNS解析: %{time_namelookup}s | TCP连接: %{time_connect}s | TLS握�
   -o /dev/null -s https://api.example.com/users/1
 ```
 
-| 阶段 | 含义 | 异常高意味着什么 |
+| 字段 | 含义（从计时起点累计） | 异常高意味着什么 |
 | :-- | :-- | :-- |
-| `time_namelookup` | DNS 解析耗时 | DNS 服务器慢或缓存失效 |
-| `time_connect` | TCP 三次握手耗时 | 网络延迟高，检查 RTT |
-| `time_appconnect` | TLS 握手耗时 | SSL 证书链长或 OCSP 超时 |
-| `time_starttransfer` | 从请求开始到收到首字节（TTFB） | 服务端、代理、排队或网络链路中的一段较慢 |
-| `time_total` | 总耗时 | 前面所有阶段之和 |
+| `time_namelookup` | 从开始到 DNS 解析完成 | DNS 服务器慢或缓存失效 |
+| `time_connect` | 从开始到 TCP 连接建立完成（含 DNS） | 网络延迟高，检查 RTT |
+| `time_appconnect` | 从开始到 TLS 握手完成（含 DNS、TCP） | SSL 证书链长或 OCSP 超时 |
+| `time_starttransfer` | 从开始到收到首字节 | 服务端、代理、排队或网络链路中的一段较慢 |
+| `time_total` | 整个传输的总耗时 | 建连、发送、等待响应、接收 |
+
+这些字段是累计值，不是各阶段独立耗时。要拆出单阶段耗时，需要相邻字段做差：TCP 建连 ≈ `time_connect - time_namelookup`，TLS 握手 ≈ `time_appconnect - time_connect`，等待首字节 ≈ `time_starttransfer - time_appconnect`。这是近似拆分，代理、连接复用和重定向会改变计时边界。
 
 ```txt
-典型结果解读：
+典型结果解读（字段为累计值）：
 
 正常请求：
-DNS:0.002 | TCP:0.005 | TLS:0.015 | TTFB:0.180 | Total:0.202
-↑ 网络很快，服务端处理 180ms 也正常
+DNS:0.002 | TCP:0.007 | TLS:0.022 | TTFB:0.202 | Total:0.202
+↑ 网络很快，等待首字节约 180ms 也正常
 
 慢请求但网络正常：
-DNS:0.001 | TCP:0.003 | TLS:0.012 | TTFB:8.500 | Total:8.516
-↑ TTFB 占了 8.5 秒——瓶颈在服务端处理，不是网络
+DNS:0.001 | TCP:0.004 | TLS:0.016 | TTFB:8.516 | Total:8.516
+↑ 网络阶段差值都很小，time_starttransfer - time_appconnect 约 8.5 秒
+  ——耗时在连接准备完成后到首字节之间，需结合代理日志、服务端 tracing
+    判断是请求排队、业务处理还是下游依赖，不能直接断定是服务端代码慢
 
 慢请求且网络也慢：
-DNS:0.520 | TCP:0.320 | TLS:0.850 | TTFB:0.180 | Total:1.870
-↑ DNS+TCP+TLS 占了 1.7 秒——问题在客户端到服务器的链路
+DNS:0.520 | TCP:0.840 | TLS:1.690 | TTFB:1.870 | Total:1.870
+↑ DNS 约 0.52s、TCP 建连约 0.32s、TLS 握手约 0.85s——问题在客户端到服务器的链路
 ```
 
 `time_starttransfer` 从计时起点算到首字节，可能包含 DNS、建连、TLS、发送请求以及服务端或代理处理时间，因此不能单独归因给服务端。可比较 `time_starttransfer - time_appconnect`，再结合应用日志、代理指标和服务端 tracing 区分排队、处理与网络。`time_connect` 异常高通常首先指向建连阶段，包括网络 RTT、防火墙、负载均衡和端口资源。
@@ -129,7 +133,7 @@ Location: /api/users/42
 | **通用头** | `Date`, `Connection`, `Cache-Control` | 请求和响应都能用 |
 | **请求头** | `Host`, `Authorization`, `Accept` | 客户端发出 |
 | **响应头** | `Server`, `Set-Cookie`, `Location` | 服务端返回 |
-| **实体头** | `Content-Type`, `Content-Length`, `Content-Encoding` | 描述 Body |
+| **实体头（历史分类）** | `Content-Type`, `Content-Length`, `Content-Encoding` | 描述 Body，属较旧的 HTTP 术语分类 |
 
 对 Java 开发者而言，你不需要手拼 HTTP 报文——Spring MVC 和 OkHttp 替你做了。但当你线上排查 `415 Unsupported Media Type` 的时候，如果你不知道错误出在 `Content-Type` 头而不是请求体本身，排查方向就错了。
 
@@ -137,7 +141,7 @@ Location: /api/users/42
 
 ### 3.1 安全与幂等——这两个属性是你线上数据的防线
 
-HTTP 定义了 9 个方法。排查请求行为时，先核对两个核心属性是否符合业务预期：
+HTTP 标准定义了多个方法，业务 API 中最常用的是下面 7 个（另有 `CONNECT`、`TRACE` 等）。排查请求行为时，先核对两个核心属性是否符合业务预期：
 
 | 方法 | 安全（不修改资源） | 幂等（多次调用结果相同） |
 | :-- | :--: | :--: |
@@ -147,9 +151,11 @@ HTTP 定义了 9 个方法。排查请求行为时，先核对两个核心属性
 | PUT | ❌ | ✅ |
 | DELETE | ❌ | ✅ |
 | POST | ❌ | ❌ |
-| PATCH | ❌ | ❌ |
+| PATCH | ❌ | 取决于具体操作 |
 
-**安全**决定了爬虫、重试、CDN 预取会不会对你的服务产生副作用。**幂等**决定了网络超时重发会不会产生重复数据。
+幂等描述的是重复执行同一请求对目标资源产生的预期效果，不代表每次响应的状态码和响应体都相同。PATCH 也不天然等于非幂等：把资源某个字段设为固定值，重复执行结果相同；而"每次给余额加 10 元"这类操作，重复执行结果不同。
+
+**安全**是协议语义：安全方法表示客户端预期该调用不改变资源状态，因此爬虫、CDN 预取和自动重试可以放心使用它们。但服务器是否真的不产生副作用，取决于实现是否遵守这一约定，协议本身无法强制。**幂等**决定网络超时重发是否会产生重复数据，同样以服务器实现遵守语义为前提。
 
 ```java
 // ✅ GET 是安全的——CDN 预取、爬虫大量请求不会改数据
@@ -195,13 +201,13 @@ public void recordLogin(@PathVariable Long id) { ... }
 
 这三种错误码，根因完全不一样：
 
-| 错误 | Nginx error.log 关键词 | 根因 | 排查方向 |
+| 错误 | Nginx error.log 关键词 | 含义 | 排查方向 |
 | :-- | :-- | :-- | :-- |
-| **502** | `connect() failed` / `connection refused` | 上游根本没响应——进程挂了、端口没监听、防火墙拦了 | `netstat -tlnp` 看端口、`systemctl status` 看进程 |
-| **504** | `upstream timed out` | 上游还活着但处理超时——慢 SQL、线程池满、外部依赖卡 | 看 TTFB、`jstack`、数据库慢查询日志 |
-| **Connection Timeout** | error.log 干净但客户端连不上 | TCP 握手阶段失败——SYN 队列满、`somaxconn` 太小、防火墙 DROP | `ss -s` 看 SYN-RECV、`netstat -s` 看丢包 |
+| **502** | `connect() failed` / `connection refused` | 网关未能从上游获得有效响应，如连接被拒或响应格式不符 | `netstat -tlnp` 看端口、`systemctl status` 看进程 |
+| **504** | `upstream timed out` | 网关等待上游响应超时，可能发生在建连或读取响应阶段 | 看 TTFB、`jstack`、数据库慢查询日志 |
+| **Connection Timeout** | error.log 干净但客户端连不上 | 客户端或连接过程超时，需先确认失败阶段 | 抓包、连接状态、路由和防火墙规则验证 |
 
-**502 和 504 的根本区别**：502 是「叫不到人」（上游已死或不存在），504 是「人来了但不理你」（上游忙着处理别的事）。
+**502 和 504 的区别**：502 是网关没能从上游拿到有效响应，504 是网关等上游响应超时。排查时先看 Nginx error.log 里的失败阶段，再检查上游进程、端口、连接状态和应用日志，不要只凭状态码断定根因。
 
 ### 4.2 4xx：问题在你这边
 
@@ -220,7 +226,7 @@ public void recordLogin(@PathVariable Long id) { ... }
 | **500** | 代码没 catch 住的异常（NPE、SQLException） | `grep "ERROR" application.log` |
 | **502** | 上游进程挂了、Nginx 连不上 upstream | `netstat -tlnp | grep 8080` |
 | **503** | 服务过载、所有 Worker 线程都在忙 | `jstack | grep catalina-exec | wc -l` |
-| **504** | 上游处理太慢，超过 Nginx 的 `proxy_read_timeout`（默认 60s） | `grep "upstream timed out" error.log` + 查慢 SQL |
+| **504** | 网关等待上游响应超时（`proxy_read_timeout` 默认约 60s，限制相邻读取间隔而非整个响应总时长） | `grep "upstream timed out" error.log` + 查慢 SQL |
 
 > **生产环境警告**：出现 504 时不要第一反应拉大 `proxy_read_timeout`。如果根因是上游卡在慢 SQL 或锁等待，拉大超时只会让连接占用更久，入口层更容易被拖死。先直连上游看实际响应时间，再决定调配置还是修代码。
 
@@ -231,16 +237,16 @@ public void recordLogin(@PathVariable Long id) { ... }
 grep -E "connect\(\) failed|upstream timed out|no live upstreams|reset by peer" /var/log/nginx/error.log | tail -20
 ```
 
-| 关键词 | 问题层 | 行动 |
+| 关键词 | 问题层 | 优先验证 |
 | :-- | :-- | :-- |
-| `connect() failed` | 上游未监听 | 重启上游服务 |
-| `upstream timed out` | 上游处理慢 | 查慢 SQL、线程池 |
-| `no live upstreams` | 全部上游不健康 | 查健康检查或全挂了 |
-| `reset by peer` | 上游主动断开 | 查上游 OOM、线程池满 |
+| `connect() failed` | 上游连接被拒或未监听 | 查上游进程、端口监听状态 |
+| `upstream timed out` | 上游响应超时 | 查慢 SQL、线程池、上游首字节延迟 |
+| `no live upstreams` | 全部上游不健康 | 查健康检查与上游存活状态 |
+| `reset by peer` | 连接被对端重置 | 查上游 OOM、线程池满、进程重启 |
 
 ## 5. HTTP 版本演进：为什么你的 HTTPS 接口比别人慢一拍
 
-你写好的 REST API，本地测试正常，上线后前端反馈「首次加载慢」。这不是你的代码问题，是 HTTP 协议版本在起作用。
+HTTP 版本影响连接的复用和多路复用方式，因此相同的 API 在不同连接条件下可能出现不同的延迟。但首次加载变慢不一定由 HTTP 版本导致，还应检查 DNS、TLS 握手、连接复用和服务端响应时间。
 
 ### 5.1 HTTP/1.0 → HTTP/1.1：省掉每次重连的握手
 
@@ -259,7 +265,7 @@ HTTP/1.1：
 连接2: 请求IMG1 → [等待响应] → ...
 
 HTTP/2：
-单连接: 并行传输 CSS + JS + IMG1 + IMG2（互不阻塞）
+单连接: 交错传输 CSS + JS + IMG1 + IMG2，避免请求串行等待（但仍共享 TCP）
 ```
 
 ### 5.3 HTTP/2 → HTTP/3：TCP 本身也别拖后腿
@@ -267,8 +273,13 @@ HTTP/2：
 HTTP/2 复用多个流，但这些流仍受共享 TCP 的传输层队头阻塞影响。HTTP/3 使用 QUIC，为多个流独立调度数据，降低跨流的传输层阻塞；应用依赖、流控、拥塞控制以及同一流内仍可能出现等待：
 
 ```txt
-TCP (HTTP/1.1 / HTTP/2):   丢 Packet 3 → 所有 Stream 都等
-QUIC (HTTP/3):             丢 Packet 3 → 只影响 Stream 1，其他照常
+HTTP/2 over TCP:
+一个 TCP 段丢失，后续数据可能无法按序交付，
+即使其中一些数据属于其他 HTTP/2 流。
+
+HTTP/3 over QUIC:
+丢包通常只阻塞依赖丢失数据的流，
+其他流在具备可交付数据时仍可能继续推进。
 ```
 
 | 维度 | HTTP/1.1 | HTTP/2 | HTTP/3 |
@@ -300,7 +311,7 @@ HttpRequest request = HttpRequest.newBuilder(URI.create("https://api.example.com
         .build();
 ```
 
-客户端级 `connectTimeout` 控制建立连接的等待时间；请求级 `timeout` 控制从发送请求到收到响应的等待时间。它们不能替代服务端处理、数据库和下游调用各自的超时预算。
+客户端级 `connectTimeout` 控制建立连接的等待时间，只在需要新建连接时有意义；连接复用时不必为每个请求重新建连，不能把它当成整个请求的耗时上限。请求级 `timeout` 控制从发送请求到收到响应的等待时间。它们都不能替代服务端处理、数据库和下游调用各自的超时预算。
 
 默认客户端偏好 HTTP/2，但最终协议受服务器能力、连接条件和实现约束影响。重定向默认不跟随；只有业务确实接受跨地址跳转时才设置 `Redirect.NORMAL`，登录态和敏感参数还应限制跳转来源。
 
@@ -315,7 +326,21 @@ if (response.statusCode() >= 400) {
 }
 ```
 
-`send()` 抛出 `IOException` 和 `InterruptedException`。`InterruptedException` 表示调用线程被中断，应恢复中断状态并停止当前任务，而不是简单吞掉。
+`send()` 抛出 `IOException` 和 `InterruptedException`。`InterruptedException` 表示调用线程被中断，应恢复中断状态并停止当前任务，而不是简单吞掉：
+
+```java
+try {
+    HttpResponse<String> response =
+            client.send(request, HttpResponse.BodyHandlers.ofString());
+} catch (InterruptedException e) {
+    Thread.currentThread().interrupt();
+    throw new IllegalStateException("HTTP 请求被中断", e);
+} catch (IOException e) {
+    throw new IllegalStateException("HTTP 请求失败", e);
+}
+```
+
+这段代码只展示中断处理方式，实际项目应按调用层的异常约定决定继续抛出受检异常还是转换为业务异常，不应把所有调用统一包装成 `IllegalStateException`。
 
 需要组合多个请求时使用异步发送：
 
@@ -343,7 +368,7 @@ CompletableFuture<HttpResponse<String>> future =
 | 502/504 | 网关未获得有效响应或等待超时 | 先判断上游可用性和超时链路 |
 | 网络异常 | DNS、连接、TLS、读超时或连接重置 | 按失败阶段定位 |
 
-响应体可能很大，不应默认读成完整 `String`。可使用 `BodyHandlers.ofInputStream()` 流式处理并关闭流，或使用 `BodyHandlers.ofFile()` 写入文件。`HttpClient` 实现为 `AutoCloseable`；长生命周期客户端应在应用生命周期结束时关闭，但仍要给应用关闭流程设置时间预算。
+响应体可能很大，不应默认读成完整 `String`。可使用 `BodyHandlers.ofInputStream()` 流式处理并关闭流，或使用 `BodyHandlers.ofFile()` 写入文件。从 JDK 21 起，`HttpClient` 实现了 `AutoCloseable`，长生命周期客户端可在应用关闭时调用 `close()`；JDK 11/17 没有这一关闭 API，不能照搬 JDK 21 的资源管理代码。使用 `ofInputStream()` 等响应体处理器时，还必须及时消费或关闭响应流，否则可能影响请求完成及客户端关闭过程，同时仍要给应用关闭流程设置时间预算。
 
 ## 7. 用 TLS 保护 HTTPS 连接
 
