@@ -16,7 +16,7 @@
 
 将 GC 日志导入 GCViewer 做趋势分析，发现一个关键模式：**每次 Young GC 稳定晋升约 180~220MB 对象到老年代。** 对于 6G 的老年代，这意味着约 30 次 Young GC 就能打满。老年代一旦接近上限，G1 的 Mixed GC 来不及回收，退化触发 Full GC。Full GC 虽然能回收掉这些对象（老年代从 6G 降到 4G），但大促流量下新请求又迅速涌入——15 秒后晋升曲线重新启动，形成「背靠背 Full GC」。
 
-### 第二步：抓堆 dump 看晋升了什么
+### 第二步：抓堆快照，分析主要存活对象
 
 在 Full GC 前后分别抓 dump 比对差异：
 
@@ -27,11 +27,13 @@ jmap -dump:format=b,file=/tmp/heap_after.hprof <pid>
 
 用 MAT 的 Histogram 对比，发现持续存活的对象主要是 `OrderDTO`（订单传输对象）、`OrderItemDTO[]`（订单明细数组）、请求级 `HashMap$Node`。这些对象的特点是：**在处理链路期间存活，但事务提交后应该被回收。** 那为什么它们没被 Young GC 回收掉，而是晋升到了老年代？
 
+> 说明：堆快照记录的是某一时刻的对象分布与引用关系，并不记录对象是在哪一次 Young GC 中晋升的。它最多能发现对象类型与存活状态的变化；要确认晋升压力，还需结合 GC 日志中的对象年龄分布、Survivor 使用情况和晋升量来判断。
+
 ### 第三步：检查晋升原因
 
 异常晋升的根因是大促场景下请求处理链路过长：反序列化 → 校验 → 库存扣减 → 写库 → 发送 MQ → 构建响应。这套链路耗时远超日常，每次 Young GC 时大量请求的中间对象尚未走到生命周期终点——Young GC 判定它们还活着，只能把它们往老年代搬。
 
-这种情况在小新生代 + 长请求链路下会被急剧放大：高并发时每次 Young GC 之间积压了几十个请求的中间对象，累计活对象量轻易超过 Survivor 区的容纳能力，导致**提前晋升（Premature Promotion）**——本质上属于短命对象，但因为「来不及死」而被错误地判为长命对象送进了老年代。
+这种情况在小新生代 + 长请求链路下会被急剧放大：高并发时每次 Young GC 之间积压了几十个请求的中间对象，累计活对象量轻易超过 Survivor 区的容纳能力，导致**提前晋升（Premature Promotion）**——这些对象在业务上只需存活到一次请求结束，但 Young GC 发生时请求尚未结束、对象仍可达，于是回收时仍被复制到 Survivor 或晋升到老年代，而不是被 GC「误判」为长命对象。
 
 ### 第四步：调优方案
 
@@ -45,6 +47,7 @@ jmap -dump:format=b,file=/tmp/heap_after.hprof <pid>
 -Xms8g -Xmx8g
 -XX:+UseG1GC
 -XX:MaxGCPauseMillis=200
+-XX:+UnlockExperimentalVMOptions     # G1NewSizePercent/G1MaxNewSizePercent 在 JDK 21 为实验性参数
 -XX:G1NewSizePercent=10            # 年轻代下限 10%（800MB）
 -XX:G1MaxNewSizePercent=40          # 年轻代上限 40%（3.2GB）——关键改动
 -XX:MaxTenuringThreshold=15         # 最大晋升年龄
@@ -54,11 +57,11 @@ jmap -dump:format=b,file=/tmp/heap_after.hprof <pid>
 ```
 
 **核心改动：**
-1. `G1MaxNewSizePercent=40`：让 G1 在高负载时把年轻代动态扩展到 3.2GB（之前固定 2G），给短命对象更多「生存空间」
-2. `InitiatingHeapOccupancyPercent=45`：让 G1 在老年代占用 45% 时就启动并发标记（之前默认 45% 没事，但默认的 Mixed GC 触发时机太晚——等到老年代接近满才做）
+1. `G1MaxNewSizePercent=40`：把年轻代上限放开到堆的 40%（8G 堆下约 3.2GB），让 G1 在高负载时可以把年轻代动态扩展到这一上限（之前固定 2G），给短命对象更多「生存空间」
+2. `InitiatingHeapOccupancyPercent=45`：把 G1 并发标记周期的初始堆占用阈值显式设为 45%（G1 默认值本就是 45%，所以通常不改变行为）。它控制的是并发标记何时启动，而 Mixed GC 的实际回收时机取决于标记完成后的回收集合与收益，不能直接等同于「提前触发回收」。本案例真正缓解晋升压力的，是更大的年轻代空间，而不是这个阈值。
 3. 去掉 `-Xmn2g`——G1 下不建议固定新生代大小，应让它自适应
 
-### 调优效果
+### 调优效果（构造数据，仅作对照指标）
 
 | 指标 | 调优前 | 调优后 |
 | :-- | :-- | :-- |
@@ -77,7 +80,7 @@ jmap -dump:format=b,file=/tmp/heap_after.hprof <pid>
 | 修复方向 | 调整年轻代/Survivor/晋升阈值 | 代码层修复引用 |
 | 是否重启有效 | 无效（流量恢复后重现） | 暂时有效（需要时间重新堆积） |
 
-## 连接池耗尽 —— 200 个线程全卡在 getConnection()
+## 连接池耗尽 —— 请求线程堆积在 getConnection()
 
 ### 事故背景
 
@@ -101,6 +104,8 @@ grep "java.lang.Thread.State" thread.dump | sort | uniq -c | sort -rn
 189 BLOCKED        ← 189 个线程被阻塞！
  11 RUNNABLE
 ```
+
+> 说明：线程阻塞在 `getConnection()` 上是连接池耗尽的核心信号，但具体线程状态（BLOCKED / WAITING / TIMED_WAITING）取决于 JDK 与 HikariCP 版本及运行时路径，不能仅凭状态名断定连接已耗尽；更可靠的依据是调用栈经过 `DataSource.getConnection()`，以及连接池的 Active/Pending 指标。
 
 189 个线程的栈几乎完全一样：
 
@@ -132,7 +137,7 @@ grep "java.lang.Thread.State" thread.dump | sort | uniq -c | sort -rn
     - locked <0x00000007aab00000> (a com.zaxxer.hikari.pool.HikariPool)
 ```
 
-exec-28 持有 HikariPool 的锁，并在 `socketRead0` 上——它在等数据库返回。这是一个慢查询。
+exec-28 的栈停在 `socketRead0`，说明它正阻塞在数据库读响应上，是一个耗时较长的数据库操作。仅从这一帧不能断定它就是持有连接池锁的慢查询线程，需要结合连接池指标与数据库侧 `PROCESSLIST` 交叉确认。
 
 ### 第三步：查数据库端
 
@@ -150,7 +155,7 @@ SHOW FULL PROCESSLIST;
 | 117 | app  | 10.0.1.5:45239  | order | Sleep   | 0    |              | NULL                        |
 ```
 
-10 个连接：1 个在执行慢查询（跑了 284 秒），9 个在 Sleep。但 Sleep 的连接怎么不归还到池子？
+10 个连接：1 个在执行慢查询（跑了 284 秒），9 个在 Sleep。但 Sleep 只是 MySQL 会话状态，不能直接等同于连接池泄漏；这些连接是否真的被应用长期借出未还，要结合 HikariCP 的 Active 连接数与连接获取超时日志判断。那么 Sleep 的连接怎么不归还到池子？
 
 ### 第四步：查代码
 
@@ -201,6 +206,13 @@ spring:
 @Service
 public class OrderService {
 
+    private final RiskService riskService;
+    private final InventoryService inventoryService;
+    private final OrderTransactionService transactionService;
+    private final UserDao userDao;
+
+    // 构造函数注入省略
+
     // 预先调用外部服务（不在事务中）
     public OrderDTO createOrder(CreateOrderRequest request) {
         User user = userDao.findById(request.getUserId());
@@ -214,11 +226,15 @@ public class OrderService {
         }
 
         // 只把数据库操作放在事务中
-        return doCreateOrderInTransaction(request, user);
+        return transactionService.createOrder(request, user);
     }
+}
+
+@Service
+public class OrderTransactionService {
 
     @Transactional
-    private OrderDTO doCreateOrderInTransaction(CreateOrderRequest request, User user) {
+    public OrderDTO createOrder(CreateOrderRequest request, User user) {
         Order order = buildOrder(request, user);
         orderDao.insert(order);
         orderItemDao.batchInsert(buildItems(request, order));
@@ -227,7 +243,9 @@ public class OrderService {
 }
 ```
 
-核心原则：**事务 = 持有连接。不要在事务里做非数据库操作。** 特别是：
+注意：事务方法放在独立的 `OrderTransactionService` 中再被调用。若把 `@Transactional` 方法写成同类里的 `private` 方法并通过 `this` 自调用，调用不会经过 Spring 代理，事务拦截不会生效。
+
+核心原则：**对于使用 JDBC 本地事务的常见 Spring 应用，事务执行期间通常会占用一个数据库连接；事务越长，连接被占用的时间也越长。因此应优先缩短事务内持有连接的时间，而不是在事务里做非数据库操作。** 特别是：
 - HTTP 调用（风控、通知、短信）
 - 文件读写
 - 复杂计算
@@ -237,10 +255,10 @@ public class OrderService {
 
 | 信号 | 工具 | 含义 |
 | :-- | :-- | :-- |
-| 大量线程 BLOCKED 在 `getConnection()` | `jstack` | 连接池耗尽 |
-| `HikariPool` 的 `ActiveConnections` = `maximumPoolSize` | Actuator `/actuator/metrics` | 所有连接都在用 |
-| `PendingConnections` > 0 | Actuator | 有线程在等连接 |
-| 数据库侧有大量 `Sleep` 连接 | `SHOW PROCESSLIST` | 连接被持有但不干活 |
+| 大量线程阻塞在 `getConnection()` | `jstack` | 连接池耗尽（线程状态具体值取决于 JDK/HikariCP 版本） |
+| `hikaricp.connections.active` ≈ `hikaricp.connections.max` | Actuator `/actuator/metrics` | 所有连接都在用 |
+| `hikaricp.connections.pending` > 0 | Actuator | 有线程在等连接 |
+| 数据库侧有大量 `Sleep` 连接 | `SHOW PROCESSLIST` | 会话空闲，不等于连接已归还应用池 |
 | 连接获取超时异常 | 日志 `Connection is not available` | 等太久 |
 
 ### 估算连接需求并识别长事务
@@ -253,7 +271,7 @@ public class OrderService {
 期望并发事务数 = 业务 QPS × 平均事务耗时（秒）
 ```
 
-例如：QPS 100，平均事务 0.05 秒 → 并发事务数 = 100 × 0.05 = 5，连接池设 6~8 就够了。
+这是一个粗略的起点估算，不是容量配置公式。平均并发只是平均值，没有覆盖峰值、连接占用时间分布和排队延迟。实际池大小应结合峰值流量、连接占用时间、数据库承载能力，通过压测确定。例如：QPS 100、单次请求平均占用数据库连接 50ms 时，平均并发约为 5，连接池可以先从 6~8 个连接试起，再结合峰值流量、实际连接占用时间和数据库承载能力进行压测调整。
 
 但如果有长事务（2 秒+），并发事务数 = 100 × 2 = 200，需要 240 个连接——这就超过了数据库的承受能力。**解决方案不是加连接，是缩短事务。**
 
@@ -298,10 +316,9 @@ watch com.example.report.FieldFilter apply '{params, returnObj, throwExp}' -x 3
 
 ```txt
 params[0]: FieldFilterConfig{
-  whitelist=["id","name","amount","createTime","updateTime","category","tags"],
-  inputFields: ["id","name","amount","createTime","updateTime","description","status","category","tags","version","createdBy","updatedBy","deletedAt"],
-  dataRows: 15000 rows × 12 columns
+  whitelist=["id","name","amount","createTime","updateTime","category","tags"]
 }
+params[1]: List<Map<String,Object>> dataRows: 15000 rows × 12 columns
 ```
 
 15000 行数据，每行 12 个字段。看起来不大。那为什么要 2.8 秒？
@@ -350,15 +367,14 @@ public class FieldFilter {
     }
 
     private boolean isFieldAllowed(String fieldName) {
-        return fieldName.matches(WHITELIST_PATTERN);          // ← 罪魁祸首
+        return fieldName.matches(WHITELIST_PATTERN);          // ← 主要耗时点
     }
 }
 ```
 
 问题分析：
-1. `String.matches()` 每次调用都会 `Pattern.compile()` 编译正则——15000 × 12 = 180,000 次编译
-2. 正则 `^id|name|amount|...|deletedAt$` 也是错误的——`^` 只作用于 `id`，`$` 只作用于 `deletedAt`，中间的字段是裸匹配
-3. 用正则做白名单匹配是性能最差的方式——`HashSet.contains()` 才是 O(1)
+1. `String.matches()` 每次调用都会 `Pattern.compile()` 编译正则——15000 × 12 = 180,000 次编译，累积开销主要来自重复编译而非匹配本身。
+2. 用正则做固定白名单匹配不直观——把白名单预先构建为 `Set<String>`，再用 `contains()` 判断，既避免重复编译，也更直接地表达业务规则。
 
 ### 第五步，修复
 
@@ -371,7 +387,7 @@ public class FieldFilter {
     );
 
     private boolean isFieldAllowed(String fieldName) {
-        return WHITELIST.contains(fieldName);   // O(1)，180000 倍提升
+        return WHITELIST.contains(fieldName);
     }
 }
 ```

@@ -20,6 +20,8 @@
 
 ## 网络与数据访问
 
+除本目录的 03-network 诊断页外，下列两条是其他模块的专题链接，供排查网络与数据访问问题时跳转参考。
+
 - [网络性能分析与故障排查](./03-network/chapter-01-network-diagnostics.md)：常见网络症状、抓包和 Java 网络诊断。
 - [高并发网络优化与最佳实践](../04-java-network/chapter-12-network-optimization.md)：连接池、I/O 模型和网络参数的优化取舍。
 - [数据访问性能优化](../05-java-data-access/chapter-08-performance.md)：连接池、批处理、链路分析和常见故障。

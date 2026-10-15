@@ -84,7 +84,7 @@ Acceptor 线程处于 `WAITING`，卡在 `LimitLatch.countUpOrAwait()`。这意�
 ss -tnp | grep :8080
 ```
 
-输出显示与 8080 端口的 `ESTABLISHED` 连接恰好 10 个。`Recv-Q` 列的值持续 > 0——说明内核的 `backlog` 队列中有连接在排队，等待 `accept()` 取走。
+输出显示与 8080 端口的 `ESTABLISHED` 连接恰好 10 个。`ss -lnt` 下 8080 监听 socket 的 `Recv-Q` 持续 > 0——说明操作系统监听队列中有连接在等待 `accept()` 取走，与「已建立连接恰好 10 个」相互印证：连接数已贴近上限，同时仍有连接在队列中等待被接收。
 
 ### 1.5 第四步：翻出罪魁祸首
 
@@ -96,21 +96,22 @@ server:
     max-connections: 10   # ← 谁加的？为什么是 10？
 ```
 
-本案例使用 Tomcat 8.5，NIO 模式下 `max-connections` 默认值是 10000；Tomcat 9.0.122、10.0.27 和 10.1.59 的默认值则是 8192。无论采用哪个默认值，这里被显式改成了 10。而前方的 Nginx 配置了 `worker_processes 16`——16 个 worker 每个维护一个到后端的 keep-alive 长连接，理论上 16 个连接就超过了 Tomcat 的上限 10。
+本案例使用 Tomcat 8.5，NIO 模式下 `max-connections` 默认值是 10000；Tomcat 9.0.122、10.0.27 和 10.1.59 的默认值则是 8192。无论采用哪个默认值，这里被显式改成了 10。前方的 Nginx 配置了 `worker_processes 16`——worker 进程数不等于后端 TCP 连接数，实际连接数取决于上游 keep-alive 配置、并发请求量和连接复用情况；本案例把 `max-connections` 设为 10，构造出一个连接容量明显偏小的场景。
 
-但正常运行时为什么没有立即出问题？因为 keep-alive 连接不是始终占满的——有些连接处于空闲状态，Tomcat 的连接计数在请求处理间隙会短暂回落。所以不是所有请求都超时，而是间歇性的：当第 11 个 Nginx worker 恰好发起请求时，Acceptor 被阻塞，新连接只能在 `backlog` 队列里等，等的时间就是某个现有连接释放的间隔——最多可以长达 keep-alive timeout（默认 20 秒）。
+但正常运行时为什么没有立即出问题？因为 keep-alive 连接在两次请求之间空闲时，TCP 连接本身仍存在，Tomcat 的连接计数并不会因单次请求处理完毕而扣减；真正让连接数回落的是连接被关闭或回收，而空闲连接不会一直占满。所以不是所有请求都超时，而是间歇性的：当并发请求数暂超过 10、第 11 个连接到来时，Acceptor 被阻塞，新连接只能在 `backlog` 队列里等，等的时间取决于某个已有连接何时释放——最多可达 keep-alive timeout（默认 20 秒）。
 
-这就是"间歇性假死"的完整成因。
+这组证据（已建立连接数恰好等于上限、Acceptor 卡在 `LimitLatch`、监听队列持续积压）共同支持「连接上限触发新连接等待」的判断，是本例间歇性假死的成因。
 
 ### 1.6 Tomcat 线程模型补充说明
 
 理解这个问题需要知道 Tomcat 的一条连接是怎么被交给 worker 线程处理的：
 
 ```txt
-客户端 → OS TCP backlog 队列 → Acceptor 线程 accept() → 连接计数 +1
-  → Poller 线程注册到 Selector → Poller 检测到可读事件
-  → 交给 Worker 线程池处理（http-nio-8080-exec-*）
-  → 处理完毕 → 连接计数 -1
+客户端发起 TCP 连接 → OS 监听队列暂存连接请求
+  → Acceptor 接收连接（受 maxConnections 限制）→ 连接计数 +1
+  → Poller 注册到 Selector → 有可读事件时交给 Worker 线程池（http-nio-8080-exec-*）
+  → 一次请求处理完毕，连接仍可能保持 keep-alive
+  → TCP 连接关闭后，连接计数才相应 -1
 ```
 
 Acceptor 线程**只负责 `accept()` 新连接**。它不处理请求，不解包 HTTP，不执行业务逻辑。它只做一件事：收到新连接，转交给 Poller，然后立刻去接下一个。如果 Acceptor 被 `LimitLatch` 卡住——整个服务就停止接收新连接，但已经在处理中的请求完全不受影响。
@@ -137,7 +138,7 @@ server:
     max-threads: 200            # worker 线程数（默认 200）
 ```
 
-三个参数的关系：
+三个参数分别控制不同的环节：
 
 ```txt
 操作系统 TCP backlog（由 acceptCount 控制）
@@ -145,7 +146,7 @@ server:
        └→ Poller 检测到可读数据后交给 maxThreads 个 worker 线程处理
 ```
 
-**黄金比例：`maxConnections` ≥ `maxThreads` + `acceptCount`**。如果 maxConnections 设得太小，连接在内核 backlog 还没满时就被 LimitLatch 拦截，新连接直接卡在 Acceptor 上无人处理。
+`maxConnections`、`acceptCount`、`maxThreads` 职责不同：前者限制同时接收的连接数，后者是连接满了之后操作系统用于排队等待的队列长度，再后者是请求处理线程的并发上限，三者之间不存在必须满足的加法关系。`maxConnections` 过小会让连接容量成为瓶颈，`maxThreads` 过小会让已接收的连接在等待处理，而 `acceptCount` 之外的操作系统队列填满则可能导致新连接被拒或超时。
 
 ### 1.8 总结
 
@@ -166,7 +167,7 @@ server:
 
 2025 年某 API 网关服务（基于 Spring Cloud Gateway + Netty），部署在 Kubernetes 上，4C8G，`-Xmx4g`。上线一段时间后，Pod 开始出现规律性 OOMKilled——每 2~3 小时重启一次，但监控显示 JVM 堆使用率从未超过 45%，GC 次数和耗时均在正常范围。没有 `OutOfMemoryError` 日志，没有 heap dump 文件，Pod 直接消失。
 
-类似事件在开发者社区并不罕见。亚马逊 Corretto 的 GitHub Issue #225 记录了一个几乎完全一致的故障：Spring Boot 3.1.3 + Corretto 17.0.6，RSS 持续增长直到触发容器 OOM，但堆使用率正常——最终定位到内存分配器的碎片化问题。Michal Drozd 的博客 "Java OOMKilled With Stable Heap" 也详细分析了这类故障的排查方法论：堆外内存（Direct Memory）、线程栈、glibc arena 三者构成了堆之外的"隐形内存消耗"，在容器环境下尤其致命。
+类似事件在开发者社区并不罕见。亚马逊 Corretto 的 GitHub Issue #225 记录了一个几乎完全一致的故障：Spring Boot 3.1.3 + Corretto 17.0.6，RSS 持续增长直到触发容器 OOM，但堆使用率正常——最终定位到内存分配器的碎片化问题。Michal Drozd 的博客 "Java OOMKilled With Stable Heap" 也详细分析了这类故障的排查方法论：堆外内存（Direct Memory）、线程栈、glibc arena 三者构成了堆之外常被忽视的内存开销，在容器环境下尤其致命。
 
 ### 2.2 第一步：确认是 K8s OOMKilled，不是 JVM OOM
 
@@ -180,9 +181,9 @@ State:          Terminated
   Exit Code:    137
 ```
 
-Exit Code 137 = `128 + 9`（SIGKILL）。这是 Linux OOM Killer 直接杀进程——不是因为 JVM 抛了 `OutOfMemoryError`，而是容器总 RSS 超过 `resources.limits.memory`。
+Exit Code 137 = `128 + 9`（SIGKILL）。`describe pod` 同时显示 `Reason: OOMKilled`，这是更直接的证据：容器因内存相关的终止条件被杀。但 Exit Code 137 本身只表示进程收到 SIGKILL，并不能单独确认是 OOM Killer——`kubectl describe pod` 的 `Reason` 字段才是判定 OOMKilled 的依据。需要注意，cgroup 的内存统计口径与单个进程的 RSS 并不相同，不能简单把「容器内存超限」表述为「总 RSS 超过 limit」。
 
-用 `kubectl top pod` 看 RSS：
+用 `kubectl top pod` 看容器内存使用趋势（Metrics API 指标，不一定等同于进程 RSS）：
 
 ```txt
 NAME                          CPU(cores)   MEMORY(bytes)
@@ -239,10 +240,10 @@ Total: reserved=7245MB, committed=6812MB
 
 -     Metaspace (reserved=128MB, committed=120MB)    ← 元空间正常
 
--       NIO/Direct (reserved=1842MB, committed=1842MB)  ← 这里！！1.8G 直接内存！
+-       NIO/Direct (reserved=1842MB, committed=1842MB)  ← NIO/Direct 约 1.8GB
 ```
 
-`NIO/Direct` 占用了 1.8GB——几乎等于堆的大小。这是 Netty 的 `DirectByteBuffer`。加上堆的 1.8G（committed）、线程栈 400M、Metaspace 120M、Code Cache 128M、GC 辅助结构 384M——总计约 6.6G，再加上 glibc `malloc` 的 arena 碎片（每个 arena 预分配 64MB，在 8G 容器中默认 8 个 arena = 512MB），总 RSS 轻松超过 8G limit。
+`NIO/Direct` 项显示约 1.8GB 的提交内存，量级接近堆的提交量。需要注意：NMT 主要跟踪 HotSpot 自身管理的内存，不覆盖第三方 native 分配（例如 Netty native allocator 之外的部分），也不能直接把这一项等同于全部 Netty 直接内存。将上述各区域的 committed 相加（约 4.7GB）再加上 glibc `malloc` 的 arena 估算（每个 arena 预分配 64MB，在 8G 容器中默认 8 个 arena = 512MB），仍只是对物理内存的部分解释——`reserved` 是虚拟地址预留，`committed` 是已提交可供使用，二者都不等同于当前驻留的 RSS。NMT 总量与进程 RSS 不匹配时，差额应作为继续排查的线索，而非直接归因于 Netty。
 
 ### 2.5 第四步：定位泄漏的 ByteBuf
 
@@ -252,7 +253,7 @@ Total: reserved=7245MB, committed=6812MB
 -Dio.netty.leakDetectionLevel=paranoid
 ```
 
-注意：`paranoid` 级别会 100% 追踪每个 ByteBuf 的生命周期，性能开销约 20%~30%，仅在排查阶段使用，排查完立即关闭或降为 `simple`。
+注意：`paranoid` 级别会追踪每一次 ByteBuf 相关的分配与回收，开销明显高于 `simple`（后者默认只采样约 1%），具体影响取决于分配频率、负载与 Netty 版本，建议在测试或受控排查窗口使用，排查完立即关闭或降为 `simple`。参数名需与目标 Netty 版本对应：旧版为 `-Dio.netty.leakDetectionLevel=paranoid`，较新 Netty 改为 `-Dio.netty.leakDetection.level=paranoid`；本文以 Spring Cloud Gateway 为例，应写明实际依赖的 Netty 版本，避免照抄后参数失效。
 
 几分钟后，日志中出现：
 
@@ -309,11 +310,11 @@ public class ResponseModifyFilter implements GlobalFilter {
 }
 ```
 
-在 Netty 中，`DataBuffer` 底层是 Netty 的 `ByteBuf`，属于引用计数对象。当 `writeWith()` 的回调返回新的 `DataBuffer` 后，Netty 会自动 release 新返回的那个 buffer——**但原始的 `dataBuffer`（从上游传下来的）的 release 责任在回调代码中**。如果回调只消费了它的内容但没有调用 `release()`，`dataBuffer` 对应的堆外内存块就永远不会被释放。
+在 Netty 中，`DataBuffer` 底层是 Netty 的 `ByteBuf`，属于引用计数对象。本例中回调读取原始 `dataBuffer` 的内容后构造了新的响应 buffer，且不再把原始 buffer 向下游传递——此时原始 buffer 的释放责任在回调代码中。如果回调只消费了它的内容却没有调用 `release()`，这个 buffer 就无法归还内存池，对应的堆外内存可能一直不被回收。
 
-这就是 Netty 引用计数模型的核心陷阱：**消费方必须负责释放**。而且 `dataBuffer.read(content)` 只是把数据拷贝到字节数组——并不隐含 release。`release()` 必须显式调用。
+需要明确：释放责任取决于缓冲区的所有权是否转移、是否继续向下游传递，以及所用 Spring / Reactor 操作符的语义，不能一概说「消费方必须释放」。而且 `dataBuffer.read(content)` 只是把数据拷贝到字节数组——并不隐含 release。`release()` 必须显式调用。`try-finally` 能覆盖当前映射函数内的异常路径，但无法自动处理 Reactor 链中因取消或丢弃而未被消费的 buffer。
 
-每次请求的响应体大约 1~5KB，请求 QPS 约 3000，每小时约 1000 万次请求——每个都泄漏 1~5KB 的 Direct Buffer → 每小时泄漏约 10~50GB 的堆外内存——虽然 `DirectByteBuffer` 的 Cleaner 在 GC 时会回收一部分，但在高吞吐下包装清理跟不上分配速度，净泄漏速率仍然可观。
+按每秒 3000 请求、每响应体 1~5KB 估算，这条路径每小时涉及的响应体数据量约为 10~50GB。这是累计经过该路径的数据量，不等于每小时新增的物理内存：对池化 buffer，遗漏释放会让 buffer 无法归还内存池，导致池外内存逐渐膨胀；实际 RSS 增长还需结合 Netty allocator 指标、direct buffer 使用量与进程 RSS 的时间序列来确认。
 
 ### 2.7 第六步：修复
 
@@ -336,34 +337,36 @@ public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
 }
 ```
 
-`DataBufferUtils.release()` 是 Spring 提供的便捷方法，内部调用 Netty 的 `ReferenceCountUtil.release()`。`try-finally` 保证即使 `modifyBody()` 抛异常，buffer 也能被释放。
+`DataBufferUtils.release()` 是 Spring 提供的统一释放入口：对 `PooledDataBuffer` 会调用相应的 `release()`，对 `CloseableDataBuffer` 则执行关闭操作，具体底层实现取决于实际缓冲区类型。`try-finally` 保证即使 `modifyBody()` 抛异常，buffer 也能被释放。
 
 ### 2.8 防止再次发生的防御措施
 
 ```bash
-# 1. 显式限制直接内存上限（容器 8G，堆 4G，给直接内存 1G）
+# 1. 约束 JVM NIO 直接缓冲区上限（注意：仅覆盖 JVM NIO 直接内存，不等同于约束全部 Netty native 分配）
 -XX:MaxDirectMemorySize=1g
 
-# 2. 容器环境确保 JVM 感知 cgroup 限制
+# 2. 容器环境确保 JVM 感知 cgroup 限制（UseContainerSupport 在现代 JDK 通常默认开启）
 -XX:+UseContainerSupport
--XX:MaxRAMPercentage=60.0
+# 注意：若已显式设置 -Xmx4g，MaxRAMPercentage 不会再把最大堆改为容器内存的 60%；二者不应同时保留为矛盾配置
+# -XX:MaxRAMPercentage=60.0
 
-# 3. 保留泄漏检测（simple 级别，性能开销 < 1%）
+# 3. 保留泄漏检测（simple 级别为采样，开销低；具体比例随版本与负载变化）
 -Dio.netty.leakDetectionLevel=simple
 
 # 4. 开启 NMT 用于事后分析
 -XX:NativeMemoryTracking=summary
 ```
 
-容器内存分配建议：
+容器内存需要预算的项目（占比应结合目标 JDK、Netty 版本、容器 limit 与压测结果确定，不宜套用固定比例）：
 
-| 组件 | 占比 | 8G 容器 |
-| :-- | :-- | :-- |
-| Java Heap | 50~60% | 4G |
-| Direct Memory | 10~15% | 1G |
-| Thread Stacks | 10~15% | 800M |
-| Metaspace / Code Cache / GC | 15~20% | 1G |
-| 系统预留 | ~10% | 1G |
+| 组件 | 预算依据 |
+| :-- | :-- |
+| Java Heap | `-Xmx`、实际存活集、GC 情况 |
+| Direct Buffer / Netty Pool | 峰值并发、buffer 大小、池化指标 |
+| Thread Stacks | 线程数、`-Xss`、线程增长趋势 |
+| Metaspace / Code Cache / GC | 运行时指标与 NMT |
+| 其他 native memory | JNI、native 库、分配器、进程映射 |
+| 容器余量 | 压测峰值、RSS 与 cgroup 内存指标 |
 
 ### 2.9 排查堆外内存问题的工具链
 
@@ -382,9 +385,9 @@ public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
 | Pod OOMKilled、堆正常 | 问题不在堆——在堆外内存 | `kubectl describe pod` + `jstat` |
 | NMT 中 `NIO/Direct` 持续增长 | 直接内存泄漏 | `jcmd VM.native_memory summary` |
 | `LEAK: ByteBuf.release() was not called` | Netty 引用计数泄漏 | `-Dio.netty.leakDetectionLevel=paranoid` |
-| RSS - Heap >> 1G | 堆外内存占据大头，需逐区域排查 | `kubectl top pod` - `jstat` 堆使用量 |
+| 容器内存使用接近 limit、堆明显偏低 | 提示问题在堆外，需逐区域排查 | `kubectl top pod` / `container_memory_rss` - `jstat` 堆使用量 |
 
-**教训：** 堆内存只是 Java 进程总内存的一部分。在容器环境下，K8s 的 `limits.memory` 限制的是整个进程的 RSS——包括堆、直接内存、线程栈、元空间、Code Cache、glibc arena 碎片、JNI 本地内存等。只看 JVM 堆是远远不够的。Michal Drozd 在博客中总结了一个经验法则：**永远给容器预留 40%~50% 的内存给堆外区域**。只设 `-Xmx` 不设 `-XX:MaxDirectMemorySize`，等于把直接内存的上限交给了物理内存——而在容器里，"物理内存"就是 limit 值，超了就杀。
+**教训：** 堆内存只是 Java 进程总内存的一部分。在容器环境下，K8s 的 `limits.memory` 限制的是整个进程的 RSS——包括堆、直接内存、线程栈、元空间、Code Cache、glibc arena 碎片、JNI 本地内存等。只看 JVM 堆是远远不够的。Michal Drozd 在博客中总结了一个经验法则：**永远给容器预留 40%~50% 的内存给堆外区域**。`-Xmx` 只限制 Java 堆，不代表整个 JVM 进程的内存上限。容器内存预算还应覆盖直接缓冲区、线程栈、元空间和其他 native 分配；是否需要设置 `MaxDirectMemorySize`，应结合具体分配器行为与监控数据判断，而不是默认套用。
 
 > **上一篇：** [GC 延迟与分配异常案例](./chapter-04-cases-gc-latency.md)
 >

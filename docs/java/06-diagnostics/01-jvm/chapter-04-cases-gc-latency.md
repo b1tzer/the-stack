@@ -24,7 +24,7 @@ jstat -gcutil <pid> 1000
   0.00  44.56  15.23  33.12  45.26  1237   185.646    0    0.000  185.646
 ```
 
-Eden 区每秒从 12% 冲到 98% 再清零——每秒一次 Young GC。单次 YGCT 差 = 134ms。**每秒 134ms 的 STW**，意味着每个请求有约 13% 的概率刚好落在 GC 停顿里，延迟从 50ms 暴涨到 200ms+。
+Eden 区每秒从 12% 冲到 98% 再清零——每秒一次 Young GC。两次采样间 YGCT 累计增加约 134ms，若这一秒内只发生一次 Young GC，可近似看作单次暂停约 134ms，约占该秒运行时间的 13%，足以抬高整体延迟基线。
 
 ### 1.3 第二步：找谁在造垃圾
 
@@ -95,6 +95,8 @@ public class PaymentCallbackService {
 
 参数化日志的核心优势：SLF4J 在日志级别不匹配时，**不会执行参数拼接**，也不创建临时 `StringBuilder`。即使用 `logger.info("...{}...{}...", a, b)`，`a` 和 `b` 只传引用，不在调用处创建新字符串。
 
+注意：参数表达式 `a`、`b` 本身仍会在调用处求值；只有当日志级别开启时，框架才会格式化参数并可能创建字符串。参数化写法的收益，是级别关闭时不会提前把整套参数拼成完整日志字符串，从而避免无谓的分配与拼接开销。
+
 ### 1.6 效果对比
 
 | 指标 | 修复前 | 修复后 |
@@ -110,7 +112,7 @@ public class PaymentCallbackService {
 日志拼接是 Java 服务中最容易被忽视的 GC 压力源。两个常见高危模式：
 
 1. `logger.info("xxx " + a + " yyy " + b)` —— 即使日志级别是 WARN，拼接也照样执行
-2. `String.format()` 在日志中 —— 内部有 `synchronized`，是性能杀手
+2. `String.format()` 在日志中 —— 高频调用可能带来额外的格式化与对象分配开销，是否构成瓶颈需结合分配采样与 CPU profile 验证，不能简单归因于同步本身
 
 **规则：生产环境日志一律用 `{}` 占位符，永远不要在日志参数中拼接字符串。**
 
@@ -118,9 +120,9 @@ public class PaymentCallbackService {
 
 ### 2.1 事故背景
 
-2025 年京东某高并发系统（QPS 40 万），纯内存计算型服务，无数据库、无缓存、无 RPC。每 15 分钟全量替换一次内存中的业务索引（约 500MB 的复杂 Map 结构）。索引替换后，P99 出现周期性毛刺，上游超时率上升 37%。
+2025 年某高并发系统（QPS 40 万），纯内存计算型服务，无数据库、无缓存、无 RPC。每 15 分钟全量替换一次内存中的业务索引（约 500MB 的复杂 Map 结构）。索引替换后，P99 出现周期性毛刺，上游超时率上升 37%。
 
-关键现象：CPU 和系统负载均正常，排除流量激增、外部依赖、锁竞争。GC 日志暴露了真相。
+关键现象：CPU 和系统负载均正常，排除流量激增、外部依赖、锁竞争。GC 日志暴露了异常。
 
 ### 2.2 第一步：看 GC 日志中的 Object Copy 阶段
 
@@ -169,7 +171,7 @@ G1 日志中关注的对象复制（Object Copy）耗时异常——**420ms**。
 
 **方案 B（业务层预热）：断流 + Eden 区预热**
 
-这是京东团队最终采用的方案，发表在 2025 年技术博客中：
+这是业务团队最终采用的方案：
 
 ```java
 public void switchIndex(String indexPath) {
@@ -185,14 +187,15 @@ public void switchIndex(String indexPath) {
     for (int i = 0; i < 10000; i++) {
         byte[] waste = new byte[1024 * 1024];  // 每次 1MB，共 10GB 垃圾
     }
-    // 此时 Eden 区已被打满多次，新索引已被晋升到老年代
+    // 此时 Eden 区已被打满多次，存活的新索引有较大机会在断流期间晋升到老年代
+    // （实际是否晋升取决于该次 GC 的存活对象量与年龄判断，并非必然）
 
     // 4.【恢复接流】
     registry.register();
 }
 ```
 
-核心思路：在断流期间主动把 Eden 区打满，触发 Young GC，迫使索引在无业务流量时完成晋升。重新接流后，Eden 区里只有朝生夕灭的 query 对象，Young GC 回到毫秒级。
+核心思路：在断流期间主动把 Eden 区打满，触发 Young GC，促使新索引在无业务流量时尽快晋升。重新接流后，Eden 区里只有朝生夕灭的 query 对象，Young GC 回到毫秒级。
 
 效果：索引切换时的 P99 恢复正常，系统可用率从 95% 提升到 99.995%。
 
@@ -232,7 +235,7 @@ GC(12) [ 482   3    0 ] [ 2255  0   2   0  140  ] 0
 
 **GC 本身不慢，慢的是等线程"靠边停车"。**
 
-### 3.3 第二步：揪出不肯停车的线程
+### 3.3 第二步：定位未及时进入安全点的线程
 
 ```bash
 -XX:+SafepointTimeout -XX:SafepointTimeoutDelay=2000
@@ -247,7 +250,7 @@ GC(12) [ 482   3    0 ] [ 2255  0   2   0  140  ] 0
    java.lang.Thread.State: RUNNABLE
 ```
 
-罪魁祸首是 `RpcServer.listener` 线程，处于 `RUNNABLE`——它在跑，但跑在一个没有 SafePoint 检查点的代码路径上。
+超时日志指出 `RpcServer.listener` 线程未及时抵达安全点，其状态为 `RUNNABLE`——它在运行，但可能跑在一个缺少 SafePoint 检查点的代码路径上。
 
 ### 3.4 第三步：为什么会没有 SafePoint？
 
@@ -307,7 +310,7 @@ while (true) {
 jmap -dump:format=b,file=heap.hprof <pid>
 ```
 
-MAT 的 Histogram 按 Retained Heap 排序：
+MAT 的 Histogram 按 Shallow Heap 排序（看对象自身占用）：
 
 ```txt
 char[]                         2,452,345,678 bytes    ← 24 亿字节！
@@ -335,7 +338,7 @@ jcmd <pid> VM.flags
 -XX:PretenureSizeThreshold=2097152    # 大于 2MB 的对象直接进老年代
 ```
 
-`PretenureSizeThreshold=2MB` 的含义：大于 2MB 的对象不经过 Eden / Survivor，直接分配到老年代。初衷是避免大对象在新生代来回复制。
+`PretenureSizeThreshold=2MB` 的含义：在支持该参数的收集器（如 Serial、ParNew、CMS）中，大于 2MB 的对象不经过 Eden / Survivor，直接分配到老年代。初衷是避免大对象在新生代来回复制。G1 对大对象分配路径的处理并不相同，不能仅凭参数已配置就认定超过阈值的对象一定会进入老年代；应以 GC 日志和堆分析确认。`jcmd <pid> VM.flags` 显示参数值只能证明它被配置，不能单独证明对当前收集器生效。
 
 但日志框架的 `StringBuilder` 在拼接长日志时，内部 `char[]` 会扩容到 2MB 以上——然后被这个参数判定为"大对象"，直接写入老年代。
 
@@ -383,11 +386,11 @@ Full GC 从每天 40 次降到不到 1 次，老年代使用率稳定在 35%。
 
 | 信号 | 工具 | 本案例编号 |
 | :-- | :-- | :-- |
-| Eden 每秒满 → Young GC 频率 > 1 次/秒 | `jstat -gcutil 1000` | 案例 7 |
-| Object Copy 阶段耗时异常 | G1 GC 日志 `real=` | 案例 8 |
-| GC 实际耗时（user）远小于停顿耗时（real） | GC 日志对比 user/real | 案例 9 |
-| spin 时间 > 100ms | `-XX:+PrintSafepointStatistics` | 案例 9 |
-| 大量等大 `char[]` 直接出现在老年代 | MAT Histogram 按 Shallow Heap 排序 | 案例 10 |
+| Eden 每秒满 → Young GC 频率 > 1 次/秒 | `jstat -gcutil 1000` | 案例一 |
+| Object Copy 阶段耗时异常 | G1 GC 日志 `real=` | 案例二 |
+| GC 实际耗时（user）远小于停顿耗时（real） | GC 日志对比 user/real | 案例三 |
+| spin 时间 > 100ms | `-XX:+PrintSafepointStatistics` | 案例三 |
+| 大量等大 `char[]` 直接出现在老年代 | MAT Histogram 按 Shallow Heap 排序 | 案例四 |
 
 > **上一篇：** [GC、资源与综合诊断案例](./chapter-03-cases-gc-resources.md)
 >

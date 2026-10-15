@@ -24,8 +24,8 @@ top -Hp <pid>
 # 3. 将线程 ID 转为十六进制
 printf "%x\n" <tid>
 
-# 4. 在 thread dump 中查找该线程
-jstack <pid> | grep -A 30 "<tid in hex>"
+# 4. 在 thread dump 中按 nid 匹配该线程（nid 为十六进制，不含 0x 前缀；建议 -A 行数取大些以保留完整栈）
+jstack <pid> | grep -A 40 "nid=0x<tid in hex>"
 ```
 
 输出的栈信息会告诉你这个线程在执行什么代码。常见的根因有四种：
@@ -49,16 +49,16 @@ jstack <pid> | grep -A 30 "<tid in hex>"
 
 特征：`top -Hp` 中 CPU 最高的不是应用线程而是 GC 线程。说明频繁 GC 导致 CPU 被 GC 线程占用。先查 GC 日志，确认是否 FGC 频繁。
 
-**根因三：锁竞争（自旋）**
+**根因三：锁竞争（监视器阻塞）**
 
 ```txt
 "Thread-2" #13 prio=5 os_prio=0 cpu=567823.12ms
-   java.lang.Thread.State: RUNNABLE
+   java.lang.Thread.State: BLOCKED
     at com.example.SharedResource.access(SharedResource.java:30)
-    - waiting to lock <0x00000007aab3a0d0>  ← 等待锁
+    - waiting to lock <0x00000007aab3a0d0>  ← 等待监视器锁
 ```
 
-特征：多个线程状态为 BLOCKED 或 RUNNABLE 但都在等同一把锁。持锁线程可能在做慢操作（I/O、慢查询）。
+特征：多个线程处于 BLOCKED 状态，等待同一个监视器（synchronized 锁）。持锁线程若在执行慢操作（I/O、慢查询），会让其他线程长时间进不去临界区。注意：监视器阻塞本身不消耗 CPU；若线程转储里大量线程是 RUNNABLE 且 CPU 持续偏高，更应怀疑忙循环或 CAS 自旋，而不是锁等待。
 
 **根因四：JIT 编译**
 
@@ -73,7 +73,7 @@ jstack <pid> | grep -A 30 "<tid in hex>"
 ### 3.1 获取方式
 
 ```bash
-# 方式 1：OOM 时自动生成（推荐，线上必开）
+# 方式 1：OOM 时自动生成（推荐开启；容器环境需确认 dump 目录可写且磁盘空间充足）
 -XX:+HeapDumpOnOutOfMemoryError
 -XX:HeapDumpPath=/path/to/dumps/
 
@@ -90,7 +90,7 @@ heapdump /path/to/heap.hprof
 
 **2. Histogram。** 按类统计对象数量和占用空间。找到"数量异常多"或"占用异常大"的类。
 
-**3. Dominator Tree。** 找到阻止 GC 回收的最大对象——这些对象持有了大量其他对象的引用。
+**3. Dominator Tree。** 按支配关系定位保留了大量堆内存的对象：某对象的 Retained Heap 是移除它后可随之释放的内存，真正的占用往往来自它支配的对象图，而非对象自身的浅堆大小。
 
 **4. Path to GC Roots。** 从某个对象出发，追溯到 GC Root 的引用链。回答"为什么这个对象没有被回收"。
 
@@ -122,14 +122,14 @@ MAT 告诉你：`CacheEntry` 对象占了堆的 45%，被 `CacheManager` 的 `ca
 com.example.CacheManager @ 0x7f8b2c012300
   └─ java.util.HashMap @ 0x7f8b2c012340
        └─ java.util.HashMap$Node[16384] @ 0x7f8b2c020000
-            └─ 4,523 x CacheEntry (每个 418KB)
+            └─ 4,523 x CacheEntry（每个约 418KB，为含关联引用的估算值，非对象浅堆）
 ```
 
-`CacheManager` 的 Retained Heap = 1.8GB，它阻止了这 4,523 个 CacheEntry 被 GC 回收。
+`CacheManager` 的 Retained Heap 约 1.8GB（MAT 计算的保留堆大小，非对象自身大小），说明这 4,523 个 CacheEntry 经它支配、当前仍可达而未被回收。
 
 **第三步：定位代码**
 
-CacheManager 是一个单例，`cache` 字段是一个只增不减的 HashMap。添加 TTL 和容量限制后问题解决。
+CacheManager 是单例，`cache` 字段只写入、不清理。确认条目确实只增不减后，再补 TTL 与容量限制；修复后对比不同时点的堆快照，确认条目数量与 Retained Heap 趋于稳定。
 
 ## 4. Thread Dump 分析
 
@@ -198,7 +198,7 @@ Found one Java-level deadlock:
     - locked <0x00000007aab3a0d0> (a java.lang.Object)
 ```
 
-`exec-5` 持有锁，但在做网络 I/O（socketRead0）——它在等数据库响应。这就是所有其他线程被阻塞的根因：**持锁线程在同步 I/O 上阻塞**。
+`exec-5` 持有锁，但在做网络 I/O（socketRead0）——它在等下游响应（例如数据库）。这就是所有其他线程被阻塞的根因：**持锁线程在同步 I/O 上阻塞**。注意：`socketRead0` 只说明涉及套接字读取，不能仅凭这一帧断定对端一定是数据库，还需结合连接对象与调用链确认。
 
 修复方向：将同步 I/O 移出 synchronized 块，或改用异步 I/O。
 
@@ -218,6 +218,8 @@ Arthas 是阿里开源的 Java 诊断工具，无需重启即可实时诊断线�
 | `ognl` | 执行表达式 | `ognl '@com.example.Config@getInstance()'` |
 
 ### 5.1 常用诊断场景
+
+> 说明：`trace` 跟踪的是匹配方法内部的调用耗时，不是分布式链路追踪，也不保证覆盖完整请求链路；`jad` 只能反映运行时加载类的反编译结果，不能单独证明部署制品版本（应另核对发布记录或制品校验值）；`watch` 与 `ognl` 在生产环境可能输出凭证、个人信息或大对象，也可能产生副作用，应限定观察字段、确认表达式无副作用，并在排障结束后及时停止。
 
 **场景 1：接口变慢**
 
@@ -296,6 +298,8 @@ JMC 提供自动分析功能，能标记出潜在的性能问题（如“方法�
 
 **第一步：看 JMC 的自动分析结果**
 
+（以下为根据录制数据整理的教学示意，并非特定版本 JMC 的原始输出；实际界面名称、规则结果与统计字段以所用版本为准。）
+
 JMC 打开 `.jfr` 文件后，左侧 "Rule Results" 中自动标记了问题：
 
 ```txt
@@ -327,6 +331,7 @@ JMC 打开 `.jfr` 文件后，左侧 "Rule Results" 中自动标记了问题：
 GC 日志是判断回收频率、停顿和空间增长的第一手资料。以下命令适用于 JDK 9+：
 
 ```bash
+# 以下为 JVM 启动参数（需随 java 命令传入，不能单独在 shell 中执行）
 # 常规信息
 -Xlog:gc*=info:file=gc.log:time,uptime,level,tags
 
@@ -405,23 +410,25 @@ JFR 中可关注 `CompilerCompilation`、`CompilerInlining` 和 `Deoptimization`
 | 锁竞争 | `jstack` / Arthas `thread -b` | JFR 的 Lock 事件 |
 | 确认线上代码 | Arthas `jad` | — |
 | 综合性能分析 | JFR（持续录制） | JMC 可视化分析 |
-| CodeCache 问题 | `jstat -compiler` | `-Xlog:compilation*` |
+| CodeCache 问题 | `-Xlog:compilation*`、JFR 编译事件 | `jstat -compiler`（仅看编译计数，不能代替容量观测） |
 
 ### 9.1 端到端排查案例：接口变慢
 
 **现象：** 某个 API 接口从 200ms 降到 3 秒。
 
-**第一步：快速定位是 CPU 问题还是 GC 问题**
+**第一步：确认 Full GC 是否与接口延迟峰值重合**
 
 ```bash
 # 看 GC 日志
 tail -f gc.log
-# 发现每 2 分钟一次 Full GC，每次耗时 1.5 秒 → GC 问题
+# 发现每 2 分钟一次 Full GC，每次耗时 1.5 秒
 
 # 确认堆状态
 jstat -gcutil <pid> 1000
 # O 区持续增长到 99% 后触发 FGC
 ```
+
+排查时对齐接口延迟、请求量与 GC 日志的时间戳：只有延迟峰值与 Full GC 停顿在时间上吻合，才能把接口变慢归因于 GC；否则还需检查 CPU、锁等待与下游耗时。
 
 **第二步：找到老年代中的大对象**
 
@@ -440,7 +447,7 @@ heapdump /tmp/heap.hprof
 
 **第三步：MAT 分析**
 
-Leak Suspects Report 显示 `com.example.ReportGenerator` 持有了 2GB 的 `ArrayList<ReportData>`。
+Leak Suspects Report 与 Retained Heap 分析显示，`com.example.ReportGenerator` 的引用链保留了约 2GB 的 `ArrayList<ReportData>` 对象图（示例数据）；还需检查该集合的生命周期，确认这些数据是否应继续存活。
 
 **第四步：定位代码**
 
@@ -453,23 +460,23 @@ jad com.example.ReportGenerator
 
 **第五步：修复并验证**
 
-将 `ArrayList` 改为请求级局部变量，或添加清理逻辑。修复后部署，用 `jstat` 确认老年代使用率稳定，Full GC 消失。
+将 `ArrayList` 改为请求级局部变量，或补充清理逻辑。修复后在相近负载下重新观察老年代使用趋势、Full GC 频率、接口延迟与对象保留情况，确认内存占用趋于稳定且业务数据未因清理而丢失。
 
 ## 10. JVM 核心参数速查 {#jvm-core-parameters}
 
 | 类别 | 参数 | 说明 |
 | :-- | :-- | :-- |
-| 堆内存 | `-Xms4g -Xmx4g` | 初始/最大堆，线上设为一致 |
-| 新生代 | `-Xmn2g` | 新生代大小 |
-| 栈大小 | `-Xss256k` | 每个线程的栈大小 |
+| 堆内存 | `-Xms4g -Xmx4g` | 初始/最大堆；设为相同值是常见部署策略，需结合容器内存限制与运行环境决定 |
+| 新生代 | `-Xmn2g` | 设置新生代大小；具体效果受收集器与 JDK 版本影响 |
+| 栈大小 | `-Xss256k` | 每个线程的栈大小（示例值；过小可能在深调用链触发 StackOverflowError，需结合调用深度与压测确定） |
 | GC 算法 | `-XX:+UseG1GC` | 选择收集器 |
-| GC 停顿 | `-XX:MaxGCPauseMillis=200` | G1 目标停顿时间 |
+| GC 停顿 | `-XX:MaxGCPauseMillis=200` | G1 的停顿目标，不是硬性上限保证；实际停顿取决于堆状态与工作负载 |
 | GC 日志 | `-Xlog:gc*=info:file=gc.log` | JDK 9+ 统一格式 |
 | OOM dump | `-XX:+HeapDumpOnOutOfMemoryError` | OOM 时自动 dump |
 | dump 路径 | `-XX:HeapDumpPath=/path/` | dump 文件存储位置 |
-| Metaspace | `-XX:MaxMetaspaceSize=256m` | 限制 Metaspace 大小 |
-| 压缩对象引用 | `-XX:+UseCompressedOops` | 64 位 HotSpot 默认开启 |
-| 压缩类指针 | `-XX:+UseCompressedClassPointers` | 64 位 OpenJDK 21 HotSpot 默认开启 |
+| Metaspace | `-XX:MaxMetaspaceSize=256m` | 限制 Metaspace 上限（示例值，需结合类加载规模确定） |
+| 压缩对象引用 | `-XX:+UseCompressedOops` | 64 位 HotSpot 在符合条件时通常默认启用，以目标进程实际配置为准 |
+| 压缩类指针 | `-XX:+UseCompressedClassPointers` | 默认行为受 JVM 配置与运行参数影响，以目标进程实际状态为准 |
 
 ## 11. 实战案例集
 
@@ -495,7 +502,7 @@ jad com.example.ReportGenerator
   - Tomcat LimitLatch —— 连接数配置导致服务间歇性假死
   - Netty 直接内存泄漏 —— 堆正常但容器被 OOMKilled
 
-> JVM 诊断专题到此结束。从字节码 → 类加载 → 运行时数据区 → 对象布局 → GC → JIT → 线上排查，读者已经建立起 Java 代码从源码到机器执行的完整心智模型。
+> JVM 诊断专题到此结束。从字节码 → 类加载 → 运行时数据区 → 对象布局 → GC → JIT → 线上排查，本专题把 JVM 运行机制与线上诊断工具连成了一条主线。
 >
 > **与后续专题的连接：**
 >

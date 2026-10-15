@@ -8,7 +8,7 @@
 
 | 错误现象 | 含义 | 常见根因 | 排查方向 |
 | :-- | :-- | :-- | :-- |
-| `ConnectException: Connection refused` | 目标端口没有进程监听 | 服务未启动 / 端口配错 / 防火墙 DROP | 检查服务状态、端口、iptables |
+| `ConnectException: Connection refused` | 连接被主动拒绝（目标端口无进程监听，或对端/策略返回 RST） | 服务未启动 / 端口配错 / 主动 reject 的网络策略 | 检查服务状态、端口、iptables；注意防火墙静默丢包更常表现为超时而非拒绝 |
 | `SocketTimeoutException: connect timed out` | 连接建立超时 | 网络不可达 / 防火墙静默丢包 / SYN 队列满 | ping / telnet / ss -s |
 | `SocketTimeoutException: read timed out` | 读数据超时 | 对端处理慢 / 网络拥塞 / 对端 GC | 抓包分析 RTT / 查对端日志 |
 | `Connection reset by peer` | 对端强制关闭连接（RST） | 对端进程崩溃 / 负载均衡器超时 / 半开连接 | 查对端状态 / 抓包看 RST |
@@ -28,19 +28,24 @@ TCP 连接状态是网络排查的第一手信息。两个最容易出问题的�
 
 $ ss -s
 TCP:   28469 (estab 1204, closed 25000, orphaned 0, timewait 24800)
-                  ↑ closed 大部分是 TIME-WAIT
+
+按状态精确统计 TIME-WAIT（不依赖 ss -s 的汇总字段）：
+$ ss -Htan state time-wait | wc -l
+$ ss -tan state time-wait        # 列出具体连接与本地/远端端点
+
+注意：TIME-WAIT 数量多只说明存在大量该状态连接，不能仅凭数量断言端口已耗尽；还需确认本地端口范围、目标地址分布，以及是否出现 EADDRNOTAVAIL 等实际故障。
 
 根因：HTTP 短连接、RPC 短连接频繁创建关闭
 ```
 
-```bash
-# 排查与缓解
-# 1. 先确认 TIME-WAIT 是否真的造成端口或连接跟踪表耗尽
-net.ipv4.tcp_tw_reuse = 1          # 在适用的 Linux 场景下允许复用 TIME-WAIT 地址
-net.ipv4.tcp_fin_timeout = 30      # 缩短 FIN-WAIT-2 超时；不直接回收 TIME-WAIT
+```conf
+# /etc/sysctl.conf 片段（需 sysctl -p 生效；或运行时用 sysctl -w 临时设置，不代表建议直接在生产执行）
+# 先确认 TIME-WAIT 是否真的造成端口或连接跟踪表耗尽（见上一步的状态统计与 EADDRNOTAVAIL 迹象）
+# 仅当本地端口分配确为瓶颈时，再评估以下内核参数；取值与默认值随 Linux 内核版本变化，1 并非所有环境都适用
+net.ipv4.tcp_tw_reuse = 1          # 满足协议安全条件时复用 TIME-WAIT 地址；不等于缩短 TIME-WAIT 定时器
+net.ipv4.tcp_fin_timeout = 30      # 控制孤儿连接的 FIN-WAIT-2 超时；不影响 TIME-WAIT 保留时间
 
-# 2. 连接池化（根本解决）
-# 将短连接改为长连接 + 连接池，避免频繁建连/断连
+# 连接复用与连接池：若高频短连接确为 TIME-WAIT 增长主因，可评估减少不必要的建连/断连；并非所有场景的通用解
 ```
 
 **CLOSE-WAIT 过多：**
@@ -76,7 +81,7 @@ public void handleRequest(Socket socket) {
          InputStream in = socket.getInputStream()) {
         byte[] buf = new byte[1024];
         int n = in.read(buf);
-        if (n == -1) return; // 对端关闭
+        if (n == -1) return; // 输入流到达 EOF；对端可能已关闭发送方向（TCP 允许半关闭）
         // 处理数据...
     } catch (IOException e) {
         // 连接自动关闭
@@ -228,11 +233,13 @@ tcpdump -i eth0 host api.example.com and port 443 -w /tmp/api_timeout.pcap
 curl -v --connect-timeout 5 --max-time 10 https://api.example.com/health
 
 # Step 3: 用 Wireshark 打开分析
-# 如果看到：
-# - SYN 发出但没有 SYN+ACK → 网络不通或对端端口未监听
-# - SYN+ACK 正常但后续数据包慢 → 对端处理慢
-# - 大量 TCP 重传 → 网络质量差
-# - RST 被发出 → 对端主动拒绝
+# 如果看到（以下仅为“观察点看到了什么”，不能直接等同于根因）：
+# - 有 SYN 但无 SYN+ACK：可能是路径丢包、策略丢弃或回程异常，也可能是对端未响应；先确认 SYN 是否重传并比对两端抓包
+# - SYN+ACK 正常但后续数据慢：可能是对端处理慢、接收窗口限制或后续网络延迟，需分析请求发出/响应开始的时间差
+# - 大量重传：优先核对重传、重复 ACK 与序列号，并区分真实丢包与单侧抓包缺失（Wireshark 的 retransmission 是疑似标签）
+# - 出现 RST：只说明观察点看到复位报文，需核对源地址/端口/时序，区分主机内核、中间设备与应用行为
+# 注意：本例抓的是 443 端口 HTTPS 流量；未做 TLS 解密时不能用 http.request.method / http.response.code 等明文过滤器，
+#       应改用 TCP 握手、重传、RST 与 TLS 握手时序分析。
 ```
 
 ## 3. Java 网络诊断
@@ -249,7 +256,7 @@ ss -tnp | grep 8080
 # 查看连接状态分布
 ss -tn | awk '{print $1}' | sort | uniq -c | sort -rn
 
-# 查看 ESTABLISHED 连接数（按远程 IP 统计）
+# 查看 ESTABLISHED 连接数（按远程 IP 统计；仅适用于常见 IPv4 端点，IPv6 地址含冒号需另行解析）
 ss -tn state established | awk '{print $5}' | cut -d: -f1 | sort | uniq -c | sort -rn
 
 # 查看哪些进程在监听端口
@@ -277,8 +284,8 @@ ESTAB   0       0       10.0.1.1:8080       10.0.1.2:54321
 # rtt:1.5/0.75 — RTT 1.5ms，抖动 0.75ms
 # cwnd:10     — 拥塞窗口 10 个 MSS
 # ssthresh:7  — 慢启动阈值 7
-# Recv-Q      — 接收队列（> 0 说明应用读取慢）
-# Send-Q      — 发送队列（> 0 说明网络发送慢）
+# Recv-Q      — 已接收但未被应用读取的数据量（持续增大可能说明应用消费不及时，但只是某时刻的队列状态）
+# Send-Q      — 尚未被对端确认的数据量（持续偏高可能说明数据未得到确认；监听 socket 的队列字段语义不同）
 ```
 
 ### 3.2 jstack 分析线程状态
@@ -297,6 +304,8 @@ grep -A 5 "BLOCKED\|WAITING\|TIMED_WAITING" /tmp/thread_dump.txt | grep -i "sock
 ```
 
 **典型的网络相关线程栈：**
+
+> 以下类名、行号与线程名为特定 JDK 实现下的示意栈，随 JDK 版本与实现变化；判断时关注线程状态与调用路径，而非具体帧名。
 
 ```txt
 # 1. 正常的 NIO 线程（Selector 等待事件）
@@ -319,7 +328,7 @@ grep -A 5 "BLOCKED\|WAITING\|TIMED_WAITING" /tmp/thread_dump.txt | grep -i "sock
         at java.lang.Object.wait(Native Method)
         at org.apache.commons.pool2.impl.GenericObjectPool.borrowObject(GenericObjectPool.java:449)
 
-# 4. SSL 握手阻塞
+# 4. TLS 数据处理路径（SSLEngine.wrap 属正常加密处理，不能单凭方法名判定握手阻塞）
 "https-jsse-nio-8443-exec-1" #30 daemon prio=5
    java.lang.Thread.State: RUNNABLE
         at sun.security.ssl.SSLEngineImpl.wrap(SSLEngineImpl.java:122)
@@ -347,6 +356,7 @@ trace org.apache.http.impl.client.CloseableHttpClient execute
 # 3. 监控连接池状态
 # 查看 Druid 连接池的活跃连接数
 ognl '@com.alibaba.druid.stat.DruidStatManagerFacade@getInstance().getDataSourceStatDataList().{#this["ActiveCount"]}'
+# 注意：ActiveCount 字段名与返回结构随 Druid 版本变化，使用前先核对实际返回对象，勿当作通用命令
 
 # 4. 查看 JVM 网络相关的系统属性
 sysprop | grep -i "socket\|nio\|ssl\|timeout"
@@ -354,10 +364,11 @@ sysprop | grep -i "socket\|nio\|ssl\|timeout"
 # 5. 反编译线上代码（确认是否有 bug）
 jad com.example.MyHttpClient
 
-# 6. 查看堆中的连接对象
+# 6. 查看堆中的连接对象（按需使用的高级手段，有额外开销）
 vmtool --action getInstances \
   --className java.net.Socket \
   --express 'instances.{? #this.isConnected()}.size()'
+# 注意：isConnected() 表示曾成功连接，不等于当前仍打开；该枚举不能据此直接得出活跃连接数
 ```
 
 **Arthas 诊断流程：**
@@ -378,8 +389,8 @@ vmtool --action getInstances \
 │  Step 4: ognl 查看连接池/线程池状态                       │
 │    → 确认是否资源耗尽                                    │
 │                                                         │
-│  Step 5: jad 反编译确认代码逻辑                          │
-│    → 排除代码 bug（如忘记 close 连接）                    │
+│  Step 5: jad 反编译核对线上实际类                          │
+│    → 确认关键调用路径与源码一致（仍需结合栈/日志验证）       │
 └─────────────────────────────────────────────────────────┘
 ```
 
