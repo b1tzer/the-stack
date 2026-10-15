@@ -10,13 +10,13 @@
 
 ### 1.2 HikariCP 核心参数
 
-HikariCP 是 Spring Boot 2.x 起的默认连接池，以极致的性能和简洁的设计著称。它的快来自两个关键设计：用 `ConcurrentBag` 替代传统的锁竞争，用 `javassist` 字节码生成替代 JDK 动态代理。
+HikariCP 是 Spring Boot 2.x 起的默认连接池，以高性能和简洁的设计著称。它的快来自两个关键设计：用 `ConcurrentBag` 替代传统的锁竞争，用 `javassist` 字节码生成替代 JDK 动态代理。
 
 以下是核心参数的调优指南：
 
 | 参数 | 含义 | 默认值 | 建议值 | 调优说明 |
 | :-- | :-- | :-- | :-- | :-- |
-| `maximumPoolSize` | 最大连接数 | 10 | CPU核数×2+磁盘数 | PostgreSQL 官方公式；MySQL 通常 10-30 足够 |
+| `maximumPoolSize` | 最大连接数 | 10 | 按负载压测确定（PostgreSQL 社区常用启发式：CPU核数×2+磁盘数，仅作起点） | 无普适公式；MySQL 经验值约 10-30，仍应以压测与数据库并发能力为准 |
 | `minimumIdle` | 最小空闲连接数 | 等于 maximumPoolSize | 等于 maximumPoolSize | 保持连接池满载，避免突发流量时临时建连 |
 | `connectionTimeout` | 获取连接最大等待时间 | 30000ms | 30000ms（30s） | 太短会在高峰时误报，太长会让请求堆积 |
 | `idleTimeout` | 空闲连接存活时间 | 600000ms（10min） | 根据业务调整 | 低峰时回收多余连接，配合 minimumIdle 使用 |
@@ -24,7 +24,7 @@ HikariCP 是 Spring Boot 2.x 起的默认连接池，以极致的性能和简洁
 | `leakDetectionThreshold` | 连接泄漏检测阈值 | 0（禁用） | 60000ms（60s） | 开发/测试环境开启，生产环境按需 |
 | `validationTimeout` | 连接有效性检测超时 | 5000ms | 1000-3000ms | 心跳检测的超时，通常不需要调 |
 
-**关键原则**：连接池不是越大越好。每个连接都会占用数据库的内存和线程资源。一个 100 连接的池，对数据库来说是 100 个并发工作线程——如果数据库 CPU 已经打满，再多连接只是让排队更长。
+**关键原则**：连接池不是越大越好。每个连接都会占用数据库的内存和线程资源。一个允许 100 个连接同时被使用的池，最多向数据库发起 100 个并发会话；数据库是否将其映射为 100 个工作线程，取决于自身并发架构。若数据库 CPU 已打满，再加连接只会让排队更长。
 
 ```txt
                 应用连接池                    数据库
@@ -93,7 +93,7 @@ for (User user : userList) {
 总耗时 = 10000 × 7ms = 70 秒
 ```
 
-每次插入都是一次完整的网络往返加一次事务提交。10000 条数据，70 秒才能跑完——而且数据库的 redo log 刷盘次数也是 10000 次。
+每次插入都是一次完整的网络往返；若每条语句都独立提交，还附带一次事务提交。按每次 7ms 估算，10000 条约需 70 秒（示例估算，实际取决于驱动与协议）；redo log 的刷盘次数同样受事务边界与组提交配置影响，并非简单等于语句数。
 
 ### 2.2 JDBC Batch
 
@@ -129,6 +129,8 @@ public void batchInsert(List<User> users) throws SQLException {
 }
 ```
 
+> 注意：该示例每 1000 条提交一次，中途抛异常时已提交的批次不会被后续回滚撤销。若要求整批原子成功，应改为循环结束后统一 `commit()`，并在 `catch` 中用 `conn.rollback()` 回滚未提交的批次。批量收益来自减少客户端与数据库的交互和提交开销，具体取决于 JDBC 驱动是否真正合并批次、事务边界与单条语句成本。
+
 ```txt
 时间轴（批量模式）：
 
@@ -137,8 +139,8 @@ public void batchInsert(List<User> users) throws SQLException {
 │   ~20ms          │  ~20ms  │     │ ~20ms  │
 └──────────────────────────────────────┘
 
-总耗时 ≈ 200ms（对比逐条：70,000ms）
-提升：350 倍
+总耗时降到约 200ms 量级（示例估算，实际取决于数据库与驱动）
+提升：相对逐条通常可降低一个数量级以上，并非固定倍数（实际收益取决于数据库、驱动、批次大小及事务配置，以实测为准）
 ```
 
 ### 2.3 MyBatis 批量操作
@@ -148,7 +150,7 @@ MyBatis 提供了两种批处理方式：
 **方式一：foreach 拼接 SQL**
 
 ```xml
-<!-- 一次 INSERT 多行，受限于 max_allowed_packet -->
+    <!-- 一次 INSERT 多行；SQL 长度与参数数量受数据库限制（MySQL 中为 max_allowed_packet）-->
 <insert id="batchInsert" parameterType="list">
     INSERT INTO users (name, email, age) VALUES
     <foreach collection="list" item="u" separator=",">
@@ -176,8 +178,8 @@ try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH, fals
         mapper.insert(users.get(i));
 
         if ((i + 1) % 500 == 0) {
-            session.flushStatements();  // 刷新批次
-            session.clearCache();       // 防止内存溢出
+        session.flushStatements();  // 执行当前积累批次
+        session.clearCache();       // 清理 MyBatis 一级缓存
         }
     }
 
@@ -191,10 +193,10 @@ try (SqlSession session = sqlSessionFactory.openSession(ExecutorType.BATCH, fals
 | 特性 | foreach 拼接 | ExecutorType.BATCH |
 | :-- | :-- | :-- |
 | 网络往返 | 1 次 | N/batchSize 次 |
-| SQL 长度限制 | 受 max_allowed_packet 限制 | 无特殊限制 |
+| SQL 长度限制 | 受 max_allowed_packet 等数据库限制 | 不拼接超长单条 SQL，但仍受 JDBC 驱动、批次大小与事务资源约束 |
 | 内存占用 | 低 | 较高（缓存 Statement） |
 | 适用场景 | 小批量（< 1000 条） | 大批量（万级以上） |
-| 错误处理 | 整批失败 | 可定位到具体批次 |
+| 错误处理 | 整批失败 | 可定位到失败批次（非单条记录） |
 
 ## 3. 数据访问链路分析
 
@@ -231,13 +233,13 @@ public class DaoMetricsAspect {
 
     @Around("execution(* com.example.repository.*.*(..))")
     public Object measureDaoTime(ProceedingJoinPoint pjp) throws Throwable {
-        return daoTimer.record(() -> {
-            try {
-                return pjp.proceed();
-            } catch (Throwable t) {
-                throw new RuntimeException(t);
-            }
-        });
+        // 用 try/finally 记录耗时，异常原样传播，不改变调用方看到的异常类型与事务回滚语义
+        final Timer.Sample sample = Timer.start(registry);
+        try {
+            return pjp.proceed();
+        } finally {
+            sample.stop(daoTimer);
+        }
     }
 }
 ```
@@ -275,8 +277,8 @@ public class DaoMetricsAspect {
 3. 定位泄漏代码
    常见原因：
    - 手动获取 Connection 后未在 finally 中关闭
-   - 使用 @Transactional 但方法内抛出未捕获异常
-   - 异步任务中使用了主线程的事务连接
+   - 事务或数据库操作耗时过长，连接被长期占用而未释放
+   - 异步任务自行获取连接后未正确释放，或其并发量超过连接池承载能力
 ```
 
 连接泄漏的典型代码：
@@ -304,7 +306,7 @@ public void goodExample() {
 | :-- | :-- | :-- | :-- |
 | 接口 RT 高 | SQL 全表扫描 | EXPLAIN 分析执行计划 | 添加合适索引 |
 | 接口 RT 高 | N+1 查询 | 开启 SQL 日志统计查询次数 | 使用 JOIN 或批量查询 |
-| 连接超时 | 连接池太小 | 查看 activeConnections | 增大 maximumPoolSize |
+| 获取连接超时 | 连接池容量不足，或连接被慢 SQL/长事务长期占用 | 同时看 activeConnections、等待线程、连接使用时长、慢 SQL 与数据库负载 | 先缩短连接占用、修复泄漏，确属容量不足再调整 maximumPoolSize |
 | 连接超时 | 连接泄漏 | leakDetectionThreshold | 用 try-with-resources |
 | 连接超时 | 慢 SQL 占用连接过久 | SQL 耗时监控 | 优化 SQL 或加超时 |
 | 死锁 | 交叉加锁 | 数据库死锁日志 | 统一加锁顺序 |
@@ -327,7 +329,7 @@ public void goodExample() {
 // ❌ SQL 注入风险 + 无法复用执行计划
 String sql = "SELECT * FROM users WHERE name = '" + name + "'";
 
-// ✅ 安全 + 执行计划可缓存
+// ✅ 安全，且可能获得执行计划复用收益（取决于驱动与数据库是否支持服务端预编译）
 String sql = "SELECT * FROM users WHERE name = ?";
 ps.setString(1, name);
 ```
@@ -361,13 +363,15 @@ public void updateUser(User user) {
 }
 ```
 
+> 注意：同一 Bean 内 `goodExample()` 直接调用 `updateUser()` 属于自调用，不会经过 Spring 事务代理，`@Transactional` 不会生效。上例仅用于说明「事务边界应尽量缩小」的原则；实际应通过事务性 Outbox 或经代理调用保证事务生效。
+
 **5. 批处理替代逐条操作**
 
 导入、同步、报表生成等场景通常可减少网络往返次数，但具体收益取决于数据库协议、批量支持、事务边界和单条语句耗时，应通过压测比较逐条与批量执行。
 
 **6. 监控是优化的前提**
 
-没有数据，优化就是盲人摸象。至少监控以下三样东西：
+每次调整都应保留调整前基线。至少对比以下三样东西：
 
 - **慢查询日志**：找出最慢的 SQL
 - **连接池指标**：确认池大小是否合理
