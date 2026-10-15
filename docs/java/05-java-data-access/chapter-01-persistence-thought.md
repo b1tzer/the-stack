@@ -81,7 +81,7 @@ public class PremiumOrder extends Order {
 | **关联方式** | 对象引用（`user.getOrder()`） | 外键（`user_id` 列） |
 | **集合表达** | `List<OrderItem>` 内嵌于对象 | 独立的 `order_item` 表 + 外键 |
 | **类型体系** | 支持继承、多态、接口 | 无继承，扁平的表结构 |
-| **标识** | 对象引用（内存地址）或 `equals()` | 主键（Primary Key） |
+| **标识** | 引用身份用 `==` 判断；`equals()` 取决于类的实现 | 主键（Primary Key） |
 | **生命周期** | GC 自动管理 | 显式 INSERT/UPDATE/DELETE |
 | **查询方式** | 沿对象图导航（`order.getBuyer().getName()`） | SQL 声明式查询（JOIN） |
 | **事务边界** | 无原生概念 | 显式 BEGIN/COMMIT/ROLLBACK |
@@ -134,13 +134,13 @@ try (ObjectInputStream ois = new ObjectInputStream(
 
 - **无法查询**：想找所有北京的用户？你得把整个文件读出来，逐个反序列化，然后在内存里过滤。
 - **格式不透明**：序列化后的二进制数据人类不可读，调试困难。
-- **版本兼容性差**：`User` 类加了一个字段，旧的序列化文件可能无法反序列化。
-- **无并发控制**：多线程同时读写同一个文件，数据必乱。
+- **版本需要管理**：新增字段并不必然导致反序列化失败，但当 `serialVersionUID`、类结构或自定义序列化逻辑发生不兼容变化时，旧数据可能无法按预期读取。
+- **无内置并发控制**：多进程或线程同时写同一文件不会自动协调写入。可以用锁或版本校验避免并发覆盖；原子替换能避免读者读到写入一半的文件，但不能单独防止并发覆盖，否则仍可能出现写入冲突或数据损坏。
 - **性能瓶颈**：每次查询都要全量反序列化，数据量大了根本扛不住。
 
 除了 JDK 原生序列化，还有 JSON、XML、Protocol Buffers 等格式可以做类似的文件持久化。它们各有优势（JSON 可读、Protobuf 高效），但本质上都是"把对象变成字节流存起来"，无法解决结构化查询和并发访问的问题。
 
-**适用场景**：配置文件、缓存序列化、跨进程数据传输。不适合业务数据持久化。
+**适用场景**：配置文件、缓存序列化、跨进程数据传输。它不宜直接替代需要复杂查询、事务和并发更新的业务数据库。
 
 ### 3.2 直接 SQL：JDBC 手动映射
 
@@ -172,7 +172,7 @@ try (PreparedStatement ps = connection.prepareStatement(sql)) {
 }
 ```
 
-JDBC 给了你完全的 SQL 控制权，性能可以调到极致。但代价是大量的样板代码（boilerplate）——每一行 SQL 都要手动绑定参数，每一个结果集都要手动映射字段。一个复杂查询的映射代码可能比业务逻辑还长。
+JDBC 允许开发者直接编写 SQL，并控制参数绑定、结果集映射和事务调用。它不会自动消除低效查询，但在需要精细控制具体 SQL 时，直接使用 JDBC 往往更清楚实际执行了什么。但代价是大量的样板代码（boilerplate）——每一行 SQL 都要手动绑定参数，每一个结果集都要手动映射字段。一个复杂查询的映射代码可能比业务逻辑还长。
 
 更麻烦的是，JDBC 不处理对象关联。`Order` 关联了 `User` 和 `List<OrderItem>`，你得自己写多条 SQL，自己组装对象图。事务管理也需要手动 `connection.commit()` 和 `connection.rollback()`。
 
@@ -201,7 +201,9 @@ public class User {
 
 // 使用时
 User user = entityManager.find(User.class, 1L);
-System.out.println(user.getOrders().size()); // 自动加载关联的订单
+
+// `@OneToMany` 默认延迟加载，访问关联时是否触发额外查询取决于抓取策略与持久化上下文状态
+System.out.println(user.getOrders().size());
 ```
 
 ORM 框架可以处理 SQL 生成、参数绑定、结果映射和部分关联加载；事务边界、抓取策略和生成 SQL 的质量仍由应用配置与开发者控制。完成这些配置后，常规持久化流程可以交给框架执行。
@@ -221,7 +223,7 @@ ORM 框架可以处理 SQL 生成、参数绑定、结果映射和部分关联�
 | **SQL 控制** | 无（不用 SQL） | 完全控制 | 部分/自动生成 |
 | **开发效率** | 低 | 低 | 高 |
 | **查询能力** | 无结构化查询 | 完整 SQL | 受限（可扩展原生 SQL） |
-| **并发支持** | 无 | 需手动管理 | 框架管理事务/锁 |
+| **并发与事务** | 需自行设计同步、原子性与恢复机制 | 通过数据库事务、锁及应用代码控制 | 可集成事务管理并提供映射支持，仍需设计事务边界与并发策略 |
 | **学习成本** | 低 | 中（需熟悉 JDBC API + SQL） | 中高（需掌握框架概念） |
 | **性能调优空间** | 小 | 大 | 中（需理解框架行为） |
 | **适用场景** | 配置/缓存/传输 | 性能敏感/复杂查询 | 业务系统主流方案 |
@@ -253,7 +255,7 @@ JDBC 1.0   EJB 2.x CMP   Hibernate 2  JPA 1.0    Spring Data    响应式/云原
 
 **JDBC 1.0（1997）—— 基础设施**
 
-Sun 公司在 JDK 1.1 中引入了 JDBC API，定义了 Java 访问关系数据库的标准接口。从此，Java 程序员有了统一的方式来连接数据库、执行 SQL、处理结果集。JDBC 是一切的基础，后续所有持久化框架底层都依赖它。
+Sun 公司在 JDK 1.1 中引入了 JDBC API，定义了 Java 访问关系数据库的标准接口。从此，Java 程序员有了统一的方式来连接数据库、执行 SQL、处理结果集。JDBC 是 Java 关系型数据库访问的标准 API，也是大多数关系型持久化框架的底层基础。
 
 ```java
 // 早期 JDBC 的典型写法
@@ -308,6 +310,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByCity(String city);        // 按方法名自动生成 SQL
     List<User> findByNameContaining(String name);
     @Query("SELECT u FROM User u WHERE u.email LIKE %:domain%")
+    // 演示 @Query 声明 JPQL；此例为包含匹配，并非严格按 @域名 后缀匹配
     List<User> findByEmailDomain(@Param("domain") String domain);
 }
 ```

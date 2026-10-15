@@ -9,18 +9,18 @@ Druid 是阿里巴巴开源的数据库连接池。它和 HikariCP 解决同一�
 | 维度 | HikariCP | Druid |
 | :-- | :-- | :-- |
 | 定位 | 以连接管理与轻量实现为设计取向 | 连接池 + 监控 + 安全能力 |
-| SQL 监控 | 无（需外部工具） | 内置 `StatFilter`，统计耗时、慢查询 |
-| SQL 防火墙 | 无 | 内置 `WallFilter`，防注入 |
+| SQL 监控 | 不内置 Druid 式的 SQL 统计与监控台，需外部工具补充 | 内置 `StatFilter`，统计耗时、慢查询 |
+| SQL 防火墙 | 无内置与 `WallFilter` 对应的 SQL 防火墙 | 内置 `WallFilter`，防注入 |
 | Web/接口监控 | 无 | 内置 `WebStatFilter`，统计 URI / Session |
 | 监控台 | 无 | 内置 Web 页面 `/druid/` |
 | 性能 | 实现以 `ConcurrentBag` 为主；实际吞吐需压测 | 功能更全；实际吞吐需压测 |
-| 默认 | Spring Boot 2.x 起默认 | 需手动引入 |
+| 默认配置 | 常见 JDBC 自动配置场景下优先使用 | 通常需引入 Druid Starter 并启用对应自动配置 |
 
 连接池为什么存在和通用容量模型见[JDBC 性能瓶颈与连接池](./chapter-03-jdbc-performance-pool.md)，HikariCP 的参数、指标与调优见[数据访问性能优化](./chapter-08-performance.md)。本章只讲 Druid 比 HikariCP 多出来的东西。
 
 ### 组件全景
 
-Druid 的能力来自三条互相独立的线：
+Druid 的功能由连接池、JDBC Filter、Web 过滤器和监控 Servlet 等组件协同提供：
 
 | 组件 | 类型 | 作用 |
 | :-- | :-- | :-- |
@@ -50,15 +50,23 @@ Druid 的能力来自三条互相独立的线：
 ### 引入依赖
 
 ```xml
+<!-- Spring Boot 2.x -->
 <dependency>
     <groupId>com.alibaba</groupId>
     <artifactId>druid-spring-boot-starter</artifactId>
     <version>1.2.23</version>
 </dependency>
+
+<!-- Spring Boot 3.x（Jakarta EE 9+、JDK 17+）使用专用 starter，坐标不同 -->
+<dependency>
+    <groupId>com.alibaba</groupId>
+    <artifactId>druid-spring-boot-3-starter</artifactId>
+    <version>1.2.23</version>
+</dependency>
 ```
 
 ::: warning 版本锚点
-Spring Boot 3.x 使用 `druid-spring-boot-3-starter`（Jakarta EE 9+、JDK 17+）；Spring Boot 2.x 使用 `druid-spring-boot-starter`。两者配置前缀一致，仅坐标不同。
+Spring Boot 3.x 使用 `druid-spring-boot-3-starter`（Jakarta EE 9+、JDK 17+）；Spring Boot 2.x 使用 `druid-spring-boot-starter`。两者配置前缀一致，仅坐标不同，不要混用。
 :::
 
 ### 最小配置
@@ -78,7 +86,9 @@ spring:
       max-wait: 60000
 ```
 
-引入 starter 后，Spring Boot 自动配置会把 `DataSource` 换成 `DruidDataSource`，无需写 Java 代码。
+以上容量参数为演示配置方式所用，不代表适用于所有应用的推荐值，应按实际并发与数据库负载调整。
+
+引入与 Spring Boot 版本匹配的 Druid Starter 后，在其自动配置条件满足、且没有被其他配置覆盖数据源选择的情况下，Spring Boot 会创建 `DruidDataSource`，通常无需写 Java 代码。
 
 ## SQL 观测与防护
 
@@ -115,7 +125,7 @@ spring:
 [main] INFO  com.alibaba.druid.filter.stat.StatFilter - slow sql 2341 millis. select * from orders where user_id = 123 and status = 'PAID' order by create_time desc[]
 ```
 
-关键字段：`slow sql <耗时> millis` 后面紧跟完整 SQL。定位慢查询时直接 `grep "slow sql"` 即可。
+关键字段：`slow sql <耗时> millis` 后面紧跟完整 SQL。定位慢查询时可先用 `grep "slow sql"` 从应用日志中筛选慢 SQL 记录，再结合执行计划、数据库负载和相关时间段的监控指标判断耗时原因。
 
 #### 逐条 SQL 日志
 
@@ -135,7 +145,7 @@ spring:
 
 #### `merge-sql` 的作用
 
-不加 `merge-sql`，`select * from user where id = 1` 和 `id = 2` 是两条独立统计；开启后合并为 `select * from user where id = ?` 一条。监控台里的 SQL 列表会干净很多，也更能反映「这条 SQL 模板」的真实频次。
+不加 `merge-sql`，`select * from user where id = 1` 和 `id = 2` 是两条独立统计；开启后合并为 `select * from user where id = ?` 一条。监控台里的 SQL 列表会干净很多，也更便于观察某个 SQL 模板在 Druid 统计范围内的调用频次，但不能据此认定所有实际执行都已被完整捕获。
 
 ### SQL 防火墙
 
@@ -149,8 +159,8 @@ spring:
         wall:
           enabled: true
           config:
-            drop-table-allow: false   # 禁止 DROP TABLE
-            delete-allow: false       # 禁止 DELETE
+            drop-table-allow: false   # 禁止 DROP TABLE 类操作
+            delete-allow: false       # 禁止 DELETE；启用前确认业务确实不需要删除操作
 ```
 
 被拦截的 SQL 会抛异常，日志类似：
@@ -177,7 +187,7 @@ spring:
         session-stat-max-count: 1000
 ```
 
-`exclusions` 必须排除静态资源和 `/druid/*`，否则监控台会把对自己的访问也统计进去。
+`exclusions` 用于排除不需要统计的请求。通常可以排除静态资源，以减少无关数据；如果不希望监控台自身的请求进入 URI 统计，也可以排除 `/druid/*`。具体规则应根据项目的 URL 结构和监控目的调整。
 
 ### Spring 监控
 
@@ -207,7 +217,7 @@ spring:
         reset-enable: false         # 关闭「重置统计」按钮，防误清
 ```
 
-启动后访问 `http://localhost:8080/druid/`。监控台分多个标签页，核心是前三个：
+启动后访问 `http://localhost:8080/druid/`。监控台分多个标签页：
 
 | 标签页 | 内容 |
 | :-- | :-- |
@@ -230,7 +240,7 @@ SQL 监控列表的形态示意：
 ```
 
 ::: warning 安全
-`/druid/` 暴露全部 SQL 与表结构。生产环境必须设置 `login-username` / `login-password`，并用 `allow` 限制到运维网段；`deny` 优先于 `allow`。
+`/druid/` 可能暴露 SQL 文本、数据库对象信息与业务访问特征。生产环境必须设置 `login-username` / `login-password`，并用 `allow` 限制到运维网段；`deny` 优先于 `allow`。
 :::
 
 ### JSON API
@@ -245,15 +255,15 @@ GET /druid/weburi.json        # URI 访问统计
 GET /druid/spring.json        # Spring 方法监控
 ```
 
-返回为 JSON，可直接被 Prometheus exporter 或定时任务消费。
+这些接口返回 Druid 的统计数据，可用于排障脚本或自建采集程序。若要接入 Prometheus，需要编写或使用适配的 exporter，把 JSON 字段转换为 Prometheus 指标，并处理采集频率、指标类型、标签基数与接口访问权限，不能仅凭接口返回 JSON 就认为它能被 Prometheus 直接抓取。
 
 ## 连接泄漏与安全
 
 ### 连接泄漏检测
 
-在现代 Spring Boot + MyBatis/JPA 项目里连接耗尽故障的根因，几乎都不是「忘了关连接」，连接由事务管理器和连接池自动归还，没人直接操作 `Connection`。真正的泄漏来自连接被持有过久。
+连接池耗尽不等于连接泄漏。使用 Spring 事务管理和 MyBatis/JPA 时，框架通常会负责管理连接的获取与归还，但资源使用时间过长、异常路径处理不当或手动 JDBC 代码未正确关闭资源，仍可能导致连接长期无法复用。排查时先区分两类问题：连接没有正常归还，属于泄漏或资源管理问题；连接最终会归还，但被事务、慢 SQL 或其他操作长时间占用，则属于连接占用过久。两者都可能造成连接池耗尽，但处理方式不同。
 
-**长事务**：`@Transactional` 方法里调用外部慢服务。事务不结束连接不归还，占用时长等于事务时长，高并发下等效于泄漏。
+**长事务**：`@Transactional` 方法里调用外部慢服务。事务内调用外部慢服务会延长事务时长；若该事务已获取连接，连接通常占用至事务结束，外部调用越慢，连接可供其他请求使用的时间越少，高并发下加剧连接池等待，但不等于连接泄漏。
 
 ```java
 @Transactional
@@ -271,12 +281,12 @@ public void createOrder(Order order) {
 @Transactional
 public void process(Long id) {
     User user = userMapper.selectById(id);
-    // 主线程事务尚未提交，异步查询通常看不到 id 对应的新状态
+    // 主线程的 Spring 事务上下文不会自动传播到普通线程池任务；异步任务若访问数据库，会在自己的执行上下文中获取连接并按其事务配置执行，不能直接依赖主线程尚未提交的事务
     executor.submit(() -> orderMapper.selectByUserId(user.getId()));
 }
 ```
 
-这类异步使用不会自动“继承主连接”，但会引入事务隔离、任务完成时序和额外连接使用问题。建议先完成本地数据库写入和事务提交，再提交异步任务；若必须同事务处理，应设计同步执行或显式事务边界。
+这类异步使用不会自动“继承主连接”，会引入事务隔离、任务完成时序和额外连接使用问题。若异步任务必须读取主事务提交后的数据，应安排其触发时机，避免先于事务提交执行；允许失败后重试的非关键任务可在事务提交后触发，要求数据库提交与任务投递具备可靠一致性的场景，则应考虑事务消息、Outbox 等方案，而非仅依赖代码执行顺序。
 
 Druid 的 `remove-abandoned` 默认关闭。启用后，连接借出超过超时阈值会被强制关闭，而不是等待线程正常归还，因此可能中断仍在执行的事务。官方仅建议在开发和测试环境使用；生产环境应优先记录借出堆栈、修复泄漏，并为连接获取和语句执行设置合理超时：
 
@@ -310,7 +320,7 @@ spring:
       connection-properties: "config.decrypt=true;config.decrypt.key=<上一步的publicKey>"
 ```
 
-`ConfigFilter` 在建立连接前用公钥解密密文，配置文件中不再出现明文密码。
+`ConfigFilter` 在建立连接前用公钥解密密文，因此配置文件中无需保存明文密码。但这不等于完成了完整的密钥管理：仍应限制配置文件与密钥材料的访问权限，并评估密文、解密配置及运行环境的泄露风险；生产环境还应优先考虑受控的密钥管理或 Secret 注入机制，并使用与依赖版本一致的 Druid JAR 生成密文、核验解密配置。
 
 ## 本章小结
 

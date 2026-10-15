@@ -806,6 +806,17 @@ export default withOpenInEditor(defineConfig({
               text: '网络',
               items: [
                 { text: '网络性能分析与故障排查', link: '/java/06-diagnostics/03-network/chapter-01-network-diagnostics' },
+                { text: '连接失败与建立缓慢案例', link: '/java/06-diagnostics/03-network/chapter-02-cases-connection-failures' },
+                { text: '请求超时与延迟案例', link: '/java/06-diagnostics/03-network/chapter-03-cases-timeout-latency' },
+                { text: '连接泄漏与状态异常案例', link: '/java/06-diagnostics/03-network/chapter-04-cases-connection-leaks' },
+              ]
+            },
+            {
+              text: '数据访问',
+              items: [
+                { text: '数据访问诊断总览', link: '/java/06-diagnostics/04-data-access/' },
+                { text: '连接池耗尽案例', link: '/java/06-diagnostics/04-data-access/chapter-01-cases-connection-pool-exhaustion' },
+                { text: '慢 SQL 案例', link: '/java/06-diagnostics/04-data-access/chapter-02-cases-slow-sql' },
               ]
             },
           ],

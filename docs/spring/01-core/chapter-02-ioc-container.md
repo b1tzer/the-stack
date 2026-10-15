@@ -1,6 +1,6 @@
 # IoC 容器
 
-> 你的 `OrderService` 依赖 `OrderRepository`。传统写法是在构造器里 `new OrderRepository()`，IoC 写法是把它声明成构造器参数。两段代码只差一行 `new`，差别却根本性：前者写死了「用这个具体实现」，后者把决定权交了出去。这一章讲清楚这个「交出去」的过程，以及接管这件事的容器长什么样。
+> 你的 `OrderService` 依赖 `OrderRepository`。传统写法是在构造器里 `new JdbcOrderRepository(...)`，IoC 写法是把它声明成构造器参数。两段代码的差别在「谁决定用哪个实现」：前者写死了具体实现，后者把决定权交了出去。这一章讲清楚这个「交出去」的过程，以及接管这件事的容器长什么样。
 
 ## 1. 为什么需要 IoC
 
@@ -25,7 +25,7 @@ public class OrderService {
 | 问题 | 后果 |
 | :-- | :-- |
 | 无法替换实现 | 想把 `AlipayService` 换成 `WechatPayService`，得改 `OrderService` 源码 |
-| 无法独立测试 | 测 `OrderService` 必须连真实数据库和支付网关 |
+| 无法独立测试 | 依赖写死在构造器里，测试时不容易替换成 Mock，难以隔离业务逻辑 |
 | 生命周期不可控 | 每次 `new` 都是新实例，做不到单例复用 |
 
 三个问题的根源是同一个：`OrderService` 承担了本不属于它的职责——决定依赖是谁。
@@ -59,11 +59,11 @@ public class OrderService {
 | 可替换性 | 改源码 | 改配置或注解 |
 | 可测试性 | 需要真实环境 | 注入 Mock 对象 |
 
-一个常见误解是「IoC 和 DI 是两回事」。准确说，**IoC 是思想，DI（依赖注入）是它最常见的实现手段**。Spring 早期还支持依赖查找（Dependency Lookup），后来因为用得少被移除，所以现在提到 IoC，基本就是在说 DI。
+一个常见误解是「IoC 和 DI 是两回事」。准确说，**IoC 是思想，DI（依赖注入）是它最常见的实现手段**。依赖注入由容器把依赖传给对象；依赖查找（Dependency Lookup）则由对象主动向容器要，比如调用 `getBean()`。Spring 至今仍支持依赖查找，只是业务代码里通常优先用依赖注入，因为它能声明在构造器或字段上，更容易测试。
 
 ## 3. 容器：BeanFactory 与 ApplicationContext
 
-承接 IoC 的组件叫容器。Spring 提供两个接口：`BeanFactory` 是最基础的，`ApplicationContext` 是它的子接口。
+承接 IoC 的组件叫容器。Spring 提供两个接口：`BeanFactory` 是最基础的，`ApplicationContext` 通过继承 `BeanFactory` 相关接口获得 Bean 管理能力，再叠加上下文功能。
 
 ```java
 // 最基础的容器：手动加载定义，getBean 时才创建
@@ -73,17 +73,17 @@ BeanFactory factory = new DefaultListableBeanFactory();
 ApplicationContext ctx = new AnnotationConfigApplicationContext(AppConfig.class);
 ```
 
-两者的差别不在「能不能创建 Bean」，而在「企业级能力」：
+两者的差别不在「能不能创建 Bean」，而在 `ApplicationContext` 多出的应用级能力：
 
 | 能力 | BeanFactory | ApplicationContext |
 | :-- | :-- | :-- |
-| Bean 实例化时机 | 懒加载，`getBean` 时才创建 | 启动时预加载所有单例 |
-| 国际化 | 不支持 | 内置 `MessageSource` |
-| 事件发布 | 不支持 | 内置 `ApplicationEventPublisher` |
-| 资源访问 | 不支持 | 统一 `Resource` 接口 |
-| AOP 集成 | 手动配置 | 自动检测并集成 |
+| Bean 创建时机 | 单纯注册定义不会自动预实例化全部单例 | 刷新阶段预实例化非懒加载单例 |
+| 国际化 | 基础接口不提供 | 内置 `MessageSource` |
+| 事件发布 | 基础接口不提供 | 内置 `ApplicationEventPublisher` |
+| 资源访问 | 基础接口不提供 | 统一 `Resource` 接口 |
+| AOP 集成 | 需手动注册后处理器 | 常规配置下自动集成 |
 
-结论直接：**实际项目用 `ApplicationContext`，`BeanFactory` 只在内存受限或需要完全控制加载顺序的底层框架里出现。** Spring Boot 启动时创建的容器是 `AnnotationConfigServletWebServerApplicationContext`，它继承自 `ApplicationContext`。
+实际项目用 `ApplicationContext`，它整合了事件、国际化、资源访问，并协调刷新流程；`BeanFactory` 则用于框架集成或需要自行控制初始化顺序的底层场景。Spring Boot 会根据应用类型选择 `ApplicationContext` 实现，Servlet Web 应用用的是 `AnnotationConfigServletWebServerApplicationContext`，它继承自 `ApplicationContext`。
 
 ## 4. BeanDefinition：Bean 的元数据
 
@@ -123,7 +123,7 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 | 作用域 | 生命周期 | 使用场景 |
 | :-- | :-- | :-- |
 | `singleton` | 容器启动到关闭，全局一份 | 默认，绝大多数业务 Bean |
-| `prototype` | 每次 `getBean` 都创建新实例 | 有状态对象、非线程安全的工具类 |
+| `prototype` | 每次向容器请求时创建新实例 | 需要独立实例的对象，如每次任务独立维护状态的组件 |
 | `request` | 一次 HTTP 请求内有效 | Web，请求级缓存 |
 | `session` | 一个 HTTP Session 内有效 | Web，用户级会话数据 |
 | `application` | 一个 `ServletContext` 内有效 | Web，应用级共享 |
@@ -143,16 +143,16 @@ public class ReportGenerator {
 
 | 维度 | singleton | prototype |
 | :-- | :-- | :-- |
-| 实例化时机 | 容器启动时预创建 | 首次 `getBean` 时创建 |
+| 实例化时机 | 非懒加载单例在刷新阶段预创建，懒加载单例延后 | 每次向容器请求时通常创建新实例 |
 | 容器管理完整生命周期 | ✅ 是 | ❌ 只负责创建，不负责销毁 |
 | `@PreDestroy` 生效 | ✅ | ❌ 容器不管销毁 |
-| 三级缓存参与 | ✅ | ❌ 不参与循环依赖解析 |
+| 循环依赖 | 特定条件下可借三级缓存处理部分单例循环依赖 | 不参与单例三级缓存机制 |
 
-prototype 的 `@PreDestroy` 不生效是常见坑——容器不持有 prototype Bean 的引用，无法在关闭时回调它。如果 prototype Bean 持有需要释放的资源（如数据库连接），必须自己管理：要么让调用方负责关闭，要么用 `@PreDestroy` 之外的方式（如 `DisposableBean` 接口配合手动调用）。
+prototype 的 `@PreDestroy` 不生效是常见坑。容器负责创建 prototype Bean 并完成注入和初始化，但不会像管单例那样持续跟踪它的销毁回调，所以关闭时不会自动调 `@PreDestroy`。如果 prototype Bean 持有要释放的资源（如数据库连接），需要调用方自己约定由谁关闭，不能指望实现 `DisposableBean` 或加 `@PreDestroy` 就让容器自动销毁。
 
 ### 5.2 Web 作用域的前置条件
 
-`request`、`session`、`application`、`websocket` 四种作用域只在 Web 环境有效。Spring Boot 自动配置了 `RequestContextListener`，不需要手动注册。非 Web 环境（如纯后端服务）使用这些作用域会抛 `IllegalStateException`。
+`request`、`session`、`application`、`websocket` 四种作用域只在 Web 环境有效，需要 Web 相关基础设施暴露请求与会话上下文。在 Servlet 应用里，Spring 会通过相应机制管理这些上下文，具体方式取决于应用的配置和运行方式。在没有对应 Web 上下文的场景（如纯后端服务）获取这些作用域的 Bean，会因拿不到请求或会话上下文而抛 `IllegalStateException`。
 
 ## 6. 两个 PostProcessor：改定义与改实例
 
@@ -163,9 +163,9 @@ prototype 的 `@PreDestroy` 不生效是常见坑——容器不持有 prototype
 | `BeanFactoryPostProcessor` | `new` 之前 | `BeanDefinition`（图纸） | `ConfigurationClassPostProcessor`（解析 `@Configuration` / `@Bean` / `@ComponentScan`）、`PropertySourcesPlaceholderConfigurer`（把 `${...}` 占位符替换成配置值） |
 | `BeanPostProcessor` | `new` 之后 | Bean 实例（成品） | AOP 代理生成（`@Transactional`、`@Async` 靠它织入）、`@Autowired` 注入（`AutowiredAnnotationBeanPostProcessor`） |
 
-记住这个区别的锚点是「Factory」一词：`BeanFactoryPostProcessor` 操作的是 `BeanFactory`（即容器、即 `BeanDefinition` 的集合），而 `BeanPostProcessor` 操作的是单个 Bean。
+两个接口的区别在处理对象不同。`BeanFactoryPostProcessor` 处理的是 Bean 工厂及其定义元数据，`BeanPostProcessor` 参与的是单个 Bean 的初始化流程。这里说的「时机」是扩展点的主要职责，不是说注入和代理都在 `new` 之后的同一个阶段发生，Bean 的实例化、属性填充、初始化回调有各自的先后顺序，详见 [Bean 完整生命周期](./chapter-03-bean-lifecycle.md)。
 
-### 6.1 ConfigurationClassPostProcessor：@Bean 方法为什么只执行一次 {#config-class-processor}
+### 6.1 ConfigurationClassPostProcessor：@Configuration 如何保证跨 @Bean 调用遵循容器语义 {#config-class-processor}
 
 写一个最常见的配置类：
 
@@ -186,7 +186,7 @@ public class AppConfig {
 
 按 Java 直觉，`orderRepository()` 里每次调用 `dataSource()`，都会 `new` 一个新的 `HikariDataSource`，那「单例」不就失效了吗？但实际 Spring 里 `dataSource()` 只执行一次。
 
-答案是 `ConfigurationClassPostProcessor` 干的。它在 `BeanFactoryPostProcessor` 阶段扫描所有 `@Configuration` 类，发现某个类标了 `@Configuration`，就用 **CGLIB 动态生成它的一个子类**，并重写每个 `@Bean` 方法。重写后的逻辑是：
+答案是 `ConfigurationClassPostProcessor` 做的。在默认启用 `proxyBeanMethods` 的 `@Configuration` 模式下，Spring 会在配置类处理阶段增强符合条件的配置类，用 **CGLIB 动态生成它的一个子类**，并重写每个 `@Bean` 方法。重写后的逻辑是：
 
 ```java
 // CGLIB 生成的子类（简化示意）
@@ -203,17 +203,17 @@ public class AppConfig$$EnhancerByCGLIB extends AppConfig {
 
 所以第二次调用 `dataSource()` 命中的是容器里已存在的单例，而不是再 `new` 一个。**单例语义不是靠「方法只执行一次」实现的，而是靠「代理拦截 + 容器缓存」实现的**——这个代理正是在 `BeanFactoryPostProcessor` 阶段生成的。
 
-去掉 `@Configuration`、只留 `@Component` 会怎样？`@Component` 不触发 CGLIB 增强，`orderRepository()` 里对 `dataSource()` 的调用就是普通的 Java 方法调用，每调一次 `new` 一次，单例失效。这正是规范里「配置类用 `@Configuration`，别用 `@Component` 代替」的底层原因。
+去掉 `@Configuration`、只留 `@Component` 会怎样？`@Component` 不触发 CGLIB 增强，`orderRepository()` 里对 `dataSource()` 的调用就是普通的 Java 方法调用，每调一次就 `new` 一次，多出一个 `HikariDataSource`。但要说清两点：容器里注册的 `dataSource` Bean 本身仍是单例，没有失效；多出来的是这次直接方法调用新建的对象，它没被容器管理。所以问题不是「单例失效」，而是直接调用绕过了容器，凭空多出对象、还可能造成配置不一致。`@Configuration(proxyBeanMethods = false)` 也采用这种不拦截的调用语义，类内直接调用另一个 `@Bean` 方法同样不会自动复用容器实例。这正是「配置类用 `@Configuration`，别用 `@Component` 代替」的原因。
 
-### 6.2 PropertySourcesPlaceholderConfigurer：@Value 占位符的解析
+### 6.2 PropertySourcesPlaceholderConfigurer：属性占位符的解析
 
-§4 里 `ReportGenerator` 的 `${report.template.dir}` 还是占位符，谁来换成真实值？`PropertySourcesPlaceholderConfigurer`。
+`PropertySourcesPlaceholderConfigurer` 是一个 `BeanFactoryPostProcessor`，负责把 `BeanDefinition` 里出现的 `${...}` 占位符，替换成 `Environment` 里的真实值（来自 `application.properties`、环境变量、命令行参数等）。这类定义层的占位符替换发生在普通 Bean 实例化之前。
 
-它同样是 `BeanFactoryPostProcessor`：遍历所有 `BeanDefinition`，把 `propertyValues` 里的 `${...}` 占位符，替换成 `Environment` 里的真实值（来自 `application.properties`、环境变量、命令行参数等）。替换发生在 `new` 之前，所以 Bean 拿到的字段值已经是解析好的字符串，而不是占位符本身。
+要注意区分两种占位符。定义层的 `${...}` 在 `new` 之前被替换；而 `@Value("${report.template.dir}")` 这种字段注入，是在 Bean 实例化之后的属性填充阶段才解析赋值，不是 `new` 之前就替换好的。两者时机不同，解析机制也不同。
 
 ### 6.3 BeanPostProcessor 的职责范围
 
-`BeanPostProcessor` 贯穿单个 Bean 的初始化前后，是 AOP 代理生成、`@Autowired` 依赖注入、`@PostConstruct` 反射调用的共同挂载点。它的时机与调用顺序属于「单个 Bean 生命周期」的一部分，详见 [Bean 完整生命周期](./chapter-03-bean-lifecycle.md) §4、§5。
+`BeanPostProcessor` 贯穿单个 Bean 的初始化前后，`@Autowired` 注入、`@PostConstruct` 回调、AOP 代理都依托它，但各自发生在不同阶段：`@Autowired` 的字段和方法注入在属性填充阶段，构造器注入在实例化阶段，`@PostConstruct` 在初始化回调里，常见的自动代理创建器则在初始化后的后处理阶段判断是否生成代理。这套先后顺序属于「单个 Bean 生命周期」的一部分，详见 [Bean 完整生命周期](./chapter-03-bean-lifecycle.md) §4、§5。
 
 ## 7. 容器启动做了什么
 
@@ -252,11 +252,11 @@ public void refresh() {
 
 | 类别 | 步骤 | 职责 |
 | :-- | :-- | :-- |
-| 主线 | 第 2、5、6、11 步 | 配置 → 改定义 → 拦创建 → 实例化 |
-| 脚手架 | 第 1、3、4、7、8、9、10、12 步 | 环境、类加载器、国际化、事件广播与监听 |
+| 与 Bean 直接相关 | 第 2、5、6、11 步 | 配置 → 改定义 → 拦创建 → 实例化 |
+| 环境与扩展 | 第 1、3、4、7、8、9、10、12 步 | 环境、类加载器、国际化、事件广播与监听 |
 
-主线 4 步里，第 2 步读 `BeanDefinition`（本章 §4）、第 5 步的 `BeanFactoryPostProcessor` 和第 6 步的 `BeanPostProcessor`（本章 §6）、第 11 步实例化单例（[Bean 完整生命周期](./chapter-03-bean-lifecycle.md)）都有下文展开。
+与 Bean 直接相关的 4 步里，第 2 步读 `BeanDefinition`（本章 §4）、第 5 步的 `BeanFactoryPostProcessor` 和第 6 步的 `BeanPostProcessor`（本章 §6）、第 11 步实例化单例（[Bean 完整生命周期](./chapter-03-bean-lifecycle.md)）都有下文展开。
 
 ## 8. 小结
 
-IoC 要解决的只有一件事：把「创建依赖」从业务代码里拿出来，交给容器。容器做两件事——启动时读配置、按需创建并注入 Bean。记住 `BeanFactory` 是底座、`ApplicationContext` 是加满企业级能力的完整版，再看 `refresh()` 十二步，就能看懂一个 Bean 从定义到就绪的完整路径。
+Spring IoC 容器的工作可以沿着 `refresh()` 这条主线理解：准备 `BeanFactory`，加载和处理 `BeanDefinition`，注册后处理器，再创建和初始化非懒加载的单例 Bean。`BeanDefinition` 描述 Bean 的创建和管理配置，两个 PostProcessor 分别参与定义处理和 Bean 初始化，作用域决定实例如何复用。理解这些关系后，可以继续读 [Bean 完整生命周期](./chapter-03-bean-lifecycle.md)，再深入循环依赖与 AOP 代理的创建过程。

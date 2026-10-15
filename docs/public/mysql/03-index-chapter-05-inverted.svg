@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 330" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <text x="470" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">倒排索引：从「词」查「哪些行包含它」</text>
+
+  <text x="40" y="58" fill="#0d47a1" font-size="12" font-weight="bold">正排视角：每一行存了什么</text>
+  <text x="600" y="58" fill="#bf360c" font-size="12" font-weight="bold">倒排索引：每个词存了哪些行</text>
+
+  <!-- 文档行 -->
+  <rect x="40" y="84" width="300" height="64" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="190" y="110" text-anchor="middle" fill="#0d47a1" font-size="12" font-weight="bold">行 1</text>
+  <text x="190" y="132" text-anchor="middle" fill="#555555" font-size="10">「MySQL 全文索引实践」</text>
+
+  <rect x="40" y="164" width="300" height="64" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="190" y="190" text-anchor="middle" fill="#0d47a1" font-size="12" font-weight="bold">行 2</text>
+  <text x="190" y="212" text-anchor="middle" fill="#555555" font-size="10">「页分裂与主键选型」</text>
+
+  <rect x="40" y="244" width="300" height="64" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="190" y="270" text-anchor="middle" fill="#0d47a1" font-size="12" font-weight="bold">行 3</text>
+  <text x="190" y="292" text-anchor="middle" fill="#555555" font-size="10">「MySQL 页目录与二分」</text>
+
+  <!-- 词项倒排 -->
+  <rect x="600" y="76" width="300" height="52" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="750" y="98" text-anchor="middle" fill="#bf360c" font-size="12" font-weight="bold">「MySQL」</text>
+  <text x="750" y="118" text-anchor="middle" fill="#555555" font-size="10">→ 行 1, 行 3</text>
+
+  <rect x="600" y="136" width="300" height="52" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="750" y="158" text-anchor="middle" fill="#bf360c" font-size="12" font-weight="bold">「全文索引」</text>
+  <text x="750" y="178" text-anchor="middle" fill="#555555" font-size="10">→ 行 1</text>
+
+  <rect x="600" y="196" width="300" height="52" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="750" y="218" text-anchor="middle" fill="#bf360c" font-size="12" font-weight="bold">「页分裂」</text>
+  <text x="750" y="238" text-anchor="middle" fill="#555555" font-size="10">→ 行 2</text>
+
+  <rect x="600" y="256" width="300" height="52" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="750" y="278" text-anchor="middle" fill="#bf360c" font-size="12" font-weight="bold">「页目录」</text>
+  <text x="750" y="298" text-anchor="middle" fill="#555555" font-size="10">→ 行 3</text>
+
+  <!-- 映射连线（结构线，无箭头） -->
+  <line x1="340" y1="116" x2="600" y2="102" stroke="#90caf9" stroke-width="1.4"/>
+  <line x1="340" y1="116" x2="600" y2="162" stroke="#90caf9" stroke-width="1.4"/>
+  <line x1="340" y1="196" x2="600" y2="222" stroke="#90caf9" stroke-width="1.4"/>
+  <line x1="340" y1="276" x2="600" y2="102" stroke="#90caf9" stroke-width="1.4"/>
+  <line x1="340" y1="276" x2="600" y2="282" stroke="#90caf9" stroke-width="1.4"/>
+</svg>

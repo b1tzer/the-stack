@@ -8,7 +8,7 @@
 
 - 加锁：线程阻塞、上下文切换
 - CAS：自旋、ABA、单变量约束
-- 屏障：编译器优化被禁用、CPU 缓存无效化
+- 内存屏障：限制特定内存访问的重排序，以满足可见性和有序性要求
 
 还有另一条几乎被忽略的路：**从源头消除共享**。
 
@@ -24,7 +24,7 @@ Java 中的线程封闭有三种典型形态：
 | 栈封闭（Stack Confinement） | 数据只存在于方法局部变量中 | 大多数无状态服务方法 |
 | `ThreadLocal` | JDK 提供的显式 API，值绑定到当前线程 | 请求上下文、日期格式化器、事务边界 |
 
-前两种依赖工程纪律，一旦有人打破约定，编译器不会报错、运行时不会告警。`ThreadLocal` 是唯一有 JDK 语义支撑的形态，也是本章的主角。
+前两种依赖工程纪律，一旦有人打破约定，编译器不会报错、运行时不会告警。`ThreadLocal` 由 JDK 提供了显式的线程局部存储机制，是本章重点讨论的方式。
 
 ### 1.2 一个能立刻救命的场景
 
@@ -77,7 +77,7 @@ private static final DateTimeFormatter FMT =
 | 传递成本 | 直接读取 | 跨线程需显式复制 |
 | 典型场景 | 计数器、缓存、共享配置 | 请求上下文、格式化器、事务上下文 |
 
-规则很直接：**只要能封闭，就不要共享**。剩下的场景（多线程必须协同）才轮到锁、CAS、并发集合出场。
+规则很直接：**能合理采用线程封闭时，优先评估这种方案**。剩下的场景（多线程必须协同）才轮到锁、CAS、并发集合出场。
 
 ## 2. `ThreadLocal` 的存储结构
 
@@ -88,10 +88,10 @@ private static final DateTimeFormatter FMT =
 每一个 `Thread` 实例有两个字段：
 
 ```java
-// java.lang.Thread 的相关字段（JDK 21 源码简化）
+// java.lang.Thread 的相关字段（JDK 21 源码简化，包级可见，默认初始化为 null）
 public class Thread implements Runnable {
-    ThreadLocal.ThreadLocalMap threadLocals = null;
-    ThreadLocal.ThreadLocalMap inheritableThreadLocals = null;
+    ThreadLocal.ThreadLocalMap threadLocals;
+    ThreadLocal.ThreadLocalMap inheritableThreadLocals;
     // ...
 }
 ```
@@ -175,7 +175,7 @@ static class Entry extends WeakReference<ThreadLocal<?>> {
 
 - `get()` 首次访问时会触发 `initialValue()`（或 `withInitial` 提供的 Supplier）懒加载
 - `set(null)` 并**不等价于** `remove()`：前者只是把 value 置空，Entry 仍然占着槽位
-- `remove()` 在清空 Entry 的同时会触发一次相邻槽位的过期清理（`expungeStaleEntry`）
+- `remove()` 在清空 Entry 的同时会调用 `expungeStaleEntry` 清理相关探测区间中的过期 Entry
 
 ## 3. 内存泄漏的形成机制
 
@@ -224,7 +224,7 @@ void handleRequest() {
 
 ### 3.2 线程池是泄漏放大器
 
-单线程应用里，线程死了 `threadLocals` 一起回收，泄漏被限制在线程生命周期内。线程池打破了这个前提：Worker 线程被反复复用，可能存活数小时甚至数天，`threadLocals` 只增不减。
+单线程应用里，线程死了 `threadLocals` 一起回收，泄漏被限制在线程生命周期内。线程池打破了这个前提：Worker 长期复用会延长线程局部数据的存活时间，若任务反复写入上下文却没有及时清理，Map 中的值就可能长期保留。
 
 ```java
 // ❌ 反模式：只 set 不 remove
@@ -243,6 +243,8 @@ executor.execute(() -> {
 - Heap Dump 显示大量 `ThreadLocalMap$Entry`，`value` 指向业务对象
 - 触发 OOM 时通常伴随线程池 Worker 长期不重建
 
+还要区分两种情况：key 被 GC 后留下的 stale entry，以及 key 仍然有效、但业务值已经不应继续保留的 Entry。后者在静态 `ThreadLocal` 配合线程池时尤其常见，例如静态的 `RequestContext` ThreadLocal 被任务写入后未清理。两者的成因不同，但都说明线程上下文需要明确的清理时机。
+
 ### 3.3 `remove()` 的强制性
 
 推荐始终使用 try-finally：
@@ -259,9 +261,9 @@ executor.execute(() -> {
 });
 ```
 
-`remove()` 的额外收益：内部实现会顺带扫描相邻槽位、清理其他已过期的 Entry。这也是 `ThreadLocalMap` 采用线性探测的隐性价值——探测过程本身就是清理过程。
+`remove()` 的额外收益：内部实现会顺带清理相关探测区间中的过期 Entry，并重新安排区间内需要移动的有效 Entry。这也是 `ThreadLocalMap` 采用线性探测的隐性价值——探测过程本身就是清理过程。
 
-有一种依赖被动清理的思路：让 `get`/`set` 顺路做过期清理。这在小 Map 上尚可，但一旦线程长时间只写不读、或者线性探测的步长很短，过期 Entry 就长期赖在槽位里。**不要指望被动清理，`remove()` 是唯一确定的解**。
+`ThreadLocalMap` 会在部分读写操作中顺带清理过期 Entry，但这种清理是按需进行的，并不保证及时清空所有过期值。对于业务代码显式设置的线程上下文，应在使用结束时主动调用对应的 `remove()`，不要把内存回收寄托在 Map 的被动清理上。
 
 ### 3.4 内存泄漏诊断路径
 
@@ -279,7 +281,7 @@ MAT 打开，Dominator Tree
        ▼
 搜索 ThreadLocal$ThreadLocalMap$Entry
        │
-       ├─ 若 Entry.key == null 且 value 巨大：确认泄漏
+       ├─ 若 Entry.key == null 且 value 巨大：重点检查是否存在长期保留
        └─ 沿 GC Root 追溯：定位到哪个 Worker 线程
        │
        ▼
@@ -313,39 +315,40 @@ if (parent.inheritableThreadLocals != null) {
 
 ### 4.2 复制语义
 
-- **浅拷贝**：Entry 的 value 引用被直接复制，父子共享同一个对象
-- **单向快照**：复制后父线程再修改，子线程看不见；子线程修改，父线程也看不见
-- **可覆盖**：重写 `childValue(T parentValue)` 可以定制传递逻辑（例如深拷贝、加工）
+- **复制的是绑定，不一定是对象**：默认 `childValue` 返回父线程的原值引用，父子线程拥有各自的 Map Entry，但 Entry 可能指向同一个可变对象
+- **后续重新绑定互不影响**：复制完成后，父线程 `set()` 不会更新子线程的绑定，子线程 `set()` 也不会更新父线程的绑定；但如果双方共享同一个可变对象，对该对象的修改仍然相互可见
+- **可定制复制逻辑**：重写 `childValue(T parentValue)` 可以改变传递的值，例如复制一个 Map 容器；是否真正深拷贝，取决于复制逻辑是否也复制了内部可变对象
 
 ```java
 InheritableThreadLocal<Map<String, String>> ctx =
     new InheritableThreadLocal<>() {
         @Override
         protected Map<String, String> childValue(Map<String, String> parentValue) {
-            return new HashMap<>(parentValue);  // 深拷贝，避免父子共享 Map
+            return new HashMap<>(parentValue);  // 复制 Map 容器；value 对象仍可能共享
         }
     };
 ```
 
 ### 4.3 线程池场景下的失效
 
-`InheritableThreadLocal` 的传递语义假设了"父线程创建子线程"这个动作与"业务任务提交"是同一件事。在线程池模型下这个假设不成立：
+`InheritableThreadLocal` 的传递语义假设了"父线程创建子线程"这个动作与"业务任务提交"是同一件事。在线程池模型下这个假设不成立。线程池中的 Worker 通常会被多个任务复用，而继承发生在 Worker 创建时，不发生在每次任务提交时：
 
 ```txt
-时刻 T0: 线程池初始化，创建 Worker-1, Worker-2, ...
-         此时 Main 线程的 InheritableThreadLocal 还是空的
-         Worker 的 inheritableThreadLocals 是空快照
-
+时刻 T0: 线程池刚创建，尚未有 Worker（或只有部分 Worker）
 时刻 T1: Main 线程 set("traceId", "req-42")
-时刻 T2: Main 线程 executor.execute(task)
-时刻 T3: Worker-1 从队列取出 task 执行
-         Worker-1.inheritableThreadLocals 依然是 T0 时的空快照
-         task 内 get() 拿到 null
+时刻 T2: Main 线程 executor.execute(task-1)
+         此时才可能创建 Worker-1，它会继承 T2 时刻 Main 线程的上下文
+时刻 T3: Main 线程 set("traceId", "req-99")
+时刻 T4: Main 线程 executor.execute(task-2)
+         Worker-1 复用执行 task-2，但它的 inheritableThreadLocals
+         仍是 T2 创建时刻的快照，get() 拿到 "req-42" 而不是 "req-99"
 ```
+
+Worker 可能在某次任务提交过程中才被创建，因此继承到当时提交线程的上下文；之后即使执行其他请求，也不会自动更新成新请求的上下文。若任务结束后没有清理，旧值还可能继续留在 Worker 上。
 
 生产表现：
 
-- 日志 MDC 突然丢 traceId
+- 日志 MDC 突然丢 traceId，或拿到上一个请求的 traceId
 - SkyWalking / OpenTelemetry 链路在异步边界断链
 - 多租户上下文串号（Worker 保留了上一个任务残留的值）
 
@@ -384,8 +387,9 @@ Main 线程                         Worker 线程
 
 三个关键点：
 
-- 在**提交时**抓拍，而不是在 Worker 创建时抓拍
+- 在**包装任务时**抓拍（通常紧邻提交操作），而不是在 Worker 创建时抓拍；不要长期复用一个早已抓拍过上下文的任务包装对象
 - 在**执行前**灌进 Worker，执行完**还原**，避免污染下一个任务
+- 默认抓拍的是值引用，不是对象的深拷贝；需要隔离可变对象时，应通过自定义复制逻辑生成独立副本
 - 抓拍与回放的开销通常随 TTL value 数量及其大小增长；具体量级依实现、对象生命周期和负载而变，需要基准测试
 
 ### 5.2 使用方式
@@ -405,7 +409,8 @@ ExecutorService pool = TtlExecutors.getTtlExecutorService(rawPool);
 pool.execute(() -> handle(request));
 
 // 方式三：JVM 启动加 -javaagent:transmittable-thread-local.jar
-// 通过字节码增强，甚至第三方线程池代码都能自动传递
+// 通过字节码增强自动包装部分受支持的异步执行路径，减少手动包装；
+// 不是对所有第三方线程池和异步框架的无条件覆盖，引入后需核对版本兼容性
 ```
 
 ### 5.3 TTL 的代价与边界

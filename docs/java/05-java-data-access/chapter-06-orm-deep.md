@@ -2,17 +2,17 @@
 
 > 本页比较 ORM 的映射机制和常见性能问题。Spring Data JPA 的 Repository、Specification 和审计用法见 [Spring Data JPA](../../spring/04-data-access/chapter-03-jpa.md)。
 
-> 你写了个 `save(user)`，控制台却打了 3 条 SQL：INSERT、UPDATE 外键、再 INSERT 关联表。你以为 ORM 就是自动映射，但它在幕后做的远比你想的多——脏检查、延迟加载、缓存策略、N+1 问题。本章拆解 ORM 框架在"自动"与"可控"之间到底做了什么取舍。
+> ORM 不只负责把查询结果映射成 Java 对象。使用 Hibernate 时，实体状态、关联映射和获取策略都会影响 SQL 的执行时机与数量。本章从 MyBatis 与 JPA/Hibernate 的工作方式出发，解释实体生命周期、延迟加载和关联查询的常见问题。
 
 ## 1. MyBatis vs Hibernate/JPA
 
-在 Java 生态中，ORM 的两大主流阵营是 **MyBatis** 和 **Hibernate/JPA**。它们解决同一个问题，但哲学截然不同。
+在 Java 生态中，两类主流数据访问方案是 **MyBatis**（SQL 映射框架）和 **Hibernate/JPA**（ORM 框架）。它们解决同一个问题，但管理的抽象层次不同。
 
-### 1.1 两种哲学
+### 1.1 两种工作方式
 
-**MyBatis 的信条：SQL 是王道。**
+**MyBatis：以 SQL 为中心。**
 
-MyBatis 本质上是一个 SQL 映射框架。你手写 SQL，MyBatis 负责把查询结果映射成 Java 对象。它不做任何"智能"的事情——不会自动生成 SQL，不会偷偷帮你发额外的查询。
+MyBatis 本质上是一个 SQL 映射框架。你手写 SQL，MyBatis 负责把查询结果映射成 Java 对象。它不会像 Hibernate 那样基于实体状态自动生成常规 CRUD SQL，也通常不自动维护 JPA 式的实体关联与脏检查；但若配置嵌套查询（如 `<collection select="...">`），仍可能产生额外 SQL。
 
 ```xml
 <!-- MyBatis Mapper XML -->
@@ -24,7 +24,7 @@ MyBatis 本质上是一个 SQL 映射框架。你手写 SQL，MyBatis 负责把�
 </select>
 ```
 
-**Hibernate/JPA 的信条：对象是王道。**
+**Hibernate/JPA：以对象为中心。**
 
 Hibernate 让你操作 Java 对象，框架负责生成 SQL。你调用 `entityManager.persist(user)`，Hibernate 自动翻译成 `INSERT INTO users ...`。
 
@@ -50,8 +50,8 @@ entityManager.persist(user);
 | 维度 | MyBatis | Hibernate/JPA |
 | :-- | :-- | :-- |
 | **核心理念** | SQL 中心 | 对象中心 |
-| **SQL 控制** | 完全手写 | 框架自动生成（也可手写） |
-| **学习曲线** | 低（会 SQL 就行） | 高（需理解 ORM 概念、生命周期、缓存） |
+| **SQL 控制** | 主要由开发者定义，框架负责参数绑定、执行与结果映射 | 框架自动生成（也可手写） |
+| **学习曲线** | 入门成本较低，但仍需理解 SQL 映射、事务与框架配置 | 高（需理解 ORM 概念、生命周期、缓存） |
 | **灵活性** | 极高（任意 SQL） | 受限于框架映射能力 |
 | **数据库迁移** | 需逐条改 SQL | HQL/JPQL 通常无需改 |
 | **复杂查询** | 显式编写 JOIN、聚合和存储过程调用 | 可用 `@Query` 或 Criteria API 表达 |
@@ -73,11 +73,11 @@ entityManager.persist(user);
 | 数据库是否是**遗留库、命名不规范、无外键、分库分表**？ | ✅ | ⚠️（映射约束较多） |
 | 是否需要**跨数据库方言可移植**（同一份代码上 MySQL/PG/Oracle）？ | ❌ | ✅ |
 | 是否有大量**批量写、批量更新、复杂 upsert**？ | ✅ | ❌（批处理坑较多） |
-| 团队是否理解 Session、一级缓存、Lazy 代理、脏检查、N+1？ | 不要求 | 硬性要求 |
+| 团队需要理解的机制 | 理解 SQL、参数绑定与结果映射 | 还需理解实体状态、持久化上下文、延迟加载与脏检查 |
 
-其中最后一条是很多团队被反噬的根源：JPA 不是"学会注解就能用好"，Session 生命周期、脏检查、Lazy 代理、缓存一致性这些机制若未被团队理解，写出来的代码性能与正确性都会随机漂移。**没有人能吃住这些机制时，MyBatis 的显式性反而更安全**。
+其中最后一条是很多团队踩坑的根源：JPA 不是"学会注解就能用好"。Session 生命周期、脏检查、Lazy 代理、缓存一致性这些机制若未被团队理解，写出来的代码容易出现事务边界不清、延迟加载触发额外查询、实体状态不符合预期等问题。**团队还不具备这些机制时，MyBatis 的显式性反而更可控**。
 
-大型项目常见**混合使用**：JPA 负责简单 CRUD 和详情读取，把领域行为集中在聚合根上；MyBatis 负责复杂报表、批量写和涉及底层 SQL 特性的场景。这不是骑墙，而是承认两种哲学各自的适用边界。
+大型项目常见**混合使用**：JPA 负责简单 CRUD 和详情读取，把领域行为集中在聚合根上；MyBatis 负责复杂报表、批量写和涉及底层 SQL 特性的场景。这不是骑墙，而是承认两者各自的适用边界。
 
 ## 2. Entity 生命周期
 
@@ -86,14 +86,18 @@ Hibernate/JPA 中，一个实体对象从诞生到消亡，会经历几个明确
 ### 2.1 三种核心状态
 
 ```txt
-┌─────────────┐   persist()/save()   ┌──────────────┐   session 关闭   ┌──────────────┐
-│  Transient   │ ────────────────────→ │  Persistent  │ ───────────────→ │   Detached   │
-│  (瞬态)      │                       │  (持久态)     │                  │  (游离态)     │
-│              │ ←──────────────────── │              │ ←────────────── │              │
-└─────────────┘   delete()/remove()   └──────────────┘   merge()        └──────────────┘
-       ↑                                      │
-       │              GC 回收                  │
-       └──────────────────────────────────────┘
+            persist()/save()
+┌─────────────┐ ────────────────→ ┌──────────────┐  持久化上下文结束  ┌──────────────┐
+│  Transient   │                   │  Persistent  │ ────────────────→ │   Detached   │
+│  (瞬态)      │                   │  (持久态)     │                   │  (游离态)     │
+└─────────────┘                   │              │ ←─ merge() 返回 ── │              │
+       │                           └──────┬───────┘  新的受管实例      └──────────────┘
+       │                                  │ remove()
+       │                                  ▼
+       │                           ┌──────────────┐
+       └───────────────────────────│   Removed     │
+                                   │  (已标记删除)  │
+                                   └──────────────┘
 ```
 
 | 状态 | 特征 | 举例 |
@@ -112,16 +116,21 @@ user.setName("李四");
 
 // 2. Persistent —— 被 EntityManager 管理
 entityManager.persist(user);
-// user 被持久化上下文跟踪，INSERT 会在显式 flush 或事务提交时执行
-// 修改属性后，UPDATE 同样在显式 flush 或事务提交时执行
+// user 成为受管理的实体；INSERT 通常在 flush 或事务提交时同步到数据库，
+// 具体时机取决于提供者、主键生成策略和事务环境，提供者也可能提前执行。
+// 对受管理实体的修改会被脏检查检测，并在后续 flush 时同步。
 
-// 3. Detached —— Session 关闭后
+// 3. Detached —— 持久化上下文结束后
+// （以下用独立创建、由应用管理的 EntityManager 演示；Spring 注入的共享
+//  EntityManager 由容器管理生命周期，不应直接 close()）
 entityManager.close();
 // user 变成游离态，修改它不会自动同步到数据库
 
-// 4. 回到 Persistent —— 重新关联
+// 4. 重新关联：merge 把 user 的状态复制到受管理的实体并返回
 User merged = entityManager.merge(user);
-// merged 被持久化上下文跟踪；后续变更在 flush 或事务提交时写入
+// merge 返回受当前持久化上下文管理的对象（merged）；
+// 原来的 user 仍保持 Detached，不会因此变回受管理状态。
+// 后续依赖脏检查的修改应作用在 merged 上。
 ```
 
 ### 2.3 踩坑提示
@@ -139,9 +148,10 @@ public void updateUser(Long id) {
 // 但如果你这样做：
 public void updateUserOutsideTx(Long id) {
     User user = entityManager.find(User.class, id);
-    // 方法没有 @Transactional，find 内部的事务已提交
+    // 对象是否仍受管理，取决于当前持久化上下文的生命周期，
+    // 而非方法上是否标注 @Transactional。
     user.setName("新名字");
-    // 这个修改可能不会被持久化，取决于 flush 策略
+    // 若 user 已 Detached，这个修改不会自动同步到数据库
 }
 ```
 
@@ -168,7 +178,7 @@ public class User {
 }
 ```
 
-这个行为的底层实现是**代理对象**：Hibernate 不会真的给你一个 `ArrayList<Order>`，而是一个 Proxy，拦截 `getOrders()` 调用，在第一次访问时才发 SQL。
+这个行为的底层实现是**代理或持久化集合包装器**：Hibernate 不会真的给你一个已装满的 `ArrayList<Order>`，而是在首次访问关联数据时才发 SQL。对于实体关联，Hibernate 常用代理对象拦截访问；对于集合关联，Hibernate 通常使用持久化集合包装器。集合尚未初始化时，遍历或读取集合内容等操作时可能触发 SQL；具体是否导致完整初始化，取决于集合的初始化状态与加载配置。关联初始化后，后续访问通常可以复用已加载的数据。
 
 ```txt
 调用 user.getOrders()
@@ -234,16 +244,16 @@ User findWithOrders(@Param("id") Long id);
 
 | | `FetchType.EAGER` | `FetchType.LAZY` |
 | :-- | :-- | :-- |
-| **行为** | 立即加载关联对象 | 访问时才加载 |
-| **SQL** | 一条 JOIN 查询或额外查询 | 按需发 SQL |
+| **获取语义** | 关联数据应在要求的获取时机可用 | 允许延迟获取关联数据 |
+| **SQL 形态** | 可能 JOIN，也可能执行额外查询 | 访问未初始化的关联时可能执行查询 |
 | **适用** | 关联数据几乎总是需要 | 关联数据偶尔需要 |
-| **风险** | 查太多不必要的数据 | `LazyInitializationException` |
+| **风险** | 读取不需要的数据，或产生额外查询 | 持久化上下文不可用时无法初始化关联 |
 
-**经验法则**：`@ManyToOne` 默认 EAGER，`@OneToMany` 默认 LAZY。**不要轻易改变默认值**——框架的设计者比你更懂常见场景。
+**经验法则**：`@ManyToOne` 默认 EAGER，`@OneToMany` 默认 LAZY。不要仅为了避免延迟加载异常就把关联全部改为 EAGER——EAGER 可能导致读取不需要的数据，也不能保证关联只通过一条 JOIN 查询获取。应根据查询用例选择获取策略，并用 SQL 日志验证实际行为。
 
 ## 4. N+1 查询问题
 
-N+1 查询是 ORM 最臭名昭著的性能问题。几乎每个用 ORM 的项目都会踩一次。
+N+1 查询是 ORM 中常见的性能问题。当查询先返回 N 个用户、再为每个用户分别查询订单时，总查询次数会从 1 条增加到最多 1+N 条，这种查询模式称为 N+1。
 
 ### 4.1 问题重现
 
@@ -269,7 +279,8 @@ SELECT * FROM users;
 SELECT * FROM orders WHERE user_id = 1;
 SELECT * FROM orders WHERE user_id = 2;
 SELECT * FROM orders WHERE user_id = 3;
--- ... 假设有 100 个用户，就是 101 条 SQL
+-- ... 假设主查询返回 100 个用户，且每个用户的订单集合均未初始化、无缓存命中
+-- 也未启用批量获取，则总计约 101 条 SQL：1 条用户查询 + 100 条订单查询
 ```
 
 这就是 **N+1 问题**：1 条主查询 + N 条关联查询。
@@ -279,15 +290,19 @@ SELECT * FROM orders WHERE user_id = 3;
 **方案一：JOIN FETCH（最常用）**
 
 ```java
-// 一条 SQL 搞定：用 JOIN 一次性查出用户和订单
+// 用 JOIN FETCH 在同一条查询中获取用户及其订单，避免随后逐个用户查询订单
 List<User> users = entityManager.createQuery(
     "SELECT u FROM User u JOIN FETCH u.orders", User.class)
     .getResultList();
 
-// 生成的 SQL：
+// Hibernate 通常生成包含 JOIN 的 SQL（示意，具体 SQL 以日志为准）：
 // SELECT u.*, o.* FROM users u
 // INNER JOIN orders o ON u.id = o.user_id
+// 注意：INNER JOIN FETCH 会排除没有订单的用户；
+// 若需保留这些用户，应改用 LEFT JOIN FETCH。
 ```
+
+> 一对多 JOIN 会展开结果行，关联数据较多时可能增加传输量与结果处理成本；对集合关联做 fetch join 后再分页，也需特别处理。
 
 **方案二：@BatchSize**
 
@@ -299,7 +314,9 @@ public class User {
     private List<Order> orders;
 }
 
-// 生成的 SQL（不再是 N 条，而是 N/20 条）：
+// size = 20 是批量获取的配置上限：当同一持久化上下文中存在多个符合批量获取条件
+// 的未初始化集合时，Hibernate 可以将它们合并为带 IN 条件的查询，减少逐个加载
+// 的数据库往返。实际批次数取决于待初始化集合的数量与具体加载场景，应以 SQL 日志验证。
 // SELECT * FROM orders WHERE user_id IN (1, 2, 3, ..., 20);
 // SELECT * FROM orders WHERE user_id IN (21, 22, ..., 40);
 ```
@@ -356,7 +373,7 @@ MyBatis 不会替你自动为关联关系生成查询，因此开发者更容易
 
 | 方案 | 框架 | 效果 | 适用场景 |
 | :-- | :-- | :-- | :-- |
-| JOIN FETCH | Hibernate | 一条 SQL，关联数据一起查 | 一对一、一对少 |
+| JOIN FETCH | Hibernate | 一条 SQL 关联数据一起查；但 JOIN 展开结果行，分页需特殊处理 | 一对一及小规模一对多，且结果集规模可控 |
 | @BatchSize | Hibernate | 分批查，减少 SQL 数量 | 一对多，数据量大 |
 | EntityGraph | Hibernate | 声明式指定加载图 | Spring Data JPA |
 | 联合查询 | MyBatis | 一条 SQL，手写 JOIN | 复杂关联 |

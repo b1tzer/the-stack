@@ -1,6 +1,6 @@
 # JDBC：Java 数据访问的底层抽象
 
-> 上一章我们理解了持久化的必要性——Java 对象必须跨越 JVM 生命周期存入数据库。但"存进去"和"取出来"具体怎么做？每种数据库（MySQL、Oracle、PostgreSQL）都有自己的通信协议和 C API，难道每换一种数据库就要重写一遍数据访问代码？本章要回答的核心问题是：**JDBC 如何用一套统一的 Java 接口，屏蔽底层数据库的差异，让开发者用同一套代码操作所有关系数据库？** 我们将从 JDBC 存在的历史原因出发，拆解它的核心接口与编程模型，分析它的性能瓶颈，并揭示它作为所有 ORM 框架底层基础的真正地位。
+> 上一章我们理解了持久化的必要性——Java 对象必须跨越 JVM 生命周期存入数据库。但"存进去"和"取出来"具体怎么做？每种数据库（MySQL、Oracle、PostgreSQL）都有自己的通信协议和 C API，难道每换一种数据库就要重写一遍数据访问代码？本章要回答的核心问题是：**JDBC 如何用一套统一的 Java 接口，屏蔽底层数据库的差异，让开发者用同一套代码操作所有关系数据库？** 我们将从 JDBC 存在的历史原因出发，拆解它的核心接口与编程模型，分析它的性能瓶颈，并揭示它作为常见 ORM 框架底层基础的地位。
 
 ## 1. JDBC 为什么存在
 
@@ -9,6 +9,7 @@
 想象一下 1990 年代中期的 Java 开发场景。你要连接 MySQL，需要用 MySQL 提供的 C 语言客户端库（`libmysqlclient`），通过 JNI 调用本地方法。你要换成 Oracle，又得换成 Oracle 的 OCI（Oracle Call Interface）库。每种数据库的 API 完全不同：函数名不同、参数不同、错误码不同、资源释放方式不同。
 
 ```java
+// 以下代码仅用于示意，并非对真实历史 API 的还原
 // 假设的"无 JDBC"时代——连接 MySQL
 native void mysql_connect(String host, int port, String user, String pwd);
 native ResultSet mysql_query(String sql);
@@ -20,7 +21,7 @@ native void oci_execute(String sql);
 native void oci_logoff();
 ```
 
-这意味着，厂商专有 API 会让数据访问层难以跨数据库复用。迁移到另一数据库通常要同步调整驱动、SQL、类型映射和事务语义。
+这两段代码是为了突出接口不统一带来的迁移成本，并不代表当时所有 Java 应用都通过这类 API 访问数据库；早期历史情况比这里的简化示例更复杂。要表达的事实是：厂商专有 API 会让数据访问层难以跨数据库复用。迁移到另一数据库通常要同步调整驱动、SQL、类型映射和事务语义。
 
 ### 1.2 JDBC 的价值：统一抽象
 
@@ -47,7 +48,7 @@ ResultSet rs = ps.executeQuery();
 
 ### 1.3 JDBC 是 ORM 的地基
 
-在后续章节中我们会学习 MyBatis、Hibernate/JPA 等 ORM 框架。但请记住一个关键事实：**所有 Java ORM 框架，无论上层多么花哨，底层都是通过 JDBC 与数据库通信的。**
+在后续章节中我们会学习 MyBatis、Hibernate/JPA 等 ORM 框架。但请记住一个关键事实：**在传统的 Java 关系数据库访问中，MyBatis、Hibernate/JPA 等常见 ORM 框架通常通过 JDBC 与数据库通信；但 JDBC 并非唯一的 Java 数据访问方式（例如响应式访问可用 R2DBC），不能把"Java 数据访问"等同于 JDBC。**
 
 ![jdbc-architecture](/java/jdbc-architecture.svg)
 
@@ -75,11 +76,11 @@ ds.setPassword("password");
 Connection conn = ds.getConnection();
 ```
 
-为什么推荐 `DataSource`？因为它支持连接池、支持 JNDI 查找、支持分布式事务。在实际生产环境中，你几乎不会直接 `new MysqlDataSource()`，而是使用连接池框架（如 HikariCP）提供的 `DataSource` 实现。连接池的通用模型见[下一章](./chapter-03-jdbc-performance-pool.md)。
+为什么推荐 `DataSource`？因为它把获取连接的方式与业务代码分离，便于通过配置或依赖注入替换具体实现；连接池、JNDI 查找与 XA 分布式事务等能力取决于具体实现，并非 `DataSource` 接口本身保证。在实际生产环境中，你几乎不会直接 `new MysqlDataSource()`，而是使用连接池框架（如 HikariCP）提供的 `DataSource` 实现。连接池的通用模型见[下一章](./chapter-03-jdbc-performance-pool.md)。
 
 ### 2.2 Connection——一次数据库会话
 
-`Connection` 代表与数据库的一个**物理连接**（底层是一个 TCP Socket）。它是一个有状态的对象：维护事务状态、设置隔离级别、缓存 PreparedStatement。
+`Connection` 表示一次 JDBC 数据库连接及其会话状态。应用通过它执行 SQL、管理事务和设置隔离级别。使用连接池时，`getConnection()` 返回的多是逻辑连接句柄，关闭后归还连接池、底层物理连接可能被复用；物理连接（常见实现即 TCP Socket）的建立与传输细节由驱动和数据库决定，语句缓存也不由 `Connection` 接口本身保证。
 
 ```java
 Connection conn = dataSource.getConnection();
@@ -102,7 +103,7 @@ try {
 `PreparedStatement` 是可接受参数绑定、多次执行的 SQL 语句对象。JDBC API 将其描述为预编译语句；驱动是否在服务端真正预编译、何时编译，以及是否缓存执行计划由驱动与数据库实现决定。
 
 ```java
-// 创建 PreparedStatement（此时 SQL 发送到数据库进行预编译）
+// 创建 PreparedStatement；SQL 是否真正下发服务端预编译由驱动与数据库实现决定
 PreparedStatement ps = conn.prepareStatement(
     "SELECT id, name, email FROM users WHERE age > ? AND city = ?"
 );
@@ -153,7 +154,7 @@ DataSource（应用级，长期存活）
             └─ 产生 → ResultSet（一次查询结果，遍历完关闭）
 ```
 
-**每一个层级都是上一层的产物：** DataSource 生产 Connection，Connection 生产 PreparedStatement，PreparedStatement 生产 ResultSet。理解这个创建链，就理解了 JDBC 的对象模型。
+上面的树状图描述了一次查询的常见创建关系：DataSource 生产 Connection，Connection 生产 PreparedStatement，PreparedStatement 生产 ResultSet。这是一次查询的常见调用关系，不代表严格的一对一生命周期——一个 Connection 可创建多条语句，PreparedStatement 也可重复执行。
 
 ## 3. JDBC 编程模板
 
@@ -207,16 +208,16 @@ public List<User> findUsersByAge(int minAge) throws SQLException {
 
 仔细审视这段代码，你会发现**真正的业务逻辑只有 5 行**（SQL 和结果映射），剩下的全是样板代码：
 
-| 代码部分 | 行数 | 是否业务逻辑 |
+| 代码职责 | 示例中的代码量 | 属于什么 |
 | :-- | :-- | :-- |
-| 获取连接 | 2 行 | ❌ 基础设施 |
-| 创建 Statement + 绑定参数 | 4 行 | 部分（SQL 是，绑定是样板） |
-| 执行查询 | 1 行 | ❌ 基础设施 |
-| 遍历 ResultSet → 映射对象 | 8 行 | ❌ 纯样板（手动 getter → setter） |
-| 关闭资源（try-catch-finally） | 4 行 | ❌ 基础设施 |
-| **合计** | **~25 行** | **仅 1 行 SQL 是业务逻辑** |
+| 获取连接 | 约 2 行 | 基础设施（连接获取与失败处理） |
+| 创建语句并绑定参数 | 约 4 行 | 部分业务逻辑（SQL 是，绑定是样板） |
+| 执行查询 | 约 1 行 | 基础设施 |
+| 遍历 ResultSet 并映射对象 | 约 8 行 | 重复映射（手动 getter → setter，可能含类型转换与空值处理） |
+| 关闭资源（try-catch-finally） | 约 4 行 | 基础设施（还需处理关闭异常） |
+| **合计** | **约 25 行** | **真正表达业务意图的主要是那一行 SQL** |
 
-这就是 JDBC 的核心痛点：**样板代码太多，业务逻辑被淹没在基础设施代码中。** 写一个查询尚且如此，一个真实业务方法可能涉及多次查询、更新、事务控制，代码量会爆炸式增长。
+这就是 JDBC 的核心痛点：**样板代码太多，业务逻辑被淹没在基础设施代码中。** 写一个查询尚且如此，一个真实业务方法可能涉及多次查询、更新、事务控制，重复的资源管理与映射代码会显著增加。
 
 ```java
 // Java 7 引入 try-with-resources 后，资源关闭稍微优雅了一些
@@ -267,7 +268,7 @@ SELECT * FROM users WHERE name = '张三'
 SELECT * FROM users WHERE name = '' OR '1'='1' --'
 ```
 
-`WHERE` 条件永远为真，`--` 注释掉了后面的代码。**攻击者绕过了身份验证，拿到了整张用户表的数据。** 这就是 SQL 注入——OWASP Top 10 安全漏洞之一，至今仍在真实世界中频繁被利用。
+`WHERE` 条件永远为真，`--` 注释掉了后面的代码。**若应用把这样的查询用于登录校验，就可能绕过身份验证并读到远超预期的记录（甚至整张用户表）。** 这就是 SQL 注入——一类常见的注入型安全漏洞，长期位列 OWASP Top 10，至今仍在真实世界中频繁被利用。
 
 更危险的注入：
 
@@ -275,7 +276,7 @@ SELECT * FROM users WHERE name = '' OR '1'='1' --'
 '; DROP TABLE users; --
 ```
 
-这会直接**删除你的用户表**。
+这会直接**删除你的用户表**（前提是驱动与配置允许一次执行多条语句）。
 
 ### 4.2 PreparedStatement 的参数化查询
 
@@ -310,6 +311,8 @@ ResultSet rs = ps.executeQuery();
 └──────────────────────────────────────────────────────┘
 ```
 
+参数化查询只能绑定 SQL 中允许使用参数的位置，通常是比较条件中的值，不能直接用来替代表名、列名或排序方向等 SQL 结构。例如 `ORDER BY ?` 中的 `?` 是值参数，不会被理解成列标识符。若需动态选择排序字段，应将输入映射到应用预先定义的白名单再据此构造 SQL，不能把未经校验的用户输入直接拼接进 SQL。
+
 ### 4.3 预编译协议与性能边界
 
 除安全性外，`PreparedStatement` 在重复执行相同结构的语句时可能减少 SQL 解析或执行计划生成开销，但收益取决于驱动和数据库。下图以 MySQL 协议为例：
@@ -339,7 +342,7 @@ JDBC 驱动                              数据库服务器
 2. **优化执行计划**：选择最优的索引和查询策略
 3. **缓存执行计划**：返回一个 `statement_id`，后续通过这个 ID 引用
 
-后续用不同参数执行同一条 SQL 时，驱动只发 `COM_STMT_EXECUTE`（statement_id + 参数值），数据库跳过解析和优化，直接使用缓存的执行计划。对于高频查询（如根据 ID 查用户），这个优化非常显著。
+后续用不同参数执行同一条 SQL 时，驱动只发 `COM_STMT_EXECUTE`（statement_id + 参数值），数据库可复用之前缓存的执行计划、跳过部分解析与优化。对于高频、参数化的查询，在驱动与数据库支持且正确配置的前提下，这类复用可能带来可观收益；实际收益取决于驱动实现、数据库版本与工作负载，不能假定每次执行都跳过所有解析。
 
 需要注意的是，JDBC 驱动可以有两种方式实现 `PreparedStatement`：
 
@@ -363,11 +366,11 @@ for (long id : userIds) {
 }
 ```
 
-**一句话总结：PreparedStatement 的两个价值——安全靠参数化，性能靠预编译。** 在现代 Java 开发中，没有任何理由使用裸的 `Statement`。
+**一句话总结：PreparedStatement 的两个价值——安全靠参数化、性能靠复用执行计划（视驱动与数据库而定）。** 在业务代码中应默认优先使用 PreparedStatement；对于完全静态、无外部输入的 SQL，`Statement` 仍可使用，但不应为拼接参数而退回字符串构造 SQL 的方式。
 
 ## 5. 用 Connection 管理事务 {#jdbc-connection-transactions}
 
-JDBC 的事务边界属于 `Connection`，不属于某一条 `Statement`。同一个连接上的多条语句参与同一个事务；连接一旦提交、回滚或关闭，当前事务边界也随之结束。
+JDBC 的事务边界属于 `Connection`，不属于某一条 `Statement`。同一个连接上的多条语句参与同一个事务；调用 `commit()` 会提交、调用 `rollback()` 会撤销当前事务尚未提交的修改。若关闭连接时仍有活动事务，结果取决于实现，因此应在显式结束事务后再关闭连接，不能把 `close()` 当作提交或回滚的替代操作。
 
 ### 5.1 从自动提交切换到显式事务
 
@@ -400,6 +403,8 @@ try (Connection connection = dataSource.getConnection()) {
 ```
 
 关闭自动提交前先记录原值，并在归还连接前恢复；try-with-resources 保证连接最终关闭。连接池中的 `close()` 通常表示归还连接；如果事务尚未提交或回滚，事务状态可能继续污染下一个借用者，因此不能把关闭连接当作提交事务。恢复自动提交状态本身也可能失败，生产代码还要保留或记录这个次级失败，避免它覆盖原始事务异常。
+
+还要注意：若连接处于手动提交模式，调用 `setAutoCommit(true)` 会提交当前活动事务；上面示例假定本方法独占该连接且连接初始处于自动提交模式。连接池借用场景的状态恢复应单独处理，不应直接套用此模板。事务示例还应检查 `executeUpdate()` 的返回值：数据库事务只保证一组操作的原子性，不保证这些操作符合业务规则；若关键更新实际影响 0 行，应显式抛错，而不是在没抛异常的情况下继续后续步骤。
 
 ### 5.2 回滚、隔离级别与失败边界
 
@@ -436,6 +441,8 @@ try {
 ```
 
 回滚到 Savepoint 只撤销检查点之后的修改，不会提交之前已经执行的修改。`releaseSavepoint()` 可以释放不再需要的检查点；驱动不支持 Savepoint 时会抛出 `SQLFeatureNotSupportedException`，数据库还可能因 DDL 或事务实现限制拒绝保存点。不要默认所有数据库和驱动都提供相同能力。
+
+回滚到保存点本身也可能失败；备用逻辑失败时仍应回滚整个事务，并保留原始业务异常与回滚异常，不能让后者无条件覆盖前者。在手动提交模式下，事务中的数据库修改要通过 `commit()` 提交；回滚到保存点只撤销该保存点之后的相关修改，不会提交整个事务。如果后续操作失败，应根据业务要求决定是否回滚整个事务。
 
 ### 5.4 选择 JDBC 事务还是框架事务
 

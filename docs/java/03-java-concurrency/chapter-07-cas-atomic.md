@@ -30,7 +30,7 @@ STORE 寄存器 → count
 
 ### 2.1 Compare And Swap：硬件级的乐观锁
 
-CAS（Compare And Swap）是一条 CPU 原子指令，其语义可以用伪代码描述：
+CAS（Compare And Swap）是一种原子比较并更新操作：只有当前值仍等于期望值时，才将其更新为新值。Java 的原子类和 VarHandle 提供了这一操作的 API，JVM 会根据目标处理器和具体实现，将它映射为相应的原子指令或其他实现路径。其语义可以用伪代码描述：
 
 ```java
 // CAS 伪代码
@@ -39,12 +39,12 @@ boolean cas(内存地址 V, 期望值 A, 新值 B) {
         V = B;       // 更新成功
         return true;
     } else {
-        return false; // 更新失败，说明其他线程已经修改了 V
+        return false; // 更新失败，说明执行 CAS 时的当前值不等于期望值
     }
 }
 ```
 
-关键点：**"比较"和"交换"是一条不可分割的 CPU 指令**，不存在中间状态。
+关键点：**"比较"和"交换"是原子地完成的**，不存在中间状态，调用方观察到的要么是更新前的值、要么是更新后的值。
 
 ### 2.2 用 CAS 实现无锁计数器
 
@@ -97,18 +97,18 @@ CAS 并非 Java 发明的概念，它是从硬件到 JDK 层层封装的结果�
 
 ### 3.1 CPU 层面：cmpxchg 指令
 
-在 x86 架构上，CAS 对应的是 `cmpxchg` 指令。单核 CPU 上这条指令天然原子，但在多核环境下，需要加 `lock` 前缀来保证总线锁或缓存一致性：
+在 x86 平台上，JVM 常使用带 LOCK 前缀的 CMPXCHG 指令实现 CAS。这是 x86 上的一种典型实现，不代表 Java CAS 在所有平台上都对应同一条指令：
 
 ```asm
-; x86 汇编伪代码
+; x86 汇编示意代码（伪汇编操作数，非完整指令语法）
 lock cmpxchg [mem], new_val
-; lock 前缀：锁定缓存行或总线，确保整个操作的原子性
+; lock 前缀：保证相应内存操作的原子性
 ```
 
 `lock` 前缀的实际机制取决于 CPU 型号和缓存状态：
 
-- 早期处理器：锁定总线（成本高）
-- 现代处理器：缓存一致性协议（MESI），锁定缓存行即可
+- 对满足条件的普通缓存内存访问，现代处理器通常利用缓存一致性机制完成操作，不必锁住整个系统总线
+- 跨缓存行等特殊情况下，处理器可能采用更昂贵的总线锁定机制
 
 ### 3.2 JDK 层面：Unsafe → VarHandle
 
@@ -116,11 +116,11 @@ JDK 内部通过两种方式暴露 CAS 能力：
 
 | API | JDK 版本 | 说明 |
 | :-- | :-- | :-- |
-| `Unsafe.compareAndSwapInt()` | JDK 1.5+ | 早期方案，直接操作内存，仅供 JDK 内部使用（应用代码不应调用） |
-| `VarHandle.compareAndSet()` | JDK 9+ | 官方替代方案，类型安全，支持多种内存访问模式，替代大部分 Unsafe 操作 |
+| `Unsafe.compareAndSwapInt()` | JDK 1.5+ | JDK 内部使用的底层 API；普通应用不应依赖其内部实现接口 |
+| `VarHandle.compareAndSet()` | JDK 9+ | 标准变量访问 API，类型安全，支持原子更新和多种内存访问模式 |
 
 ```java
-// Unsafe 方式（仅供 JDK 内部，应用代码不应直接使用）
+// Unsafe 方式（JDK 内部实现示意，普通应用通常无法直接通过 Unsafe.getUnsafe() 获取实例）
 Unsafe unsafe = Unsafe.getUnsafe();
 Field field = MyClass.class.getDeclaredField("value");
 long offset = unsafe.objectFieldOffset(field);
@@ -178,7 +178,9 @@ public class VarHandleDemo {
 - **更丰富的语义**：支持 `getVolatile`、`setRelease`、`getAcquire` 等多种内存访问模式
 - **数组和静态字段**：同样支持 `ArrayVarHandle` 和静态字段的访问
 
-AtomicInteger 内部的简化实现：
+这些访问模式的差异不仅在于是否原子更新，还在于它们提供的内存排序保证。`getVolatile` 和 `setVolatile` 具有 volatile 读写语义；`setRelease` 用于发布此前的操作，`getAcquire` 用于获取此前发布的数据。若要通过 release/acquire 传递数据，需要读取方实际观察到相应发布值，不能只因为两边分别调用了这两个方法，就认为任意数据都自动建立了可见性关系。`getAndAdd` 则是原子读改写操作，并具有该访问模式规定的内存语义。
+
+JDK 9+ 的 AtomicInteger 简化实现（JDK 8 及之前使用 Unsafe 实现）：
 
 ```java
 public class AtomicInteger {
@@ -203,8 +205,8 @@ public class AtomicInteger {
 }
 ```
 
-> **为什么 AtomicInteger 的字段必须是 `volatile`？**
-> CAS 只保证单次操作的原子性。如果 `value` 不是 `volatile`，线程 A 的写入可能对线程 B 不可见——B 看到的仍是旧值，CAS 的"比较"就失去了意义。`volatile` 保证了可见性，配合 CAS 实现了原子性 + 可见性。
+> **为什么 AtomicInteger 的字段声明为 `volatile`？**
+> AtomicInteger 不只是提供 CAS，还提供 `get()`、`set()` 等普通读写方法，`value` 声明为 `volatile`，使这些方法遵循相应的 volatile 内存语义。与此同时，`compareAndSet()` 本身也具有 API 规定的原子性和内存语义，不能简单理解成"CAS 负责原子性，volatile 负责可见性"的拼装。VarHandle 可以针对非 volatile 字段执行支持的原子访问模式，具体保证取决于调用的访问模式；AtomicInteger 的字段声明方式是它自身实现和 API 语义的一部分，不应推广成所有 CAS 操作的硬性要求。
 
 ## 4. CAS 的三大问题
 
@@ -243,7 +245,7 @@ boolean success = ref.compareAndSet(
 | :-- | :-- | :-- |
 | `AtomicReference` | 只比较引用 | 不关心中间变化 |
 | `AtomicStampedReference` | 引用 + 版本号 | 需要检测 ABA |
-| `AtomicMarkableReference` | 引用 + boolean 标记 | 只需知道"是否被修改过" |
+| `AtomicMarkableReference` | 引用 + boolean 标记 | 只需维护一个标记状态，例如逻辑删除标记 |
 
 ### 4.2 问题二：自旋消耗
 
@@ -259,12 +261,12 @@ while (!cas(expected, newVal)) {
 
 **应对策略：**
 
-1. **`LongAdder` / `LongAccumulator`**（JDK 8+）：将单个计数器拆分为多个 cell，每个线程写自己的 cell，最后汇总。用空间换时间。
-2. **竞争激烈时退化为锁**：这是 `synchronized` 在 JDK 6+ 中的策略——自旋几次后仍然拿不到锁，就升级为重量级锁挂起线程。
+1. **`LongAdder` / `LongAccumulator`**（JDK 8+）：维护基础值并在竞争时动态扩展 cell 数组，将更新分散到多个 cell，降低单点争用，最后汇总。用空间换时间。
+2. **竞争激烈时转用锁**：`synchronized` 的具体竞争处理属于 JVM 实现细节，会随 JDK 版本和运行时状态变化。HotSpot 在某些竞争场景下会尝试自旋，以避免线程立即阻塞；是否自旋、何时进入阻塞路径，并不是固定次数的统一规则。
 
 ### 4.3 问题三：单变量限制
 
-CAS 一次只能保证一个变量的原子性。如果需要同时更新两个变量呢？
+单次 CAS 针对一个目标变量进行原子比较与更新。如果需要同时更新两个变量呢？若多个业务字段被封装在一个不可变对象中，并通过 CAS 原子替换对象引用，可以让这些字段作为一个整体切换状态。
 
 解决方案：**封装为对象 + AtomicReference**
 
@@ -315,7 +317,7 @@ Thread B: CAS(43, 44) ✓
 
 LongAdder（分段 CAS）：
 ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐
-│cell0│ │cell1│ │cell2│ │cell3│  ← 每个线程写自己的 cell
+│cell0│ │cell1│ │cell2│ │cell3│  ← 更新分散到多个 cell
 │ =10 │ │ =12 │ │ =8  │ │ =12 │
 └─────┘ └─────┘ └─────┘ └─────┘
    sum = 10 + 12 + 8 + 12 = 42（最终汇总）
@@ -427,7 +429,7 @@ public class LockFreeStack<T> {
 }
 ```
 
-> 注意：这个栈的 `pop` 操作存在 ABA 问题。CAS 比较的是节点引用身份：如果同一个节点 `A` 被弹出，中间经历 `A → B → A`，原引用重新成为栈顶，CAS 仍会成功；压入“值相同但引用不同”的新节点不会触发这个问题。实际生产中可以使用 `AtomicStampedReference` 记录版本，或采用不会复用引用的算法。
+> 关于 ABA：当前实现每次 push 都创建新节点，pop 只返回节点值，也没有复用已弹出的节点，因此这里并没有展示出同一节点被移除后又重新成为栈顶的执行路径。如果实现引入节点复用（例如节点池），或允许同一个节点引用被重新压入，其他线程就可能在读取栈顶后观察到 ABA：栈顶引用恢复原值，但该节点的 `next` 已发生变化，旧线程基于过期的 `next` 执行 CAS 仍可能成功，从而破坏栈结构。此类算法需要考虑版本戳、节点生命周期和内存回收等问题。`AtomicStampedReference` 能帮助检测引用与版本戳的变化，但不能当作所有问题的一键修复。
 
 ## 7. 本章小结
 

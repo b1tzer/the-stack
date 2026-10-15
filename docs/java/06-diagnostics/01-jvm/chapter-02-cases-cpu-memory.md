@@ -4,7 +4,7 @@
 
 > 本页用三个构造场景说明 CPU 热点、堆内存泄漏和 Metaspace 持续增长的排查路径。重点不是示例中的业务数字，而是如何从进程、线程栈、对象图和类加载器逐层缩小范围。
 
-## 正则灾难性回溯 —— 一行正则烧了银行
+### 正则灾难性回溯导致 CPU 占用升高
 
 ### 1.1 事故背景
 
@@ -31,7 +31,7 @@ printf "%x\n" 24901
 jstack 24789 | grep -A 30 "0x6145"
 ```
 
-输出让人瞬间清醒：
+栈顶证据如下：
 
 ```txt
 "http-nio-8080-exec-3" #42 prio=5 os_prio=0 cpu=954832.45ms
@@ -92,7 +92,7 @@ public static void main(String[] args) {
     Pattern evil = Pattern.compile("^([A-Z0-9]+)+$");
     String base = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-    for (int i = 10; i <= 30; i++) {
+    for (int i = 10; i <= 23; i++) {  // 上限 23 仅为避免 base(26 字符) 越界，非验证过的安全阈值
         String input = base.substring(0, i) + "!";  // 结尾加一个非法字符
         long start = System.nanoTime();
         evil.matcher(input).matches();
@@ -108,12 +108,12 @@ public static void main(String[] args) {
 长度 10 → 1 ms
 长度 15 → 5 ms
 长度 20 → 160 ms
-长度 25 → 5200 ms     ← 5 秒！
-长度 26 → 11000 ms    ← 11 秒！
-长度 27 → 23800 ms    ← 24 秒！
+长度 21 → 410 ms
+长度 22 → 820 ms
+长度 23 → 1700 ms
 ```
 
-长度为 20 时一个请求就要 160ms。这个接口 QPS 300，意味着 48 个线程同时在回溯——CPU 瞬间打满。长度每增加 1，时间翻倍——这就是指数级增长在真实系统里的代价。
+长度为 20 时一个请求就要 160ms。若请求以 300 QPS 持续进入，理想估算下同时处于处理中的请求数可能达到约 48 个；实际并发数还取决于线程池、排队和请求分布。一旦大量工作线程同时执行高成本匹配，CPU 就容易成为瓶颈。长度每增加 1，耗时约翻倍——这是指数级回溯成本在示例数据中的体现。
 
 ### 1.5 第四步：根因与修复
 
@@ -126,7 +126,8 @@ public static void main(String[] args) {
 private static final Pattern MERCHANT_ID_PATTERN =
     Pattern.compile("^(M|MERCHANT|MERCH_)?[A-Z0-9]{1,20}$");  // 精确长度上限
 
-// 第二层：加超时控制（Java 没有原生支持，用守护线程打断）
+// 第二层：等待超时示例（仅限制调用方等待结果的时间，并非正则执行超时保障）
+// 本例用于说明「超时返回 ≠ 底层匹配已停止」：cancel(true) 无法保证正在执行的回溯被及时中断。
 public boolean validateWithTimeout(String input) {
     Future<Boolean> future = executor.submit(() ->
         MERCHANT_ID_PATTERN.matcher(input).matches());
@@ -135,9 +136,10 @@ public boolean validateWithTimeout(String input) {
     } catch (TimeoutException e) {
         future.cancel(true);
         log.error("正则匹配超时，输入长度: {}", input.length());
-        return false;  // 超时直接拒绝
+        return false;  // 超时直接拒绝（底层匹配可能仍在运行，需配合隔离执行）
     }
 }
+// 说明：Future.get(timeout) 只能限制调用方等待时间，不能保证回溯被及时中断；此层仅作额外防护，根本措施仍是消除嵌套量词与限制输入长度。
 
 // 第三层：输入预检——先做轻量级校验，不合法直接返回
 public boolean validate(String input) {
@@ -152,7 +154,7 @@ public boolean validate(String input) {
 
 1. **正则写对了逻辑但写错了性能**——`([A-Z]+)+` 看起来和 `[A-Z]+` 一样，但嵌套量词的灾难性回溯在特定输入下是灾难。
 2. **正常输入下测不出来**——符合预期的 merchantId 都秒过，只有「异常输入」才暴露。
-3. **不止是 Java 的问题**——Python、JavaScript、PHP、Go 的 `regexp` 包都有同样的问题。ReDoS（Regular expression Denial of Service）是 OWASP 十大 Web 安全风险中「注入」类的一个子类。
+3. **不止是 Java 的问题**——灾难性回溯取决于正则引擎的实现：使用回溯型引擎的语言（如 Python、JavaScript、PHP 的传统实现）在相应模式下同样可能出现指数级匹配成本；而采用线性时间匹配策略的引擎（如 Go 的 `regexp` 包，基于 RE2）则能避免这类回溯爆炸。当不可信输入触发高成本匹配、耗尽服务资源时，这类问题可能构成 ReDoS（Regular Expression Denial of Service）。它属于拒绝服务风险，不能简单归为注入漏洞的子类。
 
 **排查此类问题的信号：**
 - `jstack` 中大量线程栈顶有 `java.util.regex.Pattern` 方法
@@ -165,7 +167,7 @@ public boolean validate(String input) {
 
 某电商平台订单服务，双十一大促压测期间，服务运行 30 分钟后接口响应时间从 80ms 飙升到 3200ms。`jstat -gcutil` 显示 Full GC 每 15~25 秒触发一次，每次耗时 1.8~3.2 秒。老年代使用率始终在 96%~99%。
 
-### 2.2 第一步：确认是内存泄漏还是堆配置不够
+### 2.2 第一步：判断堆占用是否持续增长
 
 ```bash
 jstat -gcutil <pid> 1000 10
@@ -180,7 +182,7 @@ jstat -gcutil <pid> 1000 10
   0.00  99.45  12.45  97.98  94.18  1236   45.278   91   160.123  205.401
 ```
 
-关键发现：老年代（O）每次 Full GC 后几乎不降——从 97.12% → 97.98%。如果是堆配置不够，Full GC 后应该有明显下降。**不降，就是泄漏。**
+观察老年代（O）每次 Full GC 后几乎不降——从 97.12% → 97.98%。单凭一次 Full GC 后的占用率不能区分堆配置不够与内存泄漏：堆配置不足时，若工作集超过容量，老年代同样可能无法明显下降；而长期不降更可能指向存活对象持续累积。需结合堆转储中的对象类型、支配关系和引用链进一步确认。
 
 ### 2.3 第二步：抓 dump 分析
 
@@ -190,7 +192,7 @@ jmap -dump:format=b,file=/tmp/order_heap.hprof <pid>
 
 将 `order_heap.hprof` 拉到本地用 MAT 打开。
 
-**Leak Suspects Report 直接指认凶手：**
+**Leak Suspects Report 定位到可疑对象：**
 
 ```txt
 Problem Suspect 1:
@@ -207,7 +209,7 @@ Problem Suspect 1:
     (static field, OrderCacheManager.java:15)
 ```
 
-一个静态 `ConcurrentHashMap`，占了堆的 78%，2GB。
+一个静态 `ConcurrentHashMap`，占约 1.87 GiB（2,004,582,912 字节，约 78% 的堆）。
 
 ### 2.4 第三步：Dominator Tree 确认
 
@@ -221,7 +223,7 @@ java.lang.Thread @ main                       | 48 B         | 2,323 MB
 │     └─ ... (共计 980,000+ 条目)
 ```
 
-`OrderCacheManager.CACHE` 的 Retained Heap = 2GB，持有近 100 万条订单对象。每个订单对象约 2KB（包含商品明细、用户信息、物流状态等）。
+`OrderCacheManager.CACHE` 的 Retained Heap ≈ 1.87 GiB（约 2GB），持有近 100 万条订单对象。每个订单对象约 2KB（包含商品明细、用户信息、物流状态等）。
 
 ### 2.5 第四步：看代码
 
@@ -292,13 +294,13 @@ jstat -gcutil <pid> 1000 10
 | Dominator Tree 确认保留量 | 定量证据：多少对象、多少内存 |
 | 代码审查发现只 put 不 remove | 设计缺陷：缓存无淘汰策略 |
 
-**教训：** 任何本地缓存都必须有 TTL 和容量上限。`ConcurrentHashMap` 不是缓存——它只是一个线程安全的 Map。做缓存用 Caffeine、Guava Cache，或者 Redis。**用 Map 当缓存 = 把应用当操作系统。**
+**处理原则：** 本地缓存应有明确的资源边界和淘汰策略；对于键空间可能持续增长的缓存，通常需要容量上限、过期时间或可验证的淘汰机制，避免对象长期保留而挤占业务堆空间。`ConcurrentHashMap` 解决的是并发访问问题，不提供过期与容量淘汰能力。是否引入 Caffeine、Guava Cache 或 Redis，应根据是否需要跨进程共享、数据一致性与访问模式决定。
 
 ## CGLIB 动态代理未复用 —— 爆掉 256MB Metaspace {#metaspace-oom}
 
 ### 3.1 事故背景
 
-某报表服务上线一个月后，频繁出现 `java.lang.OutOfMemoryError: Metaspace`，服务不定时重启。查看监控发现 Metaspace 使用量从 45MB 单调增长到 256MB，Full GC 无法回收。接口每次调用后 `jcmd <pid> VM.class_stats | wc -l` 显示类数量增加约 1000 个——且永不回落。
+某报表服务上线一个月后，频繁出现 `java.lang.OutOfMemoryError: Metaspace`，服务不定时重启。查看监控发现 Metaspace 使用量从 45MB 单调增长到 256MB，且 Full GC 后元空间使用量仍持续增长，未见回落。接口每次调用后 `jcmd <pid> VM.class_stats | wc -l` 显示类数量增加约 1000 个——且永不回落。
 
 ### 3.2 第一步：确认是 Metaspace 问题
 
@@ -337,21 +339,19 @@ Index  Super  InstBytes  KlassBytes  annotations  CpAll  MethodCount  Bytecodes 
 ...（几万个 CGLIB 代理类）
 ```
 
-几万个 `EnhancerByCGLIB$$xxxxxxxx`，每个约 172KB。用 Arthas 看类加载器：
+几万个 `EnhancerByCGLIB$$xxxxxxxx` 类（示意数据，用于演示类元数据持续累积的现象）。真实环境应结合 JDK 版本，用 `jcmd <pid> VM.class_stats` 统计代理类数量，并用 Arthas 观察类加载器实例及其可达性：
 
 ```bash
 arthas> classloader
 ```
 
 ```txt
- name                                                    numberOfInstances  loadedCountTotal
- net.sf.cglib.core.AbstractClassGenerator$EnhancerKey    1                  45231
- net.sf.cglib.core.AbstractClassGenerator$EnhancerKey    1                  43892
- net.sf.cglib.core.AbstractClassGenerator$EnhancerKey    1                  42176
- ... 每次 Enhancer.create() 产生一个新的类加载器，每个加载了几万个类
+ name                                                   numberOfInstances  loadedCountTotal
+ com.example.report.ReportTemplate$$EnhancerByCGLIB...  1                  45231
+ ... 同一类加载器实例反复加载该类，loadedCountTotal 持续增长
 ```
 
-正常情况下，CGLIB 应当通过 `Enhancer` 的内部缓存复用同一个代理类，只产生少量类加载器。这里却有几个万个——这是典型的**类加载器泄漏导致的 Metaspace 无法释放**。
+正常情况下，CGLIB 的 `Enhancer` 会通过内部缓存复用同一个代理类，只产生少量类加载器。这里却出现大量类——这是典型的**类元数据持续累积，可能由类加载器泄漏导致 Metaspace 无法释放**。但仅凭代理类数量增长不足以证明泄漏，还需确认类加载器是否长期可达、未被卸载。
 ```java
 @Service
 public class ReportService {
@@ -374,13 +374,13 @@ public class ReportService {
 }
 ```
 
-CGLIB 的 `Enhancer.create()` 每次调用都会生成一个新的代理类。类名如 `ReportTemplate$$EnhancerByCGLIB$$d34db33f`，由当前的 `Enhancer` 对象和 `Callback` 决定命名。每次 `new Enhancer()` + 不同的 `MethodInterceptor` 匿名类 → CGLIB 生成不同的代理类名并创建独立的类加载器 → 新类被加载到 Metaspace → Metaspace 持续增长。
+示例把代理类的生成放在每次请求内部：每次 `generateReport()` 都 `new Enhancer()` 并传入新的 `MethodInterceptor` 匿名对象，再调用 `Enhancer.create()`。CGLIB 的 `Enhancer` 内置了生成类缓存，是否复用已有代理类取决于缓存键（含 `Enhancer` 配置与 `Callback` 类型）是否一致；缓存未命中时才会生成新的代理类并加载到 Metaspace。示例中的写法使缓存难以命中，从而持续生成新类、推高 Metaspace。（此机制与具体 CGLIB 版本及缓存配置相关，需结合实际依赖版本理解。）
 
-每次报表请求调用一次 `generateReport()` → 加载约 1000 个类（代理类 + 方法访问器 + 反射辅助类等）→ 永不卸载。
+每次报表请求调用一次 `generateReport()` 都可能触发新一轮代理类生成与加载（代理类 + 方法访问器 + 反射辅助类等），若生成的类长期无法被卸载，Metaspace 就会持续增长。
 
 ### 第四步：为什么类无法卸载？
 
-JVM 卸载一个类的条件非常苛刻：该类的所有实例已被回收、该类的 `ClassLoader` 不可达、没有对该类的 `java.lang.reflect` 引用。CGLIB 每次 `create()` 生成的代理类被各自的类加载器持有强引用，只要类加载器还活着，它加载的所有类就全部占据 Metaspace 无法被 GC。
+HotSpot 中，类卸载通常与定义该类的类加载器能否被回收密切相关。若应用长期持有类加载器，或类加载器通过引用链保持可达，它加载的类就可能持续占用 Metaspace。CGLIB 每次 `create()` 生成的代理类被各自的类加载器持有强引用，只要类加载器仍可达，它加载的所有类就无法被卸载，进而占据 Metaspace。
 
 ### 第五步：修复
 
@@ -400,7 +400,7 @@ public class ReportService {
             log.info("报表生成耗时: {}ms", System.currentTimeMillis() - start);
             return result;
         });
-        PROXY_TEMPLATE = (ReportTemplate) ENHANCER.create();
+        PROXY_TEMPLATE = (ReportTemplate) ENHANCER.create();  // 仅生成一次代理类，供后续复用
     }
 
     public byte[] generateReport(String templateName, Map<String, Object> params) {
@@ -434,12 +434,12 @@ jcmd <pid> VM.class_stats | wc -l
 | :-- | :-- | :-- |
 | 监控指标 | `jstat -gc` 的 MU 持续增长 | `jstat -gc` 的 OU 持续增长 |
 | Full GC 效果 | MC/MU 不降 | OC/OU 不降 |
-| 类数量 | `jcmd VM.class_stats \| wc -l` 持续增长 | 正常 |
+| 类数量 | `jcmd VM.class_stats \| wc -l` 可能持续增长（需定位来源） | 通常正常，动态类生成时也可能增长 |
 | MAT 分析入口 | Class Loader Explorer | Leak Suspects / Histogram |
 | 常见根因 | CGLIB、FastJSON ASM、Groovy、JSP 热部署 | 无界缓存、ThreadLocal 未 remove、连接未关闭 |
 
-**教训：** CGLIB 代理类要缓存复用。`Enhancer.create()` 不是「创建对象」，是「生成类 + 创建对象」。前者消耗 Metaspace（元空间），后者消耗堆。堆 GC 能回收对象，但类的卸载条件非常苛刻——需要 ClassLoader 不可达、且所有实例已回收、且没有反射引用。
+**教训：** CGLIB 代理类要缓存复用，避免 `Enhancer` 缓存未命中导致反复生成新类。堆 GC 能回收对象，但类的卸载与定义它的类加载器能否被回收密切相关；只要类加载器仍可达，它加载的代理类就会持续占据 Metaspace。
 
-另外：生产环境**必须**设置 `-XX:MaxMetaspaceSize=256m`。JDK 8+ 的 Metaspace 默认无上限（受限于物理内存），设置这个参数能让你在泄漏发生时拿到 OOM dump 而不是让整个机器被拖死。
+另外：可考虑设置 `-XX:MaxMetaspaceSize` 限制元空间上限，但具体数值应结合正常运行时的类元数据规模、动态类生成行为和容器内存预算评估（256MB 并非通用值）。JDK 8+ 的 Metaspace 默认受限于物理内存，设置上限有助于约束资源使用，但不能代替类加载器生命周期管理，也不保证发生 OOM 时一定生成诊断 dump 或避免宿主机受影响。
 
 > **回到诊断入口：** [JVM 线上诊断](./chapter-01-jvm-diagnostics.md)。类加载机制见[字节码与类加载](../../02-jvm-runtime/chapter-01-bytecode-classloading.md)，堆与 GC 行为见[垃圾回收](../../02-jvm-runtime/chapter-04-gc.md)。

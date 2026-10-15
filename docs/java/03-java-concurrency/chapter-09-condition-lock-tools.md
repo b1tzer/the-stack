@@ -26,10 +26,10 @@ Condition_notFull 条件队列（挂在同一个 lock 上）
 
 节点在两条队列之间迁移：
 
-- **`await()`**：从"当前持锁线程"→ 释放锁 → 加入指定 `Condition` 的条件队列尾 → `park`
-- **`signal()`**：把条件队列的第一个节点摘下来 → 转移到同步队列尾 → 等待被锁释放时唤醒
+- **`await()`**：当前线程必须持有关联锁。它先进入对应的条件队列，再完全释放锁并等待；可能因信号、中断、超时或虚假唤醒而结束等待，收到信号后进入同步队列，重新获取锁成功后，`await()` 才返回
+- **`signal()`**：当前线程必须持有关联锁。它将条件队列中最先等待的有效节点转移到同步队列；被转移的线程还要重新竞争锁，并不会立刻执行
 
-**关键**：`signal` 不代表"立刻运行"。被 `signal` 的线程只是从"等条件"变成"等锁"，还得排队争锁——和 `wait/notify` 是一样的。
+**关键**：`signal` 不代表"立刻运行"。被 `signal` 的线程只是从"等条件"变成"等锁"，还得排队争锁——和 `wait/notify` 是一样的。`signal` 表示等待条件发生变化后，可以让某个等待者重新竞争锁，不保证该线程立即运行，也不保证它一定能获得锁。
 
 ### 1.2 生产者-消费者用两条 Condition 精确唤醒 {#condition-producer-consumer}
 
@@ -57,14 +57,14 @@ public E take() throws InterruptedException {
 }
 ```
 
-用 `wait/notify` 实现同样的语义，只能用 `notifyAll` 把生产者和消费者一起叫起来，让每条线程醒来后自己重判——这就是"惊群"。`Condition` 把两条队列拆开，每次 `signal` 只精准唤一个方向的线程。
+如果生产者和消费者都在同一个 Monitor 的等待集合中，`notify()` 可能唤醒条件不满足的线程，导致其他真正需要运行的线程继续等待；使用 `notifyAll()` 可以避免只唤醒错误类型线程的问题，但会让所有等待者醒来重新竞争锁。`Condition` 把两条队列拆开，每次 `signal` 只精准唤一个方向的线程，减少无关唤醒和锁竞争。无论使用哪种方案，醒来的线程都必须重新检查条件，因此示例中的 `while` 不能改成 `if`。
 
 ### 1.3 `Condition` vs `wait/notify`
 
 | 维度 | `wait/notify` | `Condition` |
 | :-- | :-- | :-- |
 | 队列数量 | 一个（Monitor 的等待队列） | 多个（每次 `newCondition` 一条） |
-| 唤醒精度 | `notifyAll` 惊群，`notify` 随机挑 | `signal` 只唤指定条件的线程 |
+| 唤醒精度 | `notifyAll` 惊群，`notify` 任意选择一个等待者 | `signal` 只唤指定条件的线程 |
 | 可中断等待 | `wait()` 支持 | `await()` 支持，另有 `awaitUninterruptibly` |
 | 超时等待 | `wait(ms)` | `await(t, unit)` / `awaitUntil(deadline)` |
 | 前置要求 | 必须在 `synchronized` 块内 | 必须在 `lock/unlock` 内 |
@@ -79,7 +79,7 @@ public E take() throws InterruptedException {
 
 | 工具 | 模式 | `state` 语义 | 典型用途 |
 | :-- | :-- | :-- | :-- |
-| `ReentrantLock` | 独占 | 0 空闲；n 表示同一线程重入 n 次 | 通用互斥 |
+| `ReentrantLock` | 独占 | 0 空闲；正数表示持有线程的获取次数（含首次获取） | 通用互斥 |
 | `ReentrantReadWriteLock` | 独占 + 共享 | 高 16 位 = 读锁持有数；低 16 位 = 写锁重入 | 读多写少 |
 | `StampedLock` | 独占 + 共享 + 乐观读 | 版本戳（含锁状态） | 读极多、读操作极短 |
 | `Semaphore` | 共享 | 剩余许可数 | 限流、资源池 |
@@ -103,9 +103,9 @@ state (32 bit)
 
 `state != 0` 且低 16 位为 0 时，说明“有读锁在，无写锁”——读请求可以尝试 CAS 增加读计数。是否立即进入还受公平策略、队列中其他请求和并发竞争影响。位分割设计让读写状态共享一个 `int`，但不意味着所有读线程都无条件绕过排队。
 
-代价是理论上限——最多 65535 个并发读、65535 次写锁重入。是否接近上限取决于业务规模，排查计数异常时值得记住。
+代价是理论上限——读锁总持有计数和写锁重入计数的理论上限均为 65535。读锁计数统计的是当前读锁持有次数，不等同于不同读线程的数量；同一线程重入获取读锁也会占用计数。超过计数上限时，获取相应锁会失败并抛出 Error。是否接近上限取决于业务规模，排查计数异常时值得记住。
 
-### 2.3 `StampedLock`：乐观读绕开了 CAS
+### 2.3 `StampedLock`：用版本戳验证乐观读
 
 `ReentrantReadWriteLock` 在非公平模式下有一个风险：**写线程可能长时间等待**。读远多于写时，持续进入的读请求可能让写请求迟迟得不到机会；非公平模式不提供严格的等待时间保证。
 
@@ -115,24 +115,24 @@ state (32 bit)
 StampedLock lock = new StampedLock();
 
 // 1. 悲观写锁（独占）
-long stamp = lock.writeLock();
-try { /* 写 */ } finally { lock.unlockWrite(stamp); }
+long writeStamp = lock.writeLock();
+try { /* 写 */ } finally { lock.unlockWrite(writeStamp); }
 
 // 2. 悲观读锁（共享）
-long stamp = lock.readLock();
-try { /* 读 */ } finally { lock.unlockRead(stamp); }
+long readStamp = lock.readLock();
+try { /* 读 */ } finally { lock.unlockRead(readStamp); }
 
-// 3. 乐观读（不加锁！）
-long stamp = lock.tryOptimisticRead();
+// 3. 乐观读（不获取读锁，用版本戳验证）
+long optimisticStamp = lock.tryOptimisticRead();
 int x = point.x, y = point.y;
-if (!lock.validate(stamp)) {         // 期间被写过？
-    stamp = lock.readLock();          // 降级到悲观读
+if (!lock.validate(optimisticStamp)) {   // 期间被写过？
+    long rereadStamp = lock.readLock();  // 降级到悲观读
     try { x = point.x; y = point.y; }
-    finally { lock.unlockRead(stamp); }
+    finally { lock.unlockRead(rereadStamp); }
 }
 ```
 
-乐观读不获取写锁，读取时只检查版本戳，读完后通过 `validate()` 判断期间是否发生写入。**读多、读操作短**的场景下，它通常比悲观读锁更轻；实际成本仍取决于架构、内存序和实现细节。
+乐观读期间读到的数据可能暂时不一致，应先把字段读到局部变量，再用 `validate()` 验证，验证通过后才使用；验证失败则丢弃本次结果，改用悲观读锁重新读取。**读多、读操作短**的场景下，它通常比悲观读锁更轻；实际成本仍取决于架构、内存序和实现细节。
 
 限制：`StampedLock` 不可重入，也不支持 `Condition`。它是一个"高性能读写锁"，不是 `ReentrantLock` 的替代品。
 
@@ -153,7 +153,7 @@ if (!lock.validate(stamp)) {         // 期间被写过？
 
 选型规则很好记：
 
-- **没有 `Lock` 才有的能力诉求** → 用 `synchronized`；简单且 JIT 会替你做优化
+- **没有 `Lock` 才有的能力诉求** → 优先考虑 `synchronized`，语法简单，异常路径也能自动释放监视器；具体性能由 JVM 和实际代码形态决定
 - **需要超时 / 中断 / 公平 / 多条件队列 / 跨方法持锁** → 用 `Lock`
 - **写少读多且读操作短** → `StampedLock`
 - **写少读多但需要重入或 `Condition`** → `ReentrantReadWriteLock`
@@ -196,7 +196,7 @@ for (Runnable task : tasks) {
 }
 
 if (!completed.await(3, TimeUnit.SECONDS)) {
-    throw new IllegalStateException("workers did not become ready in time");
+    throw new IllegalStateException("tasks did not complete in time");
 }
 ```
 
@@ -236,7 +236,7 @@ CyclicBarrier barrier = new CyclicBarrier(
 barrier.await(5, TimeUnit.SECONDS);
 ```
 
-调用点需要声明或捕获 `InterruptedException`、`TimeoutException` 和 `BrokenBarrierException`。一轮全部到达后，Barrier 可以复用。任一线程中断、超时或抛出异常时，Barrier 进入 broken 状态，其他等待线程会收到 `BrokenBarrierException`，后续 `await()` 也无法自动恢复。需要重试时必须明确调用 `reset()`，或创建新的 Barrier。它由 `ReentrantLock` 和 `Condition` 组合实现，不直接继承 AQS。
+调用点需要声明或捕获 `InterruptedException`、`TimeoutException` 和 `BrokenBarrierException`。一轮全部到达后，Barrier 可以复用。一轮中如果等待线程被中断或等待超时，Barrier 会进入 broken 状态；如果配置的 barrier action 抛出异常，也会使 Barrier 进入 broken 状态。其他等待线程可能收到 `BrokenBarrierException`，后续 `await()` 也不会自动恢复。参与线程在调用 `await()` 之前发生业务异常，不会因此自动被 Barrier 感知。需要重新协作时，可以明确调用 `reset()`，或创建新的 Barrier。它由 `ReentrantLock` 和 `Condition` 组合实现，不直接继承 AQS。
 
 ### 3.4 按协作语义选型
 

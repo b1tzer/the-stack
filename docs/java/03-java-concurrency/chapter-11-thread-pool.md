@@ -73,7 +73,7 @@ public ThreadPoolExecutor(
 | `threadFactory` | 创建线程的工厂：命名、守护线程标志、`UncaughtExceptionHandler` 都在这里定 |
 | `handler` | 队列满且线程数已达上限时的处理器 |
 
-七个字段中，只有五个是真正的独立开关（`unit` 只是给 `keepAliveTime` 加单位；`threadFactory` 影响可观测性但不影响调度）。真正决定线程池行为的核心是 **`corePoolSize` / `maximumPoolSize` / `workQueue` / `handler`** 这四项——它们互相牵制，改任何一个都会连带影响另外三个。
+七个参数并不是七个互不相关的开关。`corePoolSize`、`maximumPoolSize` 和 `workQueue` 共同决定任务何时入队、何时扩容；`keepAliveTime` 与 `allowCoreThreadTimeOut` 影响空闲线程的回收；`threadFactory` 决定工作线程的创建方式，也影响守护线程标志和异常处理器；`handler` 决定线程池无法接收任务时如何处理。其中 `corePoolSize` / `maximumPoolSize` / `workQueue` / `handler` 这四项互相牵制，改任何一个都会连带影响另外三个。
 
 ### 2.2 四项主开关的耦合关系
 
@@ -146,9 +146,9 @@ ThreadPoolExecutor pool = new ThreadPoolExecutor(
 | 策略 | 行为 | 用途 |
 | :-- | :-- | :-- |
 | `AbortPolicy`（默认） | 抛 `RejectedExecutionException` | 必须让上游感知过载 |
-| `CallerRunsPolicy` | 由提交任务的调用线程自己执行 | 天然反压，绝不能丢的场景 |
+| `CallerRunsPolicy` | 由提交任务的调用线程自己执行 | 在线程池仍运行时提供反压；关闭后不执行任务，不能单独保证不丢 |
 | `DiscardPolicy` | 静默丢弃当前任务，不抛异常 | 可容忍丢失（如埋点日志） |
-| `DiscardOldestPolicy` | 丢弃队首最老的任务，再重试提交当前任务 | 新任务比旧任务更重要 |
+| `DiscardOldestPolicy` | 尝试移除队列头部任务，再重新提交当前任务 | 新任务比旧任务更重要；重试仍可能被拒绝 |
 
 关键源码：
 
@@ -299,7 +299,7 @@ scheduler.scheduleAtFixedRate(() -> {
 }, 0, 5, TimeUnit.SECONDS);
 ```
 
-线上"定时任务运行了一段时间突然不跑了"，绝大多数是这个原因。
+如果周期任务突然停止，且执行器仍在运行，应检查最近一次执行是否异常完成，以及对应的 `Future` 是否记录了异常。
 
 ## 7. `ForkJoinPool` 与工作窃取 {#fork-join-pool}
 
@@ -308,14 +308,14 @@ scheduler.scheduleAtFixedRate(() -> {
 ### 7.1 工作窃取：每个线程一个双端队列
 
 ```txt
-Worker A 队列:  [T1, T2, T3]     ← A 从队头取（LIFO，缓存友好）
+Worker A 队列:  [T1, T2, T3]     ← A 从自己队列一端取（LIFO）
 Worker B 队列:  [ ]              ← B 空了！
-                                     ↓ 从别人的队尾偷
-Worker A 队列:  [T1, T2]         ← A 继续从队头取
-Worker B 队列:  [T3]             ← B 拿到 T3 后从自己队头取
+                                     ↓ 从别的队列另一端偷（FIFO 方向）
+Worker A 队列:  [T1, T2]         ← A 继续从自己队列一端取
+Worker B 队列:  [T3]             ← B 拿到 T3 后从自己队列一端取
 ```
 
-**A 从队头（LIFO）取自己的任务，B 从 A 的队尾偷**——两端操作错开，减少 CAS 争抢。加上“最新任务留给自己”的偏好，工作窃取通常适合 CPU 密集分治场景；实际并行效率仍受任务粒度、负载均衡和同步开销影响。
+每个 Worker 通常优先从本地队列的一端获取任务，以 LIFO 顺序处理自己最近产生的任务；空闲 Worker 则尝试从其他队列的另一端窃取任务，通常按 FIFO 方向获取。两端分开操作可以减少任务获取时的竞争。本地 Worker 倾向于继续处理新拆分的子任务，而窃取者可能拿到较早产生、尚未执行的任务，从而分散不同任务树的工作量。实际效果仍取决于任务粒度、分支结构和同步开销。
 
 ### 7.2 `commonPool`：`parallelStream` 和 `CompletableFuture` 的默认执行器
 
@@ -370,7 +370,7 @@ CompletableFuture.supplyAsync(() -> httpClient.get(url), ioPool);
 线程数 = 8 × (1 + 0.6 / 0.4) = 8 × 2.5 = 20
 ```
 
-这个公式给的是**起点**，不是终点。真实业务需要靠压测把线程数、队列大小、拒绝策略这三者一起调到最佳组合。
+这个公式给的是**起点**，不是终点。这里的 `W` 是单个任务平均等待时间，`C` 是平均 CPU 计算时间。该公式提供线程数的初始估算，不直接给出最优值；线程增加到一定程度后，CPU 竞争、任务切换、外部连接池容量和队列等待可能抵消并发收益。Little 定律 `L = λW` 描述稳定系统中平均在系统内的任务数、到达率与平均停留时间的关系，可用于估算任务积压，但不能单独推导出最优线程数。真实业务需要靠压测把线程数、队列大小、拒绝策略这三者一起调到最佳组合。
 
 ### 8.2 线程命名：排查线上问题的生命线 {#thread-naming}
 
@@ -457,6 +457,8 @@ try {
 | `shutdown()` | 拒绝 | 继续执行 | 继续执行 |
 | `shutdownNow()` | 拒绝 | 抛弃并返回 | 发送 `Thread.interrupt()` |
 
+`shutdownNow()` 只是尝试通过中断停止正在执行的任务，并返回尚未开始执行的等待任务列表。任务是否真正停止，取决于任务代码能否响应中断；如果任务忽略中断，线程池可能在调用后继续存活。对于必须保证任务完成的业务，还应定义关闭期间未完成任务的处理方式，不能仅依赖 `shutdownNow()` 保证任务不丢失。
+
 Spring 环境中用 `@PreDestroy` 触发这套流程，避免 JVM 退出时任务被硬中断。
 
 ### 8.6 `submit` 的异常静默陷阱 {#submit-exception}
@@ -472,7 +474,7 @@ Future<?> f = pool.submit(() -> throwSomething());
 try { f.get(); } catch (ExecutionException e) { /* 才能拿到异常 */ }
 ```
 
-`submit` 把任务包装成 `FutureTask`，异常保存在 `Future` 中。若调用方既不查询结果，也没有覆盖 `afterExecute` 或其他监控路径，该异常就不会进入业务错误处理，造成“任务执行了但结果和失败原因无人观察”。
+`submit` 把任务包装成 `FutureTask`，异常保存在 `Future` 中。若调用方既不查询结果，也没有其他任务失败监控机制，该异常就可能一直无人处理。`execute()` 的任务异常通常会使执行该任务的 Worker 异常退出，并交给相应的 `UncaughtExceptionHandler` 处理。如果希望在执行器层统一收集任务异常，不能只依赖 `afterExecute(Runnable, Throwable)` 的 `Throwable` 参数——对于 `submit()` 提交的任务，异常已被 `FutureTask` 捕获，该参数可能是 null，应检查对应的 `Future` 完成状态。
 
 ## 9. 本章小结
 

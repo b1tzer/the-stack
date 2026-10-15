@@ -2,7 +2,7 @@
 
 > `ReentrantLock`、`Semaphore`、`CountDownLatch`——三种表面不同的工具，为什么源码都藏在同一个基类里？`CyclicBarrier` 为什么不继承它？
 
-[第 6 章的 `synchronized`](./chapter-06-synchronized.md)把互斥锁封装在 JVM 内部。开发者只有一个开关：`synchronized`/不 `synchronized`。这一章讨论的是另一条路：**把锁的实现搬到 Java 代码层面**，让“如何挂起线程”、“如何组织等待队列”、“如何唤醒”这些机制变得可编程。这条路的起点是 `LockSupport`，终点是 AQS。走完这一章，回头再看 `java.util.concurrent.locks` 和 `java.util.concurrent` 包里绝大多数工具，会发现它们其实只有一个骨架。
+[第 6 章的 `synchronized`](./chapter-06-synchronized.md)把互斥锁封装在 JVM 内部。开发者只有一个开关：`synchronized`/不 `synchronized`。这一章讨论的是另一条路：**把锁的实现搬到 Java 代码层面**，让"如何挂起线程"、"如何组织等待队列"、"如何唤醒"这些机制变得可编程。`LockSupport` 提供底层的线程挂起与唤醒机制，AQS 在其上封装同步状态、等待队列和获取释放流程。理解这两层之后，再看 `ReentrantLock`、`Semaphore` 和 `CountDownLatch` 的实现，会更容易区分它们共享的机制与各自的同步语义。
 
 > **版本基线**：本页按 JDK 21 的 `AbstractQueuedSynchronizer` 实现讲解。JDK 8 时代常见资料使用 `waitStatus`、`SIGNAL`、`unparkSuccessor` 和 `PROPAGATE`；JDK 21 已改用 `Node.status`、`WAITING`、`CANCELLED`、`COND` 与 `signalNext`。概念模型仍然相通，但源码名称和传播路径不能混用。
 
@@ -12,7 +12,7 @@
 
 `synchronized` 的语义是"要么拿到锁进入临界区，要么阻塞等"。真到线上，业务几乎每天都在提出更细的要求：
 
-| 需求 | `synchronized` 的答案 |
+| 需求 | 仅使用 `synchronized` 这一监视器机制时的限制 |
 | :-- | :-- |
 | "我最多等 3 秒，拿不到就走" | 做不到 |
 | "我等锁的时候允许被 `interrupt` 打断" | 做不到 |
@@ -34,6 +34,8 @@
 
 这三样加在一起就是 AQS 的骨架。但要理解 AQS 的挂起/唤醒是怎么发生的，得先看第三样——`LockSupport`。
 
+开篇问的 `CyclicBarrier` 为什么不继承 AQS：它通过 `ReentrantLock` 和 `Condition` 协调一组线程到达屏障后共同放行，并支持屏障重复使用，不需要自己实现同步状态和等待队列，因此直接组合而非继承。AQS 是构建同步器的工具，不是所有并发工具都必须继承的基类。
+
 ## 2. `LockSupport`：许可证式挂起
 
 ### 2.1 `park` / `unpark` 的语义
@@ -50,9 +52,9 @@ LockSupport.unpark(Thread t);       // 唤醒指定线程
 它对每条线程维护一张**许可证（permit）**：
 
 - `unpark(t)` 把 t 的许可证置为"可用"
-- `park()` 检查当前线程的许可证：可用则消耗掉后立即返回，不可用则挂起，直到有人调用 `unpark`
+- `park()` 检查当前线程的许可证：可用则消耗掉后立即返回；否则线程可能被挂起。之后 `park()` 可以因其他线程调用 `unpark()`、当前线程被中断，或发生虚假唤醒而返回，调用方必须重新检查等待条件，不能把 `park()` 返回等同于"等待条件已满足"
 
-许可证是一个二值状态——不是计数器。连续两次 `unpark` 只会保留一张许可证，第二张被忽略。
+许可证是一个二值状态——不是计数器。许可证已可用时，再次 `unpark` 不会累积额外许可证。
 
 ### 2.2 三点关键差异
 
@@ -96,7 +98,7 @@ public class SimpleLock {
 }
 ```
 
-这段代码正确性不够强（缺失公平性、可能丢唤醒、无重入），但它揭示了一个事实：**"CAS 抢状态 + 队列排队 + `park/unpark` 挂起唤醒"就是一把锁的最小工作集**。AQS 做的事，本质上就是把这套模式提炼成一个可扩展的框架。
+这段代码只是演示 CAS + 等待队列 + park/unpark 的组合思路，不是可直接用于生产的锁实现。它不保证公平性，不支持重入，也没有校验释放操作的线程所有权；中断处理和队列维护同样不完整。许可证机制可以解决部分检查与挂起之间的时序问题，但不能单独保证整个锁算法的正确性。它揭示的事实是：**"CAS 抢状态 + 队列排队 + `park/unpark` 挂起唤醒"就是一把锁的最小工作集**。AQS 做的事，本质上就是把这套模式提炼成一个可扩展的框架，并用节点状态、队列协议和取消清理逻辑协调竞争线程。
 
 ### 2.4 底层实现的一句话交代
 
@@ -116,8 +118,8 @@ public class SimpleLock {
      │                                              │
      │   Node head ─→ Node ─→ Node ─→ Node ← tail   │
      │        │        │       │       │            │
-│        │      thread=B thread=C thread=D     │
-│        │     status=1 status=1    status=0   │
+     │        │     thread=B thread=C thread=D     │
+     │        │     status=1 status=1    status=0   │
      │      (虚节点)                                 │
      └──────────────────────────────────────────────┘
 ```
@@ -131,11 +133,11 @@ public class SimpleLock {
 | 状态位 | 值 | 含义 |
 | :-- | :-- | :-- |
 | `WAITING` | `1` | 等待线程可能正在 park，唤醒方需要清除该位再 unpark |
-| `CANCELLED` | `0x80000000` | 线程被中断或超时放弃排队，节点作废 |
+| `CANCELLED` | `0x80000000` | 节点对应的获取操作已取消，例如因超时或可中断获取被中断而退出，该节点不再参与正常获取流程 |
 | `COND` | `2` | 节点当前处于 `Condition` 等待 |
 | 0 | 0 | 未设置上述状态位；能否安全 park 仍需配合队列位置复核 |
 
-JDK 21 通过原子位操作避免 park/unpark 竞态：等待线程先设置 `WAITING` 再复核，唤醒方清除 `WAITING` 后调用 `unpark`。旧资料中的“四状态 `waitStatus`”对应的是另一版实现，不能直接套到这里的常量表上。
+JDK 21 通过原子位操作避免 park/unpark 竞态：等待线程先设置 `WAITING` 再复核，唤醒方清除 `WAITING` 后调用 `unpark`。旧资料中的"四状态 `waitStatus`"对应的是另一版实现，不能直接套到这里的常量表上。上表列出的是 JDK 21 AQS 内部实现使用的状态值，不是 `AbstractQueuedSynchronizer` 的公共 API 契约，理解时应关注这些状态如何参与等待、取消与唤醒协议。
 
 ### 3.3 模板方法模式：分离"如何获取"与"失败后怎么办"
 
@@ -154,12 +156,12 @@ AQS 用模板方法把工作切成两半：
 | 方法 | 语义 | 何时实现 |
 | :-- | :-- | :-- |
 | `tryAcquire(int)` | 独占模式：尝试获取，成功 true 失败 false | `ReentrantLock` 等独占锁 |
-| `tryRelease(int)` | 独占模式：尝试释放，state 归零返回 true | 独占锁 |
-| `tryAcquireShared(int)` | 共享模式：返回剩余许可，负数表示失败 | `Semaphore` / `CountDownLatch` |
+| `tryRelease(int)` | 独占模式：尝试释放，true 表示同步器已完全释放 | 独占锁 |
+| `tryAcquireShared(int)` | 共享模式：负数失败，零成功但后续可能失败，正数成功且后续可能成功 | `Semaphore` / `CountDownLatch` |
 | `tryReleaseShared(int)` | 共享模式：释放并返回是否需要传播 | 共享同步器 |
 | `isHeldExclusively()` | 当前线程是否独占持有 | 支持 `Condition` 时需实现 |
 
-子类不需要碰队列、park、中断处理——那些 AQS 已经解决过一次，之后所有子类共用。这就是"用一个 state + 一个队列统一万物"能成立的原因：只要业务逻辑能编码进 `state`，AQS 就能把它跑成一个正确的同步器。
+子类不需要碰队列、park、中断处理——那些 AQS 已经解决过一次，之后所有子类共用。AQS 只提供同步框架，子类仍必须正确实现状态转换、并发安全和释放语义；只要子类能用 `state` 表达同步条件，并正确实现获取、释放与必要的所有权检查，就可以复用 AQS 的队列和等待机制。
 
 ```mermaid
 classDiagram
@@ -322,7 +324,7 @@ public final void acquireShared(int arg) {
 }
 ```
 
-`tryAcquireShared` 返回值语义与独占版不同：**负数=失败，非负数=成功且剩余资源=返回值**。剩余资源大于 0 时，被唤醒的线程要**继续把这个"仍有资源"的信号传给后继**。
+`tryAcquireShared` 返回值语义与独占版不同：**负数=失败，零=成功但后续共享获取可能失败，正数=成功且后续共享获取可能成功**。这个返回值表达的是获取结果以及是否可能继续传播共享获取，不是普遍的"剩余资源数"。`CountDownLatch` 在计数归零后让等待线程通过，其返回值并不是把"剩余许可数"返回给调用方。
 
 举一个 `CountDownLatch` 的场景：
 
@@ -336,17 +338,19 @@ CountDownLatch(3)：三条线程 A / B / C 都在 await
 
 如果队首已经完成但仍存在其他共享等待者，就需要继续唤醒下一个共享节点。JDK 21 通过 `SharedNode` 类型和 `signalNextIfShared` 实现这一步。
 
-实现示意（按 JDK 21 源码压缩）：
+共享模式与独占模式的关键区别，不是"唤醒所有等待者"，而是一次成功获取或释放后，可能还有其他等待线程也具备获取条件。实现示意（概念流程，不是逐行源码对照）：
 
-```java
-if (acquired && first) {
-    head = node;
-    if (shared)
-        signalNextIfShared(node);
-}
+```txt
+共享获取失败
+  → 节点入队
+  → 等待并重新尝试获取
+
+共享获取成功
+  → 将成功节点设为新的队头
+  → 根据共享获取结果和队列状态，判断是否需要继续唤醒共享后继
 ```
 
-`signalNextIfShared` 只唤醒 `SharedNode` 类型的后继：清除 `WAITING`，再调用 `unpark`。释放方的 `releaseShared` 同样调用 `signalNext(head)`；配合重新获取后的 `signalNextIfShared`，让共享许可继续向后传递。JDK 21 不再使用旧版 `PROPAGATE` 常量。
+`signalNextIfShared` 只唤醒 `SharedNode` 类型的后继：清除 `WAITING`，再调用 `unpark`。释放方的 `releaseShared` 同样调用 `signalNext(head)`；配合重新获取后的 `signalNextIfShared`，让共享许可继续向后传递。是否继续传播取决于共享获取结果和队列状态，不是无条件唤醒所有后继节点。`CountDownLatch` 的计数归零后等待线程可以依次被唤醒并通过检查，`Semaphore` 则取决于剩余许可是否足够。JDK 21 的 AQS 实现不再使用旧版的 `PROPAGATE` 状态协议。
 
 ### 4.4 独占 vs 共享的核心差异
 

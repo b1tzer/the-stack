@@ -25,7 +25,7 @@
 用多进程也能实现"同时做多件事"，为什么还要引入线程？核心原因有三：
 
 1. **共享数据更方便**：线程天然共享堆内存，不需要 IPC 那套复杂机制
-2. **创建和切换开销更小**：线程创建比进程快 10-100 倍，上下文切换也更轻量
+2. **创建和切换开销更小**：线程创建和上下文切换通常比进程轻量
 3. **响应性更好**：GUI 程序中，后台线程处理耗时任务，UI 线程保持响应
 
 当然，共享也是一把双刃剑——多个线程同时读写共享变量，正是并发 bug 的根源。这一点我们在第 4 章（JMM）和后续章节中会详细讨论。
@@ -40,7 +40,7 @@ Java 的线程模型经历过多次演变，但自 HotSpot JVM 成为主流以�
 Java Thread 对象  ──1:1──►  Native Thread (OS 线程)  ──►  OS Scheduler  ──►  CPU Core
 ```
 
-每创建一个 `java.lang.Thread` 对象，JVM 就会在操作系统层面创建一个对应的原生线程。这个原生线程由操作系统的调度器管理，最终被分配到某个 CPU 核心上执行。
+在 HotSpot 的传统平台线程模型中，一个已经启动的平台线程通常对应一个操作系统原生线程。创建 `Thread` 对象本身不会立即创建原生线程，调用 `start()` 后 JVM 才会启动对应的执行线程。这个原生线程由操作系统的调度器管理，最终被分配到某个 CPU 核心上执行。
 
 ```java
 Thread t = new Thread(() -> System.out.println("Hello"));
@@ -51,9 +51,9 @@ t.start(); // JVM 调用 pthread_create() (Linux) 或 CreateThread() (Windows)
 
 - **Java 线程的调度策略由操作系统决定**（通常是时间片轮转 + 优先级调度）
 - **Java 线程的并发度受 OS 线程数限制**
-- **线程切换涉及用户态/内核态切换**，有一定开销
+- **线程发生阻塞、唤醒或调度切换时可能涉及内核态操作**，具体成本取决于触发原因和操作系统实现
 
-> **历史注脚**：早期的 JVM（如 Green Thread）采用 N:1 模型——多个 Java 线程映射到一个 OS 线程，由 JVM 自行调度。这种方式在多核时代完全失去了意义，早已被淘汰。而 Go 语言的 goroutine 采用 M:N 模型，由 Go 运行时在少量 OS 线程上调度大量 goroutine，这在轻量级并发场景下有明显优势。
+> **历史注脚**：早期的 JVM（如 Green Thread）采用 N:1 模型——多个 Java 线程映射到一个 OS 线程，由 JVM 自行调度。N:1 模型的局限在于多个用户态线程共享一个 OS 线程，无法利用多个核心同时执行，且底层线程阻塞时同一线程上的其他任务也可能停滞。现代通用 Java 平台因此采用平台线程与 OS 线程一对一映射的模型。Go 语言的 goroutine 采用 M:N 模型，由 Go 运行时在少量 OS 线程上调度大量 goroutine，这在轻量级并发场景下有明显优势。
 
 ### 2.2 为什么不能无限制创建线程
 
@@ -63,10 +63,10 @@ t.start(); // JVM 调用 pthread_create() (Linux) 或 CreateThread() (Windows)
 
 | 资源 | 示例值 | 说明 |
 | :-- | :-- | :-- |
-| 线程栈大小 | 1 MB（可通过 `-Xss` 调整） | 每个线程独占 |
-| `/proc/sys/kernel/threads-max` | 系统级上限 | 系统所有线程总数 |
-| `/proc/sys/vm/max_map_count` | 约 65530（常见配置） | 限制内存映射区域数 |
-| PID 上限 | `/proc/sys/kernel/pid_max` | 进程/线程共用 PID 空间 |
+| 线程栈大小 | 1 MB（估算示例，可通过 `-Xss` 调整） | 平台线程独占，默认值随 JVM 和平台变化 |
+| `/proc/sys/kernel/threads-max` | 系统级上限 | 系统范围任务数限制之一 |
+| `/proc/sys/vm/max_map_count` | 约 65530（常见配置） | 限制单进程内存映射区域数，间接影响线程创建 |
+| PID 上限 | `/proc/sys/kernel/pid_max` | 进程/线程共用 PID 编号空间，不等同于线程数上限 |
 
 按 1 MB 栈参数粗算，1000 个线程约预留 1 GB 栈空间；实际提交量、内核侧 `task_struct`、内核栈等开销需要分别测量。
 
@@ -88,7 +88,8 @@ public class ThreadLimit {
         }
     }
 }
-// 典型输出（取决于系统配置）：最多创建 ~4000 个线程
+// 可创建的线程数取决于 JVM、操作系统、容器限制及其他资源，
+// 不要把某次测试得到的数量当作生产环境容量指标。
 ```
 
 这就是为什么在高并发场景下，需要线程池（`ExecutorService`）来复用线程，而不是为每个任务创建新线程。线程池的内容详见[第 11 章](./chapter-11-thread-pool.md)。
@@ -120,7 +121,9 @@ JDK 21 正式引入的 **Virtual Thread（虚拟线程）** 是 Java 线程模�
 └─────────────────────────────────────────────────┘
 ```
 
-虚拟线程的栈帧存储在堆内存中（而非 OS 分配的固定栈空间），可以动态扩展和收缩。创建一个虚拟线程的开销仅约几百字节，**理论上可以创建数百万个**。它的调度由 JVM 内部的 `ForkJoinPool` 完成，当虚拟线程执行阻塞 I/O 时，JVM 会自动将其从平台线程上卸载（unmount），让平台线程去执行其他虚拟线程。
+虚拟线程的调用栈采用可增长的栈块（stack chunks）管理，栈块存储在 Java 堆中，不需要像平台线程那样为每个线程预留固定大小的原生线程栈。虚拟线程执行时会挂载到某个平台线程上；遇到支持卸载的阻塞操作时，JVM 保存其执行状态并卸载，让载体线程继续执行其他虚拟线程。它的调度由 JVM 内部的调度器完成，默认基于 `ForkJoinPool` 实现。创建一个虚拟线程的开销通常远低于平台线程，可以创建远多于平台线程的数量，实际数量受堆内存、任务状态和系统资源限制。
+
+但不能把所有阻塞都理解为一定会卸载。JDK 21 中，在特定 `synchronized` 代码路径或本地方法调用期间阻塞，可能发生 pinning，使虚拟线程继续占用载体线程。虚拟线程的性能优势取决于阻塞方式、载体线程资源和下游服务容量，不是只取决于虚拟线程数量。
 
 ```java
 // 创建虚拟线程
@@ -213,17 +216,17 @@ try {
 
 JDK 8 引入的 `CompletableFuture` 是对 `Future` 的全面增强，支持链式调用、组合、异常处理：
 
-`CompletableFuture` 用于表达单值结果的组合和依赖关系，也不直接创建线程。不传执行器时它会使用默认公共执行器，生产代码通常应按任务类型显式选择执行资源。
+`CompletableFuture` 用于表达单值结果的组合和依赖关系，也不直接创建线程。`supplyAsync()`、`runAsync()` 及 `*Async` 方法不传执行器时通常使用 `ForkJoinPool.commonPool()`，但非 Async 的后续阶段（如 `thenApply()`）不保证切换线程，可能直接在前驱任务的线程中执行。生产代码应按任务类型显式选择执行资源。
 
 ```java
 CompletableFuture.supplyAsync(() -> {
     // 异步查询用户信息
     return queryUser(userId);
 }).thenApply(user -> {
-    // 用户信息拿到后，异步查询订单
+    // 前一阶段完成后转换结果
     return queryOrders(user.getId());
 }).thenAccept(orders -> {
-    // 订单拿到后，处理结果
+    // 消费最终结果
     orders.forEach(System.out::println);
 }).exceptionally(ex -> {
     // 任意阶段异常都会被捕获
@@ -257,10 +260,14 @@ stateDiagram-v2
     RUNNABLE --> WAITING : wait() / join() / park()
     RUNNABLE --> TIMED_WAITING : sleep(ms) / wait(ms) / join(ms)
     BLOCKED --> RUNNABLE : 获得锁
-    WAITING --> RUNNABLE : notify() / notifyAll() / unpark() / join 的线程结束
-    TIMED_WAITING --> RUNNABLE : 超时 / notify() / unpark()
+    WAITING --> BLOCKED : wait() 被通知后重新竞争锁
+    WAITING --> RUNNABLE : unpark() / join 的线程结束
+    TIMED_WAITING --> BLOCKED : wait(ms) 被通知后重新竞争锁
+    TIMED_WAITING --> RUNNABLE : 超时 / unpark()
     RUNNABLE --> TERMINATED : run() 执行完毕 / 异常退出
 ```
+
+这张图展示典型状态转换，不是对所有唤醒路径的完整描述。`Object.wait()` 返回前需要重新获得监视器锁，可能先经过 BLOCKED；`LockSupport.park()` 可能因中断、已有许可或无理由返回而结束等待。线程状态是观察时刻的快照，不能依赖一次读取推断完整执行过程。
 
 | 状态 | 含义 | 典型触发场景 |
 | :-- | :-- | :-- |
@@ -272,6 +279,8 @@ stateDiagram-v2
 | **TERMINATED** | 线程执行完毕或因异常终止 | `run()` 正常返回；未捕获的异常 |
 
 ### 4.2 各状态详解
+
+下面的示例通过 `Thread.sleep(100)` 尝试让目标线程进入某个状态，用于展示典型状态，不保证仅靠固定睡眠时间就能稳定观察到目标状态。需要在测试中验证状态时，应使用同步信号建立时序条件并配合超时控制。
 
 **NEW 状态**
 
@@ -321,7 +330,7 @@ System.out.println(t2.getState()); // BLOCKED
 ```java
 Thread t = new Thread(() -> {
     try {
-        Thread.currentThread().join(); // 等待自己结束——实际上会永远等待
+        Thread.currentThread().join(); // 等待自身终止，而它只有结束后才能满足，因此会一直等待
     } catch (InterruptedException e) {}
 });
 t.start();
@@ -412,11 +421,11 @@ daemon.start();
 | 特性 | 用户线程 | 守护线程 |
 | :-- | :-- | :-- |
 | JVM 退出行为 | 所有用户线程结束后 JVM 才退出 | 不阻止 JVM 退出 |
-| 典型用途 | 业务逻辑线程 | GC 线程、JIT 编译线程、监控线程 |
-| 资源清理 | 可以安全地清理资源 | **不安全**——可能在任何时候被终止 |
+| 典型用途 | 业务逻辑线程 | 后台辅助任务，如部分监控、维护任务 |
+| 资源清理 | 可以安全地清理资源 | 不保证 JVM 退出前有机会完成清理 |
 | 默认类型 | `new Thread()` 默认是用户线程 | 需要显式 `setDaemon(true)` |
 
-**注意：** 守护线程创建的子线程默认也是守护线程。不要在守护线程中执行需要清理资源的操作（如关闭文件、释放连接），因为它可能在执行到一半时被强制终止。
+**注意：** 守护线程创建的子线程默认也是守护线程。JVM 退出时不会等待守护线程完成所有任务，也不保证它们有机会执行完 `finally` 块或完成资源清理。如果文件关闭、事务提交或连接释放是正确性要求的一部分，应通过明确的生命周期管理和必要的等待来保证执行完成，而不是依赖守护线程的退出行为。
 
 ### 4.5 线程状态的监控工具
 

@@ -28,7 +28,7 @@ Tomcat 的 Acceptor 和 Poller 可以使用 Selector 管理就绪事件，但业
 
 ### 1.2 BIO 把线程当「等待工」用
 
-[第 4 章 §5.1 的 Echo Server](./chapter-04-socket.md#echo-server) 用的就是最原始的 BIO：每 `accept` 一个连接，分配一个线程处理。线程 90% 的时间都阻塞在 `read()` 上。
+[第 4 章 §5.1 的 Echo Server](./chapter-04-socket.md#echo-server) 用的就是最原始的 BIO：每 `accept` 一个连接，分配一个线程处理。线程大部分时间都阻塞在 `read()` 上。
 
 ```txt
 ┌─────────────────────────────────────────┐
@@ -50,7 +50,7 @@ Tomcat 的 Acceptor 和 Poller 可以使用 Selector 管理就绪事件，但业
 
 ![bio-thread-timeline](/java/bio-thread-timeline.svg)
 
-每个 Java 线程需要独立的栈空间（~1MB）。10000 个连接 = 10000 个线程 = ~10GB 内存。你花 10GB 内存雇了一万个「等待工」，让他们 70% 的时间在工位上睡觉。
+每个 Java 线程通常需要独立的栈空间（默认约 1MB，取决于 JVM 参数和平台，虚拟线程则不同）。以 10000 个平台线程粗略估算，栈内存约 10GB。花 10GB 内存雇一万个「等待工」，大部分时间在工位上睡觉。
 
 ```txt
 线程状态分布（典型 Web 服务器）:
@@ -62,7 +62,7 @@ Tomcat 的 Acceptor 和 Poller 可以使用 Selector 管理就绪事件，但业
 └──────────────────────────────────────────────────────┘
 ```
 
-BIO 仍有适用场景——连接数 < 100、短生命周期请求、原型开发——但这些场景下增加复杂度的代价大于收益。Tomcat 7 以前默认 BIO，Tomcat 8.5 起全面转向 NIO，因为现代 Web 应用面对的并发量和这个模型已经水火不容了。
+BIO 仍有适用场景——并发量有限、实现简单性更重要的场合（如连接数少、短生命周期请求、原型开发）。Tomcat 7 以前默认 BIO，Tomcat 8.5 起移除 BIO 连接器，因为现代 Web 应用面对的并发量需要更高效的事件驱动模型。但阻塞式 I/O 的主要成本不是某个固定的连接数，而是每个等待中的任务是否需要长期占用一个平台线程；不存在适用于所有 JVM 和服务的统一连接数分界线。
 
 ### 1.3 NIO 的核心思想：换一种「等」的方式
 
@@ -109,6 +109,8 @@ NIO 依赖三个核心组件——Channel、Buffer、Selector。
 
 ### 2.2 Selector 的工作方式
 
+下面的示例只展示事件分发的核心结构：`buffer` 是共享示意，未处理非阻塞写入的部分写入、连接状态隔离和异常，不能直接作为生产实现。
+
 ```java
 // 第一步：创建 Selector
 Selector selector = Selector.open();
@@ -117,6 +119,8 @@ Selector selector = Selector.open();
 ServerSocketChannel ssc = ServerSocketChannel.open();
 ssc.configureBlocking(false);
 ssc.register(selector, SelectionKey.OP_ACCEPT);
+
+ByteBuffer buffer = ByteBuffer.allocate(1024);  // 读缓冲（教学示例用共享 buffer，真实实现每个连接应独立）
 
 // 第三步：循环等待事件
 while (true) {
@@ -149,7 +153,7 @@ while (true) {
                 client.close();
             } else {
                 buffer.flip();
-                client.write(buffer);  // Echo 回写
+                client.write(buffer);  // 非阻塞写可能只写部分，需注册 OP_WRITE 继续写（见 §6 说明）
             }
         }
 
@@ -216,7 +220,7 @@ sc.write(buffer);  // 从 Buffer 写入 Channel
 
 ```java
 // 文件通道
-FileChannel fileChannel = FileChannel.open(Paths.of("data.txt"), StandardOpenOption.READ);
+FileChannel fileChannel = FileChannel.open(Paths.get("data.txt"), StandardOpenOption.READ); // JDK 8 起可用；JDK 11+ 也可用 Path.of()
 
 // TCP 网络通道
 SocketChannel clientChannel = SocketChannel.open(new InetSocketAddress("localhost", 8080));
@@ -232,7 +236,7 @@ DatagramChannel udpChannel = DatagramChannel.open();
 | `ServerSocketChannel` | 监听 TCP 连接 | `ServerSocket` |
 | `SocketChannel` | TCP 双向读写 | `Socket` |
 | `DatagramChannel` | UDP 读写 | `DatagramSocket` |
-| `FileChannel` | 文件读写（仅阻塞模式） | `FileInputStream/OutputStream` |
+| `FileChannel` | 文件读写（不支持非阻塞模式和 Selector 注册） | `FileInputStream/OutputStream` |
 
 ### 3.3 非阻塞：让 Selector 能用上 Channel
 
@@ -249,16 +253,18 @@ SocketChannel sc = ssc.accept(); // 无连接时返回 null，不阻塞
 
 ## 4. Buffer：你线上见过的 DirectByteBuffer OOM
 
-### 4.1 为什么 Channel 不能直接读写字节
+### 4.1 为什么 Channel 要经过 Buffer 读写
 
-在 BIO 中，`read(byte[] buf)` 直接把数据读到字节数组里。NIO 的 Channel 不能直接读写字节——**所有数据必须经过 Buffer**。
+在 BIO 中，`read(byte[] buf)` 直接把数据读到字节数组里。NIO 的 Channel 则通过 Buffer 读写数据——`read(ByteBuffer)`、`write(ByteBuffer)`。
 
 ```txt
 BIO:   Stream  ──read──►  byte[]
 NIO:   Channel ──read──►  Buffer ──get()──►  byte[]
 ```
 
-为什么？因为 Channel 是非阻塞的——一次 `read()` 可能只读到半个消息。Channel 需要一个「暂存区」来缓存读到的东西，还要支持「我还有数据没读完，下次接着读」的语义。byte[] 做不到，Buffer 可以。
+为什么多这一层？非阻塞 I/O 的一次 `read()` 可能只读到部分数据，一次 `write()` 也可能只写出部分字节，调用方需要在多次 I/O 之间保留未处理的数据。`byte[]` 本身也能存数据，但需要自己维护偏移量和长度；`ByteBuffer` 的价值在于把 `position`、`limit`、`capacity` 这些读写状态封装在一起，提供统一的读写接口，让"上次读到哪、这次接着读"不用手动管理。
+
+另外，Channel 并不都工作在非阻塞模式：`SocketChannel`、`DatagramChannel` 可以配置为非阻塞，`FileChannel` 则始终是阻塞式，也不能注册到 Selector。
 
 ### 4.2 你线上的 DirectByteBuffer OOM
 
@@ -268,21 +274,23 @@ NIO:   Channel ──read──►  Buffer ──get()──►  byte[]
 java.lang.OutOfMemoryError: Direct buffer memory
 ```
 
-这大概率是用 Netty 的服务没正确释放 `ByteBuf`——Netty 的 `ByteBuf` 底层是 NIO 的 `DirectByteBuffer`，分配在堆外，不受 JVM 堆 GC 管理。堆上还有 2GB 空闲，堆外却被你的 Channel 读写吃掉了几百 MB，JVM 也发现不了。
+`Direct buffer memory` 表示 JVM 无法满足一次直接缓冲区分配请求，它不一定意味着 Java 堆已耗尽，也不能仅凭这个错误断定 Netty 的 `ByteBuf` 没有释放。
+
+`ByteBuffer.allocateDirect()` 返回的 Java 对象仍在堆上，只是数据存放在堆外内存，底层内存通常由 JVM 的清理机制释放（具体实现属于 JDK 细节，应用不应依赖某个 Cleaner 类的内部行为）；Netty 的 `ByteBuf` 则可能使用堆内存、直接内存或池化内存，并通过引用计数管理生命周期，两者不能划等号。排查时应结合直接内存上限（如 `-XX:MaxDirectMemorySize`）、缓冲区分配与释放情况，以及 Netty 的泄漏检测结果判断。
 
 理解这个 Bug，必须理解 Buffer 的内部机制。
 
-### 4.3 Buffer 的三个内部指针
+### 4.3 Buffer 的三个状态属性
 
-每个 Buffer 维护三个属性：
+每个 Buffer 维护三个状态属性：
 
 ![buffer-ops](/java/buffer-ops.svg)
 
 | 属性 | 含义 | 取值范围 |
 | :--- | :--- | :--- |
 | **capacity** | Buffer 的总容量，创建后不可变 | 固定 |
-| **limit** | 第一个不可读/写的索引 | 0 ≤ limit ≤ capacity |
-| **position** | 下一个要读/写的位置 | 0 ≤ position ≤ limit |
+| **limit** | 当前读写操作允许到达的边界（不包含该索引） | 0 ≤ limit ≤ capacity |
+| **position** | 下一次读或写的起始位置 | 0 ≤ position ≤ limit |
 
 ### 4.4 Buffer 的核心操作——flip 是最高频的坑
 
@@ -320,11 +328,11 @@ ByteBuffer directBuf = ByteBuffer.allocateDirect(1024); // 堆外内存
 | `allocate()` | 分配快，受 GC 管理 | I/O 时可能需要额外拷贝 |
 | `allocateDirect()` | 减少内核态/用户态拷贝 | 分配慢，不在 GC 范围内，必须手动或通过 Cleaner 释放 |
 
-长期存活的 Buffer（连接池中的读写缓冲区）用 `allocateDirect()`；短期临时 Buffer 用 `allocate()`。用错了不会报错——只是 GC 曲线更陡，或者堆外内存悄悄涨到你怀疑人生。
+长期存活的 Buffer（连接池中的读写缓冲区）可考虑 `allocateDirect()`；短期临时 Buffer 用 `allocate()`。但这不是放之四海皆准的规则：直接内存分配较慢、且受直接内存上限约束，是否划算要看 I/O 路径、缓冲区复用率和实测结果。用错了不会报错——只是 GC 曲线更陡，或者堆外内存悄悄涨上来。
 
-## 5. 零拷贝：NIO 的性能杀手锏
+## 5. 文件传输优化：transferTo 与零拷贝
 
-传统 I/O 把一份数据从文件发到网络，要拷贝 4 次：
+把一份数据从文件发到网络，常见的教学模型描述为 4 次拷贝（实际次数取决于操作系统、JDK 实现与硬件，并非固定）：
 
 ```txt
 传统 I/O（4 次拷贝 + 4 次上下文切换）：
@@ -340,9 +348,9 @@ ByteBuffer directBuf = ByteBuffer.allocateDirect(1024); // 堆外内存
 fileChannel.read(buffer);    // 内核 → 用户
 socketChannel.write(buffer); // 用户 → 内核
 
-// 零拷贝：数据不经过用户空间
+// 零拷贝：数据尽量不经过用户空间
 fileChannel.transferTo(0, fileChannel.size(), socketChannel);
-// 底层调用 sendfile() → 磁盘 → 内核缓冲区 → 网卡（2 次拷贝）
+// 在适用平台和条件下可能走 sendfile 等高效传输；具体系统调用与拷贝次数取决于实现，一次也可能只传部分，需按返回值继续
 ```
 
 | 场景 | 是否适合 | 原因 |
@@ -352,7 +360,7 @@ fileChannel.transferTo(0, fileChannel.size(), socketChannel);
 | 数据压缩/加密 | ❌ 不适合 | 数据需要在用户空间处理 |
 | 小文件传输 | ⚠️ 收益有限 | 系统调用开销可能抵消零拷贝收益 |
 
-`ByteBuffer.allocateDirect()` 也和零拷贝有关——堆内存 Buffer 在 I/O 时需要额外拷一次到直接内存（操作系统不能直接访问 Java 堆），`allocateDirect()` 跳过了这一步：
+`ByteBuffer.allocateDirect()` 也能减少部分拷贝——堆内存 Buffer 在 I/O 时可能需要额外拷贝到直接内存（操作系统通常不能直接访问 Java 堆），直接 Buffer 则可能省掉这一步。但它不等于零拷贝，也不等于 `transferTo()` 的文件到通道优化。
 
 ```txt
 allocate()：       堆内存 → 临时直接内存 → 内核缓冲区 → 网卡
@@ -363,7 +371,7 @@ allocateDirect()： 直接内存 → 内核缓冲区 → 网卡
 
 ### 6.1 单线程 NIO Echo
 
-把 Channel + Buffer + Selector 组合在一起的最简示例——你可以对照着看它和后面 Tomcat 的 Acceptor/Poller/Worker 是怎么对应的：
+把 Channel + Buffer + Selector 组合在一起的最简骨架——你可以对照着看它和后面 Tomcat 的 Acceptor/Poller/Worker 是怎么对应的。注意这是教学简化版：所有连接共享一个 `buffer`、非阻塞写入不处理部分写入，真实实现见 §6.2 的说明。
 
 ```java
 public class NioEchoServer {
@@ -410,9 +418,15 @@ public class NioEchoServer {
 }
 ```
 
+**示例边界**：上面这段代码用于展示 Channel、Buffer 与 Selector 的基本协作流程，不是可直接用于多客户端通信的完整 Echo Server。为突出事件循环骨架，示例简化了连接状态管理，未处理非阻塞写入的部分写入问题；多个连接共用缓冲区也可能导致数据相互覆盖。实际实现必须为每个连接维护独立状态，并在数据未写完时通过 `OP_WRITE` 继续发送。相关工程复杂度见 §6.2。
+
 ### 6.2 单线程 Reactor 的瓶颈
 
-上面这个 Echo 能跑，但有一个隐蔽问题：如果 `handleRead()` 里的业务逻辑跑了 500ms（比如查了个慢 SQL），Selector 线程会被卡住 500ms。这 500ms 内所有其他连接的 I/O 事件——新连接到达、已有连接发数据——全部得不到处理。**I/O 处理不能阻塞 Selector 线程。**
+上面这个 Echo 能跑，但有几个隐蔽问题。
+
+第一，如果读取事件的处理逻辑里跑了慢业务（比如查了个慢 SQL），Selector 线程会被卡住。这期间所有其他连接的 I/O 事件——新连接到达、已有连接发数据——全部得不到处理。**I/O 处理不能阻塞 Selector 线程。**
+
+第二，这个示例是教学简化，离生产实现还有距离：所有连接共用一个 `buffer`，客户端 A 读入的数据还没回写完，客户端 B 的可读事件就可能 `buffer.clear()` 覆盖它；非阻塞的 `client.write(buffer)` 也可能只写出部分数据。真实实现需要为每个连接维护独立的读缓冲区和待写状态，写不完整时注册 `OP_WRITE`，等可写后继续发送。
 
 ### 6.3 主从多 Reactor：Tomcat 的三线程模型
 
@@ -423,10 +437,10 @@ public class NioEchoServer {
 | 角色 | 对应 Tomcat | 职责 | 线程数 |
 | :--- | :--- | :--- | :--- |
 | Boss Reactor | **Acceptor** | accept() 新连接，注册到 Poller | 1 |
-| Worker Reactor | **Poller** | Selector.select() 等待 I/O 事件 | CPU 核心数 × 2 |
+| Worker Reactor | **Poller** | Selector.select() 等待 I/O 事件 | 默认与 CPU 核数相关（具体以版本与配置为准） |
 | Worker Pool | **Exec** | 实际处理请求（读数据、调 Servlet、写响应） | 可配置（maxThreads） |
 
-这就是开头故障里你看到的三类线程：一个 Acceptor 接新连接，几个 Poller 用 epoll 等数据，200 个 Exec 线程做实际工作。
+这就是开头故障里你看到的三类线程：一个 Acceptor 接新连接，几个 Poller 用 epoll 等数据，200 个 Exec 线程做实际工作。表中线程数是概念示意，Tomcat 实际的线程数量与连接器实现、版本和配置有关，不应把某个默认值当成固定架构。
 
 ## 7. 不直接用 NIO 的原因
 
@@ -442,23 +456,25 @@ public class NioEchoServer {
 └── 异常处理（连接重置、管道破裂）
 ```
 
-一个简单的 NIO 服务器轻松超过 500 行，等价 BIO 版本只要 50 行。
+一个需要处理完整连接生命周期、协议边界和异常情况的原生 NIO 服务端，工程代码可能增长到数百行，而等价的 BIO 版本往往只要几十行。这是经验性描述，不是固定要求。
 
-### 7.1 epoll 空轮询 Bug（JDK-6670302）
+### 7.1 epoll 空轮询问题（JDK-6670302）
 
-`Selector.select()` 在 Linux 上偶发**立即返回 0**（应该阻塞），导致 CPU 空转到 100%：
+部分 JDK 版本的 Linux Selector 实现曾出现空轮询问题：在没有新 I/O 事件时，`select()` 仍反复立即返回，事件循环因此持续消耗 CPU：
 
 ```java
 // 正常：select() 阻塞直到有事件
 int ready = selector.select(timeout);
 
-// Bug：select() 立即返回 0，循环空转 → CPU 100%
+// 异常：select() 反复立即返回，循环空转 → CPU 100%
 while (true) {
-    int ready = selector.select(timeout);  // 应该阻塞，但立刻返回 0！
+    int ready = selector.select(timeout);  // 本应阻塞，却持续立刻返回
 }
 ```
 
-Netty 的解决办法：检测到连续 512 次空返回后重建 Selector。
+注意，`select()` 返回 0 不一定是这个 Bug：超时、`wakeup()` 也会让它返回 0。排查时应观察一段时间内的返回行为、线程 CPU 使用率，而不是凭一两次零返回下结论。
+
+Netty 对这类问题提供了检测和 Selector 重建机制，具体触发条件应以所用 Netty 版本为准，不能把某个实现里的计数阈值当成所有版本的固定规则。
 
 ### 7.2 所以有了 Netty
 

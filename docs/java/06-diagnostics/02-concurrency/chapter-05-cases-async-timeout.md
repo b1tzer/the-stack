@@ -70,7 +70,7 @@ public class ContractService {
 ```txt
 1. flowExecutor: 20 线程 + 100 队列 = 最多 120 个任务排队
 2. 第 121 个任务到来 → DiscardPolicy 静默丢弃
-3. 被丢弃任务的 FutureTask 永远无法完成
+3. 被丢弃任务关联的 `CompletableFuture` 没有机制去完成它，可能长期处于未完成状态
 4. CompletableFuture.allOf().join() 永远等不到结果
 5. Tomcat 线程永久阻塞
 6. 200 个 Tomcat 线程逐渐耗尽 → 服务假死
@@ -103,10 +103,13 @@ public FlowResult processFlow(FlowRequest request) {
 
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
             .get(60, TimeUnit.SECONDS);
-    } catch (TimeoutException | ExecutionException e) {
+    } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new FlowException("流程执行被中断", e);
+    } catch (TimeoutException | ExecutionException | RejectedExecutionException e) {
         log.error("流程执行异常", e);
         futures.forEach(f -> f.cancel(true));
-        throw new FlowException("流程执行超时或失败", e);
+        throw new FlowException("流程执行超时、失败或被拒绝", e);
     }
 
     return aggregateResults(futures);
@@ -119,12 +122,12 @@ public FlowResult processFlow(FlowRequest request) {
 2. `CompletableFuture.orTimeout(30, TimeUnit.SECONDS)` — 每个 Future 单独超时
 3. `get(60, TimeUnit.SECONDS)` — 总超时兜底
 
-**方案 B：使用 `StructuredTaskScope`（JDK 21+ 预览 / JDK 25 LTS 稳定）**
+**方案 B：使用 `StructuredTaskScope`（JDK 21 起的预览 API，JDK 25 仍为预览，对应 JEP 505；下方为 JDK 21–24 预览写法，JDK 25 起改用 `StructuredTaskScope.open()` 配 `Joiner`）**
 
 ```java
 public FlowResult processFlow(FlowRequest request) throws InterruptedException {
     try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
-        List<Supplier<StepResult>> tasks = new ArrayList<>();
+        List<StructuredTaskScope.Subtask<StepResult>> tasks = new ArrayList<>();
         for (FlowStep step : request.getSteps()) {
             tasks.add(scope.fork(() -> executeStep(step)));
         }
@@ -132,7 +135,7 @@ public FlowResult processFlow(FlowRequest request) throws InterruptedException {
         scope.join();
         scope.throwIfFailed();
 
-        return aggregateResults(tasks.stream().map(Supplier::get).toList());
+        return aggregateResults(tasks.stream().map(StructuredTaskScope.Subtask::get).toList());
     }
 }
 ```
@@ -145,11 +148,11 @@ public FlowResult processFlow(FlowRequest request) throws InterruptedException {
 | :-- | :-- |
 | 提交的是 `Future` / `CompletableFuture` | 丢弃后调用方永久阻塞在 `get()`/`join()` |
 | 任务有副作用（如发 MQ、写库） | 丢弃等于数据丢失且无感知 |
-| 可以用 DiscardOldest 替代 | 至少丢的是老任务，且你可以打日志 |
+| 想用 DiscardOldest 当“安全替代” | 它同样静默丢弃、不抛异常；被丢弃任务关联的 `Future` 仍可能长期处于未完成状态 |
 
 **黄金法则：如果任务的结果需要被等待，永远不要用 DiscardPolicy。**
 
-## 线程池 core = max + 无界队列 —— maxPoolSize 永远不触发 {#case-6}
+## 无界队列让 maxPoolSize 失去扩容作用 {#case-6}
 
 ### 2.1 事故背景
 
@@ -234,9 +237,9 @@ new ThreadPoolExecutor(
 | CPU 低、任务堆积 | 核心线程少、任务全在队列里 | 合理设 core 和 max |
 | 觉得队里越大越好 | 误解队列作用 | 队列是缓冲，不是仓库 |
 
-**黄金法则：生产环境的线程池绝不用无界队列。** 队列容量和拒绝策略是线程池安全的两条安全带——不要自作聪明把它们拆掉。
+**经验法则：面向不可预测流量或延迟敏感的生产任务，优先使用有界队列并明确过载处理策略；只有在任务量有明显上限、积压风险受控时，才考虑无界队列。** 队列容量和拒绝策略是线程池安全的两条安全带，不要自作聪明把它们拆掉。
 
-## 虚拟线程静默死锁 —— N 个 carrier 全部 pinning 后调度器失灵
+## 虚拟线程 pinning 与调度停滞 —— carrier 被占满时系统为何失去进展
 
 ### 3.1 事故背景
 
@@ -313,11 +316,11 @@ jdk.VirtualThreadPinned {
 - 调度器本身不会创建额外的 carrier 线程来打破僵局
 - 整个虚拟线程池永久停滞
 
-JDK-8334304 的复现代码清晰地演示了这个问题：当 `pinned VT 数量 > availableProcessors()` 时，调度器不会补偿。
+JDK-8334304 的复现代码清晰地演示了这个问题：当 `pinned VT 数量 > availableProcessors()` 时，调度器不会补偿。但这是特定复现条件下的结论——是否真的停滞，还取决于哪些任务占着 carrier、它们在等待什么资源，以及持有资源的任务能否获得调度。把它当作普遍死锁判据并不严谨。
 
 ### 3.5 第四步：为什么会触发
 
-该团队使用了 MySQL Connector/J 8.0.x。这个版本的驱动内部有大量 `synchronized` 方法：
+该团队使用了 MySQL Connector/J 8.0.x。这个版本的连接相关方法带有 `synchronized`（具体方法随驱动版本变化）：
 
 ```java
 // MySQL Connector/J 8.0.x ConnectionImpl
@@ -336,6 +339,14 @@ public synchronized boolean getAutoCommit() throws SQLException { ... }
 
 ```java
 private static final Semaphore DB_SEMAPHORE = new Semaphore(4); // 小于 carrier 数 8
+
+// 进入可能 pinning 的区域前获取许可，finally 中务必释放
+DB_SEMAPHORE.acquire();
+try {
+    // ... 数据库调用 ...
+} finally {
+    DB_SEMAPHORE.release();
+}
 ```
 
 **方案 D（运营排查期）：** 临时增加 carrier 数 `-Djdk.virtualThreadScheduler.parallelism=32`。
@@ -445,13 +456,15 @@ public class RestTemplateConfig {
 }
 ```
 
-三种超时的区别：
+下表针对修复示例中使用的 Apache HttpClient 5（`HttpComponentsClientHttpRequestFactory`）栈；`SimpleClientHttpRequestFactory`/`HttpURLConnection` 的 connect 与 read 默认超时均为 0（无限）。三种超时的区别：
 
-| 超时类型 | 对应 TCP 阶段 | 默认值（未设置时） | 推荐值 |
+| 超时类型 | 对应 TCP 阶段 | 未设置时的默认行为（随客户端/版本而不同） | 推荐值 |
 | :-- | :-- | :-- | :-- |
-| `connectTimeout` | TCP 三次握手 | `0`（无限） | 2s |
-| `connectionRequestTimeout` | 从连接池租连接 | `-1`（无限） | 1s |
-| `responseTimeout` (`readTimeout`) | 等待响应数据 | `0`（无限） | 3~5s |
+| `connectTimeout` | TCP 三次握手 | 不配置即可能无限等待 | 2s |
+| `connectionRequestTimeout` | 从连接池租连接 | 不配置即可能无限等待 | 1s |
+| `responseTimeout` (`readTimeout`) | 等待响应数据 | 不配置即可能无限等待 | 3~5s |
+
+> 注意：具体客户端的默认超时值会随版本变化（例如 Apache HttpClient 5 与 `HttpURLConnection` 的默认值并不一致），不要依赖隐式默认。上表推荐值为经验起点，正式取值应结合所用 `Spring Framework`/`Apache HttpClient` 版本文档、上游 SLA 与重试预算确定。
 
 **不设超时 = 把服务的生死交给了下游。**
 
@@ -474,7 +487,8 @@ public class RiskService {
         return RiskResult.pass();
     }
 }
-```
+
+注意：`executeSupplier` 不会自动调用 `fallback`；要通过 Resilience4j 的 `decorateSupplier` 或 `@CircuitBreaker(fallbackMethod = "...")` 显式绑定降级方法，示例才会真正生效。另外，风控失败时直接返回 `RiskResult.pass()` 是一项业务安全决策，不应作为通用降级模板——支付风控通常应改为拒绝、挂起或转人工。
 
 ### 4.7 总结：三条防线的体系
 

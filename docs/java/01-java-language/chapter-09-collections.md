@@ -11,7 +11,9 @@
 | 允许重复、主要按位置访问 | `List` | `ArrayList` |
 | 元素不能重复 | `Set` | `HashSet`、`TreeSet`、`LinkedHashSet` |
 | 每个键对应一个值 | `Map` | `HashMap`、`TreeMap`、`LinkedHashMap` |
-| 需要先进先出并可能阻塞 | 队列接口 | `Deque`、`BlockingQueue` 家族 |
+| 普通队列，按队列规则处理元素 | `Queue` | `ArrayDeque`、`LinkedList` |
+| 需要从两端插入或删除 | `Deque` | `ArrayDeque`、`LinkedList` |
+| 生产者和消费者之间需要阻塞式交接 | `BlockingQueue` | `ArrayBlockingQueue`、`LinkedBlockingQueue` |
 | 高并发共享修改 | 并发容器 | `ConcurrentHashMap`、并发队列、`CopyOnWriteArrayList` |
 
 先选择接口表达的契约，再选择实现表达的复杂度、顺序和并发能力。不要因为某个类“看起来快”就让它承担不匹配的语义。
@@ -67,7 +69,7 @@ boolean removed = orders.remove(firstOrder);
 
 ### 2.2 顺序不是默认保证
 
-`ArrayList` 保持插入位置；`List.of()` 和多数不可变集合也保持元素顺序。普通 `HashSet` 不承诺遍历顺序，需要稳定插入顺序时用 `LinkedHashSet` 或 `LinkedHashMap`，需要按自然顺序时用 `TreeSet` 或 `TreeMap`。
+`ArrayList` 保持列表中的位置，`List.of(...)` 也按传入顺序排列。`Set` 和 `Map` 要看具体实现：`HashSet`、`HashMap` 不承诺迭代顺序，`LinkedHashSet`、`LinkedHashMap` 保留插入顺序，`TreeSet`、`TreeMap` 按排序规则组织。不可变只表示不能通过该集合修改内容，不代表迭代顺序固定。
 
 不要依赖未声明的迭代顺序生成分页结果、持久化格式或业务输出。接口没有承诺的顺序，换 JDK、数据分布或实现后可能改变。
 
@@ -75,7 +77,7 @@ boolean removed = orders.remove(firstOrder);
 
 Set 根据元素的相等性判断成员资格。把对象放进 `HashSet` 后，如果参与 `hashCode` 或 `equals` 的字段发生变化，对象可能仍占据原 hash 桶，却无法被再次找到。
 
-下面的示例使用 Java 16 起引入的 `record` 表达不可变 key；如果尚未阅读[现代 Java](./chapter-11-modern-language-features.md)，可以先把它理解为一个自动生成值语义的不可变类。
+下面的示例使用 Java 16 起引入的 `record` 定义值类型 key。编译器会根据组件生成 `equals()` 和 `hashCode()` 等方法，组件的引用不可重新赋值，但如果组件指向可变对象，对象内部状态仍可能变化。用作 Set 元素或 Map key 时，还要确保参与相等性判断的状态在使用期间保持稳定。尚未阅读[现代 Java](./chapter-11-modern-language-features.md)时，可先把它理解为自动生成值语义的类。
 
 ```java
 import java.util.HashSet;
@@ -118,7 +120,7 @@ class SetKeyExample {
 | `TreeMap` | O(log n) | key 的自然或自定义顺序 | 范围查询、按序遍历 |
 | `LinkedHashMap` | O(1) | 插入或访问顺序 | 需要稳定展示顺序、LRU 结构 |
 
-`HashMap` 的 O(1) 是平均情况；hash 冲突、质量差的 key 或特定实现策略可能让局部操作变慢。不要依赖对象默认身份 hash 来表达业务相等。
+`HashMap` 的查找和插入通常是常数时间，但不是每次操作的无条件保证。性能取决于哈希分布、表的容量和具体实现，OpenJDK 会在一定条件下把冲突严重的桶转换为树结构。如果两个对象在业务上代表同一个键，应让它们的 `equals()` 和 `hashCode()` 遵守一致的相等性规则；只让 `hashCode()` 相同不足以让 Map 把它们视为同一个键。
 
 ### 4.2 区分缺值与非法状态
 
@@ -131,7 +133,7 @@ if (customer == null) {
 }
 ```
 
-`null` 同时表示“没有这个键”和可能的错误状态，容易把故障变成静默缺值。返回集合时，可以使用 [Optional](./chapter-10-stream-optional.md)表达“可能不存在”，但先确认调用方确实需要区分缺值与异常。
+`null` 同时表示“没有这个键”和可能的错误状态，容易把故障变成静默缺值。查询单个对象时，如果“未找到”是正常结果，可以用 `Optional` 表达结果可能不存在；查询列表时，通常直接返回集合，用空集合表示没有匹配项。至于“未找到”是否抛异常，应由接口契约和调用场景决定。
 
 不同 Map 对 `null` key/value 的支持并不一致。`HashMap` 允许一个 `null` key 和多个 `null` value；并发 Map 的具体策略应查看对应实现契约，不要把 `null` 当作跨实现通用值。
 
@@ -150,7 +152,13 @@ for (String id : ids) {
 }
 ```
 
-需要在遍历时删除当前元素，应使用迭代器的 `remove()`；需要保留原列表时，用 stream 或显式构建结果集合。
+fail-fast 检查只是尽力检测，不能依赖它保证异常一定出现。需要在遍历时删除元素，可使用显式迭代器的 `remove()`，或直接用 `removeIf()`：
+
+```java
+ids.removeIf(id -> id.startsWith("old-"));
+```
+
+需要保留原列表时，用 stream 或显式构建结果集合。
 
 ### 5.2 多线程共享要先问修改模式
 
@@ -159,10 +167,10 @@ for (String id : ids) {
 | 高并发读、偶尔写配置 | `CopyOnWriteArrayList` |
 | 键值高并发读写 | `ConcurrentHashMap` |
 | 多生产者/消费者或异步任务 | `BlockingQueue` 家族 |
-| 需要复合操作 | `computeIfAbsent`、`merge` 等原子方法 |
+| 需要原子地更新单个键对应的值 | `computeIfAbsent`、`merge` 等并发 Map 方法 |
 | 普通集合被多个线程修改 | 同步边界或并发容器，不能靠外部约定 |
 
-同步包装器只保证单个方法调用的原子性。检查后再执行的复合操作仍可能产生竞态：
+`Collections.synchronizedMap(...)` 等同步包装器只同步单个方法调用，不会把多个方法调用组合成原子操作。检查后再执行的复合操作仍可能产生竞态：
 
 ```java
 // 不是原子操作
@@ -184,6 +192,6 @@ if (!cache.containsKey(key)) {
 
 ## 7. 下一步
 
-集合给出数据组织方式，[异常与资源管理](./chapter-08-exceptions.md)处理加载和更新失败，[Stream 与 Optional](./chapter-10-stream-optional.md)把过滤、映射和归约组合成数据处理流程。
+下一章介绍 [Stream 与 Optional](./chapter-10-stream-optional.md)，继续讨论集合数据的过滤、映射与归约；[异常与资源管理](./chapter-08-exceptions.md)则介绍加载和更新失败时的处理方式。
 
 > **官方参考：** [Java SE 21 `java.util` 规约](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/package-summary.html)、[`Map`](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Map.html)。

@@ -6,14 +6,14 @@
 
 ## 1. 何时不要用虚拟线程
 
-虚拟线程不是万能替代。以下四种场景下，平台线程仍然是更好的选择。
+虚拟线程不是万能替代。以下场景需要谨慎采用虚拟线程，或继续使用平台线程。
 
 ### 1.1 CPU 密集任务
 
 虚拟线程解决的是"线程数受限"的问题，不是"CPU 算得慢"的问题。一段跑满 CPU 的循环，无论跑在虚拟线程还是平台线程上，占用的 Carrier / OS 时间片是一样的。
 
 ```java
-// ❌ 用虚拟线程跑图像处理，得不到任何加速
+// ❌ 仅仅把 CPU 密集任务改为虚拟线程，通常不会获得计算吞吐方面的加速
 try (var pool = Executors.newVirtualThreadPerTaskExecutor()) {
     for (Image img : images) {
         pool.submit(() -> resize(img));  // 每个任务持续 CPU 运算
@@ -31,9 +31,9 @@ ExecutorService pool = Executors.newFixedThreadPool(
 
 **判断方向**：CPU 密集且持续占用处理器时间的任务适合固定大小的平台线程池；任务是否适合虚拟线程不能只看一个 CPU 占比阈值，还要比较单任务的计算时长、阻塞比例、上下文切换开销和压测结果。
 
-### 1.2 需要严格限流的场景
+### 1.2 需要控制下游并发或请求速率的场景
 
-传统线程池天然通过 `maxPoolSize` + `workQueue` 提供背压。虚拟线程模型下"来一个任务起一条 VT"，如果下游是有并发上限的资源（数据库连接池、下游 API 的 QPS 配额），需要**外挂 `Semaphore` 做限流**。
+传统线程池的有界队列与拒绝策略可以限制排队数量和过载，但不一定自动把压力传播给上游。虚拟线程模型下"来一个任务起一条 VT"，如果下游是有并发上限的资源（数据库连接池、下游 API 的 QPS 配额），需要外挂限流。要注意并发限制与速率限制是两回事：`Semaphore` 控制的是同时执行的任务数，不是单位时间内的请求速率；速率限制需要令牌桶、漏桶或其他专用限流器。
 
 ```java
 // ❌ 虚拟线程直接调下游，可能瞬间把下游打挂
@@ -69,7 +69,7 @@ try (var pool = Executors.newVirtualThreadPerTaskExecutor()) {
 
 应对方向：
 
-- JDK 21 中可使用 Preview API `ScopedValue` 替代只在方法调用链里传递的 `ThreadLocal`；JDK 25 起它已正式定稿
+- 对只需沿调用链传递、无需任意修改的只读上下文值，可以评估 JDK 21 的 Preview API `ScopedValue`（JDK 25 起正式定稿）。它与 `ThreadLocal` 的生命周期和可变性语义不同，不能不加区分地替换
 - 拆分 TL：只把真正需要跨方法透传的东西放进 TL，其余通过参数传递
 - 关键路径改造完之前，用 JFR、分配分析和堆快照观察 `ThreadLocal` 值与相关对象的增长
 
@@ -130,20 +130,22 @@ try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
 }   // 作用域退出：残留子任务自动取消
 ```
 
-三条硬保证：
+三条关键性质：
 
-| 保证 | 意义 |
+| 性质 | 意义 |
 | :-- | :-- |
-| 作用域内 fork 的子任务，一定在 `try` 退出前结束 | 不会泄漏 |
-| 任一子任务失败，`ShutdownOnFailure` 立即取消其余 | 快速失败 |
+| 作用域内 fork 的子任务，正常退出前必须结束 | 作用域统一管理子任务生命周期 |
+| 任一子任务失败，`ShutdownOnFailure` 请求取消其余未完成任务 | 快速失败 |
 | Thread dump 能看到父子层级 | 排查友好 |
+
+取消通常通过中断实现，是协作式机制。如果子任务忽略中断，或卡在不响应中断的操作中，作用域关闭可能一直等待它结束，因此"不泄漏"并非强制终止的保证。
 
 ### 2.3 两种收敛策略
 
 | 策略 | 语义 | 典型场景 |
 | :-- | :-- | :-- |
 | `ShutdownOnFailure` | 任一子任务失败则取消其余 | 并行下游都必须成功（聚合 A、B、C 三个 API） |
-| `ShutdownOnSuccess` | 任一子任务成功则取消其余 | 从多副本读取，取最先返回的 |
+| `ShutdownOnSuccess` | 任一子任务成功则取消其余 | 从多副本读取，取最先成功的结果 |
 
 ```java
 // 场景 A：三个下游都要成功
@@ -173,17 +175,19 @@ try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
     var user  = scope.fork(() -> userApi.get(id));
     var order = scope.fork(() -> orderApi.get(id));
 
-    scope.joinUntil(Instant.now().plusSeconds(2));   // 全局超时
+    scope.joinUntil(Instant.now().plusSeconds(2));   // 等待截止时间
     scope.throwIfFailed();
 
     return new Profile(user.get(), order.get());
 } catch (TimeoutException e) {
-    // 超时时作用域自动关闭，两个子任务收到中断
+    // joinUntil 超时后，异常退出 try 块会关闭作用域。
+    // 关闭过程会请求取消未完成的子任务，并等待它们结束。
+    // 如果下游调用不响应中断，关闭过程仍可能继续等待。
     throw new ServiceUnavailableException(e);
 }
 ```
 
-比起手工写 `Future.get(timeout, unit)` 加上一堆 cancel，代码短得多且更难写错。
+`joinUntil` 设定的是等待截止时间，不是保证整个方法在该时间内返回的硬性时限。若下游 HTTP 客户端不响应线程中断，或底层 I/O 没有自己的请求超时，业务期限并不意味着到期后一定能把方法返回给调用者。生产环境应同时设置下游客户端自身的连接、读取或整体请求超时。比起手工写 `Future.get(timeout, unit)` 加上一堆 cancel，代码更短且更难写错。
 
 ### 2.5 API 稳定性提示
 
@@ -224,7 +228,8 @@ public Profile loadProfile(String id) {
             .thenApply(v -> new Profile(fUser.join(), fOrder.join(), fInv.join()))
             .join();
     } catch (CompletionException e) {
-        // 已有子任务不会自动取消，需要额外处理
+        // 尝试取消 Future，但不保证中断底层 HTTP / 数据库调用。
+        // 真正停止下游工作还需依赖底层 API 支持的取消机制。
         fUser.cancel(true); fOrder.cancel(true); fInv.cancel(true);
         throw unwrap(e);
     }
@@ -247,7 +252,7 @@ public Profile loadProfile(String id) throws Exception {
 }
 ```
 
-代码行数减半，异常传播路径清晰，超时语义直观，子任务的生命周期由作用域托管。这就是虚拟线程与结构化并发组合带来的最直接收益。
+结构化并发将子任务创建、等待、失败处理和取消组织在同一个作用域内，减少了手动维护多个 `Future` 的工作，异常传播路径与取消路径更集中、更易推理。但它不能强制终止忽略中断的任务，也不能替代下游客户端的请求超时。迁移时应同时设计两层超时：业务层定义整个操作的截止时间，下游客户端限制单次 I/O 的最长等待时间。
 
 ## 5. 本页小结
 

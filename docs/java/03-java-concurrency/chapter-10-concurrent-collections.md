@@ -29,13 +29,13 @@ public boolean add(E e) {
 线程 B: elementData[5]=b, size=6   ← 覆盖了 A 的写
 ```
 
-结果：**一次自增被吞掉**、一个位置被覆盖，`elementData` 里丢了一个元素；`size` 也可能出现"越界指向 null 位置"，触发后续 `ArrayIndexOutOfBoundsException`。这是最经典的"丢更新 + 结构损坏"复合症状。
+结果：**一次自增被吞掉**、一个位置被覆盖，`elementData` 里丢了一个元素。两个线程可能同时使用同一个旧 `size` 作为数组下标，导致一个位置被覆盖；由于容量检查、下标计算和数组写入没有作为整体原子操作，其他交错执行还可能造成计数与数组内容不一致，甚至抛出越界异常。这是最经典的"丢更新 + 结构损坏"复合症状。
 
 ### 1.2 `HashMap` 的死循环（JDK 7）
 
 JDK 7 的 `HashMap` 有一个上过面试题几百次的 bug：**并发扩容时可能形成环形链表，导致 `get()` 死循环、CPU 100%**。
 
-根因是 JDK 7 扩容用**头插法**迁移链表：
+根因是 JDK 7 扩容用**头插法**迁移链表。以下仅示意一种可能的并发交错，不是 JDK 7 扩容必然按此顺序执行：
 
 ```txt
 扩容前旧桶：A → B → null
@@ -49,7 +49,7 @@ JDK 7 的 `HashMap` 有一个上过面试题几百次的 bug：**并发扩容时
 
 `get()` 触发到这个桶时可能沿着 `next` 进入环，长期不返回并持续消耗 CPU。
 
-JDK 8 换成**尾插法**——迁移时保持链表原顺序，从根本上消除了环形链表。**但 `HashMap` 本身仍然不是线程安全的**：数据丢失、`resize` 期间读到中间状态、并发 put 的结构损坏都还存在。JDK 8 只是修了那一个死循环。
+JDK 8 调整了扩容迁移逻辑，按哈希结果拆分链表并保留子链表内的相对顺序，避免了 JDK 7 这类经典的成环问题。**但这不代表 `HashMap` 支持并发修改**：无同步的并发写入仍可能产生数据丢失或结构与可见性问题。
 
 ### 1.3 一张表总结普通集合的并发风险
 
@@ -77,7 +77,7 @@ ConcurrentHashMap（JDK 7）
 ├── Segment[1]  (ReentrantLock) → HashEntry[] → 链表
 ├── ...
 └── Segment[15] (ReentrantLock) → HashEntry[] → 链表
-    默认 16 段，并发度上限 = 16
+    默认构造通常为 16 段，Segment 数量由构造参数决定
 ```
 
 核心结构：
@@ -91,11 +91,11 @@ static final class Segment<K,V> extends ReentrantLock {
 final Segment<K,V>[] segments;   // 默认 16
 ```
 
-**定位是两级 hash**：hash 的高位定位 Segment，低位定位 HashEntry。读操作靠 `volatile` 保证可见性，不加锁。
+**定位是两级 hash**：先对哈希值扰动，再通过掩码与移位定位 Segment 和桶。读操作靠 `volatile` 保证可见性，不加锁。
 
 局限也直接摆在设计里：
 
-- **并发度上限固定**——默认 16，构造后不可扩
+- **Segment 数量在构造时确定**——默认构造通常为 16 段，创建后不随内部哈希表容量扩展
 - **热点 key 集中在少数 Segment**：并发度退化到几乎为 1
 - **Segment 本身占内存**：每个 Segment 都是一个 `ReentrantLock` + 独立的 `HashEntry[]`
 
@@ -150,11 +150,13 @@ final V putVal(K key, V value, boolean onlyIfAbsent) {
 
 ### 2.3 JDK 8 为什么从 `ReentrantLock` 换回 `synchronized`
 
-反直觉的一件事：JDK 7 用的是 `ReentrantLock`（因为 Segment 继承它），JDK 8 换成了 `synchronized`。三个直接的原因：
+反直觉的一件事：JDK 7 用的是 `ReentrantLock`（因为 Segment 继承它），JDK 8 换成了 `synchronized`。原因需要区分可验证的实现事实与设计动机：
 
-- **JDK 6 之后 `synchronized` 获得多条优化路径**：轻量级锁、锁消除和锁粗化降低了无竞争场景的开销（[第 6 章的锁优化部分](./chapter-06-synchronized.md#synchronized-lock-optimization)）。
-- **粒度更细意味着单锁的竞争度更低**：每个 bin 的头节点独立当锁。JDK 15+ 的 HotSpot 默认关闭偏向锁，常见路径从轻量级锁开始；历史版本可能启用偏向锁。
-- **`synchronized` 内部由 JVM 管理，减少对象元数据**：`ReentrantLock` 本身是 Java 对象，每个 Segment 都要单独维护同步状态；`synchronized` 直接用 Node 的对象头，节省内存。
+- **更细的同步粒度**：JDK 8 把同步粒度从 Segment 缩小到具体 bin，空 bin 用 CAS 插入，非空 bin 以桶头节点为监视器同步，不同 bin 的操作更容易并行。粒度设计和锁原语选择是两个不同问题，不能只凭粒度解释为什么选 `synchronized` 而非 `ReentrantLock`。
+- **减少额外锁对象**：使用已有的 bin 头节点作为监视器，避免为每个同步单元额外创建 `ReentrantLock` 对象及其状态。
+- **利用 JVM 对监视器的实现与优化**：HotSpot 持续优化监视器实现和 JIT 对同步代码的处理（[第 6 章的锁优化部分](./chapter-06-synchronized.md#synchronized-lock-optimization)）。
+
+不能据此断言 `synchronized` 在所有场景都比 `ReentrantLock` 更快，实际性能取决于锁竞争、代码形态与 JVM 实现。
 
 ### 2.4 `size()` 的分散计数
 
@@ -175,7 +177,7 @@ public int size() {
 }
 ```
 
-这套思路和 [`LongAdder`](./chapter-07-cas-atomic.md)完全一致——**同一套代码在两个地方用**。代价是 `size()` 是“接近实时”的估算，不保证瞬时精确。
+这与 [`LongAdder`](./chapter-07-cas-atomic.md)的核心思路相似：将高竞争下的更新压力分散到多个计数单元，最后再汇总。代价是 `size()` 在没有并发修改时返回当前映射数量，在并发更新期间通过汇总计数单元得到结果，但不保证与某一个瞬间的完整 Map 状态严格对应。
 
 ### 2.5 JDK 7 vs JDK 8 一览
 
@@ -228,7 +230,7 @@ public class CopyOnWriteArrayList<E> {
 }
 ```
 
-读的成本 = 一次数组访问，**没有 CAS、没有屏障之外的任何同步开销**。
+`get()` 不获取锁，也不需要 CAS；它读取 `volatile` 数组引用，再访问对应元素。与加锁读取相比路径较轻，但不能把 `volatile` 的内存语义当成不存在。
 
 ### 3.2 迭代器是"快照"
 
@@ -248,7 +250,7 @@ while (it.hasNext()) {
 }
 ```
 
-这解决了 `ArrayList` 常见的 `ConcurrentModificationException`——迭代期间不会因为并发修改而抛异常。代价是**读到的可能是旧数据**（弱一致性）。
+这解决了 `ArrayList` 常见的 `ConcurrentModificationException`——迭代期间不会因为并发修改而抛异常。代价是**读到的可能是旧数据**（弱一致性）。快照只固定迭代器看到的数组及其元素引用，不包含元素对象状态的深拷贝；元素对象内部的可变状态仍需单独保证线程安全。
 
 ### 3.3 写成本 O(N) 决定了适用场景
 
@@ -309,7 +311,7 @@ Level 1:  head ► 10 ────► 20 ────► 30 ────► 50 �
 - CAS 失败说明其他线程改动了前驱，重新定位再试
 - 索引层的建立也是 CAS——概率性地决定新节点建到哪一层
 
-这套无锁算法让 `ConcurrentSkipListMap` 的读写都不需要加锁，代价是弱一致性（遍历时可能看到并发写入的中间状态，但不会抛异常）。
+这套无锁算法让 `ConcurrentSkipListMap` 的读写都不需要加锁。它的迭代器是弱一致性的：可以与并发修改同时进行，不会因并发修改而抛出 `ConcurrentModificationException`，但不提供遍历开始时的全量快照。
 
 ### 4.3 与 `ConcurrentHashMap` 的选型
 
@@ -444,7 +446,7 @@ queue.tryTransfer(task, 1, TimeUnit.SECONDS);   // 超时版
 
 `LinkedTransferQueue` 底层用一种叫 **双队列（dual queue）** 的算法——同一条链表里同时保存"待消费的数据节点"和"等待数据的消费者节点"。入队时如果发现链尾是"等待消费者"节点，直接把数据塞给他；如果是"数据"节点，就把自己挂到尾部。
 
-它比 `SynchronousQueue` 更灵活（因为可以 `offer` 不等）、比 `ConcurrentLinkedQueue` 更强大（因为可以 `transfer` 等）。**生产上凡是同时需要"异步入队 + 偶尔精确交接"的场景，都优先考虑 `LinkedTransferQueue`**。
+它比 `SynchronousQueue` 更灵活（因为可以 `offer` 不等）、比 `ConcurrentLinkedQueue` 更强大（因为可以 `transfer` 等）。`LinkedTransferQueue` 适合既需要常规异步入队，又有部分操作要求等待消费者实际接收的场景。但它不提供固定容量背压，若生产者可能长期快于消费者，应评估有界 `BlockingQueue`；若只需要普通的非阻塞入队与出队，则 `ConcurrentLinkedQueue` 可能更简单。是否选择 `LinkedTransferQueue`，应由交接语义、内存边界与负载特征决定。
 
 ### 5.5 `BlockingQueue` 家族一览
 
@@ -454,11 +456,11 @@ queue.tryTransfer(task, 1, TimeUnit.SECONDS);   // 超时版
 | :-- | :-- | :-- | :-- | :-- |
 | `ArrayBlockingQueue` | 有界 | 数组 | 1 把锁 | 简单、通用；put/take 互相阻塞 |
 | `LinkedBlockingQueue` | 可选有界（默认 `Integer.MAX_VALUE`） | 单链表 | 2 把锁（put/take 分离） | 高吞吐；默认无界要小心 OOM |
-| `SynchronousQueue` | 0（不存储） | 无 | CAS / 锁 | put 与 take 必须配对，"握手"传递 |
+| `SynchronousQueue` | 0（不存储） | 无 | 并发匹配算法与线程等待机制 | put 与 take 必须配对，"握手"传递 |
 | `PriorityBlockingQueue` | 无界 | 二叉堆 | 1 把锁 | 按优先级出队 |
 | `DelayQueue` | 无界 | `PriorityQueue` | 1 把锁 | 元素延时到期后才可出队 |
 
-其中 `LinkedBlockingQueue` 的**两把锁**设计（`putLock` 和 `takeLock`）是它高吞吐的核心——生产者和消费者可以真正并行，而非 `ArrayBlockingQueue` 那种交替执行。
+其中 `LinkedBlockingQueue` 的**两把锁**设计（`putLock` 和 `takeLock`）是它高吞吐的核心——两把锁让常见的入队与出队路径可以分别受保护，生产者和消费者在许多情况下能够并行执行，减少了单锁队列中插入与移除直接竞争同一把锁的情况。但它们仍需通过计数和条件信号协调，并非完全独立。
 
 ### 5.6 生产者-消费者的标准形态
 
@@ -494,6 +496,8 @@ new Thread(() -> {
 | 按优先级消费 | `PriorityBlockingQueue` |
 | 定时消费（延迟队列） | `DelayQueue` |
 
+无界队列（`ConcurrentLinkedQueue`、`LinkedTransferQueue`、默认的 `LinkedBlockingQueue`）不会因为达到配置容量而提供背压。如果生产速度长期超过消费速度，队列可能持续增长；需要控制积压时，应优先评估有界 `BlockingQueue` 或在上游设置限流机制。
+
 [第 11 章 `ThreadPoolExecutor`](./chapter-11-thread-pool.md)的 `workQueue` 就是从这里挑一种——不同队列直接决定线程池的调度形态。
 
 ## 6. 选型：安全、并发度、开销的三角权衡
@@ -527,7 +531,7 @@ new Thread(() -> {
 | :-- | :-- | :-- |
 | `ArrayList.add` 丢元素 | `size++` 非原子 | 用 `CopyOnWriteArrayList` 或外部同步 |
 | `HashMap` 死循环（JDK 7） | 头插法 + 并发扩容 | JDK 8 尾插法；生产用 `ConcurrentHashMap` |
-| Segment 并发度上限固定 | 段数构造后不可变 | JDK 8 换 bin 级锁 |
+| Segment 数量构造时确定 | 段数创建后不随哈希表扩容 | JDK 8 换 bin 级锁 |
 | 精确计数成为写热点 | 单个 `AtomicLong` CAS 争抢 | `baseCount + CounterCell[]` 分散计数 |
 | 需要"读无锁"的容器 | 常规锁读写都要竞争 | `CopyOnWriteArrayList`（写时复制） |
 | 需要"排序 + 并发"的 Map | 无 | `ConcurrentSkipListMap`（跳表） |
