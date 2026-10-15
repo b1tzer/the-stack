@@ -111,3 +111,4 @@ jstack <pid> | grep -A8 "nio-event-loop"
 
 > **上一页：** [连接失败与建立缓慢案例](./chapter-02-cases-connection-failures.md)
 > **下一页：** [连接泄漏与状态异常案例](./chapter-04-cases-connection-leaks.md)
+> **返回：** [网络性能分析与故障排查](./chapter-01-network-diagnostics.md)

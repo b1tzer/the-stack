@@ -4,12 +4,12 @@
 
 ## 内容地图
 
-- **01 Java 语言核心**：类型、对象语义、面向对象、泛型、注解、Lambda、异常、集合、Stream，以及 record、sealed 与模式匹配特性。
-- **02 JVM 运行时**：字节码、类加载、运行时数据区、对象布局、GC、JIT 与堆外内存。
-- **03 Java 并发**：内存模型、同步原语、并发工具、线程池、异步模型与虚拟线程。
-- **04 Java 网络**：网络基础、Socket/NIO、Netty、HTTP、Servlet/Tomcat、RPC 与长连接协议。
-- **05 Java 数据访问**：持久化思想、JDBC、连接池、MyBatis、ORM 与性能优化。
-- **06 诊断**：按故障域组织 JVM、并发、网络与数据访问的排查流程与生产案例。
+- **[01 Java 语言核心](./01-java-language/chapter-01-why-java.md)**：类型、对象语义、面向对象、泛型、注解、Lambda、异常、集合、Stream，以及 record、sealed 与模式匹配特性。
+- **[02 JVM 运行时](./02-jvm-runtime/chapter-01-bytecode-classloading.md)**：字节码、类加载、运行时数据区、对象布局、GC、JIT 与堆外内存。
+- **[03 Java 并发](./03-java-concurrency/chapter-01-why-concurrency.md)**：内存模型、同步原语、并发工具、线程池、异步模型与虚拟线程。
+- **[04 Java 网络](./04-java-network/chapter-01-network-basics.md)**：网络基础、Socket/NIO、Netty、HTTP、Servlet/Tomcat、RPC 与长连接协议。
+- **[05 Java 数据访问](./05-java-data-access/chapter-01-persistence-thought.md)**：持久化思想、JDBC、连接池、MyBatis、ORM 与性能优化。
+- **[06 诊断](./06-diagnostics/index.md)**：按故障域组织 JVM、并发、网络与数据访问的排查流程与生产案例。
 
 下面的三条入口索引同一批内容，但面向不同的阅读目标。
 
@@ -22,8 +22,6 @@
 3. 学习 Java 内存模型、同步机制和并发工具。
 4. 根据工作方向进入网络通信或数据访问。
 5. 最后通过诊断方法与生产案例串联前面的机制。
-
-想从某模块开头进入，按内容地图的链接即可。
 
 ## 入口 B：按故障现象排查
 

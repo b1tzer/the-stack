@@ -397,4 +397,12 @@ vmtool --action getInstances \
 
 前面的内容侧重定位问题发生在客户端、连接、应用还是外部依赖。确认瓶颈后，下一页转向处理方案：连接复用、I/O 模型、TCP 参数、限流熔断与监控检查清单。
 
+## 网络诊断案例
+
+定位到具体方向后，进入对应案例看完整的证据链与修复思路：
+
+- [连接失败与建立缓慢案例](./chapter-02-cases-connection-failures.md)：区分 `connection refused` 与 `connect timed out`、SYN 队列满、防火墙静默丢包。
+- [请求超时与延迟案例](./chapter-03-cases-timeout-latency.md)：read 超时指向对端慢、重传与 RTT、应用消费不及时。
+- [连接泄漏与状态异常案例](./chapter-04-cases-connection-leaks.md)：CLOSE-WAIT 堆积、TIME-WAIT 数量高是否真故障、连接池泄漏。
+
 > **下一页：** [高并发网络优化与最佳实践](../../04-java-network/chapter-12-network-optimization.md)
