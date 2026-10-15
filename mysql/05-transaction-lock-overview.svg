@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 480" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="12">
+  <defs>
+    <marker id="arrMvcc" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#1565c0"/>
+    </marker>
+    <marker id="arrLock" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#e65100"/>
+    </marker>
+    <marker id="arrGray" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#757575"/>
+    </marker>
+  </defs>
+
+  <text x="440" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">事务与锁：一条 SQL 的路径分叉</text>
+
+  <!-- L1 一条 SQL -->
+  <rect x="365" y="44" width="150" height="42" rx="6" fill="#f5f5f5" stroke="#757575" stroke-width="1.4"/>
+  <text x="440" y="70" text-anchor="middle" fill="#424242" font-size="13" font-weight="bold">一条 SQL</text>
+
+  <!-- L2 读 / 写 -->
+  <rect x="205" y="128" width="110" height="40" rx="6" fill="#f5f5f5" stroke="#757575" stroke-width="1.4"/>
+  <text x="260" y="153" text-anchor="middle" fill="#424242" font-size="13" font-weight="bold">读（SELECT）</text>
+
+  <rect x="525" y="128" width="190" height="56" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="620" y="151" text-anchor="middle" fill="#bf360c" font-size="13" font-weight="bold">写</text>
+  <text x="620" y="172" text-anchor="middle" fill="#555555" font-size="11">INSERT / UPDATE / DELETE</text>
+
+  <!-- L3 快照读 / 当前读 / 写 -->
+  <rect x="165" y="226" width="150" height="46" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="240" y="248" text-anchor="middle" fill="#0d47a1" font-size="13" font-weight="bold">快照读</text>
+  <text x="240" y="266" text-anchor="middle" fill="#555555" font-size="11">普通 SELECT</text>
+
+  <rect x="330" y="226" width="220" height="46" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="440" y="248" text-anchor="middle" fill="#bf360c" font-size="13" font-weight="bold">当前读</text>
+  <text x="440" y="266" text-anchor="middle" fill="#555555" font-size="11">FOR UPDATE / LOCK IN SHARE MODE</text>
+
+  <rect x="615" y="226" width="170" height="46" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="700" y="248" text-anchor="middle" fill="#bf360c" font-size="13" font-weight="bold">写</text>
+  <text x="700" y="266" text-anchor="middle" fill="#555555" font-size="11">先当前读 + 加锁</text>
+
+  <!-- L4 机制 -->
+  <rect x="150" y="326" width="180" height="64" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="240" y="348" text-anchor="middle" fill="#0d47a1" font-size="13" font-weight="bold">MVCC</text>
+  <text x="240" y="366" text-anchor="middle" fill="#555555" font-size="11">版本链 + Read View</text>
+  <text x="240" y="382" text-anchor="middle" fill="#555555" font-size="11">不加锁</text>
+
+  <rect x="370" y="326" width="140" height="64" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="440" y="348" text-anchor="middle" fill="#bf360c" font-size="13" font-weight="bold">锁</text>
+  <text x="440" y="366" text-anchor="middle" fill="#555555" font-size="11">读最新版本</text>
+  <text x="440" y="382" text-anchor="middle" fill="#555555" font-size="11">加锁</text>
+
+  <rect x="650" y="326" width="100" height="64" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="700" y="348" text-anchor="middle" fill="#bf360c" font-size="13" font-weight="bold">锁</text>
+  <text x="700" y="366" text-anchor="middle" fill="#555555" font-size="11">行锁</text>
+
+  <!-- 箭头：SQL → 读 / 写 -->
+  <polyline points="400,86 400,106 260,106 260,128" fill="none" stroke="#757575" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <polyline points="480,86 480,106 620,106 620,128" fill="none" stroke="#e65100" stroke-width="1.6" marker-end="url(#arrLock)"/>
+
+  <!-- 箭头：读 → 快照读 / 当前读 -->
+  <line x1="235" y1="168" x2="235" y2="226" stroke="#1565c0" stroke-width="1.6" marker-end="url(#arrMvcc)"/>
+  <polyline points="285,168 285,196 440,196 440,226" fill="none" stroke="#e65100" stroke-width="1.6" marker-end="url(#arrLock)"/>
+
+  <!-- 箭头：写 → 写 -->
+  <polyline points="620,184 620,205 700,205 700,226" fill="none" stroke="#e65100" stroke-width="1.6" marker-end="url(#arrLock)"/>
+
+  <!-- 箭头：L3 → L4 -->
+  <line x1="240" y1="272" x2="240" y2="326" stroke="#1565c0" stroke-width="1.6" marker-end="url(#arrMvcc)"/>
+  <line x1="440" y1="272" x2="440" y2="326" stroke="#e65100" stroke-width="1.6" marker-end="url(#arrLock)"/>
+  <line x1="700" y1="272" x2="700" y2="326" stroke="#e65100" stroke-width="1.6" marker-end="url(#arrLock)"/>
+
+  <!-- 底部总结 -->
+  <rect x="150" y="416" width="180" height="48" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="240" y="437" text-anchor="middle" fill="#0d47a1" font-size="13" font-weight="bold">MVCC 管「读不阻塞写」</text>
+  <text x="240" y="455" text-anchor="middle" fill="#555555" font-size="11">快照读：读历史版本，不加锁</text>
+
+  <rect x="370" y="416" width="380" height="48" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="560" y="437" text-anchor="middle" fill="#bf360c" font-size="13" font-weight="bold">锁 管「写不互相覆盖」</text>
+  <text x="560" y="455" text-anchor="middle" fill="#555555" font-size="11">当前读与写：读最新版本，加锁</text>
+</svg>

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 430" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <defs>
+    <marker id="arrOrange" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#e65100"/>
+    </marker>
+  </defs>
+
+  <text x="470" y="28" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">dump/load 预热：把热点记忆带过重启</text>
+
+  <!-- 流程 -->
+  <rect x="40" y="70" width="230" height="64" rx="8" fill="#f5f5f5" stroke="#757575" stroke-width="1.4"/>
+  <text x="155" y="96" text-anchor="middle" font-size="12" font-weight="bold" fill="#424242">运行中的 Buffer Pool</text>
+  <text x="155" y="118" text-anchor="middle" fill="#555555" font-size="10">记住哪些页是热页</text>
+
+  <text x="325" y="58" text-anchor="middle" fill="#bf360c" font-size="10" font-weight="bold">关机 dump 最热 25%</text>
+  <line x1="270" y1="102" x2="376" y2="102" stroke="#e65100" stroke-width="1.8" marker-end="url(#arrOrange)"/>
+
+  <rect x="390" y="70" width="200" height="64" rx="8" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="490" y="96" text-anchor="middle" font-size="12" font-weight="bold" fill="#bf360c">bp_hot_pages 文件</text>
+  <text x="490" y="118" text-anchor="middle" fill="#555555" font-size="10">热页列表落盘</text>
+
+  <text x="650" y="58" text-anchor="middle" fill="#bf360c" font-size="10" font-weight="bold">启动 load</text>
+  <line x1="590" y1="102" x2="696" y2="102" stroke="#e65100" stroke-width="1.8" marker-end="url(#arrOrange)"/>
+
+  <rect x="710" y="70" width="190" height="64" rx="8" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.4"/>
+  <text x="805" y="96" text-anchor="middle" font-size="12" font-weight="bold" fill="#1b5e20">预热后的 Buffer Pool</text>
+  <text x="805" y="118" text-anchor="middle" fill="#555555" font-size="10">命中率不必从 0 爬</text>
+
+  <!-- 命中率对比曲线 -->
+  <text x="140" y="182" text-anchor="middle" fill="#555555" font-size="10">命中率</text>
+  <line x1="140" y1="190" x2="140" y2="380" stroke="#9e9e9e" stroke-width="1.4"/>
+  <line x1="140" y1="380" x2="860" y2="380" stroke="#9e9e9e" stroke-width="1.4"/>
+  <text x="850" y="400" text-anchor="end" fill="#555555" font-size="10">重启后时间</text>
+
+  <path d="M156,372 C320,372 480,330 760,250" fill="none" stroke="#c62828" stroke-width="2"/>
+  <path d="M156,286 C340,282 540,262 760,252" fill="none" stroke="#2e7d32" stroke-width="2"/>
+
+  <text x="340" y="264" text-anchor="middle" fill="#2e7d32" font-size="11" font-weight="bold">有预热：起点就高</text>
+  <text x="460" y="362" text-anchor="middle" fill="#c62828" font-size="11" font-weight="bold">无预热：从 0 慢慢爬</text>
+
+  <text x="470" y="418" text-anchor="middle" fill="#757575" font-size="10">默认 dump 最热 25% 的页（innodb_buffer_pool_dump_pct），在「启动快」与「预热全」之间权衡</text>
+</svg>

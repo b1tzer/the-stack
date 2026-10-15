@@ -1,0 +1,145 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 864" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="13">
+  <defs>
+    <marker id="arrRedL" markerWidth="10" markerHeight="10" refX="0" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M7,0 L0,3 L7,6 Z" fill="#c62828"/>
+    </marker>
+    <marker id="arrRedR" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#c62828"/>
+    </marker>
+    <marker id="arrGreen" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#2e7d32"/>
+    </marker>
+    <marker id="arrGray" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#9e9e9e"/>
+    </marker>
+  </defs>
+
+  <text x="560" y="30" text-anchor="middle" font-size="20" font-weight="bold" fill="#333333">MySQL 锁全景：MDL 与 InnoDB 锁的关联，及行锁判断路线</text>
+  <text x="560" y="54" text-anchor="middle" font-size="14" fill="#757575">同一条语句横跨两层锁，两类锁共享「事务提交 / 回滚」这一个释放时机</text>
+
+  <!-- ================= Server 层 ================= -->
+  <rect x="50" y="70" width="1020" height="96" rx="8" fill="#fafafa" stroke="#9e9e9e" stroke-width="1.4" stroke-dasharray="6 4"/>
+  <text x="70" y="92" font-size="14" font-weight="bold" fill="#616161">Server 层 · 管表结构</text>
+
+  <rect x="70" y="104" width="430" height="50" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.6"/>
+  <text x="285" y="126" text-anchor="middle" font-size="14" font-weight="bold" fill="#0d47a1">MDL 读锁（共享）</text>
+  <text x="285" y="145" text-anchor="middle" font-size="13" fill="#555555">SELECT / DML 自动加</text>
+
+  <rect x="620" y="104" width="430" height="50" rx="6" fill="#ffebee" stroke="#c62828" stroke-width="1.6"/>
+  <text x="835" y="126" text-anchor="middle" font-size="14" font-weight="bold" fill="#b71c1c">MDL 写锁（排他）</text>
+  <text x="835" y="145" text-anchor="middle" font-size="13" fill="#555555">DDL（ALTER 等）加</text>
+
+  <line x1="504" y1="129" x2="616" y2="129" stroke="#c62828" stroke-width="1.8" marker-start="url(#arrRedL)" marker-end="url(#arrRedR)"/>
+  <text x="560" y="119" text-anchor="middle" font-size="13" font-weight="bold" fill="#c62828">互斥</text>
+
+  <!-- ================= 关联桥 ================= -->
+  <line x1="285" y1="154" x2="285" y2="256" stroke="#2e7d32" stroke-width="1.8" marker-end="url(#arrGreen)"/>
+  <text x="600" y="186" text-anchor="middle" font-size="14" font-weight="bold" fill="#2e7d32">同一条 DML：Server 层 MDL 读锁 ＋ InnoDB 层意向锁 IX ＋ 行锁</text>
+  <text x="600" y="208" text-anchor="middle" font-size="13" fill="#555555">两类锁都在事务提交 / 回滚时一起释放 → 长事务不提交，DDL 的 MDL 写锁被卡</text>
+
+  <!-- ================= InnoDB 层 ================= -->
+  <rect x="50" y="222" width="1020" height="603" rx="8" fill="#f1f8e9" stroke="#2e7d32" stroke-width="1.4" stroke-dasharray="6 4"/>
+  <text x="70" y="244" font-size="14" font-weight="bold" fill="#2e7d32">InnoDB 层 · 管数据行</text>
+
+  <rect x="70" y="256" width="980" height="44" rx="6" fill="#fff8e1" stroke="#f9a825" stroke-width="1.6"/>
+  <text x="560" y="275" text-anchor="middle" font-size="14" font-weight="bold" fill="#e65100">意向锁 IS / IX（表级）</text>
+  <text x="560" y="292" text-anchor="middle" font-size="12" fill="#555555">加行锁前先在表上打标记；IS 与 IX 互不冲突</text>
+
+  <!-- 行锁判断路线（决策树） -->
+  <rect x="440" y="322" width="240" height="42" rx="6" fill="#f5f5f5" stroke="#757575" stroke-width="1.5"/>
+  <text x="560" y="348" text-anchor="middle" font-size="13" font-weight="bold" fill="#424242">当前读 FOR UPDATE / DML</text>
+
+  <rect x="460" y="400" width="200" height="42" rx="6" fill="#f5f5f5" stroke="#757575" stroke-width="1.5"/>
+  <text x="560" y="426" text-anchor="middle" font-size="13" fill="#424242">走索引</text>
+
+  <rect x="860" y="400" width="200" height="42" rx="6" fill="#f5f5f5" stroke="#757575" stroke-width="1.5"/>
+  <text x="960" y="426" text-anchor="middle" font-size="13" fill="#424242">走不上索引 · 全表扫描</text>
+
+  <rect x="310" y="472" width="200" height="42" rx="6" fill="#f5f5f5" stroke="#757575" stroke-width="1.5"/>
+  <text x="410" y="498" text-anchor="middle" font-size="13" fill="#424242">等值查询 col = ?</text>
+
+  <rect x="660" y="472" width="200" height="42" rx="6" fill="#f5f5f5" stroke="#757575" stroke-width="1.5"/>
+  <text x="760" y="498" text-anchor="middle" font-size="13" fill="#424242">范围查询 col &gt; / BETWEEN</text>
+
+  <rect x="180" y="544" width="160" height="42" rx="6" fill="#f5f5f5" stroke="#757575" stroke-width="1.5"/>
+  <text x="260" y="570" text-anchor="middle" font-size="13" fill="#424242">唯一索引</text>
+
+  <rect x="480" y="544" width="160" height="42" rx="6" fill="#f5f5f5" stroke="#757575" stroke-width="1.5"/>
+  <text x="560" y="570" text-anchor="middle" font-size="13" fill="#424242">非唯一索引</text>
+
+  <rect x="75" y="614" width="170" height="56" rx="6" fill="#ffe0b2" stroke="#e65100" stroke-width="1.6"/>
+  <text x="160" y="639" text-anchor="middle" font-size="14" font-weight="bold" fill="#bf360c">Record Lock</text>
+  <text x="160" y="659" text-anchor="middle" font-size="12" fill="#555555">唯一等值 · 命中</text>
+
+  <rect x="275" y="614" width="170" height="56" rx="6" fill="#bbdefb" stroke="#1565c0" stroke-width="1.6"/>
+  <text x="360" y="639" text-anchor="middle" font-size="14" font-weight="bold" fill="#0d47a1">Gap Lock</text>
+  <text x="360" y="659" text-anchor="middle" font-size="12" fill="#555555">唯一等值 · 未命中</text>
+
+  <rect x="475" y="614" width="170" height="56" rx="6" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.6"/>
+  <text x="560" y="639" text-anchor="middle" font-size="14" font-weight="bold" fill="#1b5e20">Next-Key + 下间隙</text>
+  <text x="560" y="659" text-anchor="middle" font-size="12" fill="#555555">非唯一等值</text>
+
+  <rect x="675" y="614" width="170" height="56" rx="6" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.6"/>
+  <text x="760" y="639" text-anchor="middle" font-size="14" font-weight="bold" fill="#1b5e20">Next-Key Lock</text>
+  <text x="760" y="659" text-anchor="middle" font-size="12" fill="#555555">范围查询</text>
+
+  <rect x="875" y="614" width="170" height="56" rx="6" fill="#ffcdd2" stroke="#c62828" stroke-width="1.6"/>
+  <text x="960" y="639" text-anchor="middle" font-size="14" font-weight="bold" fill="#b71c1c">锁全部主键记录</text>
+  <text x="960" y="659" text-anchor="middle" font-size="12" fill="#555555">走不上索引 · 全表扫描</text>
+
+  <!-- 决策树连线 -->
+  <line x1="560" y1="364" x2="560" y2="382" stroke="#9e9e9e" stroke-width="1.6"/>
+  <line x1="560" y1="382" x2="960" y2="382" stroke="#9e9e9e" stroke-width="1.6"/>
+  <line x1="560" y1="382" x2="560" y2="400" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <line x1="960" y1="382" x2="960" y2="400" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
+
+  <line x1="560" y1="442" x2="560" y2="457" stroke="#9e9e9e" stroke-width="1.6"/>
+  <line x1="410" y1="457" x2="760" y2="457" stroke="#9e9e9e" stroke-width="1.6"/>
+  <line x1="410" y1="457" x2="410" y2="472" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <line x1="760" y1="457" x2="760" y2="472" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
+
+  <line x1="410" y1="514" x2="410" y2="529" stroke="#9e9e9e" stroke-width="1.6"/>
+  <line x1="260" y1="529" x2="560" y2="529" stroke="#9e9e9e" stroke-width="1.6"/>
+  <line x1="260" y1="529" x2="260" y2="544" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <line x1="560" y1="529" x2="560" y2="544" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
+
+  <line x1="260" y1="586" x2="260" y2="600" stroke="#9e9e9e" stroke-width="1.6"/>
+  <line x1="160" y1="600" x2="360" y2="600" stroke="#9e9e9e" stroke-width="1.6"/>
+  <line x1="160" y1="600" x2="160" y2="614" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <line x1="360" y1="600" x2="360" y2="614" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
+
+  <line x1="560" y1="586" x2="560" y2="614" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <line x1="760" y1="514" x2="760" y2="614" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <line x1="960" y1="442" x2="960" y2="614" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
+
+  <!-- 三种行锁的空间含义：灰色长条 = 一行数据，彩色横条 = 锁住的范围；三行是三个独立查询，锚点各不相同 -->
+  <text x="90" y="694" font-size="14" font-weight="bold" fill="#bf360c">Record Lock</text>
+  <text x="250" y="694" font-size="12" fill="#555555">行锁 · 锁记录 5（查 id=5 命中）</text>
+  <rect x="459" y="679" width="22" height="20" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1.6"/>
+
+  <text x="90" y="722" font-size="14" font-weight="bold" fill="#0d47a1">Gap Lock</text>
+  <text x="250" y="722" font-size="12" fill="#555555">间隙锁 · 锁 (5,10)（查 id=7 未命中）</text>
+  <rect x="481" y="707" width="138" height="20" rx="3" fill="#bbdefb" stroke="#1565c0" stroke-width="1.6"/>
+
+  <text x="90" y="750" font-size="14" font-weight="bold" fill="#1b5e20">Next-Key Lock</text>
+  <text x="250" y="750" font-size="12" fill="#555555">临键锁 · 锁 (5,10]，右端 10 是被锁记录</text>
+  <rect x="481" y="735" width="160" height="20" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.6"/>
+
+  <!-- 索引轴与数据行长条 -->
+  <line x1="150" y1="771" x2="950" y2="771" stroke="#616161" stroke-width="1.6"/>
+  <text x="138" y="777" text-anchor="middle" font-size="13" fill="#757575">-∞</text>
+  <text x="962" y="777" text-anchor="middle" font-size="13" fill="#757575">+∞</text>
+
+  <rect x="299" y="753" width="22" height="36" rx="3" fill="#eeeeee" stroke="#616161" stroke-width="1.2"/>
+  <rect x="459" y="753" width="22" height="36" rx="3" fill="#eeeeee" stroke="#616161" stroke-width="1.2"/>
+  <rect x="619" y="753" width="22" height="36" rx="3" fill="#eeeeee" stroke="#616161" stroke-width="1.2"/>
+  <rect x="779" y="753" width="22" height="36" rx="3" fill="#eeeeee" stroke="#616161" stroke-width="1.2"/>
+
+  <text x="310" y="813" text-anchor="middle" font-size="13" fill="#424242">1</text>
+  <text x="470" y="813" text-anchor="middle" font-size="13" fill="#424242">5</text>
+  <text x="630" y="813" text-anchor="middle" font-size="13" fill="#424242">10</text>
+  <text x="790" y="813" text-anchor="middle" font-size="13" fill="#424242">15</text>
+
+  <!-- 底部说明 -->
+  <text x="560" y="845" text-anchor="middle" font-size="13" fill="#757575">均为 REPEATABLE READ 默认；READ COMMITTED 不加 Gap Lock</text>
+</svg>

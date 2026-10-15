@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 220" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <text x="470" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">LSN：一把单调递增的尺子</text>
+
+  <!-- 判断规则 -->
+  <rect x="80" y="44" width="770" height="36" rx="8" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.2"/>
+  <text x="465" y="67" text-anchor="middle" font-size="11" font-weight="bold" fill="#0d47a1">判断规则：页的 FIL_PAGE_LSN ＜ 日志记录的 LSN → 崩溃恢复时重放这条日志</text>
+
+  <!-- 游标标签 -->
+  <text x="380" y="110" text-anchor="middle" fill="#2e7d32" font-size="12" font-weight="bold">checkpoint LSN</text>
+  <text x="680" y="110" text-anchor="middle" fill="#e65100" font-size="12" font-weight="bold">当前 LSN</text>
+
+  <!-- 刻度线 -->
+  <line x1="380" y1="118" x2="380" y2="162" stroke="#2e7d32" stroke-width="1.6"/>
+  <line x1="680" y1="118" x2="680" y2="162" stroke="#e65100" stroke-width="1.6"/>
+  <text x="80" y="134" text-anchor="middle" fill="#757575" font-size="10">0</text>
+
+  <!-- 三段轴 -->
+  <line x1="80" y1="140" x2="380" y2="140" stroke="#a5d6a7" stroke-width="10"/>
+  <line x1="380" y1="140" x2="680" y2="140" stroke="#ffcc80" stroke-width="10"/>
+  <line x1="680" y1="140" x2="850" y2="140" stroke="#eceff1" stroke-width="10"/>
+
+  <!-- 段说明 -->
+  <text x="230" y="176" text-anchor="middle" fill="#555555" font-size="10">这部分日志已刷盘</text>
+  <text x="530" y="176" text-anchor="middle" fill="#555555" font-size="10">对应页可能还没刷</text>
+  <text x="765" y="176" text-anchor="middle" fill="#555555" font-size="10">尚未写入</text>
+
+  <text x="856" y="134" fill="#757575" font-size="10">LSN 递增 →</text>
+</svg>

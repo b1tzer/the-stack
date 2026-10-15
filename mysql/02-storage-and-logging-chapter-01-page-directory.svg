@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 540" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <defs>
+    <marker id="arrOrange" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#e65100"/>
+    </marker>
+  </defs>
+
+  <text x="470" y="28" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">页目录：让单链表也能二分</text>
+
+  <!-- 左：记录分组 -->
+  <text x="90" y="56" font-size="12" font-weight="bold" fill="#1b5e20">链表记录：每 4~8 条为一组，橙色为组内最后一条</text>
+
+  <text x="104" y="159" text-anchor="middle" fill="#757575" font-size="10">组1</text>
+  <rect x="140" y="132" width="78" height="44" rx="4" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.2"/>
+  <text x="179" y="159" text-anchor="middle" fill="#1b5e20" font-size="12" font-weight="bold">id=1</text>
+  <rect x="226" y="132" width="78" height="44" rx="4" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.2"/>
+  <text x="265" y="159" text-anchor="middle" fill="#1b5e20" font-size="12" font-weight="bold">id=2</text>
+  <rect x="312" y="132" width="78" height="44" rx="4" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.2"/>
+  <text x="351" y="159" text-anchor="middle" fill="#1b5e20" font-size="12" font-weight="bold">id=3</text>
+  <rect x="398" y="132" width="78" height="44" rx="4" fill="#fff3e0" stroke="#e65100" stroke-width="2"/>
+  <text x="437" y="159" text-anchor="middle" fill="#bf360c" font-size="12" font-weight="bold">id=4</text>
+
+  <text x="104" y="239" text-anchor="middle" fill="#757575" font-size="10">组2</text>
+  <rect x="140" y="212" width="78" height="44" rx="4" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.2"/>
+  <text x="179" y="239" text-anchor="middle" fill="#1b5e20" font-size="12" font-weight="bold">id=5</text>
+  <rect x="226" y="212" width="78" height="44" rx="4" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.2"/>
+  <text x="265" y="239" text-anchor="middle" fill="#1b5e20" font-size="12" font-weight="bold">id=6</text>
+  <rect x="312" y="212" width="78" height="44" rx="4" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.2"/>
+  <text x="351" y="239" text-anchor="middle" fill="#1b5e20" font-size="12" font-weight="bold">id=7</text>
+  <rect x="398" y="212" width="78" height="44" rx="4" fill="#fff3e0" stroke="#e65100" stroke-width="2"/>
+  <text x="437" y="239" text-anchor="middle" fill="#bf360c" font-size="12" font-weight="bold">id=8</text>
+
+  <text x="104" y="319" text-anchor="middle" fill="#757575" font-size="10">组3</text>
+  <rect x="140" y="292" width="78" height="44" rx="4" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.2"/>
+  <text x="179" y="319" text-anchor="middle" fill="#1b5e20" font-size="12" font-weight="bold">id=9</text>
+  <rect x="226" y="292" width="78" height="44" rx="4" fill="#e8f5e9" stroke="#2e7d32" stroke-width="2.5"/>
+  <text x="265" y="319" text-anchor="middle" fill="#1b5e20" font-size="12" font-weight="bold">id=10</text>
+  <rect x="312" y="292" width="78" height="44" rx="4" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.2"/>
+  <text x="351" y="319" text-anchor="middle" fill="#1b5e20" font-size="12" font-weight="bold">id=11</text>
+  <rect x="398" y="292" width="78" height="44" rx="4" fill="#fff3e0" stroke="#e65100" stroke-width="2"/>
+  <text x="437" y="319" text-anchor="middle" fill="#bf360c" font-size="12" font-weight="bold">id=12</text>
+
+  <!-- 右：slot 数组 -->
+  <text x="556" y="56" font-size="12" font-weight="bold" fill="#0d47a1">页目录（slot 数组，按主键有序）</text>
+
+  <rect x="556" y="76" width="190" height="44" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="651" y="103" text-anchor="middle" fill="#0d47a1" font-size="12" font-weight="bold">slot0 → Infimum</text>
+
+  <rect x="556" y="132" width="190" height="44" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="651" y="159" text-anchor="middle" fill="#0d47a1" font-size="12" font-weight="bold">slot1 → id=4</text>
+
+  <rect x="556" y="212" width="190" height="44" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="2.2"/>
+  <text x="651" y="239" text-anchor="middle" fill="#bf360c" font-size="12" font-weight="bold">slot2 → id=8</text>
+
+  <rect x="556" y="292" width="190" height="44" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="2.2"/>
+  <text x="651" y="319" text-anchor="middle" fill="#bf360c" font-size="12" font-weight="bold">slot3 → id=12</text>
+
+  <rect x="556" y="368" width="190" height="44" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="651" y="395" text-anchor="middle" fill="#0d47a1" font-size="12" font-weight="bold">slotN → Supremum</text>
+
+  <text x="651" y="436" text-anchor="middle" fill="#757575" font-size="10">每组只记「组内最后一条」的偏移</text>
+
+  <!-- slot → 组内最后一条：短横箭头，方向与线一致 -->
+  <line x1="556" y1="154" x2="490" y2="154" stroke="#e65100" stroke-width="1.8" marker-end="url(#arrOrange)"/>
+  <line x1="556" y1="234" x2="490" y2="234" stroke="#e65100" stroke-width="1.8" marker-end="url(#arrOrange)"/>
+  <line x1="556" y1="314" x2="490" y2="314" stroke="#e65100" stroke-width="1.8" marker-end="url(#arrOrange)"/>
+
+  <!-- 查找示例 -->
+  <rect x="60" y="456" width="820" height="70" rx="6" fill="#f5f5f5" stroke="#bdbdbd" stroke-width="1.2"/>
+  <text x="76" y="482" fill="#424242" font-size="11" font-weight="bold">示例：找 id=10 —— 二分 slot 数组，落在 slot2（id=8）与 slot3（id=12）之间（图中橙色高亮）→</text>
+  <text x="76" y="506" fill="#555555" font-size="11">进入组3 顺序扫描 4 条（9, 10, 11, 12），第 2 条命中。二分发生在 slot 数组上，不是链表上：页内查找从 O(n) 降到 O(log n)。</text>
+</svg>
