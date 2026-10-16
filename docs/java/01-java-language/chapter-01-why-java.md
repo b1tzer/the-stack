@@ -16,6 +16,8 @@ Java 诞生时，开发者面对两个难题：手动内存管理带来的正确
 
 Java 的设计方向是降低这些风险：由运行时承担内存回收，由编译器和类型系统提前发现更多错误，同时保留面向对象的表达能力。
 
+![memory-management-responsibility](/java/memory-management-responsibility.svg)
+
 ### 1.2 跨平台执行
 
 C/C++ 程序通常需要针对目标平台编译。同一份源码可能要在 Windows、Linux 和 macOS 上分别构建，还要处理不同的系统调用、库和二进制格式。对于需要覆盖多种设备的软件，这会显著增加构建和维护成本。
@@ -41,6 +43,8 @@ Java 不要求开发者手动释放普通对象内存。垃圾回收器（Garbag
 
 这减少了悬空指针、Use-After-Free 和 Double Free 等错误，但不会消除所有内存问题。可达性判断不等于业务使用判断，一个已经不再被业务访问的对象，只要仍被静态集合或缓存引用，GC 仍会视其为存活。堆外内存未释放同样可能造成内存耗尽。
 
+![gc-reachability-vs-business-usage](/java/gc-reachability-vs-business-usage.svg)
+
 GC 也有成本：它会消耗 CPU，并在某些阶段暂停应用线程。是否可接受取决于堆大小、分配速率、延迟目标和收集器配置。
 
 ### 2.3 静态类型检查
@@ -64,6 +68,8 @@ Java 代码通常以类、接口、枚举和记录作为组织单位，通过封
 ### 2.6 向后兼容
 
 Java 重视语言和字节码层面的兼容性。旧版本编译生成的字节码通常能在较新 JVM 上运行，但源码能否重新编译、程序行为是否一致，还取决于使用的 API、第三方依赖和运行环境。因此 JDK 升级不能只看编译是否通过。
+
+![java-compatibility-layers](/java/java-compatibility-layers.svg)
 
 ## 3. Java 的性能取舍
 

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" viewBox="0 0 560 360" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif" font-size="11">
+  <text x="280" y="26" text-anchor="middle" font-size="13" font-weight="bold" fill="#24292f">JDK 升级的三层兼容性</text>
+
+  <!-- 卡片 1：字节码兼容 -->
+  <rect x="16" y="48" width="168" height="196" rx="8" fill="#ffffff" stroke="#c0c8d0" stroke-width="1.3"/>
+  <rect x="16" y="48" width="168" height="34" rx="8" fill="#e3f2fd"/>
+  <text x="100" y="70" text-anchor="middle" font-size="12" font-weight="bold" fill="#0d47a1">字节码兼容</text>
+  <text x="100" y="112" text-anchor="middle" font-size="11" fill="#24292f">旧 .class 交给</text>
+  <text x="100" y="132" text-anchor="middle" font-size="11" fill="#24292f">新 JVM 直接执行</text>
+  <line x1="40" y1="152" x2="160" y2="152" stroke="#C0C8D0" stroke-width="1"/>
+  <text x="100" y="174" text-anchor="middle" font-size="10" fill="#57606a">无需重新编译</text>
+
+  <!-- 卡片 2：源码兼容 -->
+  <rect x="196" y="48" width="168" height="196" rx="8" fill="#ffffff" stroke="#c0c8d0" stroke-width="1.3"/>
+  <rect x="196" y="48" width="168" height="34" rx="8" fill="#e8f5e9"/>
+  <text x="280" y="70" text-anchor="middle" font-size="12" font-weight="bold" fill="#1b5e20">源码兼容</text>
+  <text x="280" y="112" text-anchor="middle" font-size="11" fill="#24292f">旧 .java 重新编译</text>
+  <text x="280" y="132" text-anchor="middle" font-size="11" fill="#24292f">后再运行</text>
+  <line x1="220" y1="152" x2="340" y2="152" stroke="#C0C8D0" stroke-width="1"/>
+  <text x="280" y="174" text-anchor="middle" font-size="10" fill="#57606a">语言规则与 API 需适用</text>
+
+  <!-- 卡片 3：行为兼容 -->
+  <rect x="376" y="48" width="168" height="196" rx="8" fill="#ffffff" stroke="#c0c8d0" stroke-width="1.3"/>
+  <rect x="376" y="48" width="168" height="34" rx="8" fill="#fff3e0"/>
+  <text x="460" y="70" text-anchor="middle" font-size="12" font-weight="bold" fill="#bf360c">行为兼容</text>
+  <text x="460" y="112" text-anchor="middle" font-size="11" fill="#24292f">升级后运行结果</text>
+  <text x="460" y="132" text-anchor="middle" font-size="11" fill="#24292f">是否仍然一致</text>
+  <line x1="400" y1="152" x2="520" y2="152" stroke="#C0C8D0" stroke-width="1"/>
+  <text x="460" y="174" text-anchor="middle" font-size="10" fill="#57606a">依赖、配置、环境、测试</text>
+
+  <!-- 底部结论 -->
+  <line x1="16" y1="272" x2="544" y2="272" stroke="#C0C8D0" stroke-width="1"/>
+  <text x="280" y="298" text-anchor="middle" font-size="11" font-weight="bold" fill="#DC382D">三条检查相互独立，不是一条必然通过的流水线</text>
+</svg>
