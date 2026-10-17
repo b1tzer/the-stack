@@ -26,9 +26,9 @@ public class OrderService {
 | :-- | :-- |
 | 无法替换实现 | 想把 `AlipayService` 换成 `WechatPayService`，得改 `OrderService` 源码 |
 | 无法独立测试 | 依赖写死在构造器里，测试时不容易替换成 Mock，难以隔离业务逻辑 |
-| 生命周期不可控 | 每次 `new` 都是新实例，做不到单例复用 |
+| 生命周期不可控 | 对象何时创建、复用、销毁散落在调用方，无法集中管理 |
 
-三个问题的根源是同一个：`OrderService` 承担了本不属于它的职责——决定依赖是谁。
+三个问题的根源是同一个：`OrderService` 把「创建并管理依赖」这件本不属于它的职责揽在了自己身上。
 
 IoC 的解法是让类只声明需求，不再自己动手：
 
@@ -69,7 +69,7 @@ public class OrderService {
 // 最基础的容器：手动加载定义，getBean 时才创建
 BeanFactory factory = new DefaultListableBeanFactory();
 
-// 功能完整的容器：启动时预加载所有单例
+// 功能完整的容器：刷新时预实例化非懒加载单例
 ApplicationContext ctx = new AnnotationConfigApplicationContext(AppConfig.class);
 ```
 
@@ -81,7 +81,7 @@ ApplicationContext ctx = new AnnotationConfigApplicationContext(AppConfig.class)
 | 国际化 | 基础接口不提供 | 内置 `MessageSource` |
 | 事件发布 | 基础接口不提供 | 内置 `ApplicationEventPublisher` |
 | 资源访问 | 基础接口不提供 | 统一 `Resource` 接口 |
-| AOP 集成 | 需手动注册后处理器 | 常规配置下自动集成 |
+| 后处理器自动注册 | 需手动注册 | 刷新流程自动发现并注册 |
 
 实际项目用 `ApplicationContext`，它整合了事件、国际化、资源访问，并协调刷新流程；`BeanFactory` 则用于框架集成或需要自行控制初始化顺序的底层场景。Spring Boot 会根据应用类型选择 `ApplicationContext` 实现，Servlet Web 应用用的是 `AnnotationConfigServletWebServerApplicationContext`，它继承自 `ApplicationContext`。
 
@@ -118,11 +118,11 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 
 ## 5. Bean 作用域
 
-`BeanDefinition` 上还有一个字段决定 Bean 的复用策略：`scope`。默认所有 Bean 都是单例（singleton），容器里只存一份实例。Spring 支持六种作用域：
+`BeanDefinition` 上还有一个字段决定 Bean 的复用策略：`scope`。默认所有 Bean 都是单例（singleton），同一个容器内同一个 Bean 定义只存一份共享实例，它不是 JVM 全局唯一的单例。Spring 支持六种作用域：
 
 | 作用域 | 生命周期 | 使用场景 |
 | :-- | :-- | :-- |
-| `singleton` | 容器启动到关闭，全局一份 | 默认，绝大多数业务 Bean |
+| `singleton` | 容器启动到关闭，同一容器内同一 Bean 定义共享一个实例 | 默认，绝大多数业务 Bean |
 | `prototype` | 每次向容器请求时创建新实例 | 需要独立实例的对象，如每次任务独立维护状态的组件 |
 | `request` | 一次 HTTP 请求内有效 | Web，请求级缓存 |
 | `session` | 一个 HTTP Session 内有效 | Web，用户级会话数据 |
@@ -150,9 +150,11 @@ public class ReportGenerator {
 
 prototype 的 `@PreDestroy` 不生效是常见坑。容器负责创建 prototype Bean 并完成注入和初始化，但不会像管单例那样持续跟踪它的销毁回调，所以关闭时不会自动调 `@PreDestroy`。如果 prototype Bean 持有要释放的资源（如数据库连接），需要调用方自己约定由谁关闭，不能指望实现 `DisposableBean` 或加 `@PreDestroy` 就让容器自动销毁。
 
+另一个相关边界：把 prototype Bean 注入单例 Bean 时，只会在注入那一刻拿到一个实例，之后反复调用单例的业务方法不会自动重新获取新的 prototype 实例。需要每次使用都拿新实例时，要用 `ObjectProvider` 或作用域代理等机制。
+
 ### 5.2 Web 作用域的前置条件
 
-`request`、`session`、`application`、`websocket` 四种作用域只在 Web 环境有效，需要 Web 相关基础设施暴露请求与会话上下文。在 Servlet 应用里，Spring 会通过相应机制管理这些上下文，具体方式取决于应用的配置和运行方式。在没有对应 Web 上下文的场景（如纯后端服务）获取这些作用域的 Bean，会因拿不到请求或会话上下文而抛 `IllegalStateException`。
+`request`、`session`、`application`、`websocket` 四种作用域只在 Web 环境有效，需要 Web 相关基础设施暴露请求与会话上下文。在 Servlet 应用里，Spring 会通过相应机制管理这些上下文，具体方式取决于应用的配置和运行方式。在没有对应 Web 上下文的场景（如纯后端服务）获取这些作用域的 Bean，通常会因拿不到请求或会话上下文而抛 `IllegalStateException`，具体异常取决于作用域实现与调用方式。
 
 ## 6. 两个 PostProcessor：改定义与改实例
 
@@ -184,9 +186,9 @@ public class AppConfig {
 }
 ```
 
-按 Java 直觉，`orderRepository()` 里每次调用 `dataSource()`，都会 `new` 一个新的 `HikariDataSource`，那「单例」不就失效了吗？但实际 Spring 里 `dataSource()` 只执行一次。
+按 Java 直觉，`orderRepository()` 里每次调用 `dataSource()`，都会 `new` 一个新的 `HikariDataSource`，那「单例」不就失效了吗？但在默认 singleton 作用域下，Spring 里 `dataSource()` 的工厂方法只被真正执行一次。
 
-答案是 `ConfigurationClassPostProcessor` 做的。在默认启用 `proxyBeanMethods` 的 `@Configuration` 模式下，Spring 会在配置类处理阶段增强符合条件的配置类，用 **CGLIB 动态生成它的一个子类**，并重写每个 `@Bean` 方法。重写后的逻辑是：
+答案是 `ConfigurationClassPostProcessor` 做的。在默认启用 `proxyBeanMethods` 的 `@Configuration` 模式下，Spring 会在配置类处理阶段增强符合条件的配置类，用 **CGLIB 动态生成它的一个子类**，并对可拦截的 `@Bean` 方法进行拦截。重写后的逻辑是：
 
 ```java
 // CGLIB 生成的子类（简化示意）
@@ -203,13 +205,13 @@ public class AppConfig$$EnhancerByCGLIB extends AppConfig {
 
 所以第二次调用 `dataSource()` 命中的是容器里已存在的单例，而不是再 `new` 一个。**单例语义不是靠「方法只执行一次」实现的，而是靠「代理拦截 + 容器缓存」实现的**——这个代理正是在 `BeanFactoryPostProcessor` 阶段生成的。
 
-去掉 `@Configuration`、只留 `@Component` 会怎样？`@Component` 不触发 CGLIB 增强，`orderRepository()` 里对 `dataSource()` 的调用就是普通的 Java 方法调用，每调一次就 `new` 一次，多出一个 `HikariDataSource`。但要说清两点：容器里注册的 `dataSource` Bean 本身仍是单例，没有失效；多出来的是这次直接方法调用新建的对象，它没被容器管理。所以问题不是「单例失效」，而是直接调用绕过了容器，凭空多出对象、还可能造成配置不一致。`@Configuration(proxyBeanMethods = false)` 也采用这种不拦截的调用语义，类内直接调用另一个 `@Bean` 方法同样不会自动复用容器实例。这正是「配置类用 `@Configuration`，别用 `@Component` 代替」的原因。
+去掉 `@Configuration`、只留 `@Component` 会怎样？`@Component` 不触发 CGLIB 增强，`orderRepository()` 里对 `dataSource()` 的调用就是普通的 Java 方法调用，每调一次就 `new` 一次，多出一个 `HikariDataSource`。但要说清两点：容器里注册的 `dataSource` Bean 本身仍是单例，没有失效；多出来的是这次直接方法调用新建的对象，它没被容器管理。所以问题不是「单例失效」，而是直接调用绕过了容器，凭空多出对象、还可能造成配置不一致。`@Configuration(proxyBeanMethods = false)` 也采用这种不拦截的调用语义，类内直接调用另一个 `@Bean` 方法同样不会自动复用容器实例。所以当配置类内部需要跨 `@Bean` 方法调用并复用容器实例时，要用默认的完整 `@Configuration` 模式；`@Component` 加 `@Bean` 的 lite 模式则适合不需要这种跨方法引用的场景。
 
 ### 6.2 PropertySourcesPlaceholderConfigurer：属性占位符的解析
 
 `PropertySourcesPlaceholderConfigurer` 是一个 `BeanFactoryPostProcessor`，负责把 `BeanDefinition` 里出现的 `${...}` 占位符，替换成 `Environment` 里的真实值（来自 `application.properties`、环境变量、命令行参数等）。这类定义层的占位符替换发生在普通 Bean 实例化之前。
 
-要注意区分两种占位符。定义层的 `${...}` 在 `new` 之前被替换；而 `@Value("${report.template.dir}")` 这种字段注入，是在 Bean 实例化之后的属性填充阶段才解析赋值，不是 `new` 之前就替换好的。两者时机不同，解析机制也不同。
+要注意区分两种占位符。定义层的 `${...}` 在 `new` 之前被替换；而 `@Value("${report.template.dir}")` 这种字段注入，是在 Bean 实例化之后的属性填充阶段才解析赋值，不是 `new` 之前就替换好的。两者处理时机不同，但都依托 `Environment` 的属性源做嵌入式值解析，不是两套完全独立的机制，具体解析基础设施取决于容器配置。
 
 ### 6.3 BeanPostProcessor 的职责范围
 

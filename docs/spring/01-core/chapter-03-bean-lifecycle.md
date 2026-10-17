@@ -4,7 +4,7 @@
 
 ## 1. BeanDefinition 的诞生：从注解到元数据
 
-容器在真正 `new` 你的类之前，先把它读成一份 `BeanDefinition`——Bean 的元数据描述。看一个 `@Service` 怎么变成 `BeanDefinition`：
+容器在真正实例化 Bean 之前，先把它读成一份 `BeanDefinition`——Bean 的元数据描述。看一个 `@Service` 怎么变成 `BeanDefinition`：
 
 ```java
 @Service
@@ -28,7 +28,7 @@ ScannedGenericBeanDefinition（示意）{
 }
 ```
 
-组件扫描注册的是 `BeanDefinition`，记录 Bean 的类型、作用域、是否懒加载等定义信息。字段上的 `@Value("${report.template.dir}")` 是另一回事，它不在 `propertyValues` 里，`@Value` 由依赖注入阶段处理，`${...}` 占位符通过容器的嵌入式值解析机制换成真实值，`PropertySourcesPlaceholderConfigurer` 只是参与这套解析的一个组件。上面那段是示意结构，实际注册的 `BeanDefinition` 实现类随注册方式和 Spring 版本而不同，不一定是 `GenericBeanDefinition`。
+组件扫描注册的是 `BeanDefinition`，记录 Bean 的类型、作用域、是否懒加载等定义信息。字段上的 `@Value("${report.template.dir}")` 是另一回事，它不会在组件扫描时就变成 `propertyValues` 里的普通属性值。实际注入由相应的注解处理器在依赖注入阶段完成；表达式里的 `${...}` 占位符通过容器的嵌入式值解析机制换成真实值，`PropertySourcesPlaceholderConfigurer` 是参与这套解析的常见组件。上面那段是示意结构，实际注册的 `BeanDefinition` 实现类随注册方式和 Spring 版本而不同，不一定是 `GenericBeanDefinition`。
 
 「定义」与「实例」分离的价值在于，容器在真正 `new` 对象之前有机会反复修改这份元数据。`BeanFactoryPostProcessor` 如何在 Bean 实例化之前批量改写 `BeanDefinition`，属于容器启动阶段的动作，详见 [IoC 容器](./chapter-02-ioc-container.md) §5。
 
@@ -46,11 +46,11 @@ Bean 的创建过程可以分成三个主要阶段，中间夹着可插拔的回
 | 属性填充 | 应用属性值、处理依赖注入 | `populateBean` |
 | 初始化 | 执行 Aware 回调、初始化前后处理器和初始化方法 | `initializeBean` |
 
-销毁在容器关闭时进行，属于后续的生命周期管理。本文重点解释初始化回调的执行顺序，以及它与 AOP 代理创建时机的关系。
+销毁在容器关闭时进行，属于后续的生命周期管理。本文以常规单例 Bean 的创建流程为主线，重点说明依赖注入、初始化与销毁回调的执行顺序，以及后处理器、AOP 代理与循环依赖对这一流程的影响。
 
 ## 3. 一个 Bean 走完全程
 
-先给可运行示例，再看它为什么按这个顺序走。定义一个 Bean，把能实现的回调全实现一遍：
+下面用一个单例 Bean 展示常见的生命周期回调。示例省略了导入语句和容器启动、关闭代码，假设 `DataSource` 已在容器中注册，日志只用于说明回调的相对顺序：
 
 ```java
 @Component
@@ -103,13 +103,13 @@ public class LifecycleBean implements BeanNameAware, BeanFactoryAware,
 }
 ```
 
-正常创建 Bean 时，控制台先打印 `1` 到 `6`。容器关闭、执行销毁回调时，再打印 `7` 和 `8`。这里假设 `LifecycleBean` 是容器管理的默认单例 Bean 且容器正常关闭。示例没配置自定义初始化方法，自定义初始化方法通常通过 `@Bean(initMethod = "...")` 或 XML 声明；销毁方法除显式配置外，Spring 对 `@Bean` 还支持推断适用的 `close()` 或 `shutdown()` 方法，它们的位置在 §5、§6 讲。先关注各回调发生在哪个阶段，初始化和销毁的具体先后关系在后文展开。
+正常创建 Bean 时，控制台先打印 `1` 到 `6`；容器关闭、执行销毁回调时，再打印 `7` 和 `8`。上面的顺序以 `LifecycleBean` 是容器管理的默认单例 Bean 且容器正常关闭为前提。prototype 作用域的 Bean 不会被容器像单例那样自动跟踪并调用销毁回调，需要释放的资源应由应用自行清理。示例没配置自定义初始化方法，它通常通过 `@Bean(initMethod = "...")` 或 XML 声明，与销毁方法的推断一起放在 §5、§6 讲。
 
 ## 4. BeanPostProcessor：初始化阶段的拦截点
 
-`BeanFactoryPostProcessor` 在容器启动阶段改写 `BeanDefinition`（[IoC 容器](./chapter-02-ioc-container.md) §5），本章不再展开。`BeanPostProcessor` 为 Spring 在 Bean 初始化前后执行自定义逻辑提供了扩展点。它的基础接口提供初始化前、初始化后两个回调，Spring 还定义了更细化的后处理器接口，参与实例化、依赖注入和销毁等环节。
+`BeanFactoryPostProcessor` 在容器启动阶段改写 `BeanDefinition`（[IoC 容器](./chapter-02-ioc-container.md) §5），本章不再展开。`BeanPostProcessor` 为 Spring 在 Bean 初始化前后执行自定义逻辑提供了扩展点，基础接口只有初始化前、初始化后两个回调。实例化、属性填充、销毁等阶段的扩展由别的后处理器接口承担，例如 `InstantiationAwareBeanPostProcessor` 介入实例化前后的处理与属性填充流程，`DestructionAwareBeanPostProcessor` 参与销毁前处理，`@Autowired` 的依赖注入则由 `AutowiredAnnotationBeanPostProcessor` 负责，它们不属于 `BeanPostProcessor` 基础接口的两个回调。
 
-不同功能用的扩展点并不相同。`@Autowired` 的依赖注入由专门的后处理器负责，`@Transactional`、`@Cacheable` 通常通过 AOP 代理实现增强，不能说它们都在 `postProcessAfterInitialization` 里把原对象换成代理。
+依赖注入与 AOP 增强走的不是同一套机制。`@Transactional`、`@Cacheable` 通常通过 AOP 代理实现增强，不能说它们都在 `postProcessAfterInitialization` 里把原对象换成代理。
 
 ```java
 @Component
@@ -131,7 +131,7 @@ public class MonitorBeanPostProcessor implements BeanPostProcessor {
 }
 ```
 
-手动 `new` 出来的对象不会自动经过 Spring 容器的 Bean 创建和后处理流程，因此仅添加 `@Transactional` 或 `@Cacheable` 并不会让对象自动获得相应增强。这里的 `createMonitorProxy(bean)` 只是演示用的自定义方法，并非 Spring 提供的 API。
+手动 `new` 出来的对象不会自动经过 Spring 容器的 Bean 创建和后处理流程，因此仅添加 `@Transactional` 或 `@Cacheable` 并不会让对象自动获得相应增强。上面这段是示意伪代码，`Monitorable`、`createMonitorProxy` 均未给出实现；代理对象被其他后处理器包装后，`bean.getClass()` 也未必是原始业务类，不能直接当作可复用的代理实现。
 
 ## 5. 初始化回调：@PostConstruct → InitializingBean → init-method
 
@@ -157,7 +157,7 @@ protected Object initializeBean(String beanName, Object bean, @Nullable RootBean
 }
 ```
 
-`@PostConstruct` 通常由 `CommonAnnotationBeanPostProcessor` 处理，它在初始化前的后处理阶段执行对应方法，因此先于 `invokeInitMethods`。这里说的是常规配置下的执行顺序，具体处理器的注册与排序仍取决于容器配置。`invokeInitMethods` 内部再把剩下两个排好：
+`@PostConstruct` 在常规配置下由 `CommonAnnotationBeanPostProcessor` 处理，它继承自 `InitDestroyAnnotationBeanPostProcessor`，通过初始化前的后处理回调执行注解标注的方法，因此先于 `invokeInitMethods`。这里说的是常规配置下的执行顺序，具体处理器的注册与排序仍取决于容器配置。`invokeInitMethods` 内部再把剩下两个排好：
 
 ```java
 protected void invokeInitMethods(String beanName, Object bean, @Nullable RootBeanDefinition mbd) {
@@ -173,7 +173,7 @@ protected void invokeInitMethods(String beanName, Object bean, @Nullable RootBea
 }
 ```
 
-所以最终是「注解 → 接口 → 自定义方法」。常规自动代理流程里，`afterPropertiesSet` 执行时 Bean 通常还没有经过初始化后的代理包装，此时通过 `this.xxx()` 发起的调用不会触发随后创建的代理增强。自调用问题的根本原因是内部调用没有经过代理入口，即使 Bean 已经被代理，目标对象内部的 `this` 调用通常也不会被外部代理拦截。
+所以最终是「注解 → 接口 → 自定义方法」，前提是它们配置的是不同的方法；如果 init-method 与 `afterPropertiesSet` 指向同一个方法，Spring 会避免重复调用。常规自动代理流程里，Bean 要到初始化后的后处理阶段才被包装成代理，因此 `afterPropertiesSet` 执行时通过 `this.xxx()` 发起的调用不会触发随后创建的代理增强。更一般地说，Spring AOP 的自调用问题源于内部调用没有经过代理入口，即使对象已经被代理，目标对象内部的 `this` 调用通常也不会被外部代理拦截。循环依赖等特殊场景下代理可能提前创建，见 §8。
 
 ## 6. 销毁回调：@PreDestroy → DisposableBean → destroy-method
 
@@ -204,19 +204,22 @@ public void destroy() {
 
 `@PreDestroy` 同样靠 `CommonAnnotationBeanPostProcessor`（它实现了 `DestructionAwareBeanPostProcessor`）在 `postProcessBeforeDestruction` 里反射执行，排在最前。
 
+除显式配置外，通过 `@Bean` 声明的 Bean 还能按规则推断销毁方法，例如适用的 `close()` 或 `shutdown()` 方法。`@Bean` 的 `destroyMethod` 默认处于推断模式；把 `destroyMethod` 显式设为空字符串可以关闭推断，避免同名方法被误判为销毁方法。
+
 ## 7. 业务代码如何选择生命周期回调
 
 业务代码通常优先选择一种生命周期回调方式，避免同一份初始化或清理逻辑分散在多个位置。不同回调承担不同职责时，可以组合使用：
 
-| 场景 | 推荐 | 理由 |
+| 场景 | 推荐 | 注意事项 |
 | :-- | :-- | :-- |
-| 初始化 | `@PostConstruct` | 注解直观，不依赖框架接口，不写 XML |
-| 销毁 | `@PreDestroy` | 同上 |
+| 普通业务 Bean 的初始化与清理 | `@PostConstruct` / `@PreDestroy` | 需要相应的注解处理器与注解 API |
+| 希望显式采用 Spring 生命周期契约 | `InitializingBean` / `DisposableBean` | 业务类与 Spring 接口耦合 |
+| 通过 `@Bean` 管理第三方类 | `initMethod` / `destroyMethod` | 不必修改第三方类源码 |
 
-`InitializingBean` / `DisposableBean` 是 Spring 接口，实现它们会让业务 Bean 和框架耦合；`init-method` / `destroy-method` 需要额外声明。`@PostConstruct` / `@PreDestroy` 属于通用注解规范提供的生命周期注解，默认优先使用，但这不是绝对规则。如果项目统一用 `@Bean(initMethod = "...")` 配置，自定义方法也可能更贴合现有风格。
+如果项目没有统一的生命周期回调约定，普通业务 Bean 优先使用 `@PostConstruct` / `@PreDestroy` 更直观，它们不依赖框架接口、不写 XML。`InitializingBean` / `DisposableBean` 是 Spring 接口，实现它们会让业务 Bean 和框架耦合；`initMethod` / `destroyMethod` 需要额外声明，适合管理第三方类。如果项目统一用 `@Bean(initMethod = "...")` 配置，自定义方法也可能更贴合现有风格。
 
 ::: warning 版本锚点
-`@PostConstruct` / `@PreDestroy` 来自 `javax.annotation`。JDK 11 起 JDK 不再内置该包，Spring 6.0 转向 `jakarta.annotation`，需引入 `jakarta.annotation-api` 依赖。
+`@PostConstruct` / `@PreDestroy` 来自 JSR-250 的 `javax.annotation` 包，Java SE 9 起该包不再由 JDK 内置。Spring Framework 5.x 项目通常使用 `javax.annotation.PostConstruct` / `PreDestroy`；Spring Framework 6.x 转向 `jakarta.annotation` 命名空间，通常需引入 `jakarta.annotation-api` 依赖。具体导入路径取决于 Spring 版本与依赖配置。
 :::
 
 ## 8. 属性填充与循环依赖的关系

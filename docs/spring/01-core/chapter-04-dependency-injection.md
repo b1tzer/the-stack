@@ -45,13 +45,13 @@ public class OrderService {
 | 维度 | 构造器 | Setter | 字段 |
 | :-- | :-- | :-- | :-- |
 | 字段不可变 | ✅ 可声明 `final` | ❌ 可变 | ❌ 可变 |
-| 依赖必须存在 | ✅ 创建时绑定 | ❌ 可能忘调 | ❌ 运行时才暴露 |
+| 依赖是否强制提供 | ✅ 构造参数必须给 | ❌ 创建后才 set | ❌ 创建后才注入 |
 | 单元测试 | ✅ 直接 `new` 传参 | ✅ 调 setter | ❌ 需反射或容器 |
-| 启动期发现缺依赖 | ✅ 启动即报错 | ⚠️ 延迟 | ⚠️ 延迟 |
+| 缺依赖默认暴露时机 | ✅ 启动即报错 | ⚠️ 默认启动即报错，`required=false` 才跳过注入 | ⚠️ 默认启动即报错，`required=false` 才跳过注入 |
 
 其中「字段不可变」是决定性的。构造器注入把依赖声明成 `final`，对象创建完成后依赖就无法被改动，编译器替你守住这条底线。字段注入唯一的优势是代码短一行，代价是丢掉不可变性和测试独立性，这笔账不划算。
 
-一个常见的反驳是「字段注入写起来方便」。方便体现在写的那一刻，代价在之后每一次重构和测试里偿还——字段注入的类无法脱离容器单独 `new` 出来测，想替换一个 Mock 得靠反射。
+一个常见的反驳是「字段注入写起来方便」。方便体现在写的那一刻，代价在之后每一次重构和测试里偿还——字段注入的类脱离容器 `new` 出来后依赖是 `null`，想替换一个 Mock 得靠反射或容器。
 
 ## 3. @Autowired 与 @Resource
 
@@ -71,7 +71,7 @@ private UserService userService;
 | :-- | :-- | :-- |
 | 来源 | Spring | JSR-250 |
 | 匹配顺序 | 先类型，再名称 | 先名称，再类型 |
-| 缺省必填 | `required=true` | `required=true` |
+| 缺省必填 | `required=true`，可设 `false` | 无 `required` 属性，默认必填 |
 | 指定 Bean | 配合 `@Qualifier` | 用 `name` 属性 |
 
 工程里更倾向 `@Autowired` + `@Qualifier`：两者都是 Spring 原生，语义一致；`@Resource` 是标准注解，只在需要跨框架时才有额外价值。
@@ -84,7 +84,7 @@ private UserService userService;
 
 ### 4.1 同类型多个 Bean：@Qualifier
 
-容器里有多个同类型 Bean 时，类型匹配会失败，用 `@Qualifier` 指名：
+容器里有多个同类型 Bean，Spring 无法按 `@Primary` 或名称自动选定唯一候选时，用 `@Qualifier` 指名：
 
 ```java
 @Configuration
@@ -159,7 +159,7 @@ public class ReportService {
 }
 ```
 
-`ObjectProvider` 注入的是「获取器」而不是 bean 本身，真正的 bean 在首次调用 `getObject()` / `getIfAvailable()` 时才去容器里解析，时机由调用方决定。但要分清「延迟解析」和「延迟创建」：默认单例 bean 在容器启动时就被 `DefaultListableBeanFactory.preInstantiateSingletons()` 预创建了，`ObjectProvider` 拦不住这一步；只有当目标 bean 标了 `@Lazy`，首次 `getObject()` 才会真正触发实例化——这才是「等调用时才创建 bean」的成立前提。
+`ObjectProvider` 注入的是「获取器」而不是 bean 本身，真正的 bean 在首次调用 `getObject()` / `getIfAvailable()` 时才去容器里解析，时机由调用方决定。但要分清「延迟解析」和「延迟创建」：默认单例 bean 在容器启动时就被 `DefaultListableBeanFactory.preInstantiateSingletons()` 预创建了，`ObjectProvider` 拦不住这一步；只有当目标 bean 标了 `@Lazy` 且未被其他急加载依赖提前引用，首次 `getObject()` 才会真正触发实例化——这才是「等调用时才创建 bean」的成立前提。
 
 为什么不推荐 `@Autowired(required=false)`？`required=false` 只能用在字段或 Setter 注入上，用它就意味着把依赖声明成可空字段，放弃 `final` 和脱离容器的测试独立性；`ObjectProvider` 是构造器参数，这两点都不丢。`required=false` 的「不存在」表现为字段为 `null`，判空散落到每个调用点，`ObjectProvider.getIfAvailable()` 则把判断收敛在获取处。
 
