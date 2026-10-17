@@ -1,6 +1,6 @@
 # 循环依赖与三级缓存
 
-> 两个 Bean 互相依赖，构造器注入直接报错，字段注入却能「建出来」——只是拿到的对象缺了一层代理，注解不报错、却已失效。解开这个结的，是 `DefaultSingletonBeanRegistry` 里的三个 Map。记住这三个 Map 的名字不难，难的是回答一个更根本的问题：为什么偏偏是三级，不是两级。
+> 两个 Bean 互相依赖，构造器注入直接报错，字段注入却能「建出来」。可一旦要注入的对象还背着代理（比如 `@Async`），默认配置下启动直接失败，强行放开又拿到缺代理的半成品，注解悄悄失效。解开这个结的，是 `DefaultSingletonBeanRegistry` 里的三个 Map。记住这三个 Map 的名字不难，难的是回答一个更根本的问题：为什么偏偏是三级，不是两级。
 
 ::: warning 版本锚点
 Spring Boot 2.6 起默认禁止循环依赖，`spring.main.allow-circular-references` 默认为 `false`，遇到循环依赖直接启动报错。本文讲的「三级缓存解开循环依赖」只在显式开启 `allow-circular-references=true` 后生效。
@@ -43,7 +43,7 @@ Requested bean is currently in creation: Is there an unresolvable circular refer
 
 窗口在第 1 步和第 2 步之间：对象已经存在，字段还没填，引用却可以先交出去。
 
-Spring 的做法是**提前暴露**——实例化一完成，就把半成品的引用存进一个地方；别的 Bean 需要时先拿它用，等它自己走完第 2、3 步，再换成成品。
+Spring 的做法是**提前暴露**——实例化一完成，就把半成品的引用存进一个地方；别的 Bean 需要时先拿它用，这个 Bean 自己则继续走完第 2、3 步，最终成为成品。
 
 这套「先交半成品、后补成品」的机制，落在 `DefaultSingletonBeanRegistry` 里，用三个 Map 实现。
 
@@ -80,10 +80,10 @@ singletonObjects（一级）    存最终成品
 
 AOP 代理的正常时机在第 3 步初始化之后，但循环依赖要求第 2 步填充时就拿到引用。两个时机冲突：
 
-- 只用两级、在第 1 步就把半成品放进二级缓存，那么「要不要代理、代理成什么」这个决策就被钉死在第 1 步——所有 Bean 都要在实例化后立刻判断是否代理，哪怕它根本没有循环依赖，白白破坏「代理留在初始化最后」的约定。
-- 三级缓存存的是 `ObjectFactory`，不是对象本身。工厂把「要不要代理」推迟到「真的有人来取」的那一刻，只有发生循环依赖、真的有人提前来取时，才触发代理。
+- 只用两级、在第 1 步就把半成品放进二级缓存，缓存里装的就必须是一个已经定型的对象。装裸对象，循环依赖时对方拿到的是未代理的引用，初始化后再包代理就会造成引用不一致，这正是第 5 节 `@Async` 崩溃的机理；装代理对象，则每个 Bean 都要在实例化后就完成代理判断，哪怕它根本没有循环依赖，白白破坏「代理留在初始化最后」的约定。两级缓存在这个两难里顾此失彼。
+- 三级缓存存的是 `ObjectFactory`，不是对象本身。工厂把「要不要代理、代理成什么」推迟到「真的有人来取」的那一刻，只有发生循环依赖、真的有人提前来取时，才现场裁决并生产代理。
 
-这就是三级缓存存在的唯一原因：**把 AOP 代理的决策，推迟到不得不做的时候**。它不是性能优化，是一个时机问题。
+这就是三级缓存存在的核心作用：**把 AOP 代理的决策，推迟到不得不做的时候**。它不是性能优化，是一个时机问题。
 
 工厂里做代理决策的是 `getEarlyBeanReference`：
 
@@ -95,13 +95,13 @@ public Object getEarlyBeanReference(Object bean, String beanName) {
 }
 ```
 
-它不直接返回裸对象，而是先问 `wrapIfNecessary`：这个 Bean 需不需要 AOP 代理，需要就提前包一层。`@Transactional`、`@Aspect` 的处理器都实现了这一层提前代理，所以它们能安全地参与循环依赖。
+它不直接返回裸对象，而是先问 `wrapIfNecessary`：这个 Bean 需不需要 AOP 代理，需要就提前包一层。`getEarlyBeanReference` 由 `AbstractAutoProxyCreator` 统一实现，`@Aspect`、`@Transactional` 对应的自动代理创建器（`AnnotationAwareAspectJAutoProxyCreator`、`InfrastructureAdvisorAutoProxyCreator`）都是它的子类，所以这些增强的代理时机与提前暴露兼容，能在循环依赖中被解开。
 
-`getEarlyBeanReference` 里的 `this.earlyProxyReferences.put(cacheKey, bean)` 登记「这个 Bean 已经提前代理过」。三级缓存的 `ObjectFactory` 是每个 Bean 一个的闭包，被调用时才执行 `wrapIfNecessary` 现场裁决要不要代理；`earlyProxyReferences` 则记录哪些 Bean 已经走过这次裁决，等初始化完成、`wrapIfNecessary` 再次被调用时，发现它已在名单里，就跳过二次代理。
+`getEarlyBeanReference` 里的 `this.earlyProxyReferences.put(cacheKey, bean)` 登记「这个 Bean 已经提前代理过」。三级缓存的 `ObjectFactory` 是每个 Bean 一个的闭包，被调用时才执行 `wrapIfNecessary` 现场裁决要不要代理；`earlyProxyReferences` 则记录哪些 Bean 已经走过这次裁决。初始化完成后的后处理里，`AbstractAutoProxyCreator` 先 `remove(cacheKey)` 查这份名单，发现记录仍在就直接返回，不再调用 `wrapIfNecessary`，从而跳过二次代理。
 
-## 5. @Async 为什么失效
+## 5. @Async 为什么解不开
 
-不是所有处理器都做了提前代理。`@Async` 的 `AsyncAnnotationBeanPostProcessor` 就没有重写 `getEarlyBeanReference`。
+不是所有自动代理机制都接了提前暴露。`@Async` 的 `AsyncAnnotationBeanPostProcessor` 不实现 `SmartInstantiationAwareBeanPostProcessor`，没有 `getEarlyBeanReference` 这一层。
 
 于是出现这样的情形：
 
@@ -122,9 +122,11 @@ public class UserService {
 }
 ```
 
-启动不报错，两个 Bean 都建了出来。但 `UserService` 拿到的 `orderService` 是第 2 步提前暴露时的裸对象，代理没生成，`sendNotification()` 的 `@Async` 不生效，调用变成同步执行。
+启动直接报错，抛 `BeanCurrentlyInCreationException`。`UserService` 在第 2 步拿到的是 `orderService` 提前暴露的裸对象，而 `orderService` 初始化完成后又被 `AsyncAnnotationBeanPostProcessor` 包成了代理；两个对象不一致，Spring 的一致性检查（`allowRawInjectionDespiteWrapping` 默认关闭）拒绝让一个 Bean 持有另一个 Bean 的旧引用，启动失败。
 
-这一条不是「还没修好的 bug」，而是设计立场的体现：Spring 认为循环依赖本身是坏味道，不值得为它把每个注解处理器都改造成支持提前代理。Boot 2.6 默认禁止循环依赖，就是这个立场的落地。
+即便把 `allowRawInjectionDespiteWrapping` 设为 `true` 强行放开，`UserService` 拿到的仍是裸对象，`sendNotification()` 的 `@Async` 不生效，调用退化成同步执行——问题只是从启动期挪到了运行期。
+
+这一条不是「还没修好的 bug」，而是设计立场的体现：`@Async` 走的是 `AbstractAdvisingBeanPostProcessor` 这套独立于自动代理创建器的代理体系，没有接入提前暴露；Spring 认为循环依赖本身是坏味道，不值得为它让 `@Async` 也支持提前代理。Boot 2.6 默认禁止循环依赖，就是这个立场的落地。
 
 ## 6. 能解与不能解
 
@@ -135,9 +137,9 @@ public class UserService {
 | 构造器注入 | ❌ 报错 | 实例化阶段就要依赖，没有提前暴露的窗口 |
 | 字段 / Setter 注入 | ✅ 可解 | 实例化完成、提前暴露后才填充 |
 | prototype 作用域 | ❌ 不参与 | 三级缓存只对单例生效 |
-| `@Transactional` / `@Aspect` | ✅ 可解 | 处理器重写了提前代理 |
-| `@Async` | ❌ 失效 | 处理器没做提前代理 |
+| `@Transactional` / `@Aspect` | ✅ 可解 | 自动代理创建器支持提前代理 |
+| `@Async` | ❌ 报错 | 代理不接提前暴露，早期引用与最终对象不一致 |
 
-这张表读出的不是「避开哪些坑」，而是**三级缓存的能力边界**：它只能解「字段/Setter 注入 + 单例 + 处理器支持提前代理」这一种组合下的循环依赖。
+这张表读出的不是「避开哪些坑」，而是**三级缓存的能力边界**：它只解「字段/Setter 注入 + 单例」的循环依赖；一旦涉及 AOP 代理，还要求增强由支持提前代理的自动代理创建器处理，否则像 `@Async` 一样启动报错。
 
 即便在边界之内，能解也不等于该用。循环依赖几乎总是设计坏味道，拆出一个公共组件、用事件解耦，都比显式放开 `allow-circular-references` 更干净。构造器注入是更该坚持的默认选择——它让循环依赖在启动时就报错，而不是让一个缺了代理的对象在运行期才暴露问题。

@@ -25,7 +25,7 @@ public class LinuxCondition implements Condition {
 
 `matches` 返回 `true` 才注册这个 Bean。判断发生在 Bean 实例化之前，不满足条件的 Bean 根本不进容器。
 
-判断的精确时机是 **BeanDefinition 注册阶段**，比实例化更早。`ConfigurationClassPostProcessor` 解析 `@Configuration` 类时，分两个 phase 触发条件评估，统一收口在 `ConditionEvaluator#shouldSkip`：
+条件在 Bean 实例化之前评估，具体时机取决于注解位置：配置类级别的条件在解析阶段评估，`@Bean` 方法级别的条件在读取 Bean 定义时评估。`ConfigurationClassPostProcessor` 解析 `@Configuration` 类时，分两个 phase 触发条件评估，统一收口在 `ConditionEvaluator#shouldSkip`：
 
 ```java
 // ConditionEvaluator#shouldSkip：返回 true 就跳过对应的类或方法定义
@@ -38,14 +38,14 @@ public boolean shouldSkip(AnnotatedTypeMetadata metadata, ConfigurationPhase pha
 
 | Phase | 评估对象 | 典型注解 |
 | :-- | :-- | :-- |
-| `PARSE_CONFIGURATION` | `@Configuration` 类本身 | 类级别 `@ConditionalOnClass`、`@ConditionalOnMissingClass` |
+| `PARSE_CONFIGURATION` | 配置类本身 | 类级别 `@ConditionalOnClass`、`@ConditionalOnMissingClass` |
 | `REGISTER_BEAN` | `@Bean` 方法 | `@ConditionalOnMissingBean`、`@ConditionalOnProperty` |
 
 类级别的条件在 `ConfigurationClassParser` 解析配置类时先评估，方法级别的条件在 `ConfigurationClassBeanDefinitionReader` 读取 `@Bean` 定义时再评估。两次都调用 `shouldSkip`，返回 `true` 就跳过这个类或方法对应的 BeanDefinition，实例化根本不会发生。
 
 ## 2. 常用条件注解
 
-手写 `Condition` 太啰嗦，Spring Boot 预置了一组语义化注解，覆盖绝大多数场景：
+手写 `Condition` 太啰嗦，Spring Boot 预置了一组语义化注解：
 
 | 注解 | 满足条件 |
 | :-- | :-- |
@@ -77,11 +77,11 @@ public class DataSourceConfig {
 java -jar app.jar --spring.profiles.active=prod
 ```
 
-`@Profile("!dev")` 表示非开发环境生效，`@Profile("production")` 可以激活一组 Bean。
+`@Profile("!dev")` 表示非开发环境生效。多个 Bean 标同一个 `@Profile` 名（如 `production`），激活该环境时它们一起注册。若要让激活 `production` 时联动激活其他环境，靠的是 Spring Boot 的 `spring.profiles.group` 配置，不是 `@Profile` 注解本身的能力。
 
 ## 4. 属性来源{#environment}
 
-`@Profile` 和 `@ConditionalOnProperty` 的 `matches` 内部都调 `context.getEnvironment().getProperty(...)`。`Environment` 把所有配置来源（命令行参数 > JVM 系统属性 > 系统环境变量 > `application-{profile}.properties` > `application.properties` > `@PropertySource`）串成一条有序链，查找时从头到尾遍历，第一个命中就返回。这就是命令行参数能覆盖配置文件的原因。属性来源与 `@Value` 占位符解析的完整机制，属于外部化配置的范畴，条件装配只用到它的读值能力，本文不再展开。
+`@Profile` 和 `@ConditionalOnProperty` 都通过 `Environment` 判断条件，但读取方式不同：`@Profile` 走 `ProfileCondition`，调 `Environment#acceptsProfiles(...)` 判断激活状态；`@ConditionalOnProperty` 走 `OnPropertyCondition`，调 `getProperty(...)` 读配置值。`Environment` 把常见配置来源（命令行参数 > JVM 系统属性 > 系统环境变量 > `application-{profile}.properties` > `application.properties` > `@PropertySource`）串成一条有序链，查找时从头到尾遍历，第一个命中就返回。这是简化示意，Spring Boot 实际还区分文件在外部目录还是打包在应用内部，来源也不止这些。这就是命令行参数能覆盖配置文件的原因。属性来源与 `@Value` 占位符解析的完整机制，属于外部化配置的范畴，条件装配只用到它的读值能力，本文不再展开。
 
 ## 5. 典型场景
 
@@ -90,7 +90,7 @@ java -jar app.jar --spring.profiles.active=prod
 自动配置的核心原则是「用户优先」——框架提供默认实现，用户一旦自己定义，框架就退让：
 
 ```java
-@Configuration
+@AutoConfiguration
 public class CacheAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(CacheManager.class)  // 用户没定义才生效
@@ -100,7 +100,7 @@ public class CacheAutoConfiguration {
 }
 ```
 
-用户自己定义了一个 `CacheManager`，框架的默认实现就不会注册，两者不冲突。
+用户自己定义了一个 `CacheManager`，框架的默认实现就不会注册，两者不冲突。这个「用户优先」能成立，靠的是 `@ConditionalOnMissingBean` 依据条件评估时已处理的 Bean 定义做判断，而 Spring Boot 自动配置的处理顺序通常让用户定义的 Bean 先被考虑，所以能先看到用户定义。普通 `@Configuration` 类也能用这个注解，但处理顺序不确定，得自己留意会不会误判成「缺失」。
 
 ### 5.2 功能开关：@ConditionalOnProperty
 
