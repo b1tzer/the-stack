@@ -2,9 +2,9 @@
 
 > `SpringApplication.run(App.class, args)` 这行代码背后，是一条从「准备环境」到「发布就绪」的完整流水线。搞懂这条流水线，启动失败时才知道卡在哪一步；`args` 传了什么、`@Value` 为什么取不到值、优雅停机为什么没生效，都能定位。
 
-## 1. 一个 run 拆成四段
+## 1. 一个 run 拆成三段
 
-Spring Boot 启动不是一步到位，而是分阶段推进。把 `run` 的内部过程按「是否影响 Bean 装配」分成四段，比死记十几个方法名有用：
+Spring Boot 启动不是一步到位，而是分阶段推进。把 `run()` 的内部过程按「是否影响 Bean 装配」分成三段，比死记十几个方法名有用；应用就绪之后的关闭流程单独在 §5 讲：
 
 ```txt
 准备阶段：推断类型 → 装配 RunListener → 准备 Environment → 打印 Banner
@@ -12,8 +12,8 @@ Spring Boot 启动不是一步到位，而是分阶段推进。把 `run` 的内�
 装配阶段：创建 ApplicationContext → 应用 Initializer → refresh()
         ↓
 收尾阶段：afterRefresh → 执行 Runner → 发布 ready
-        ↓
-退出阶段：收到停机信号 → 优雅停机 → 销毁 Bean
+
+关闭流程（运行后，见 §5）：收到停机信号 → 优雅停机 → 销毁 Bean
 ```
 
 `refresh()` 那一段（Bean 的创建、注入、生命周期）已经在 [IoC 容器](../01-core/chapter-02-ioc-container.md) §6 讲过，本章不重复，重点讲 `refresh()` 前后两段——启动参数、启动事件、失败诊断和停机。
@@ -43,7 +43,7 @@ public static void main(String[] args) {
 
 ### 2.2 参数为什么能覆盖配置文件
 
-这些选项最终会进 `Environment`，成为优先级最高的 `PropertySource`。这正是 [条件装配与 Profile](../01-core/chapter-07-conditional-profile.md) §4.1 里「命令行参数 > 配置文件」那条链的起点：`--server.port=9090` 排在链最前面，任何同名配置都会被它压住。
+这些选项最终会进 `Environment`，成为一条 `PropertySource`。这正是 [条件装配与 Profile](../01-core/chapter-07-conditional-profile.md) §4.1 里「命令行参数 > 配置文件」那条链的起点：在 Spring Boot 默认的外部化配置机制下，命令行属性的优先级高于配置文件中的同名属性，所以 `--server.port=9090` 能覆盖配置文件里的端口设置。
 
 ### 2.3 两个 Runner
 
@@ -61,11 +61,11 @@ public class StartupTask implements ApplicationRunner {
 }
 ```
 
-`CommandLineRunner` 和 `ApplicationRunner` 只差一个参数类型：前者拿原始 `String... args`，后者拿 `ApplicationArguments`。要判断「有没有某个参数」，用后者更方便。多个 Runner 的执行顺序用 `@Order` 控制，默认按注册顺序。
+`CommandLineRunner` 和 `ApplicationRunner` 只差一个参数类型：前者拿原始 `String... args`，后者拿 `ApplicationArguments`。要判断「有没有某个参数」，用后者更方便。多个 Runner 的执行顺序用 `@Order`（或实现 `Ordered`）指定；未指定时，不要依赖它们的执行先后。
 
 ## 3. 启动事件：一条可以挂载的链
 
-`run` 的每个阶段都会发布事件。知道这条链，才能在「Bean 还没建好」时介入——比如在 Environment 就绪后、Bean 装配前改配置。
+`run` 的几个关键阶段会发布事件。知道这条链，才能在「Bean 还没建好」时介入——比如在 Environment 就绪后、Bean 装配前改配置。
 
 ### 3.1 关键事件点
 
@@ -74,7 +74,7 @@ public class StartupTask implements ApplicationRunner {
 | `ApplicationStartingEvent` | run 刚开始，Environment 还没建 | 极早期的开关设置 |
 | `ApplicationEnvironmentPreparedEvent` | Environment 已就绪 | 增删 PropertySource、改 profile |
 | `ApplicationPreparedEvent` | refresh 之前，BeanDefinition 已加载 | 改 BeanDefinition |
-| `ApplicationStartedEvent` | refresh 之后，Runner 之前 | Bean 已就绪 |
+| `ApplicationStartedEvent` | refresh 之后，Runner 之前 | 上下文刷新完成，Runner 尚未执行 |
 | `ApplicationReadyEvent` | 一切就绪，Runner 已跑完 | 对外宣布服务可用 |
 | `ApplicationFailedEvent` | 启动过程抛异常 | 记录失败现场 |
 
@@ -83,7 +83,7 @@ public class StartupTask implements ApplicationRunner {
 三种方式，从重到轻：
 
 ```java
-// 1. 实现 ApplicationListener 接口（任何 Spring Bean 都能收到）
+// 1. 实现并注册 ApplicationListener，监听对应的应用事件
 @Component
 public class MyListener implements ApplicationListener<ApplicationReadyEvent> {
     @Override
@@ -100,7 +100,7 @@ public class MyListener {
 }
 ```
 
-`SpringApplicationRunListener` 是更底层的接口，它在事件被广播之前、更早的阶段介入。默认实现 `EventPublishingRunListener` 负责把 run 各阶段转成上面这些 `ApplicationEvent`。自定义 `RunListener` 通过 `META-INF/spring.factories` 里的 `org.springframework.boot.SpringApplicationRunListener` 注册——这条和自动配置类的 `AutoConfiguration.imports` 不是同一个文件，别混。
+`SpringApplicationRunListener` 是更底层的接口，直接参与 `SpringApplication` 的启动生命周期回调。默认实现 `EventPublishingRunListener` 负责把这些生命周期回调转成上面这些 `ApplicationEvent`。自定义 `RunListener` 通过 `META-INF/spring.factories` 里的 `org.springframework.boot.SpringApplicationRunListener` 注册——这条和自动配置类的 `AutoConfiguration.imports` 不是同一个文件，别混。
 
 ## 4. 启动失败诊断：FailureAnalyzer
 
@@ -151,7 +151,7 @@ com.example.MyFailureAnalyzer
 
 ## 5. 优雅停机：让发版不掉请求
 
-默认情况下，进程收到终止信号会立刻停掉。正在处理的请求可能还没返回，连接就被断——这在滚动发布时表现为「发版瞬间有几条请求失败」。
+默认情况下，Web 服务器采用立即停机模式，不会等待正在处理的请求完成，在途请求可能还没返回连接就被断——这在滚动发布时表现为「发版瞬间有几条请求失败」。正常的 SIGTERM 关闭流程中，Spring 容器仍会执行关闭和 Bean 销毁；但进程被 SIGKILL 强制终止时，这些回调无法保证执行。
 
 ### 5.1 打开开关
 
@@ -173,8 +173,8 @@ K8s 滚动更新时，Pod 会先收到 `SIGTERM`，再等 `terminationGracePerio
 spring.lifecycle.timeout-per-shutdown-phase  <  terminationGracePeriodSeconds
 ```
 
-如果前者（30s）大于后者（30s 默认），Pod 会在请求还没跑完时就被强杀，优雅停机形同虚设。这个不等式是线上发版掉请求的高频根因。
+`timeout-per-shutdown-phase` 是单个关闭阶段的超时，不是整个关闭流程的总时长。两者相等或前者更大时，Pod 可能在应用完成关闭前被强杀，优雅停机形同虚设。即使前者更小，这个不等式也只是基本配置要求——还得为其他关闭步骤和调度开销预留时间，不能据此保证所有请求都能完成。
 
 ## 6. 小结
 
-`run` 是一条四段流水线：准备（Environment + 参数）→ 装配（refresh）→ 收尾（Runner + ready）→ 退出（优雅停机）。启动参数经 `ApplicationArguments` 解析后进 `Environment`，成为最高优先级的配置源；启动事件链让你在 Bean 装配前后都能介入；`FailureAnalyzer` 把异常翻译成人话；优雅停机靠「graceful 开关 + 两个超时不等式」保证发版不掉请求。这四件事，分别对应开发中四个最常见的启动期问题：参数不生效、启动卡住、报错看不懂、发版掉请求。
+`run()` 是一条三段流水线：准备（Environment + 参数）→ 装配（refresh）→ 收尾（Runner + ready）；应用就绪后的关闭流程（优雅停机）见 §5。启动参数经 `ApplicationArguments` 解析后进 `Environment`，在默认配置机制下命令行属性优先级高于配置文件同名属性；启动事件链让你在 Bean 装配前后都能介入；`FailureAnalyzer` 把异常翻译成人话；优雅停机靠「graceful 开关 + 两个超时不等式」降低发版掉请求的概率。

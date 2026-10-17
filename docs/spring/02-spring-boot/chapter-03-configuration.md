@@ -4,7 +4,9 @@
 
 ### 1.1 配置优先级
 
-命令行参数 > 系统环境变量 > application-{profile}.yml > application.yml > @PropertySource
+Spring Boot 的配置来源很多，下面是常见来源的简化示意，不是完整、固定的优先级链：
+
+命令行参数 > JVM 系统属性 > 系统环境变量 > application-{profile}.yml > application.yml > @PropertySource
 
 这条优先级链的底层是 Spring 的 `Environment` 抽象：
 
@@ -123,7 +125,7 @@ public class MyAppProperties {
 }
 ```
 
-启动时如果配置值不满足校验规则，会抛出 `BindException`，应用无法启动——这比运行时空指针好得多。
+校验依赖 JSR-303 实现（如 Hibernate Validator），需要引入 `spring-boot-starter-validation`，否则这些注解不会生效。启动时如果配置值不满足校验规则，会抛出 `BindException`，应用无法启动——这比运行时空指针好得多。
 
 ### 2.3 配置绑定到 Record
 
@@ -138,6 +140,12 @@ public record CacheProperties(
     boolean enabled,
     List<String> excludedKeys
 ) {}
+
+// @ConfigurationProperties 不会自动注册为 Bean，需要显式启用
+@Configuration
+@EnableConfigurationProperties(CacheProperties.class)
+public class CacheConfig {
+}
 
 // 使用
 @Component
@@ -160,8 +168,8 @@ public class CacheManager {
 | 复杂类型（List/Map） | ✅ | ⚠️ 需 SpEL |
 | 默认值 | 字段初始值 | `${key:default}` |
 
-::: warning setter 是必须的
-`@ConfigurationProperties` 的 setter 方法是必须的——Spring 通过 setter 注入值，不是通过字段反射。如果你的 POJO 没有 setter，绑定不会生效。
+::: warning 可变 JavaBean 绑定需要 setter
+对本文展示的可变 JavaBean 绑定方式，`@ConfigurationProperties` 的 setter 方法是必须的——Spring 通过 setter 注入值，不是通过字段反射。如果你的 POJO 没有 setter，绑定不会生效。不可变配置对象（如 §2.3 的 Record）走构造器绑定，无需 setter。
 :::
 
 ## 3. 配置的安全与扩展
@@ -180,15 +188,11 @@ public class CacheManager {
 # application.yml
 jasypt:
   encryptor:
-    password: ${JASYPT_PASSWORD}  # 加密密钥通过环境变量传入
-    algorithm: PBEWithMD5AndDES
+    password: ${JASYPT_PASSWORD}  # 加密密钥通过环境变量传入，不显式指定 algorithm 则使用 Jasypt 3.x 的安全默认
 
 spring:
   datasource:
     password: ENC(加密后的密文)
-    # 通过命令行生成密文：
-    # java -cp jasypt-1.9.3.jar org.jasypt.intf.cli.JasyptPBEStringEncryptionCLI \n
-#     input="yourPassword" password="secretKey" algorithm=PBEWithMD5AndDES
 ```
 
 ```java
@@ -233,17 +237,18 @@ public class DatabasePropertySource extends PropertySource<DataSource> {
 
     @Override
     public Object getProperty(String name) {
-        // 从数据库查询配置
-        try (Connection conn = source.getConnection()) {
-            PreparedStatement ps = conn.prepareStatement(
-                "SELECT config_value FROM sys_config WHERE config_key = ?");
+        // 示例简化：每次读取都查库，生产环境应在启动时一次性加载并缓存
+        try (Connection conn = source.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                 "SELECT config_value FROM sys_config WHERE config_key = ?")) {
             ps.setString(1, name);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                return rs.getString("config_value");
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("config_value");
+                }
             }
         } catch (SQLException e) {
-            // ignore
+            // 示例忽略异常，生产环境应记录日志并决定是否让启动失败
         }
         return null;
     }
@@ -261,6 +266,16 @@ public class DatabaseEnvironmentPostProcessor implements EnvironmentPostProcesso
     }
 }
 ```
+
+`EnvironmentPostProcessor` 不是通过 `AutoConfiguration.imports` 注册，而是通过 `META-INF/spring.factories` 的 `org.springframework.boot.env.EnvironmentPostProcessor` 键：
+
+```properties
+# META-INF/spring.factories
+org.springframework.boot.env.EnvironmentPostProcessor=\
+com.example.DatabaseEnvironmentPostProcessor
+```
+
+它运行在 Spring 容器刷新之前，不能通过 `@Autowired` 注入普通 Spring Bean 来拿 `DataSource`，需要自己创建。
 
 **最佳实践：**
 

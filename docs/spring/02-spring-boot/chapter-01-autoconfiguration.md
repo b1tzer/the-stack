@@ -80,7 +80,7 @@ Spring Boot 并非一个全新的框架，而是 **Spring 的"脚手架"**。它
 3. **非侵入式（Unobtrusive）**：不强制使用特定 API，随时可以回退到原生 Spring
 
 ```java
-// 最简单的 Spring Boot 应用 - 这就是一个完整的 Web 服务器
+// 最简单的 Spring Boot 应用 - 引入 spring-boot-starter-web 后就是一个完整的 Web 服务器
 @SpringBootApplication
 public class MyApplication {
     public static void main(String[] args) {
@@ -89,7 +89,7 @@ public class MyApplication {
 }
 ```
 
-运行这段代码，一个内嵌 Tomcat 就启动了，默认监听 8080 端口。没有 XML，没有 WAR 部署，没有外部 Tomcat。
+前提是 classpath 上有 `spring-boot-starter-web`。在这个依赖和默认配置下，运行这段代码，内嵌 Tomcat 就会启动，默认监听 8080 端口。没有 XML，没有 WAR 部署，没有外部 Tomcat。`@SpringBootApplication` 本身不含 Web 依赖，去掉 starter 就不会有内嵌容器。
 
 ## 2. 自动配置原理
 
@@ -104,7 +104,7 @@ public class MyApplication {
 | **条件注解** | `@Conditional`、`@ConditionalOnClass`、`@ConditionalOnMissingBean`、`@Profile` | 决定 Bean 是否注册 | 条件只在启动时评估一次，改配置不会热生效 |
 | **属性绑定注解** | `@Value`、`@ConfigurationProperties`、`@EnableConfigurationProperties` | 把配置值注入字段 | `@Value` 无类型安全，嵌套对象用 `@ConfigurationProperties` |
 
-四类是一条流水线：启动注解是入口，配置注解声明"容器里有什么"，条件注解决定"这个 Bean 要不要进容器"，属性绑定注解解决"Bean 里的值从哪来"。前两类回答"是什么"，后两类回答"何时、何值"。
+四类注解承担不同职责，在应用启动的不同阶段协同工作，而非一条固定顺序的流水线。启动注解是入口，配置注解声明"容器里有什么"，条件注解决定"这个 Bean 要不要进容器"，属性绑定注解解决"Bean 里的值从哪来"。前两类回答"是什么"，后两类回答"何时、何值"。
 
 ### 2.2 @SpringBootApplication 拆解
 
@@ -123,13 +123,13 @@ public @interface SpringBootApplication { ... }
 
 ### 2.3 自动配置的加载流程
 
-Spring Boot 2.7+ 使用新的加载机制，整个流程如下：
+Spring Boot 2.7 起引入 `AutoConfiguration.imports` 注册机制，2.x 仍兼容旧的 `spring.factories`，3.0 起才只用新机制。整个加载流程如下：
 
 ```txt
 启动 SpringApplication
     │
     ▼
-读取 META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
+加载自动配置候选项（AutoConfiguration.imports，2.7 仍兼容 spring.factories）
     │
     ▼
 获取所有候选自动配置类（可能有上百个）
@@ -142,19 +142,19 @@ Spring Boot 2.7+ 使用新的加载机制，整个流程如下：
     └── 条件不满足 → 跳过，不注册
 ```
 
-这段流程背后的执行者是 `AutoConfigurationImportSelector`。它实现了 `DeferredImportSelector`，在 `selectImports` 中调用 `getAutoConfigurationEntry()`，后者完成两件事：从 `AutoConfiguration.imports` 读出全部候选类名，再逐个套用 `@Conditional` 过滤。过滤不是一次性完成的——每个候选类先按 `@AutoConfigureOrder`、`@AutoConfigureBefore`、`@AutoConfigureAfter` 排好序，再进入条件评估，这样「先注册的 Bean」能成为「后注册 Bean」条件判断的依据。
+这段流程背后的执行者是 `AutoConfigurationImportSelector`。它实现了 `DeferredImportSelector`，`getAutoConfigurationEntry()` 负责加载候选自动配置类，完成去重、排除和基于 classpath 元数据的预过滤，随后由 `AutoConfigurationGroup` 排序，配置类解析阶段再评估完整条件。这样「先解析的配置类所注册的 BeanDefinition」能成为「后解析配置类」条件判断的依据。注意 `@ConditionalOnMissingBean` 判断的是容器里已注册的 BeanDefinition，不要求对应的 Bean 已经实例化。
 
 以 `DataSourceAutoConfiguration` 为例，看看条件注解如何工作：
 
 ```java
 @AutoConfiguration(before = SqlInitializationAutoConfiguration.class)
 @ConditionalOnClass({ DataSource.class, EmbeddedDatabaseType.class })   // classpath 上有 DataSource 与嵌入式数据库枚举才生效
-@ConditionalOnMissingBean(type = "io.r2dbc.spi.ConnectionFactory")      // 未启用 R2DBC 才生效（避免与 R2DBC 冲突）
+@ConditionalOnMissingBean(type = "io.r2dbc.spi.ConnectionFactory")      // 容器中不存在 R2DBC 的 ConnectionFactory Bean 才生效
 @EnableConfigurationProperties(DataSourceProperties.class)
 public class DataSourceAutoConfiguration {
 
     @Configuration(proxyBeanMethods = false)
-    @Conditional(EmbeddedDatabaseCondition.class)                       // 未显式配置连接池，且 classpath 存在 H2/HSQL/Derby
+    @Conditional(EmbeddedDatabaseCondition.class)                       // 未设置 spring.datasource.url、无可用连接池，且 classpath 存在嵌入式数据库
     @ConditionalOnMissingBean({ DataSource.class, XADataSource.class }) // 用户没有自定义 DataSource / XADataSource
     @Import(EmbeddedDataSourceConfiguration.class)
     protected static class EmbeddedDatabaseConfiguration {
@@ -178,7 +178,7 @@ Spring Boot 提供了一整套 `@Conditional` 注解，构成自动配置的"开
 | :-- | :-- | :-- |
 | `@ConditionalOnClass` | classpath 存在指定类 | 引入了 Jackson 才配置 JSON 序列化 |
 | `@ConditionalOnMissingBean` | 容器中没有指定 Bean | 用户未自定义数据源才用默认的 |
-| `@ConditionalOnProperty` | 配置文件中存在指定属性 | 配置了 `spring.redis.host` 才启用 Redis |
+| `@ConditionalOnProperty` | 配置属性满足条件 | 配置了 `app.feature.enabled=true` 才启用功能 |
 | `@ConditionalOnWebApplication` | 当前是 Web 应用 | MVC 配置只在 Web 环境生效 |
 | `@ConditionalOnResource` | classpath 存在指定资源 | 有 `logback.xml` 才使用自定义日志 |
 | `@ConditionalOnExpression` | SpEL 表达式为 true | 复杂条件组合 |
@@ -191,7 +191,7 @@ Spring Boot 提供了一整套 `@Conditional` 注解，构成自动配置的"开
 
 ## 3. 自动配置类的排序
 
-自动配置类不是随便注册的，它们之间常有先后依赖。比如 `DataSourceAutoConfiguration` 必须在 MyBatis 的 `SqlSessionFactoryAutoConfiguration` 之前装配，否则 `SqlSessionFactory` 创建时拿不到 `DataSource`。Spring Boot 用三个注解表达这种顺序：
+自动配置类不是随便注册的，它们之间常有先后依赖。比如 MyBatis Starter 的 `MybatisAutoConfiguration` 声明在 `DataSourceAutoConfiguration` 之后处理，这样它的条件判断能考虑数据源自动配置注册的 BeanDefinition。Spring Boot 用三个注解表达这种顺序：
 
 | 注解 | 作用 | 示例 |
 | :-- | :-- | :-- |
@@ -199,7 +199,7 @@ Spring Boot 提供了一整套 `@Conditional` 注解，构成自动配置的"开
 | `@AutoConfigureBefore` | 声明本类必须在某类之前装配 | `@AutoConfiguration(before = XxxAutoConfiguration.class)` |
 | `@AutoConfigureAfter` | 声明本类必须在某类之后装配 | `@AutoConfiguration(after = DataSourceAutoConfiguration.class)` |
 
-`@AutoConfiguration` 注解本身带 `before` / `after` 属性，等价于独立的 `@AutoConfigureBefore` / `@AutoConfigureAfter`。排序发生在条件评估之前——顺序确定后，条件才逐个判断，这保证了「前一个自动配置是否生效」这个事实，能被后一个自动配置的条件感知到。
+`@AutoConfiguration` 注解本身带 `before` / `after` 属性，等价于独立的 `@AutoConfigureBefore` / `@AutoConfigureAfter`。排序发生在配置类解析阶段的条件评估之前——顺序确定后，配置类逐个解析，条件才逐个判断，这保证了「前一个配置类注册了哪些 BeanDefinition」这个事实，能被后一个配置类的条件感知到。判断针对的是 BeanDefinition，而非已实例化的 Bean。
 
 ## 4. 本章知识地图
 
