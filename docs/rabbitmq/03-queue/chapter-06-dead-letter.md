@@ -1,6 +1,6 @@
 # 死信队列
 
-> 死信队列（Dead Letter Queue）是处理"失败消息"的标准方案。消息变成死信后，不会被丢弃，而是路由到专门的队列。
+> 死信队列（Dead Letter Queue）是处理"失败消息"的标准方案。消息变成死信后，会被移出原队列；若配置了 DLX，则路由到专门的死信队列，否则被直接丢弃。
 
 ## 1. 什么情况下消息变成死信
 
@@ -8,8 +8,10 @@
 | :-- | :-- |
 | 消费者拒绝 | `basic.nack` 或 `basic.reject`，且 `requeue = false` |
 | 消息 TTL 到期 | 消息在 Queue 中超过 x-message-ttl |
-| Queue 长度超限 | Queue 达到 x-max-length，新消息将最老的消息挤出 |
+| Queue 长度超限 | Queue 达到 x-max-length，按 `x-overflow` 策略处理 |
 | 投递次数超限 | Quorum Queue 的 x-delivery-limit 超过 |
+
+`x-overflow` 决定超限时的处理：默认 `drop-head` 挤出最老的消息，若配置了 DLX 会将其死信；`reject-publish` 拒绝新消息；`reject-publish-dlx` 拒绝新消息并转 DLX。其中 `reject-publish-dlx` 仅经典队列支持，Quorum Queue 只支持 `drop-head` 与 `reject-publish`。
 
 ## 2. 配置死信队列
 
@@ -28,6 +30,8 @@ args.put("x-dead-letter-routing-key", "dlx.order");
 channel.queueDeclare("order.queue", true, false, false, args);
 ```
 
+> 默认的死信转发是 at-most-once，不保证消息一定到达死信队列。Quorum Queue 可用 `x-dead-letter-strategy = at-least-once` 增强（RabbitMQ 3.10+），但同样受目标队列可用性与资源开销约束。
+
 ## 3. 死信消息的 Headers
 
 当消息变成死信时，RabbitMQ 会在消息的 headers 中添加：
@@ -37,7 +41,7 @@ channel.queueDeclare("order.queue", true, false, false, args);
 | `x-first-death-reason` | 第一次变成死信的原因（rejected, expired, maxlen, delivery_limit） |
 | `x-first-death-queue` | 第一次变成死信的 Queue 名 |
 | `x-first-death-exchange` | 第一次变成死信的 Exchange 名 |
-| `x-death` | 所有死信记录的数组（可能多次死信） |
+| `x-death` | 死信历史记录数组，按队列与死信原因聚合，而非逐次事件流水 |
 
 ```java
 // 消费死信队列时可以读取这些 header
@@ -62,6 +66,8 @@ order.queue (retry 2) → DLX → delay.5min.queue (TTL 5分钟) → order.queue
 order.queue (retry 3) → DLX → final.dlx.queue (人工处理)
 ```
 
+以上是逻辑示意。RabbitMQ 不会自动识别「第几次重试」，每一跳需要不同的 DLX 与 routing key，或在应用层用消息 header 记录重试次数来决定下一跳。
+
 ## 5. 延迟队列的实现
 
 利用消息 TTL + DLX 可以实现延迟队列：
@@ -80,14 +86,14 @@ channel.basicPublish("", "delay.order.timeout", props, body);
 // 5 分钟后，消息自动进入 order.exchange → order.timeout.queue
 ```
 
-**注意**：这种实现方式有一个问题——消息在 delay Queue 中是按 FIFO 排列的，如果队头消息的 TTL 比后面消息的 TTL 长，后面消息即使 TTL 到期也要等队头消息先过期（Head-of-Line Blocking）。
+**注意**：队列级 `x-message-ttl` 让整队消息共享同一个过期时间，不存在队头阻塞。队头阻塞（Head-of-Line Blocking）出现在同一队列的消息用不同 TTL（per-message TTL，通过 `expiration` 属性设置）时——经典队列只检查队头消息是否过期，若队头 TTL 更长，后面的消息即使已到期也要等队头先被移出。
 
 **解决方案**：使用延迟消息插件（rabbitmq_delayed_message_exchange），它在 Exchange 层面实现延迟，没有 Head-of-Line Blocking 问题。
 
 ## 6. 死信队列的最佳实践
 
-1. **每个业务 Queue 都配置 DLX**：避免消息静默丢失
-2. **死信队列配置告警**：有消息进入说明有问题
+1. **对需要追踪失败消息的 Queue 配置 DLX**：让被拒绝、过期、超限的消息有迹可查，而不是静默消失
+2. **死信队列配置告警**：结合死信原因与数量告警，区分预期死信（如延迟队列到期）与异常死信
 3. **记录死信原因**：通过 headers 判断是 rejected、expired 还是 maxlen
-4. **死信消息人工处理**：不要自动重试（可能造成死循环），而是人工排查后手动重新投递
+4. **死信消息人工处理**：可恢复的暂时性故障可以自动重试，需要人工判断的失败消息则排查后手动重新投递
 5. **延迟重试**：如果需要自动重试，用延迟队列 + DLX 组合，不要直接 requeue

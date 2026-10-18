@@ -1,14 +1,14 @@
 # Queue 基础
 
-> Queue 是消息的最终存储单元。所有消息最终都落在 Queue 里，等待消费者来取。
+> Queue 是消息的存储单元。消息经 Exchange 路由后落到 Queue 里，等待消费者来取。
 
 ## 1. Queue 的本质
 
-Queue 是一个有序的、先进先出（FIFO）的消息存储。但和普通的内存队列不同，RabbitMQ 的 Queue 需要处理：
+Queue 通常按消息入队顺序维护和投递消息，即先进先出（FIFO）。但这不保证多消费者并发场景下的业务处理顺序与入队顺序一致，优先级、重新入队等因素都可能改变实际观察到的顺序。和普通的内存队列不同，RabbitMQ 的 Queue 还需要处理：
 
 - 持久化（Broker 重启后消息不丢）
 - 多消费者竞争消费
-- 消息确认（消费成功才删除）
+- 消息确认（手动确认模式下 basicAck 后才删除）
 - 优先级
 - 死信
 - 长度/大小限制
@@ -17,11 +17,13 @@ Queue 是一个有序的、先进先出（FIFO）的消息存储。但和普通�
 
 | 属性 | 说明 | 默认值 |
 | :-- | :-- | :-- |
-| Name | 队列名称 | 服务端生成（UUID） |
+| Name | 队列名称 | 未指定时由服务端生成 |
 | Durable | 持久化（Broker 重启后保留 Queue 定义） | false |
 | Exclusive | 仅限当前连接，连接断开自动删除 | false |
-| Auto Delete | 所有消费者断开后自动删除 | false |
+| Auto Delete | 最后一个消费者取消订阅后删除（需曾有过消费者） | false |
 | Arguments | 扩展参数（TTL/长度/死信/优先级等） | null |
+
+以上为 AMQP 0-9-1 的通用属性；Quorum Queue 与 Stream 对服务端生成名称、Exclusive 等属性有额外限制，见各队列类型章节。
 
 ```java
 channel.queueDeclare(
@@ -40,7 +42,7 @@ channel.queueDeclare(
 1. 消息的 `deliveryMode = 2`（Persistent）
 2. Queue 声明为 Durable
 
-两者缺一不可。
+两者缺一不可，它们是经典队列消息持久化的必要配置。但这组配置不等于端到端可靠投递，可靠投递还需要 Publisher Confirm 与消费者确认。不同队列类型的持久化与复制机制存在差异，见 [Classic Queue](chapter-02-classic-queue.md) 与 [Quorum Queue](chapter-03-quorum-queue.md)。
 
 ### 2.2 Exclusive 的用途
 
@@ -62,7 +64,7 @@ Exclusive Queue 只能被声明它的连接消费，连接断开自动删除。�
 
 ## 3. 幂等声明
 
-多次声明相同名称、相同属性的 Queue 不会报错。但属性不同会报 `406 PRECONDITION_FAILED`。
+多次声明相同名称、相同属性的 Queue 不会报错。但同名队列以不兼容的属性重新声明时，会报 `406 PRECONDITION_FAILED`。
 
 ```java
 // 两个微服务实例启动时都声明同一个 Queue → 没问题
@@ -78,26 +80,29 @@ channel.queueDeclare("order.queue", true, false, false, null); // OK
 消息进入 Queue
   │
   ├─ 被消费者消费 → basicAck → 从 Queue 删除
-  ├─ 被消费者拒绝（basicNack, requeue=false）→ 进入 DLX
-  ├─ 消息 TTL 到期 → 进入 DLX
-  ├─ Queue 长度超限 → 进入 DLX（或丢弃最老消息）
+  ├─ 被消费者拒绝（basicNack, requeue=false）→ 成为死信
+  ├─ 消息 TTL 到期 → 成为死信
+  ├─ Queue 长度超限 → 按 overflow 策略处理（挤出最老消息或拒绝新消息）
   └─ 消费者断开（autoAck=true）→ 消息丢失（已发给消费者但未确认）
+
+成为死信的消息：
+  ├─ 已配置 DLX → 路由到死信交换机，再由绑定进入死信队列
+  └─ 未配置 DLX → 被丢弃
 ```
 
-## 5. Queue 的内部实现
+死信的触发条件与转发细节因队列类型而异，见 [死信队列](chapter-06-dead-letter.md)。
 
-每个 Queue 是一个独立的 Erlang 进程：
+## 5. Queue 的逻辑模型与实现差异
 
-```txt
-Queue Process
-  ├─ ETS 表（小消息 < 4KB，直接存内存）
-  ├─ 消息存储引用（大消息 ≥ 4KB，指向磁盘文件）
-  └─ 消费者列表
-```
+逻辑上，Queue 维护消息顺序、投递状态与消费者列表；具体到存储与复制机制，不同队列类型差异很大：
 
-- 小消息直接存在 ETS（内存），读写 O(1)
-- 大消息存在磁盘消息存储文件中，Queue 中存引用
-- 每个 Queue 独立调度，互不阻塞
+| 队列类型 | 存储与复制机制 |
+| :-- | :-- |
+| Classic Queue | 内存与磁盘混合存储 |
+| Quorum Queue | 基于 Raft 共识的日志复制 |
+| Stream Queue | 追加式日志，按段文件存储 |
+
+各类型的完整机制见 [Classic Queue](chapter-02-classic-queue.md)、[Quorum Queue](chapter-03-quorum-queue.md) 与 [Stream Queue](chapter-04-stream-queue.md)。
 
 ## 6. Queue 与 Exchange 的关系
 
