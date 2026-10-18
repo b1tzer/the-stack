@@ -6,12 +6,12 @@
 
 | 版本 | 方式 |
 | :-- | :-- |
-| Spring Boot 2.x | META-INF/spring.factories |
-| Spring Boot 2.7 | 两种都支持（过渡期） |
-| Spring Boot 3.x | 只支持 META-INF/spring/.../AutoConfiguration.imports |
+| Spring Boot 2.0~2.6 | META-INF/spring.factories |
+| Spring Boot 2.7 | 两种都支持，spring.factories 的自动配置注册方式已弃用 |
+| Spring Boot 3.x | 只支持 META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports |
 
 ::: warning 升级踩坑
-Boot 2.7 起 `spring.factories` 已 deprecated，Boot 3.0 起不再读取 `EnableAutoConfiguration` 条目。升级时务必迁移注册文件。
+Boot 2.7 起 `spring.factories` 中的自动配置注册方式已弃用，Boot 3.0 起不再从 `spring.factories` 读取 `EnableAutoConfiguration` 条目。升级时务必把自动配置类迁移到 `AutoConfiguration.imports`。
 :::
 
 ## 2. Starter 的三个组成部分
@@ -26,6 +26,8 @@ Boot 2.7 起 `spring.factories` 已 deprecated，Boot 3.0 起不再读取 `Enabl
 
 ## 3. 自定义 Starter 完整实战（分布式锁）
 
+为聚焦 Starter 结构，下面示例把 autoconfigure 逻辑与 Starter 放在同一个模块。生产项目应按 §6 拆成 Starter 模块 + autoconfigure 模块，由 Starter 依赖后者。
+
 ```java
 // 锁服务接口
 public interface DistributedLock {
@@ -33,24 +35,28 @@ public interface DistributedLock {
     void unlock(String key);
 }
 
-// 基于 Redis 的实现
+// 基于 Redis 的实现（简化示例：省略持有者标识校验与原子释放）
 public class RedisDistributedLock implements DistributedLock {
 
     private final StringRedisTemplate redisTemplate;
+    private final DistributedLockProperties properties;
 
-    public RedisDistributedLock(StringRedisTemplate redisTemplate) {
+    public RedisDistributedLock(StringRedisTemplate redisTemplate, DistributedLockProperties properties) {
         this.redisTemplate = redisTemplate;
+        this.properties = properties;
     }
 
     @Override
     public boolean tryLock(String key, long timeout, TimeUnit unit) {
         return Boolean.TRUE.equals(redisTemplate.opsForValue()
-            .setIfAbsent("lock:" + key, "1", timeout, unit));
+            .setIfAbsent(properties.getPrefix() + key, "1", timeout, unit));
     }
 
+    // 简化实现：直接删键，未校验持有者。锁过期后旧持有者可能误删新持有者的锁，
+    // 生产环境需写入唯一持有者标识，并用 Lua 脚本原子校验后再释放。
     @Override
     public void unlock(String key) {
-        redisTemplate.delete("lock:" + key);
+        redisTemplate.delete(properties.getPrefix() + key);
     }
 }
 ```
@@ -62,9 +68,6 @@ public class DistributedLockProperties {
 
     /** 锁前缀 */
     private String prefix = "dl:";
-
-    /** 默认超时时间（秒） */
-    private long defaultTimeout = 30;
 
     // getter/setter
 }
@@ -79,8 +82,9 @@ public class DistributedLockAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public DistributedLock distributedLock(StringRedisTemplate redisTemplate) {
-        return new RedisDistributedLock(redisTemplate);
+    @ConditionalOnBean(StringRedisTemplate.class)
+    public DistributedLock distributedLock(StringRedisTemplate redisTemplate, DistributedLockProperties properties) {
+        return new RedisDistributedLock(redisTemplate, properties);
     }
 }
 ```
@@ -99,7 +103,6 @@ Maven 配置：
     <dependency>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-data-redis</artifactId>
-        <optional>true</optional>
     </dependency>
     <dependency>
         <groupId>org.springframework.boot</groupId>
@@ -126,26 +129,25 @@ Maven 配置：
 ## 4. 自动配置的测试
 
 ```java
-@SpringBootTest
-@Import(DistributedLockAutoConfiguration.class)
 class DistributedLockAutoConfigurationTest {
 
-    @Autowired
-    private ApplicationContext context;
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(DistributedLockAutoConfiguration.class));
 
     @Test
     void shouldCreateLockBean() {
-        assertTrue(context.containsBean("distributedLock"));
-        assertInstanceOf(RedisDistributedLock.class, context.getBean(DistributedLock.class));
+        contextRunner
+                .withBean(StringRedisTemplate.class)
+                .run(context -> {
+                    assertTrue(context.containsBean("distributedLock"));
+                    assertInstanceOf(RedisDistributedLock.class, context.getBean(DistributedLock.class));
+                });
     }
 
     @Test
     void shouldNotCreateWhenRedisTemplateMissing() {
-        // 模拟没有 RedisTemplate 的情况
-        AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext();
-        ctx.register(DistributedLockAutoConfiguration.class);
-        ctx.refresh();
-        assertFalse(ctx.containsBean("distributedLock"));
+        contextRunner
+                .run(context -> assertFalse(context.containsBean("distributedLock")));
     }
 }
 ```

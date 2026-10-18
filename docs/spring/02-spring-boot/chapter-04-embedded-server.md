@@ -31,7 +31,7 @@ protected void onRefresh() {
 }
 ```
 
-**Tomcat 是 Spring 容器初始化过程中被顺带启动的，不是 `main()` 里直接 `new` 出来的**。这解释了为什么启动期的端口冲突异常栈里总能看到 `ServletWebServerApplicationContext`。
+**Tomcat 是 Spring 容器初始化过程中被顺带启动的，不是 `main()` 里直接 `new` 出来的**。这解释了为什么启动期的端口冲突异常栈里通常会涉及 `ServletWebServerApplicationContext`。
 
 ### 2.2 `createWebServer()` 只做三件事
 
@@ -64,7 +64,7 @@ private void createWebServer() {
 ServletWebServerFactory（工厂接口，一个方法）
     getWebServer(ServletContextInitializer...) : WebServer
 
-WebServer（容器实例接口，两个方法）
+WebServer（容器实例接口，两个核心方法，另有 getPort() 等）
     start()
     stop()
 ```
@@ -76,7 +76,7 @@ WebServer（容器实例接口，两个方法）
 `createWebServer()` 能取到工厂 Bean，是因为 `ServletWebServerFactoryAutoConfiguration` 事先注册好了。它用条件注解按 classpath 依赖选型：
 
 ```java
-// ServletWebServerFactoryAutoConfiguration（源码简化，只保留 Tomcat 分支）
+// ServletWebServerFactoryAutoConfiguration（源码简化，只保留 Tomcat 分支；实际源码把工厂方法放在嵌套配置类 ServletWebServerFactoryConfiguration.EmbeddedTomcat 中，@ConditionalOnClass 作用在该嵌套类上，这里做了扁平化）
 @AutoConfiguration
 @ConditionalOnClass(ServletRequest.class)
 @EnableConfigurationProperties(ServerProperties.class)
@@ -103,7 +103,7 @@ public class ServletWebServerFactoryAutoConfiguration {
 
 ### 4.1 改配置
 
-九成场景到这一步就够了。`server.*` 前缀的配置绑到 `ServerProperties`，工厂 Bean 创建时读取：
+大多数场景改 `server.*` 配置就够。这些配置绑到 `ServerProperties`，再经定制器应用到工厂：
 
 ```yaml
 server:
@@ -116,7 +116,7 @@ server:
     max-connections: 8192
 ```
 
-生效路径：`@EnableConfigurationProperties(ServerProperties.class)` 把 `ServerProperties` 变成 Bean → Tomcat 工厂 Bean 初始化时读取它 → `createWebServer()` 拿到的工厂已经带上这些值。
+生效路径：`@EnableConfigurationProperties(ServerProperties.class)` 把 `ServerProperties` 变成 Bean → `WebServerFactoryCustomizer`（如 `ServerPropertiesWebServerFactoryCustomizer`）读取它并应用到工厂 → `createWebServer()` 拿到的工厂已经带上这些值。
 
 ### 4.2 `WebServerFactoryCustomizer`
 
@@ -134,7 +134,7 @@ public class TomcatCustomizer implements WebServerFactoryCustomizer<TomcatServle
 }
 ```
 
-生效时机对应图里 ③.1 和 ③.2 之间那条虚线：`WebServerFactoryCustomizerBeanPostProcessor` 在工厂 Bean 初始化后、被 `getWebServerFactory()` 取走**之前**，扫描所有 `WebServerFactoryCustomizer` Bean，逐个调用 `customize(factory)`。
+生效时机对应图里 ③.1 和 ③.2 之间那条虚线：`WebServerFactoryCustomizerBeanPostProcessor` 在工厂 Bean 初始化前、被 `getWebServerFactory()` 取走**之前**，扫描所有 `WebServerFactoryCustomizer` Bean，逐个调用 `customize(factory)`。
 
 ::: warning 定制只在启动期一次
 `WebServerFactoryCustomizer` 作用于工厂，而工厂只用于「造这一次容器」。运行期动态改端口、动态热切换 SSL 证书，都不是它的职责。
