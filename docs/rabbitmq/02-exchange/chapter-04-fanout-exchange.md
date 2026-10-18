@@ -1,6 +1,6 @@
 # Fanout Exchange
 
-> Fanout Exchange 忽略 routing key，将消息广播到所有绑定的 Queue。最简单也最快。
+> Fanout Exchange 忽略 routing key，将消息广播到所有绑定的 Queue。路由规则简单。
 
 ## 1. 路由规则
 
@@ -43,10 +43,12 @@ channel.basicPublish("notification.fanout", "", null, body);
 String queueName = channel.queueDeclare().getQueue();  // 自动生成唯一名
 channel.queueBind(queueName, "realtime.fanout", "");
 
-// 客户端断开连接时，排他 Queue 自动删除
+// 排他 Queue 与声明它的连接绑定，连接关闭后由 Broker 删除
 ```
 
 适用于：实时通知、聊天消息、股票行情推送。
+
+临时 Queue 只覆盖在线订阅期间的消息。若需要离线补收，应使用适当配置的持久化队列和持久化消息，并结合发布确认、消费确认及失败重试等机制，同时处理消息未成功路由与重复投递的情况；Fanout 本身不提供离线留存或端到端处理保证。
 
 ### 2.3 事件广播
 
@@ -60,30 +62,33 @@ channel.queueBind(queueName, "realtime.fanout", "");
 
 | 特性 | Fanout | Topic（用 `#`） |
 | :-- | :-- | :-- |
-| 路由开销 | 无（直接广播） | 有（模式匹配） |
-| 灵活性 | 低（全部广播） | 高（可以选择性广播） |
-| 性能 | 最快 | 稍慢 |
-| 适用场景 | 真正的广播 | 需要过滤的广播 |
+| 路由规则 | 不按 routing key 过滤 | 按 binding key 模式匹配 |
+| 路由筛选 | 不支持 | 支持（按模式筛选） |
+| 适用场景 | 所有绑定队列都应收到消息 | 需要按消息类别筛选 |
 
 **选择建议**：如果所有绑定 Queue 都需要收到消息，用 Fanout。如果部分 Queue 需要过滤，用 Topic。
+
+Topic 用 `#` 可以匹配常规 routing key，得到与 Fanout 相似的广播结果，但 Topic 仍按 binding key 与 routing key 的匹配规则路由；选择 Topic 的意义在于保留按模式筛选的能力，而不是用 `#` 模拟 Fanout。若始终不需要按 routing key 过滤，Fanout 的路由语义更直接。
 
 ## 4. 注意事项
 
 **4.1 临时 Queue 的清理**
 
-使用 Fanout + 临时 Queue 时，客户端断开后 Queue 会自动删除（Exclusive 或 Auto Delete）。但如果客户端异常断开（没发 close），Queue 会残留直到连接超时。
+Exclusive Queue 与声明它的连接绑定，连接关闭（正常关闭或被 Broker 检测为关闭）后由 Broker 删除；Auto-delete Queue 在至少有过一个消费者、且最后一个消费者取消订阅后自动删除。网络异常下 Broker 检测到连接失效存在延迟，清理可能滞后，并非断开瞬间立即完成。
+
+若需要给临时队列设置闲置过期时间，可用 x-expires（队列闲置指定时长后自动删除），这与连接断开检测是两套机制：
 
 ```java
-// 设置 Queue 的自动过期（30秒无消费者则删除）
+// 独立示例：声明一个带闲置过期时间的队列（x-expires 是闲置过期机制，与连接断开检测无关）
 Map<String, Object> args = new HashMap<>();
 args.put("x-expires", 30000);
-channel.queueDeclare(tempQueue, false, false, false, args);
+channel.queueDeclare("temporary.queue", false, false, false, args);
 ```
 
 **4.2 消息丢失风险**
 
-Fanout Exchange 不保证消息被消费。如果某个 Queue 没有消费者，消息会堆积在 Queue 中（或被丢弃，取决于 Queue 配置）。
+Fanout Exchange 不保证消息被消费。消息成功路由到 Queue 后，如果没有消费者，通常会在队列中等待；若配置了消息 TTL、队列长度限制等机制，消息也可能过期或被丢弃。发布确认、消费确认与可靠投递机制详见 [Exchange 基础](./chapter-01-exchange-basics.md) 与 [Publisher Confirm](../04-producer/chapter-02-publisher-confirm.md)。
 
-**4.3 性能放大**
+**4.3 广播开销**
 
-一条消息被广播到 N 个 Queue，相当于 Broker 处理了 N 条消息。如果 Queue 数量很多且消息量大，要关注 Broker 的内存和 CPU 使用。
+一条消息路由到 N 个 Queue，会增加与目标队列数量相关的路由、入队和后续投递开销。如果 Queue 数量很多且消息量大，要关注 Broker 的内存和 CPU 使用。
