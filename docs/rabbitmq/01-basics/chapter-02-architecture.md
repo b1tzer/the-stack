@@ -148,9 +148,9 @@ AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
 | contentType | 内容类型 | application/json |
 | correlationId | 关联 ID | RPC 模式匹配请求和响应 |
 | replyTo | 回复队列 | RPC 模式 |
-| expiration | 消息 TTL（存活期限） | 配合队列 TTL 或延迟插件实现延迟投递 |
+| expiration | 消息 TTL（存活期限） | 配合队列 TTL 与 DLX 实现延迟投递 |
 | priority | 消息优先级 | 需目标队列启用优先级特性才生效 |
-| headers | 自定义头 | 死信路由、延迟消息插件 |
+| headers | 自定义头 | 死信路由、自定义消息头 |
 
 ## 5. Erlang 进程模型
 
