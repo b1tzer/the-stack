@@ -13,23 +13,23 @@ flowchart TD
         QC["match / multi_match<br>全文检索，计算 _score"]
     end
 
-    subgraph "filter context(不计分，可缓存)"
+    subgraph "filter context(只判匹配，不计分)"
         FC["term / terms<br>精确匹配<br>range 范围查询<br>exists 字段存在"]
     end
 
     Bool["bool 查询<br>组合查询"] --> Must["must<br>必须匹配(影响得分)"]
     Bool --> Should["should<br>应该匹配(影响得分)"]
-    Bool --> Filter["filter<br>过滤(不影响得分，有缓存)"]
+    Bool --> Filter["filter<br>过滤(不影响得分)"]
     Bool --> MustNot["must_not<br>必须不匹配"]
 
     Must --> QC
     Filter --> FC
 ```
 
-## 2. 为什么 filter 比 must 性能更好
+## 2. 为什么纯过滤场景应优先使用 filter
 
-> 1. filter 不计算相关性得分，省去了 TF-IDF/BM25 的计算开销
-> 2. filter 结果可以被缓存（Filter Cache），相同过滤条件第二次查询直接走缓存
+> 1. filter 不参与相关性评分（BM25），省去打分计算，这是执行语义带来的收益
+> 2. filter 的结果可能被节点查询缓存复用，但缓存是有条件的优化（受查询类型与 segment 影响），不能承诺第二次查询直接命中缓存
 > 3. 纯过滤场景（如按状态筛选）应优先使用 filter，而非 must
 
 ## 3. 常用查询示例
@@ -53,6 +53,12 @@ flowchart TD
 
 ## 4. 问题：ES 的 query 和 filter 有什么区别？
 
-> - `query`：计算相关性得分（_score），结果不缓存，适合全文检索
-> - `filter`：不计算得分，结果可缓存（Filter Cache），性能更高，适合精确过滤
-> - 最佳实践：全文检索用 `must`（query context），条件过滤用 `filter`（filter context）
+> - `query`：计算相关性得分（_score），决定文档与查询的相关程度
+> - `filter`：只判断是否匹配，不计分，适合精确条件过滤
+> - 组合场景：既要全文检索又要按条件过滤时，全文检索放 `must`，条件过滤放 `filter`
+
+## 5. 相关章节
+
+- [全文搜索](./chapter-02-full-text-search.md)
+- [精确查询](./chapter-03-term-query.md)
+- [布尔查询](./chapter-04-bool-query.md)
