@@ -17,7 +17,7 @@
 - **基础与路由**：[基础概览](./01-basics/chapter-01-overview.md)、[Exchange](./02-exchange/chapter-01-exchange-basics.md)、[队列](./03-queue/chapter-01-queue-basics.md)。
 - **生产与消费**：[发布确认](./04-producer/chapter-02-publisher-confirm.md)、[ACK 机制](./05-consumer/chapter-02-ack-mechanism.md)、[死信队列](./03-queue/chapter-06-dead-letter.md)。
 - **集群与运维**：[集群](./07-clustering/chapter-01-cluster-basics.md)、[故障排查](./08-operations/chapter-03-troubleshooting.md)、[性能调优](./08-operations/chapter-04-performance-tuning.md)。
-- **实践与参考**：[首次应用](./10-practice/chapter-02-first-app.md)、[命令速查](./reference/commands.md)。
+- **实践与参考**：[首次应用](./10-practice/chapter-02-first-app.md)、[命令速查](./reference/commands.md)。其中事件驱动与可靠性模式两篇是指引页，没有正文，具体内容分别收录在[工程架构](../engineering/03-architecture/chapter-05-event-driven.md)与 [Spring 消息章节](../spring/07-async-and-messaging/chapter-04-messaging.md)。
 
 ## 内容边界
 
