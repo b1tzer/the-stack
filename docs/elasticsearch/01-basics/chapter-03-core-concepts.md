@@ -18,13 +18,17 @@
 - 主分片（Primary）：写入
 - 副本分片（Replica）：冗余备份
 
+详见 [集群架构与分片机制](../05-distributed-internals/chapter-02-sharding.md)。
+
 ## 4. 节点 (Node)
+
+一个节点可以同时承担多个角色，协调（Coordinating）是每个节点默认具备的能力，只有 `node.roles: []` 才是专用协调节点。
 
 | 角色 | 说明 |
 | :-- | :-- |
-| Master | 集群管理 |
+| Master-eligible | 具备主节点选举资格，集群中当前当选的称为 elected master，负责集群管理 |
 | Data | 数据存储 |
-| Coordinating | 查询协调 |
+| Coordinating | 请求协调（默认能力，非互斥角色） |
 | Ingest | 数据预处理 |
 
 ## 5. 集群 (Cluster)
@@ -58,9 +62,13 @@ ES 不是实时搜索引擎。文档写入后，需要经过 refresh（默认 1 
 | 概念 | 说明 |
 | :-- | :-- |
 | **Buffer** | 文档写入后首先进入内存缓冲区 |
-| **Refresh** | 将 Buffer 数据写入 Segment，默认 1s，写入后可搜索 |
-| **Flush** | 将 Segment 持久化到磁盘，清空 Translog |
-| **Translog** | 事务日志，防止数据丢失 |
+| **Refresh** | 将 Buffer 中的操作生成新的 Lucene Segment 并打开新搜索视图，使其可搜索（默认 1s）；不执行 fsync，不等于持久化到磁盘 |
+| **Flush** | 执行 Lucene commit 将 Segment 落盘，启动新的 Translog 代际，旧代际在不再需要时才删除 |
+| **Translog** | 事务日志，记录 commit 前的写入操作用于崩溃恢复；持久性取决于 `index.translog.durability` 同步策略 |
+
+> `index.refresh_interval` 默认 1s 是后台刷新的目标间隔，并非每个分片都严格每秒刷新。默认配置下，长期无搜索/GET 请求的分片在达到 `index.search.idle.after` 阈值后可能暂停后台刷新，后续搜索到达时再触发。该暂停行为仅在未显式设置 `index.refresh_interval` 时生效。
+
+详见 [写入流程](../05-distributed-internals/chapter-04-write-path.md)。
 
 ## 8. 索引别名（Alias）
 
@@ -89,12 +97,12 @@ Mapping 定义索引中字段的类型和索引方式，类似数据库的 Schem
 | `boolean` | 布尔类型 | ❌ 否 |
 | `nested` | 嵌套对象 | - |
 
-> ⚠️ **Mapping 一旦创建不可修改已有字段类型**，只能通过 Reindex 重建索引。
+> ⚠️ **已有字段的类型不能原地修改**。Mapping 并非完全不可变：可以新增字段、为已有字段增加 multi-field，部分参数也允许更新；需要改变已有字段类型时，通常创建带新 Mapping 的目标索引，再通过 Reindex 迁移数据并切换别名。注意，给已有字段新增 multi-field 不会自动为历史文档补建该子字段的索引数据，需通过 update_by_query 或 Reindex 回填后才能按新字段查询或聚合。详见 [Mapping 设计](../02-indexing/chapter-02-mapping.md)。
 
 ## 10. 最佳实践
 
-- 生产环境至少 3 个节点，满足 Master 选举要求
-- 主分片数提前规划，创建后不可修改
+- 生产环境通常配置 3 个 master-eligible 节点（至少 2 个非 voting-only），选举容错取决于投票资格节点及其配置，而非单纯的节点总数
+- 主分片数提前规划，创建后不能直接修改，如需调整需评估 Split、Shrink 或 Reindex 等迁移方案
 - 单分片大小建议 10~50GB
 - 使用别名指向索引，便于零停机迁移
 - 全文搜索用 `text`，精确匹配用 `keyword`
