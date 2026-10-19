@@ -1,108 +1,93 @@
 # 常见问题排查
 
-## 1. 消息堆积
+> RabbitMQ 的线上故障很少以明确报错的形式出现，多数收敛成几种表象：消息堆积、生产者被阻塞、连接失败等。排查的思路是先看队列全局状态缩小故障范围，再沿链路逐段验证，最后用一条可观测的指标确认修复生效。
 
-**症状**：Queue 消息数持续增长，消费者处理不过来。
+## 1. 先看三列，缩小排查范围
 
-**排查**：
 ```bash
-# 检查消费者数量
-rabbitmqctl list_queues name messages consumers
-
-# 检查消费者状态
-rabbitmqctl list_channels consumer_count
+rabbitmqctl list_queues name messages_ready messages_unacknowledged consumers
 ```
 
-**解决**：
-- 增加消费者数量
-- 优化消费者处理速度
-- 检查是否有消费者卡死（未 ack）
-- 增大 Prefetch
+同一个「队列堆积」现象，这三列的组合会把排查方向引向不同的环节。
 
-## 2. 消息丢失
+- `consumers` 为 0，说明当前队列没有注册消费者。先检查消费者进程是否存活、连接是否建立，再确认它声明的队列名、路由键与生产者是否一致。队列里消息再多，此时也应先排查消费端。
+- `consumers` 大于 0、`messages_unacknowledged` 基本为 0、`messages_ready` 上涨，说明消息进入队列的速度可能超过实际消费速度，再结合投递速率和处理耗时确认原因。
+- `messages_unacknowledged` 持续上涨，说明消息已投递但尚未确认。结合持续时间、处理耗时和确认速率，判断是消费变慢还是确认卡住，再排查消费者线程阻塞、外部依赖超时等可能原因。
 
-**症状**：消息发了但消费者没收到。
+单次快照只能反映当前状态，对同一队列间隔采样几次，才能确认消息是否在持续堆积。
 
-**排查链路**：
+## 2. 消息堆积
+
+堆积是结果不是原因。确认是第 1 节里的哪种组合后，分别处理。
+
+**没有消费者**。先确认消费者进程是否存活，再确认它声明的队列名、路由键与生产者是否一致。如果生产者和消费者都声明同一个队列，但队列的持久化属性等声明参数不一致，RabbitMQ 会返回 `PRECONDITION_FAILED` 并关闭该信道，而不是建立不了 TCP 连接。检查服务端日志和客户端异常，确认双方声明一致。
+
+**消费者太慢**。先判断是单条处理速度不足，还是消费并发不够，再决定优化处理逻辑还是横向加消费者。`prefetch` 不改变单条业务处理速度，它决定消费者最多同时持有的未确认消息数。把 `prefetch` 从 1 调到 100 不会让处理变快，只是让更多消息滞留在消费者端。先测出单个消费者的真实处理速率，再决定加几个消费者。
+
+**未确认消息持续增加**。`messages_unacknowledged` 只涨不降时，去查消费者线程栈和它的外部依赖。如果同一批消息反复出现，检查消费者是否持续 nack 或 reject 并选择重新入队，或者连接、信道是否频繁关闭。结合消息的 `redelivered` 标记、死信队列和重试策略，确认是重复投递还是重试循环，而不是简单归因于 TTL 或重试上限没配好。
+
+## 3. 消息丢失
+
+排查消息丢失，先确定消息最后一个能够被证实到达的环节。这个环节只是当前的证据边界，丢失点就在它之后的链路里，再逐段检查确认、路由和存储行为。
+
 ```txt
-Producer → Publisher Confirm → Broker → Queue → Consumer → ACK
+Producer ──confirm──▶ Broker ──存储与路由──▶ Queue ──deliver──▶ Consumer ──ack──▶ 完成
 ```
 
-**检查项**：
-- Publisher Confirm 是否开启？
-- Queue 是否 Durable？消息是否 Persistent？
-- Consumer 是否手动 ACK？
-- 是否有死信队列？
+- Producer 到 Broker。开没开 publisher confirm。没开，生产者不知道消息是否被 broker 接受，发送途中丢失的消息无从发现。publisher confirm 的语义随队列类型不同：持久化消息路由到 durable classic queue 时，确认返回即已落盘；Quorum Queue 则要等多数副本接受并确认。它不代表消费者已经处理了这条消息。
+- Broker 落盘。经典队列要 durable 队列配 persistent 消息，重启后消息才保留，两者缺一不可。只声明 durable 队列、不设 persistent 消息，重启后消息照样丢，这个组合最容易被误认为「已经持久化了」。Quorum Queue 的消息始终持久化，不依赖消息的 persistent 属性。
+- Broker 到 Consumer。ack 模式。自动 ack 下消息一投递就被确认，消费者进程在处理中途崩溃，这条消息不会重投。
+- Consumer 处理。手动 ack 的时机。处理完再 ack，别在取到消息的那一刻就 ack。
 
-## 3. 连接被拒
+优先检查生产者是否收到发布确认，再检查消息是否进入目标队列，最后确认消费者是否处理成功并完成确认，按最后一个可验证的环节缩小范围。
 
-**症状**：客户端报 `connection refused`。
+## 4. 生产者被阻塞
 
-**排查**：
+RabbitMQ 需要区分瞬时流控和资源告警。发布速度超过服务端处理能力时，连接会进入 flow 状态；内存使用超过 `vm_memory_high_watermark`，或可用磁盘低于 `disk_free_limit` 时，节点触发资源告警并阻塞发布连接。现象都是生产者突然发不出消息，连接却还活着。
+
 ```bash
-# 检查端口
-telnet host 5672
-
-# 检查连接数
-rabbitmqctl list_connections
-
-# 检查 max_connections
-rabbitmqctl status | grep connection_limit
+rabbitmq-diagnostics status
+rabbitmq-diagnostics alarms
+rabbitmq-diagnostics memory_breakdown
 ```
 
-## 4. 内存告警
+看 `vm_memory_high_watermark`、`disk_free_limit` 的配置值，再对比 status 输出里的内存与磁盘使用情况，判断是内存告警、磁盘告警还是瞬时流控。
 
-**症状**：生产者被阻塞（flow control）。
+内存告警的根因通常是队列堆积把消息压进了内存。RabbitMQ 4.3 的默认相对内存水位是 0.6，达到后直接阻塞发布连接，不存在先刷盘、到更高水位再阻塞的过程。临时缓解是消费掉堆积消息。把水位调高只是推迟阻塞，不解决堆积，反而让 broker 更晚暴露问题。容器环境还要确认 RabbitMQ 检测到的内存与容器实际限制一致。
 
-**排查**：
+磁盘告警的根因是磁盘空间低于 `disk_free_limit`。这个值默认 50MB，只适合开发环境，对生产过低，磁盘一到阈值 broker 就拒绝写入。解决是清理磁盘或扩容，并按磁盘容量、写入速率和运维响应时间设一个真实的安全余量，让运维在真正写满之前有时间介入。处理后确认告警解除、发布连接不再持续 blocked、发布确认恢复正常，同时观察队列堆积和节点资源变化，避免告警解除后再次触发。
+
+## 5. 连接失败与认证错误
+
+现象都是连不上，但发生在不同协议层，排查路径不同。
+
 ```bash
-# 检查内存使用
-rabbitmqctl status | grep mem_used
-
-# 检查队列内存
-rabbitmqctl list_queues name memory messages
+nc -vz host 5672
 ```
 
-**解决**：
-- 消费堆积的消息
-- 增大 `vm_memory_high_watermark`
-- 清理不必要的 Queue
+TCP 连接失败。`nc -vz` 无法建立 TCP 连接，根据具体错误区分是端口拒绝、连接超时还是网络不可达，再查 broker 是否在监听、监听地址、端口和防火墙规则。配置了 `listeners.tcp` 绑定具体 IP 后，客户端连错 IP 也会失败，这属于配置问题而非 broker 故障。
 
-## 5. 磁盘告警
+TCP 已建立但 AMQP 握手失败。`nc` 能连上，客户端握手却失败，查客户端异常和服务端日志，区分协议不匹配、TLS 配置错误、连接资源不足。连接数接近上限时，先查是泄漏还是真实流量增长，直接调大上限会掩盖泄漏。
 
-**症状**：生产者被阻塞。
+认证或授权失败。错误信息是 `ACCESS_REFUSED` 而不是 refused，这是用户名密码、vhost 权限或具体操作授权的问题，和网络无关。guest 用户默认只允许本地登录，远程用 guest 会得到这个错误。
 
-**排查**：
+## 6. 慢消费者
+
+「慢」和「堆积」的区别在于，慢消费者的队列可能不堆积（流量本身低），但单条消息端到端延迟高。排查重点在消费者自身的处理链路。
+
+- 消费者日志里单条处理耗时的分布。
+- 外部依赖的延迟，数据库慢查询、API 超时。
+- prefetch 是否过低限制了消费者的在途消息数量。手动确认模式下，prefetch 为 1 意味着消费者最多持有一条未确认消息，处理完成并 ack 后 broker 才能投递下一条。处理快、网络延迟相对高时，这个确认往返的空窗占比可观，可能限制吞吐。可在观察处理耗时、确认速率的同时逐步调高 prefetch 并压测。
+
+## 7. 网络分区
+
+集群节点互相认为对方失联时，队列行为和单机完全不同。RabbitMQ 4.3 起集群元数据与 Quorum Queue 都基于 Raft，判断分区要结合节点可达性和多数派状态，不再依赖旧版的 `partitions` 字段。具体处理策略见[网络分区](../07-clustering/chapter-04-network-partition.md)。
+
 ```bash
-# 检查磁盘空间
-df -h
-
-# 检查 RabbitMQ 磁盘限制
-rabbitmqctl status | grep disk_free
+rabbitmq-diagnostics cluster_status
+rabbitmq-queues quorum_status <queue>
 ```
 
-## 6. 网络分区
+`cluster_status` 列出可达节点，不可达节点会从列表中缺失。`quorum_status` 查看指定队列的领导者与副本状态。
 
-**症状**：集群节点互相不可达。
-
-**排查**：
-```bash
-rabbitmqctl cluster_status
-# 检查 partitions 字段
-```
-
-**解决**：参考 [网络分区](../07-clustering/chapter-04-network-partition.md) 章节。
-
-## 7. 慢消费者
-
-**症状**：消息处理延迟高。
-
-**排查**：
-- 检查消费者日志
-- 检查外部依赖（数据库、API）延迟
-- 检查 Prefetch 设置
-
-**解决**：
-- 增加消费者并发
-- 优化处理逻辑
-- 增大 Prefetch
+分区时不要先想着修数据，先确认自己处在多数派还是少数派。多数派上需要共识的操作可以正常推进；少数派失去多数派后，这些操作（如写入）无法推进，别在少数派上做写操作，等网络恢复后再处理。
