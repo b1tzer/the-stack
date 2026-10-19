@@ -29,7 +29,7 @@ filter {
 output {
   elasticsearch {
     hosts => ["localhost:9200"]
-    index => "logs-%{+YYYY.MM.dd}"
+    index => "logs-%{+yyyy.MM.dd}"
   }
 }
 ```
@@ -38,14 +38,23 @@ output {
 
 ```yaml
 filebeat.inputs:
-  - type: log
+  - type: filestream
+    id: app-logs
     paths:
       - /var/log/*.log
+    parsers:
+      - multiline:
+          type: pattern
+          pattern: '^\d{4}-\d{2}-\d{2}'
+          negate: true
+          match: after
 
 output.elasticsearch:
   hosts: ["localhost:9200"]
   index: "filebeat-%{+yyyy.MM.dd}"
 ```
+
+Filebeat 推荐使用 `filestream` 输入（`log` 输入自 7.16 起弃用、9.0 起默认禁用），多行日志通过 `parsers` 里的 `multiline` 完成合并。自定义 `index` 会覆盖默认索引名，此时需协调 ILM、索引模板与写别名，避免索引名与生命周期策略冲突。详见 [索引生命周期管理](../02-indexing/chapter-05-index-management.md)。
 
 ## 4. Kibana
 
@@ -71,29 +80,24 @@ filter {
     json { source => "message" }
   }
 
-  # 解析 Java 异常堆栈
-  multiline {
-    pattern => "^%{TIMESTAMP_ISO8601}"
-    negate => true
-    what => "previous"
-  }
+  # Java 异常堆栈等多行日志应在 Filebeat 端用 multiline 合并后再送入；
+  # Logstash 的 multiline 是 codec 而非 filter，不能在这里按行合并。
 
   # GeoIP 解析
   if [client_ip] {
     geoip { source => "client_ip" }
   }
 
-  # 日期解析
+  # 日期解析：默认写入 @timestamp，字段缺失或格式不匹配时产生 _dateparsefailure 标签
   date {
     match => ["timestamp", "ISO8601", "yyyy-MM-dd HH:mm:ss"]
-    target => "@timestamp"
   }
 }
 
 output {
   elasticsearch {
     hosts => ["es01:9200", "es02:9200"]
-    index => "app-logs-%{+YYYY.MM.dd}"
+    index => "app-logs-%{+yyyy.MM.dd}"
     user => "elastic"
     password => "${ES_PASSWORD}"
   }
@@ -107,12 +111,12 @@ output {
 | Filebeat → ES | 简单日志采集 | 轻量，无需 Logstash |
 | Filebeat → Logstash → ES | 需要复杂处理 | Logstash 做过滤和转换 |
 | Filebeat → Kafka → Logstash → ES | 大规模日志 | Kafka 削峰填谷 |
-| Filebeat → Kafka → ES | 大规模，简单处理 | 跳过 Logstash |
+| Filebeat → Kafka → Kafka Connect → ES | 大规模，无需复杂处理 | 跳过 Logstash，由 Kafka Connect 写入 ES |
 
 ## 7. 最佳实践
 
 - 日志采集使用 Filebeat，比 Logstash 资源消耗小
-- 大规模场景引入 Kafka 作为缓冲层
-- 索引按日期滚动：`logs-YYYY.MM.dd`，配合 ILM 自动清理
-- Logstash 多实例部署，通过 Kafka 实现负载均衡
-- 生产环境 ES 集群至少 3 节点，配置专用 Master 节点
+- 大规模场景引入 Kafka 作为缓冲层，它提供缓冲与解耦，不自动保证端到端不丢数据
+- 索引按日期滚动：`logs-yyyy.MM.dd`，配合 ILM 自动清理
+- Logstash 多实例部署，经 Kafka 分区与消费组横向扩展，并行度受分区数约束
+- 高可用部署通常 3 个 master-eligible 节点起步，是否配置专用 Master 节点取决于集群规模与负载
