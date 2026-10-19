@@ -10,6 +10,7 @@
 | 字段类型、分词或中文检索不符合预期 | [Mapping](./02-indexing/chapter-02-mapping.md) |
 | 查询结果不准确或分页异常 | [Query DSL](./03-search/chapter-01-query-dsl.md) |
 | 聚合结果慢或内存占用过高 | [聚合优化](./04-aggregation/chapter-04-agg-optimization.md) |
+| 写入或查询性能不佳 | [性能优化](./08-performance/chapter-01-index-optimization.md) |
 | 集群恢复缓慢、磁盘压力或升级异常 | [故障排查](./07-operations/chapter-06-troubleshooting.md) |
 
 ## 按目录浏览
