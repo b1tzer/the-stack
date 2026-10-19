@@ -16,12 +16,12 @@ Redis 的核心是单线程执行命令：同一时刻只有一个命令在执�
 
 | 因素 | 说明 |
 | :-- | :-- |
-| 纯内存操作 | 数据都在内存，瓶颈不在 CPU，而在内存与网络 |
-| 无锁无切换 | 单线程避免线程切换与锁竞争，CPU 不空转 |
+| 纯内存操作 | 数据都在内存，多数场景瓶颈在内存与网络，而非 CPU 计算 |
+| 无锁无切换 | 单线程避免命令执行路径上的线程切换与锁竞争开销 |
 | IO 多路复用 | 一个线程通过 epoll 同时监听成千上万个连接 |
 | 高效数据结构 | SDS、跳表、字典等，多数操作 O(1)/O(log n) |
 
-**单线程的边界**：单线程意味着**慢命令会阻塞所有其他请求**。一个耗时 1 秒的命令，会让整个 Redis 停顿 1 秒。所以 Redis 的优化核心是「避免慢命令」（见 [命令与 RESP](./chapter-02-command-resp.md) 与 [性能](../04-operations/chapter-04-performance.md)）。
+**单线程的边界**：单线程意味着**慢命令会阻塞所有其他请求**。一个耗时 1 秒的命令，会让事件循环阻塞 1 秒，期间其他命令无法执行。所以 Redis 的优化核心是「避免慢命令」（见 [命令与 RESP](./chapter-02-command-resp.md) 与 [性能](../04-operations/chapter-04-performance.md)）。
 
 > 辅助线程：虽然命令执行是单线程，但 Redis 有多个后台线程处理耗时操作——AOF 刷盘、UNLINK 异步删除大 Key、Lazy Free 惰性释放，这些不阻塞命令执行。
 
@@ -35,14 +35,14 @@ sequenceDiagram
     participant M as Redis 主线程
     participant IO as IO 线程
 
-    C->>M: SET key value
-    M->>IO: 分发给 IO 线程
-    IO->>IO: 解析命令
-    IO-->>M: 返回解析结果
+    C->>M: 客户端连接出现可读事件
+    M->>IO: 分配读任务给 IO 线程
+    IO->>IO: 读取数据并解析命令
+    IO-->>M: 完成读取与解析
     M->>M: 执行 SET（单线程）
     M->>M: AOF 追加
     M->>M: 复制传播
-    M->>IO: 分发给 IO 线程
+    M->>IO: 分配写任务给 IO 线程
     IO->>IO: 写回响应
     IO-->>M: 写回完成
     M-->>C: OK
@@ -84,8 +84,9 @@ Redis 自己封装了一个轻量级事件库 `ae`，对不同平台的 IO 多�
 // ae.c 核心结构
 typedef struct aeEventLoop {
     int maxfd;                    // 当前最大 fd
-    aeFileEvent events[AE_SETSIZE]; // 注册的事件表
-    aeFiredEvent fired[AE_SETSIZE]; // 就绪事件表
+    int setsize;                  // 事件表容量（可追踪的最大 fd 数）
+    aeFileEvent *events;          // 注册的事件表（动态分配）
+    aeFiredEvent *fired;          // 就绪事件表（动态分配）
     aeTimeEvent *timeEventHead;   // 定时事件链表
     int stop;
     void *apidata;               // 平台特定数据（epoll/kqueue）
@@ -98,10 +99,11 @@ typedef struct aeEventLoop {
 void aeMain(aeEventLoop *eventLoop) {
     eventLoop->stop = 0;
     while (!eventLoop->stop) {
-        // 1. 执行定时事件（过期删除、serverCron）
+        // aeProcessEvents 内部依次完成：
+        // 1. 调用 aeApiPoll（封装 epoll_wait）等待 IO 事件
+        // 2. 就绪事件分发到对应处理器
+        // 3. 处理到期的定时事件（过期删除、serverCron）
         aeProcessEvents(eventLoop, AE_ALL_EVENTS);
-        // 2. 调用 aeApiPoll（封装 epoll_wait）等待 IO 事件
-        // 3. 就绪事件分发到对应处理器
     }
 }
 ```
@@ -145,9 +147,9 @@ Redis 6.0 引入了多线程网络 IO，但**命令执行仍然是单线程**。
 
 ### 5.1 瓶颈在哪
 
-单线程模型下，网络 IO 的读写（`read`/`write`）本身也是 CPU 密集操作。当连接数多、吞吐量大时，解析协议、写回响应会占满单核 CPU，成为瓶颈。
+单线程模型下，网络 IO 的读写（`read`/`write`）与协议解析同样要占用主线程的 CPU 时间。当连接数多、吞吐量大时，解析协议、写回响应会占满单核 CPU，成为瓶颈。
 
-> Redis 作者 antirez 在 2019 年公开表示「IO 多线程不会做，因为多数部署瓶颈在网络和内存，而非 CPU」，但随后的实测推翻了这一判断：`read`/`write` 系统调用占用了单核 CPU 的大量时间。这正是 6.0 落地多线程 IO 的直接原因。
+> Redis 作者 antirez 在 2019 年公开表示「IO 多线程不会做，因为多数部署瓶颈在网络和内存，而非 CPU」，但随后的实测发现，高吞吐下 `read`/`write` 系统调用与协议解析占用了单核 CPU 的大量时间。这是 6.0 引入多线程 IO 的重要动因。
 
 ### 5.2 改进方案
 

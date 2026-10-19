@@ -35,11 +35,11 @@ PFMERGE dest uv:1 uv:2                # 合并多个 HLL
 
 | 特性 | 说明 |
 | :-- | :-- |
-| 内存占用 | 固定 12KB，与元素数量无关 |
+| 内存占用 | 最坏约 12KB，与元素数量无关 |
 | 标准误差 | 约 0.81% |
 | 适用场景 | 允许误差的大规模去重计数 |
 
-**对比**：用 Set 统计 1 亿 UV 需要数 GB 内存，HyperLogLog 只需 12KB，代价是约 0.81% 的标准误差（Redis 官方文档）。当「精确」不是刚需而「规模」是刚需时，HyperLogLog 是首选。
+**对比**：用 Set 统计 1 亿 UV 需要数 GB 内存，HyperLogLog 最坏只需约 12KB，代价是约 0.81% 的标准误差（Redis 官方文档）。当「精确」不是刚需而「规模」是刚需时，HyperLogLog 是首选。
 
 > HyperLogLog 只能估算基数，不能返回具体元素。如果需要「去重后还能取出元素」，请用 Set。
 
@@ -60,7 +60,7 @@ GEOSEARCH cities FROMMEMBER "北京" BYRADIUS 1000 km   # 附近查询
 - **配送范围**：判断地址是否在配送半径内
 - **地理位置检索**：结合距离排序
 
-**底层原理**：Redis 用 Geohash 算法把二维坐标（经度、纬度各 26 位）交织成一个 52 位整数，直接作为 ZSet 的 score 存储，精度约 0.6 米。所以 Geo 天然继承了 ZSet 的「范围查询 O(log n)」能力。
+**底层原理**：Redis 用 Geohash 算法把二维坐标（经度、纬度各 26 位）交织成一个 52 位整数，直接作为 ZSet 的 score 存储，精度约 0.6 米。Geo 复用 ZSet 的有序索引，但地理区域查询不等同于普通 ZSet 范围查询，`GEOSEARCH` 的时间复杂度为 O(N + log M)（N 为边界框内元素数，M 为匹配元素数）。
 
 两点精度相关的限制（Redis 官方文档）：坐标纬度限制在 ±85.05112878° 内，极地附近无法索引；距离计算用 Haversine 公式、假设地球为球体，最坏情况误差约 0.5%。
 
@@ -97,15 +97,19 @@ jedis.xadd("mystream", StreamEntryID.NEW_ENTRY,
 // 消费者（消费者组）
 jedis.xgroupCreate("mystream", "mygroup", new StreamEntryID("0-0"), true);
 
-List<StreamEntry> entries = jedis.xreadGroup(
+List<Map.Entry<String, List<StreamEntry>>> streams = jedis.xreadGroup(
     "mygroup", "consumer1",
     XReadGroupParams.xReadGroupParams().count(1).block(5000),
     Map.of("mystream", new StreamEntryID(">"))
 );
 
-for (StreamEntry entry : entries) {
-    System.out.println("收到：" + entry.getFields());
-    jedis.xack("mystream", "mygroup", entry.getID());
+if (streams != null) {
+    for (Map.Entry<String, List<StreamEntry>> stream : streams) {
+        for (StreamEntry entry : stream.getValue()) {
+            System.out.println("收到：" + entry.getFields());
+            jedis.xack("mystream", "mygroup", entry.getID());
+        }
+    }
 }
 ```
 
@@ -131,7 +135,7 @@ for (StreamEntry entry : entries) {
 
 | 类型 | 底层 | 核心命令 | 典型场景 | 关键限制 |
 | :-- | :-- | :-- | :-- | :-- |
-| BitMap | String | `SETBIT`/`BITCOUNT` | 签到、在线状态 | 偏移量需连续 |
+| BitMap | String | `SETBIT`/`BITCOUNT` | 签到、在线状态 | 偏移量宜密集，内存取决于最大偏移量 |
 | HyperLogLog | String | `PFADD`/`PFCOUNT` | UV 统计 | 0.81% 误差、不可取元素 |
 | Geo | ZSet | `GEOADD`/`GEOSEARCH` | 附近的人、配送 | 约 0.6 米（52 位 Geohash） |
 | Stream | Radix Tree | `XADD`/`XREADGROUP` | 消息队列 | 需消费者组管理 |

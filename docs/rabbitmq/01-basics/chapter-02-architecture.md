@@ -34,6 +34,8 @@
     └─────────┘                                └─────────┘
 ```
 
+> 上图是简化示意，Erlang Runtime 区中的组件归属并不统一。Mnesia 是元数据存储后端，负责 vhost、Exchange、Queue、Binding 等元数据，并非 Classic Queue 独有（RabbitMQ 4.2 起新部署默认改用 Khepri，4.3 起移除 Mnesia）。ETS 与 Per-Queue Process 则主要对应 Classic Queue 的实现。Quorum Queue 与 Stream 采用不同的存储与复制机制，详见第 6 节。
+
 ## 2. 连接与 Channel
 
 ### 2.1 为什么需要 Channel
@@ -78,8 +80,8 @@ executor.submit(() -> {
 | :-- | :-- | :-- |
 | heartbeat | 60s | 心跳间隔，检测连接存活 |
 | channel_max | 2047 | 每个连接最大 Channel 数 |
-| frame_max | 131072 | AMQP 帧最大大小 |
-| connection_timeout | 无限 | 连接超时（ms） |
+| frame_max | 131072 | AMQP 帧最大大小（Broker 默认；Java 客户端默认 0 表示不限） |
+| connection_timeout | 60s | 连接超时（Java 客户端默认值） |
 
 **heartbeat 调优**：生产环境建议 30-60s。太短会误判（网络抖动导致断连），太长检测死连接慢。
 
@@ -103,9 +105,9 @@ vhost: /payment
 
 - 多租户隔离：不同业务/团队使用不同 vhost
 - 权限控制：用户只能访问被授权的 vhost
-- 资源隔离：一个 vhost 的问题不影响其他 vhost
+- 逻辑隔离：同一 Broker 上的不同 vhost 仍共享 CPU、内存、磁盘等底层资源
 
-**注意**：vhost 之间完全隔离，Exchange 和 Queue 不能跨 vhost 绑定。
+**注意**：vhost 提供的是逻辑命名空间与权限隔离，不是物理资源隔离。某个 vhost 消息大量堆积，仍可能触发 Broker 级内存告警或生产者流控，影响其他 vhost。需要强隔离时应评估独立节点或集群部署。Exchange 和 Queue 也不能跨 vhost 绑定。
 
 ## 4. 消息流转全链路
 
@@ -115,14 +117,15 @@ vhost: /payment
 1. Producer 创建连接 → 创建 Channel
 2. Channel.basicPublish(exchange, routingKey, properties, body)
 3. Broker 收到消息：
-   a. 根据 exchange 名找到 Exchange 进程
+   a. 根据 exchange 名找到 Exchange 并执行路由逻辑
    b. Exchange 根据 routing key + binding 规则查找目标 Queue
-   c. 消息写入 Queue（持久化到磁盘，如果 Durable）
-   d. 返回 Publisher Confirm（如果开启了 confirm 模式）
+   c. 消息被路由到目标 Queue
+   d. 持久化取决于队列类型：Classic Queue 需队列 Durable 且消息标记为 Persistent 才持久化；Quorum Queue 天然持久化
+   e. 返回 Publisher Confirm（如果开启了 confirm 模式）
 4. Consumer.basicConsume(queue, autoAck, callback)
 5. Broker 将消息投递给 Consumer（Push 模式）
 6. Consumer 处理完成后 basicAck / basicNack
-7. Broker 收到 ACK 后从 Queue 中删除消息
+7. Broker 收到 ACK 后，消息具备被删除的条件（实际物理删除时机由存储实现决定）
 ```
 
 ### 4.1 消息属性
@@ -141,19 +144,19 @@ AMQP.BasicProperties props = new AMQP.BasicProperties.Builder()
 
 | 属性 | 说明 | 常用场景 |
 | :-- | :-- | :-- |
-| deliveryMode | 1=非持久化，2=持久化 | 生产环境必须为 2 |
+| deliveryMode | 1=非持久化，2=持久化 | 需要持久化时为 2，Quorum Queue 天然持久化 |
 | contentType | 内容类型 | application/json |
 | correlationId | 关联 ID | RPC 模式匹配请求和响应 |
 | replyTo | 回复队列 | RPC 模式 |
-| expiration | 消息 TTL | 延迟消息（单条级别） |
-| priority | 消息优先级 | 优先级队列 |
+| expiration | 消息 TTL（存活期限） | 配合队列 TTL 或延迟插件实现延迟投递 |
+| priority | 消息优先级 | 需目标队列启用优先级特性才生效 |
 | headers | 自定义头 | 死信路由、延迟消息插件 |
 
 ## 5. Erlang 进程模型
 
 RabbitMQ 基于 Erlang/OTP 构建，这决定了它的几个核心特性：
 
-**每个 Queue 是一个 Erlang 进程**：
+**Classic Queue 的每个队列是一个 Erlang 进程**：
 
 ```txt
 Queue A → Erlang Process (独立调度)
@@ -161,53 +164,68 @@ Queue B → Erlang Process (独立调度)
 Queue C → Erlang Process (独立调度)
 ```
 
-- 每个 Queue 独立调度，互不阻塞
+- 每个 Classic Queue 有独立的 Erlang 进程，但进程之间仍共享 CPU、调度器与磁盘等资源，并非完全互不影响
 - Erlang 的轻量级进程（不是 OS 线程）可以轻松创建数万个
-- 这就是为什么 RabbitMQ 能支持大量 Queue 而不掉性能
+
+> 这一模型描述的是 Classic Queue。Quorum Queue 和 Stream 同样基于 Erlang 进程，但采用 Raft 复制和分段日志等不同机制，不能简单套用上述模型。
 
 **Erlang 调度器**：
 
 - 每个 CPU 核心一个调度器
-- 调度器在进程间公平切换，避免某个 Queue 独占 CPU
-- 这是 RabbitMQ 微秒级延迟的底层原因
+- 调度器在进程间切换，减少某个 Queue 长时间独占 CPU
 
 **ETS（ETS Table）**：
 
-- Erlang 的内存表，用于存储热数据（如 Queue 的消息索引）
-- 读写都是 O(1)，无锁（进程内操作）
+- Erlang 的内存表，用于存储 RabbitMQ 内部的各类元数据
+- 注意：消息体本身不直接存在 ETS 中，消息的存放位置取决于队列类型，见第 6 节
 
 ## 6. 存储引擎
 
 ### 6.1 消息存储路径
 
+不同队列类型的存储机制差异很大。以下描述的是 Classic Queue（v1，普通队列）的行为，Quorum Queue 和 Stream 采用不同的存储方式。
+
 ```txt
-消息进入 Queue
-  ├─ 小消息（< 4KB）→ 直接写入 Queue 的 ETS 表（内存）
-  └─ 大消息（≥ 4KB）→ 写入消息存储文件（磁盘），Queue 中存引用
+消息进入 Classic Queue（v1）
+  ├─ 小消息（< queue_index_embed_msgs_below，默认 4096 字节）
+  │    → 消息体直接嵌入队列索引，不单独写消息存储文件
+  └─ 大消息（≥ 4096 字节）
+       → 消息体写入消息存储文件（msg_store），队列索引中只存引用
 ```
+
+注意三点：其一，`queue_index_embed_msgs_below` 是可配置项，默认 4096，并非固定阈值；其二，本节描述的 Classic Queue v1 已在 RabbitMQ 4.0 移除，此处保留是为理解版本演进；其三，Classic Queue v2（RabbitMQ 3.10 引入，3.12 显著改进）改用每队列独立文件存储，不再使用共享的 msg_store。
 
 ### 6.2 持久化机制
 
 ```txt
 Queue 声明为 Durable + 消息标记为 Persistent
-  → 消息写入磁盘（msg_store_persistent）
-  → Queue 元数据写入 Mnesia
+  → 消息写入磁盘
+  → Queue 元数据写入元数据存储（Mnesia，或 RabbitMQ 4.2 起的 Khepri）
   → Broker 重启后自动恢复
 ```
 
-**注意**："持久化"不等于"不丢消息"。消息写入磁盘是异步的（批量刷盘），如果在写入前 Broker 崩溃，消息会丢。要实现真正的不丢消息，需要 Publisher Confirm + Durable + Manual ACK 的组合。
+**注意**："持久化"不等于"不丢消息"。以 Classic Queue 为例，消息写入磁盘是异步批量刷盘的，写入前 Broker 崩溃仍可能丢消息；Quorum Queue 需要消息被多数副本确认后才返回确认，数据安全保证更强。
+
+要降低丢失风险，需要生产端、Broker 存储端、消费端三段配合：
+
+- 生产端：开启 Publisher Confirm，确认超时后重发可能产生重复消息
+- Broker 端：Queue 声明 Durable + 消息标记 Persistent
+- 消费端：关闭 autoAck，处理成功后再 basicAck
+
+即便三者齐备，也不能承诺绝对不丢。以 Classic Queue 持久消息为例，Broker 在消息持久化到磁盘后才发送 Publisher Confirm，Quorum Queue 则在多数副本接受后才确认；真正的风险窗口在确认到达之前，此时连接故障会让生产者无法判断消息是否已被接收，重发就可能产生重复。此外，消费者处理成功但 ACK 丢失时消息会重新投递，业务侧仍需幂等处理。
 
 ### 6.3 内存管理
 
 | 参数 | 说明 |
 | :-- | :-- |
 | `vm_memory_high_watermark` | 内存高水位（默认 0.6），超过后阻塞生产者 |
-| `vm_memory_high_watermark_paging_ratio` | 开始换页的内存比例（默认 0.5） |
+| `vm_memory_high_watermark_paging_ratio` | 开始换页的内存比例（默认 0.5），仅 Classic Queue v1 适用 |
 | `disk_free_limit` | 磁盘低水位（默认 50MB），低于后阻塞生产者 |
 
-当内存使用率达到高水位时，RabbitMQ 会：
-1. 阻塞所有生产者（flow control）
-2. 将内存中的消息换页到磁盘
-3. 内存降到安全水位后恢复生产者
+这里有两个独立机制，不要混为一谈：
 
-这就是为什么消息堆积会导致性能下降：大量消息从内存换页到磁盘，消费时需要重新读磁盘。
+**内存告警与流控**：内存使用率达到 `vm_memory_high_watermark` 后，Broker 阻塞发布消息的连接（flow control），告警解除后恢复。这是 Broker 级的保护机制。
+
+**队列换页**：Classic Queue v1 在内存达到 `vm_memory_high_watermark_paging_ratio` 时开始把内存中的消息换页到磁盘，无需等到高水位才触发。该参数不适用于 Classic Queue v2、Quorum Queue 和 Stream。
+
+对 Classic Queue v1 而言，消息堆积会导致大量消息从内存换页到磁盘，消费时需要重新读磁盘，性能随之下降；Quorum Queue 和 Stream 则有各自的存储 I/O 与积压成本。

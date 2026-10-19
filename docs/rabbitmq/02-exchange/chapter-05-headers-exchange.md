@@ -16,14 +16,18 @@ Producer ──headers: {format=pdf, type=report}──▶ Headers Exchange
                                     type=report)        lang=en)
 ```
 
-路由依据是消息的 `headers` 属性，而不是 routing key。
+消息是否路由到某个队列，取决于其 headers 是否满足该队列绑定时声明的匹配条件，而不是 routing key。
 
 ## 2. 匹配模式
 
 | x-match | 含义 |
 | :-- | :-- |
-| `all` | 所有 header 键值对都匹配（AND） |
-| `any` | 任一 header 键值对匹配（OR） |
+| `all` | 绑定中所有参与匹配的 header 条件均满足（AND） |
+| `any` | 绑定中至少一个参与匹配的 header 条件满足（OR） |
+| `all-with-x` | 同 `all`，但把以 `x-` 开头的匹配项也纳入匹配（RabbitMQ 3.7.0+） |
+| `any-with-x` | 同 `any`，但把以 `x-` 开头的匹配项也纳入匹配（RabbitMQ 3.7.0+） |
+
+`x-match` 是绑定参数中的控制字段，其余键值对才是参与匹配的条件。匹配时，绑定参数中的 header 值与消息对应 header 的值比较，类型也参与比较，例如整数 `1` 与字符串 `"1"` 不相等。在 `all`/`any` 模式下，绑定参数中以 `x-` 开头的匹配项（如 `x-trace-id`）不参与匹配，避免追踪类 header 干扰路由。
 
 ```java
 // 声明 Headers Exchange
@@ -63,6 +67,6 @@ channel.basicPublish("report.exchange", "", props, body);
 
 ## 5. 为什么少用
 
-Headers Exchange 的匹配性能比 Direct/Topic 差（需要逐个比较 header 键值对），且配置更复杂。大多数场景用 Topic Exchange + 设计良好的 routing key 就能解决。
+Headers Exchange 支持多个 header 的 AND/OR 匹配，但规则配置和排查比简单的 routing key 路由更复杂。实际路由开销取决于绑定条件数量、匹配规则与消息属性，性能敏感场景应在目标负载下基准测试。大多数能用简单 routing key 表达的场景，优先考虑 [Topic Exchange](./chapter-03-topic-exchange.md)。
 
-**替代方案**：如果只需要一两个维度，用 Topic Exchange 更简单。只有在需要多维度组合匹配时才考虑 Headers Exchange。
+**替代方案**：需要精确匹配 routing key 时优先考虑 Direct Exchange，需要 `*`/`#` 模式匹配时考虑 Topic Exchange，只有需要按多个 header 条件组合匹配时才考虑 Headers Exchange。

@@ -39,7 +39,7 @@ SET a 1
 INCR a            # OK，入队
 INCR b            # OK，入队（b 不存在，执行时会自动初始化为 0 再 incr）
 EXEC
-# 返回：OK, 1, 1（全部成功）
+# 返回：OK, 2, 1（全部成功）
 
 MULTI
 SET a 1
@@ -58,7 +58,7 @@ Redis 事务**不支持回滚**：执行到一半出错，前面已执行的命�
 | :-- | :-- |
 | 性能 | 回滚需要记录操作前的状态，增加内存和 CPU 开销 |
 | 简单 | Redis 追求简单，回滚逻辑复杂且容易出 bug |
-| 实际需要少 | 大部分 Redis 操作是幂等的，出错重试即可 |
+| 设计取向 | Redis 不维护用于撤销已执行命令的回滚机制；出错后是否重试取决于命令语义及客户端能否确认操作是否已执行 |
 
 ## 2. WATCH 乐观锁
 
@@ -97,7 +97,7 @@ WATCH key → 读取值 → 修改 → EXEC
 
 ## 3. Lua 脚本
 
-Lua 脚本在 Redis 服务端执行，整个过程原子，中间不会被其他命令打断。
+Lua 脚本在 Redis 服务端执行，整个过程原子，中间不会被其他命令打断。这里的「原子」指执行期间不插入其他命令，不等于出错会自动回滚：脚本中途报错时，已执行的写入不会撤销。
 
 ### 3.1 基本用法
 
@@ -112,6 +112,8 @@ SCRIPT LOAD "return redis.call('get', KEYS[1])"
 EVALSHA "4e6d8fc8bb01276962cce5371fa795a7763657ae" 1 mykey
 ```
 
+> 脚本缓存不持久：服务重启或故障切换后缓存会丢失，客户端收到 `NOSCRIPT` 错误时应重新 `SCRIPT LOAD`。
+
 ### 3.2 redis.call 与 redis.pcall
 
 | 方法 | 区别 |
@@ -121,9 +123,13 @@ EVALSHA "4e6d8fc8bb01276962cce5371fa795a7763657ae" 1 mykey
 
 ```lua
 -- 原子扣减库存
-local stock = tonumber(redis.call('get', KEYS[1]))
-if stock == nil then
+local raw = redis.call('get', KEYS[1])
+if raw == false then
     return -1  -- key 不存在
+end
+local stock = tonumber(raw)
+if stock == nil or stock % 1 ~= 0 then
+    return -2  -- 库存值非法，必须是整数
 end
 if stock > 0 then
     redis.call('decr', KEYS[1])
@@ -150,14 +156,15 @@ end
 ```lua
 local key = KEYS[1]
 local limit = tonumber(ARGV[1])
-local window = tonumber(ARGV[2])
-local now = tonumber(ARGV[3])
+local window = tonumber(ARGV[2])    -- 窗口长度，单位秒
+local now = tonumber(ARGV[3])       -- 当前时间戳，单位毫秒
+local member = ARGV[4]              -- 本次请求的唯一标识
 
-redis.call('ZREMRANGEBYSCORE', key, 0, now - window)
+redis.call('ZREMRANGEBYSCORE', key, 0, now - window * 1000)
 local count = redis.call('ZCARD', key)
 if count < limit then
-    redis.call('ZADD', key, now, now)
-    redis.call('EXPIRE', key, window)
+    redis.call('ZADD', key, now, member)  -- score 存时间戳，member 必须唯一
+    redis.call('EXPIRE', key, window)     -- TTL 用秒，与窗口长度一致
     return 1
 else
     return 0
@@ -183,7 +190,6 @@ return id
 | 原子执行 | 脚本执行期间不被打断，阻塞其他命令 |
 | 不要写长时间脚本 | 阻塞主线程，导致所有客户端超时 |
 | 集群限制 | 脚本内所有 key 必须在同一个槽（用哈希标签） |
-| 随机命令限制 | 集群下脚本内不能访问其他槽的 key |
 | 脚本复用 | 用 `SCRIPT LOAD` + `EVALSHA` 避免重复传输脚本内容 |
 
 ### 3.5 脚本调试
@@ -234,4 +240,4 @@ redis-cli --ldb --eval script.lua key1 key2 , arg1 arg2
 | 需要乐观锁（低冲突） | WATCH + 事务 |
 | 需要乐观锁（高冲突） | Lua 脚本 |
 
-> 三者经常被混淆。记住：Pipeline 是网络优化，事务是命令打包，Lua 是服务端编程。Pipeline 不保证原子性，事务不做条件判断，Lua 两者都能做但会阻塞主线程。
+> 三者经常被混淆。记住：Pipeline 是网络优化，事务是命令打包，Lua 是服务端编程。Pipeline 不保证原子性，事务内部不能写 if/else 分支，条件判断靠 WATCH 乐观锁在 EXEC 时完成，Lua 两者都能做但会阻塞主线程。
