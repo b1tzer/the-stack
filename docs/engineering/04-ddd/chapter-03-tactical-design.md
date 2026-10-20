@@ -37,6 +37,7 @@ public class User {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof User user)) return false;
+        if (id == null || user.id == null) return false;  // 瞬态实体（未分配 ID）不判等
         return Objects.equals(id, user.id);  // 基于 ID 比较
     }
     
@@ -47,15 +48,18 @@ public class User {
 }
 ```
 
+基于 ID 判断相等隐含两个前提：实体标识一旦分配就不再改变；尚未分配 ID 的不同实例（ID 均为 null）不应被视为同一实体。若 ID 可能在对象进入 `HashSet`、`HashMap` 之后才分配或变化，需改用稳定的业务标识，或明确瞬态实体的相等策略。
+
 ## 2. 聚合设计原则
+
+聚合的核心职责是维护领域不变量：任何一次合法状态变更后，聚合内部的数据必须保持一致。事务与并发控制是保障手段，不是聚合本身的定义。以下原则是常见设计倾向，而非无条件适用的硬规则。
 
 | 原则 | 说明 |
 | :-- | :-- |
-| 聚合边界内强一致性 | 聚合内的修改在同一事务中完成 |
-| 聚合间最终一致性 | 聚合之间通过领域事件异步同步 |
+| 聚合边界内强一致性 | 聚合内的修改通常在同一事务中完成，保证不变量成立 |
+| 聚合间最终一致性 | 常见倾向是聚合间通过领域事件异步同步；若业务要求跨聚合即时一致，需明确事务范围或锁定策略 |
 | 通过 ID 引用其他聚合 | 不直接持有其他聚合的引用 |
-| 小聚合 | 聚合越小越好，只包含必须强一致的元素 |
-
+| 小聚合 | 聚合只包含维护不变量所必需、必须强一致的元素 |
 ```java
 // 差：大聚合（Order 持有 Product 引用）
 class Order {
@@ -89,6 +93,7 @@ class OrderLine {
     private Money price;
     
     OrderLine(Long productId, String productName, int quantity, Money price) {
+        if (quantity <= 0) throw new IllegalArgumentException("数量必须为正");
         this.productId = productId;
         this.productName = productName;
         this.quantity = quantity;
@@ -99,8 +104,9 @@ class OrderLine {
 }
 ```
 
-## 3. 领域服务 vs 应用服务
+订单行保存的是下单时确认的商品名称和成交价格快照，后续商品资料或标价变更不应自动改写历史订单；具体规则由交易领域决定。
 
+## 3. 领域服务 vs 应用服务
 | 特性 | 领域服务 | 应用服务 |
 | :-- | :-- | :-- |
 | 位置 | 领域层 | 应用层 |
@@ -124,7 +130,7 @@ public class TransferService {
 @Service
 public class CreateOrderApplicationService {
     private final OrderRepository orderRepo;
-    private final ProductService productService;  // 防腐层，获取商品信息
+    private final ProductService productService;  // 跨上下文获取商品信息
     private final PaymentGateway paymentGateway;
     private final DomainEventPublisher eventPublisher;
     
@@ -141,7 +147,7 @@ public class CreateOrderApplicationService {
         // 3. 持久化
         orderRepo.save(order);
         
-        // 4. 发布领域事件
+        // 4. 发布进程内领域事件（调用发生在事务提交前）
         order.getDomainEvents().forEach(eventPublisher::publish);
         
         return new OrderResult(order.getId(), order.getTotalAmount());
@@ -149,8 +155,9 @@ public class CreateOrderApplicationService {
 }
 ```
 
-## 4. 仓储模式
+示例发布的是进程内领域事件，且 `publish()` 调用发生在事务提交前。若事件需要可靠投递到消息中间件或跨进程消费，不能在业务事务内直接发送，否则事务回滚后消息已发出；这类问题与 Outbox 方案见[领域事件](./chapter-04-domain-events.md)章节。
 
+## 4. 仓储模式
 ```java
 // 仓储接口（领域层定义，不依赖具体实现）
 public interface OrderRepository {
@@ -188,5 +195,7 @@ public class JpaOrderRepository implements OrderRepository {
     }
 }
 ```
+
+上面的 `save()` 是简化示例：`saveAll(items)` 只新增或更新当前订单行，不会自动删除数据库中已存在但已从聚合移除的订单行；根实体与子实体的同步边界由 ORM 映射和仓储实现决定。仓储负责正确保存、加载并重建完整聚合，避免持久化破坏聚合状态；领域不变量由聚合对象自身维护。
 
 > **核心原则**：战术设计的目的是让代码反映业务领域。实体封装业务规则，值对象保证数据完整性，聚合维护一致性边界，领域服务处理跨实体的业务逻辑。
