@@ -4,7 +4,7 @@
 
 ## 新手路径：建立心智模型
 
-如果你刚接触 Kafka，按以下顺序阅读，从"是什么"到"为什么这样设计"，逐步建立完整的心智模型。
+如果你刚接触 Kafka，按以下顺序阅读，从"是什么"到"为什么这样设计"，逐步建立核心机制的心智模型。
 
 | 顺序 | 文档 | 读完后你能回答 |
 | :-- | :-- | :-- |
@@ -15,7 +15,7 @@
 | 5 | [副本与 ISR](../02-core/chapter-04-replication-and-isr.md) | 数据怎么保证不丢、Leader/Follower 怎么同步 |
 | 6 | [ACK 与幂等](../02-core/chapter-05-ack-and-idempotence.md) | 生产者怎么确认消息写成功、怎么去重 |
 
-读完这 6 篇，你对 Kafka 的核心机制就有了系统认知。
+读完这 6 篇，你掌握了 Kafka 的核心数据模型、生产消费流程与基础可靠性机制，足以支撑后续的进阶阅读。
 
 ## 开发者路径：解决实际问题
 
@@ -26,7 +26,7 @@
 | 文档 | 解决什么问题 |
 | :-- | :-- |
 | [消息丢失](../03-reliability/chapter-01-message-loss.md) | 消息在哪个环节丢、怎么防 |
-| [消息去重](../03-reliability/chapter-02-message-dedup.md) | 重复消息怎么来的、怎么消除 |
+| [消息去重](../03-reliability/chapter-02-message-dedup.md) | 重复消息怎么来的、怎么去重 |
 | [消息顺序](../03-reliability/chapter-03-message-ordering.md) | 业务需要有序怎么保证、全局有序的代价 |
 | [Exactly Once](../03-reliability/chapter-04-exactly-once.md) | 事务的完整机制、什么场景才需要 |
 
