@@ -2,7 +2,9 @@
 
 > **一句话记忆口诀**：工厂造不同类型，单例只留一个，建造者拼复杂对象，原型克隆省开销。
 
-## 1. 五种创建型模式一览
+## 1. 创建型模式一览
+
+> GoF 的创建型模式只有五种（工厂方法、抽象工厂、单例、建造者、原型），简单工厂是常见扩展，不属于 GoF 的 23 种经典模式，此处一并列出便于对比。
 
 | 模式 | 核心思想 | 一句话 | 关键词 |
 | :-- | :-- | :-- | :-- |
@@ -23,6 +25,8 @@
 4. **原型模式**：厨房有一份标准配方（原型），每次做菜时复印一份，只改辣度和份量（克隆后修改）。
 
 ## 3. 何时用哪种？决策树
+
+> 这是一棵启发式初筛树，不是严格的模式匹配规则。多个模式可以组合使用（如复杂对象可同时用建造者 + 工厂），直接 new 往往就是最合适的选择。
 
 ```mermaid
 flowchart TD
@@ -58,6 +62,8 @@ flowchart TD
 | **典型例子** | `Calendar.getInstance()` | `Collection.iterator()` | `DocumentBuilderFactory` |
 | **适用场景** | 产品类型少且固定 | 产品类型可能扩展 | 多个维度的产品组合 |
 
+> `Collection.iterator()`：`Collection` 声明 `iterator()`，具体集合（如 ArrayList、HashSet）实现它并返回相应的 Iterator 实现，体现抽象接口定义创建方法、具体实现提供产品的思路。
+
 ### 4.2 单例的 5 种写法对比
 
 | 写法 | 线程安全 | 懒加载 | 防反射 | 防序列化 | 推荐度 |
@@ -68,9 +74,11 @@ flowchart TD
 | 枚举单例 | ✅ | ❌ | ✅ | ✅ | ⭐⭐⭐⭐⭐ |
 | 容器单例 | ✅ | ✅ | — | — | ⭐⭐⭐ |
 
-> **结论**：枚举单例是 Effective Java 推荐的最佳方式，天然防反射和序列化破坏。
+> **结论**：枚举单例是 Effective Java 推荐的方式，天然防反射和序列化破坏，但只适合需要 JVM 级单例语义、不需要继承或普通对象式延迟初始化的场景。枚举在类初始化时即创建，且唯一性受类加载器边界约束；静态内部类是兼顾懒加载的常用替代。
 
 ### 4.3 建造者 vs 构造函数 vs JavaBean
+
+> 下表针对「参数多且可选」的场景；参数少、类型清晰时，构造函数反而更简洁。
 
 | 方式 | 可读性 | 不可变 | 参数校验 | 代码量 |
 | :-- | :-- | :-- | :-- | :-- |
@@ -80,11 +88,13 @@ flowchart TD
 
 ### 4.4 原型模式：深拷贝 vs 浅拷贝
 
-| 方式 | 基本类型 | 引用类型 | 性能 | 安全性 |
+| 方式 | 基本类型 | 引用类型 | 性能 | 引用独立性 |
 | :-- | :-- | :-- | :-- | :-- |
-| 浅拷贝 `clone()` | 复制值 | 复制引用（共享） | 快 | 低 |
-| 深拷贝（序列化） | 复制值 | 递归复制（独立） | 慢 | 高 |
-| 深拷贝（手动） | 复制值 | 递归复制（独立） | 中 | 高 |
+| 浅拷贝 `clone()` | 复制值 | 复制引用（共享） | 快 | 共享引用 |
+| 深拷贝（序列化） | 复制值 | 递归复制（独立） | 慢 | 引用独立 |
+| 深拷贝（手动） | 复制值 | 递归复制（独立） | 中 | 引用独立 |
+
+> `clone()` 默认执行浅拷贝；深拷贝是应用自定义的复制策略（递归复制或序列化），并非 Java 自动提供的统一语义。序列化也不总是通用方案，受类型可序列化性与性能影响。
 
 ## 5. 实战选型代码示例
 
@@ -102,7 +112,7 @@ interface PaymentFactory {
     Payment create();
 }
 
-// 每新增一种支付方式，只需新增一对 Factory + Payment 实现
+// 每新增一种支付方式，新增一对 Factory + Payment 实现，并在注册处登记
 class AlipayFactory implements PaymentFactory {
     public Payment create() { return new Alipay(); }
 }
@@ -112,15 +122,17 @@ Map<String, PaymentFactory> factories = Map.of(
     "alipay", new AlipayFactory(),
     "wechat", new WechatPayFactory()
 );
+// 生产代码需处理未知支付类型：factories.get(type) 对不存在的 key 返回 null
 Payment payment = factories.get("alipay").create();
 payment.pay(new BigDecimal("100"));
 ```
 
-### 5.2 场景二：数据库连接池 — 单例 + 工厂
+### 5.2 场景二：数据库连接池 — 单例
+
+> 下面的枚举只演示「单例访问方式」，不是生产环境连接池管理的推荐方案。生产环境的连接池通常由 Spring 容器管理（默认 singleton 作用域），由容器负责配置外置与销毁。
 
 ```java
 // 连接池全局唯一 → 单例
-// 连接创建逻辑复杂 → 工厂
 public enum DataSourceManager {
     INSTANCE;
 
@@ -174,7 +186,7 @@ jan.setData(janData);
 | **单例** | Bean 默认 `singleton` 作用域 | IoC 容器管理生命周期 |
 | **建造者** | `BeanDefinitionBuilder`、`UriComponentsBuilder` | 构建复杂配置 |
 | **原型** | `scope="prototype"` | 每次获取新实例 |
-| **工厂方法** | `@Bean` 方法 | 工厂方法模式的注解版 |
+| **工厂方法** | `@Bean` 方法 | 工厂式创建，声明 Bean 的创建方式 |
 
 ## 7. 常见误区
 
@@ -188,10 +200,32 @@ public class OrderService {
     public void process() { counter++; }
 }
 
-// ✅ 有状态的类应该用 prototype 或局部变量
+// ✅ 优先避免在共享服务中保存请求级可变状态，把状态放进方法局部变量
+@Component
+public class OrderService {
+    public void process() {
+        int counter = 0; // 状态在方法内，天然无并发共享
+        counter++;
+    }
+}
+
+// 确需「每次调用都拿到新实例」时，用 prototype + ObjectProvider 按需获取。
+// 注意：仅把类标成 prototype 并不生效——prototype Bean 注入 singleton Bean 时，
+// 默认只在注入时创建一次，后续调用不会自动拿到新实例。
 @Scope("prototype")
 @Component
-public class OrderService { ... }
+public class OrderTask { /* 有状态的临时任务对象 */ }
+
+@Component
+public class OrderHandler {
+    private final ObjectProvider<OrderTask> taskProvider;
+    public OrderHandler(ObjectProvider<OrderTask> taskProvider) {
+        this.taskProvider = taskProvider;
+    }
+    public void process() {
+        OrderTask task = taskProvider.getObject(); // 每次调用获取新实例
+    }
+}
 ```
 
 ### 7.2 误区二：简单工厂违反开闭原则
@@ -204,7 +238,7 @@ public Payment create(String type) {
     // 新增银联？改代码！
 }
 
-// ✅ 用注册表 + 工厂方法
+// ✅ 用注册表 + 创建函数，把「产品选择」与「创建分支」解耦
 Map<String, Supplier<Payment>> registry = new ConcurrentHashMap<>();
 registry.put("alipay", Alipay::new);
 registry.put("wechat", WechatPay::new);
@@ -218,7 +252,7 @@ registry.put("wechat", WechatPay::new);
 // 产品族：WindowsButton + WindowsCheckbox / MacButton + MacCheckbox
 // 但如果永远只做中文系统，根本不需要抽象工厂
 
-// ✅ 先简单工厂，产品类型变多再升级
+// ✅ 先简单工厂；当产品类型持续增长、创建分支逻辑难以维护时，再升级到工厂方法
 ```
 
 ## 8. 总结：面试回答模板
@@ -227,7 +261,7 @@ registry.put("wechat", WechatPay::new);
 
 > 选型标准：
 >
-> 1. **对象类型多、可能扩展** → 工厂方法（Spring BeanFactory 就是典型）
+> 1. **对象类型多、可能扩展** → 工厂方法（新增工厂子类，不改已有代码）
 > 2. **多个维度的产品组合** → 抽象工厂（如跨平台 UI）
 > 3. **全局唯一实例** → 单例（配置中心、连接池，推荐枚举方式）
 > 4. **参数多且可选** → 建造者（如 HTTP 请求构建、配置对象）

@@ -42,7 +42,7 @@ public class ReportGenerator {
 | :-- | :-- |
 | Bean 定义复制 | Spring `BeanDefinition` 的 clone |
 | 对象缓存预热 | 缓存原型对象，需要时克隆后修改 |
-| 线程安全的对象创建 | 克隆线程安全的原型，避免共享可变状态 |
+| 基于模板创建独立工作对象 | 原型的共享状态不可变，或复制策略能隔离需独立修改的可变状态时，克隆出多个工作对象 |
 | 测试数据构建 | 克隆基础测试对象，修改个别字段 |
 | 配置对象复制 | 基于默认配置克隆后定制化修改 |
 
@@ -151,16 +151,15 @@ public class ReportTemplate implements Serializable {
     private String type;
     private List<String> sections;
 
-    // 通过序列化实现深拷贝 —— 所有引用类型字段都会被完整复制
+    // 通过序列化实现深拷贝 —— 复制对象及其可达的可序列化状态
     public ReportTemplate deepClone() {
-        try {
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            ObjectOutputStream oos = new ObjectOutputStream(bos);
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(bos)) {
             oos.writeObject(this);
-
-            ByteArrayInputStream bis = new ByteArrayInputStream(bos.toByteArray());
-            ObjectInputStream ois = new ObjectInputStream(bis);
-            return (ReportTemplate) ois.readObject();
+            try (ObjectInputStream ois = new ObjectInputStream(
+                    new ByteArrayInputStream(bos.toByteArray()))) {
+                return (ReportTemplate) ois.readObject();
+            }
         } catch (Exception e) {
             throw new RuntimeException("深拷贝失败", e);
         }
@@ -168,7 +167,11 @@ public class ReportTemplate implements Serializable {
 }
 ```
 
+> **注意序列化深拷贝的边界**：它复制的是「可序列化对象图」，不是无条件复制所有引用。`transient` 字段不参与默认序列化，静态字段不属于实例状态，可达对象中若混入非 `Serializable` 类型会导致序列化失败，自定义 `writeObject`/`readObject` 也可能改变复制结果。因此「深拷贝」的复制范围取决于具体实现策略，而非绝对地复制一切。
+
 ### 3.4 实现方式三：原型注册表（Prototype Registry）
+
+以下注册表沿用第 3.3 节的序列化深拷贝版本（`ReportTemplate` 实现 `Serializable` 并提供 `deepClone()`），预热时创建原型、获取时返回克隆，避免原型被直接修改。
 
 ```java
 // ===== 原型注册表：缓存预创建的原型对象 =====
@@ -202,7 +205,7 @@ flowchart TD
     B -->|有| C[克隆原型对象]
     B -->|无| D[创建新对象并注册为原型]
     C --> E{需要深拷贝？}
-    E -->|是| F[序列化/反序列化<br/>完整复制所有层级]
+    E -->|是| F[序列化/反序列化<br/>复制可达的可序列化状态]
     E -->|否| G[Object.clone<br/>浅拷贝]
     F --> H[修改克隆对象的<br/>差异化属性]
     G --> H
@@ -219,9 +222,9 @@ flowchart TD
 | 对比维度 | 浅拷贝（Shallow Copy） | 深拷贝（Deep Copy） |
 | :-- | :-- | :-- |
 | **基本类型** | ✅ 复制值 | ✅ 复制值 |
-| **引用类型** | ❌ 复制引用（共享对象） | ✅ 递归复制（独立对象） |
-| **性能** | ✅ 快（只复制一层） | ❌ 慢（递归复制所有层） |
-| **安全性** | ❌ 修改会互相影响 | ✅ 完全独立 |
+| **引用类型** | ❌ 复制引用（共享对象） | ✅ 递归复制（独立对象，范围取决于实现） |
+| **性能** | ✅ 快（不递归复制引用对象） | ❌ 通常更慢（复制更多状态，取决于实现） |
+| **安全性** | ❌ 修改会互相影响 | ✅ 相互独立（受复制策略约束） |
 | **实现方式** | `Object.clone()` | 序列化 / 手动递归复制 |
 
 ### 4.2 原型模式 vs 工厂模式
@@ -229,9 +232,9 @@ flowchart TD
 | 对比维度 | 原型模式 | 工厂模式 |
 | :-- | :-- | :-- |
 | **创建方式** | 克隆已有对象 | 通过 new 创建新对象 |
-| **适用场景** | 创建成本高、对象相似度高 | 根据条件创建不同类型对象 |
-| **初始化** | 跳过初始化（已在原型中完成） | 每次都执行初始化 |
-| **灵活性** | 运行时动态添加/删除原型 | 编译时确定产品类型 |
+| **适用场景** | 创建成本高、对象相似度高 | 封装创建逻辑，隔离客户端与具体产品 |
+| **初始化** | 跳过原型已完成的初始化（前提是复制成本更低） | 由工厂封装创建逻辑，是否每次新建取决于实现 |
+| **灵活性** | 运行时动态增删原型（注册表） | 产品类型由工厂封装逻辑决定 |
 
 ### 4.3 在 Spring / JDK 中的应用
 
@@ -243,24 +246,28 @@ flowchart TD
 | Spring `BeanDefinition` | Bean 定义的复制与合并 |
 | `Arrays.copyOf()` | 数组复制 |
 
+相关跳转：[创建型模式对比](./chapter-05-creational-comparison.md) 比较原型、工厂、建造者的适用条件；[Spring 中的设计模式](../04-practice/chapter-02-spring-patterns.md) 了解 Bean 创建、作用域与框架实现之间的区别。
+
 ## 5. 边界：异常情况与常见误区
 
 ### 5.1 误区一：浅拷贝导致数据污染（运行期问题）
+
+> 本示例的 `ReportTemplate` 是同时实现 `Cloneable` 与 `Serializable`、并同时提供浅拷贝 `clone()` 与深拷贝 `deepClone()` 的合并类。第 3.2、3.3 节为聚焦单一实现方式，各自只展示了同名类的部分代码，本处合并后方可运行。
 
 ```java
 // ❌ 错误：浅拷贝后修改引用类型字段，影响了原型对象
 ReportTemplate prototype = new ReportTemplate("模板", "DEFAULT",
     new ArrayList<>(Arrays.asList("章节1", "章节2")));
 
-ReportTemplate copy = prototype.clone(); // 浅拷贝
-copy.getSections().add("章节3");
+ReportTemplate shallowCopy = prototype.clone(); // 浅拷贝
+shallowCopy.getSections().add("章节3");
 
 // prototype 的 sections 也变成了 ["章节1", "章节2", "章节3"]！
 // 原因：浅拷贝只复制了 List 的引用，两个对象共享同一个 List
 
 // ✅ 正确：对包含引用类型字段的对象使用深拷贝
-ReportTemplate copy = prototype.deepClone();
-copy.getSections().add("章节3"); // 不影响 prototype
+ReportTemplate deepCopy = prototype.deepClone();
+deepCopy.getSections().add("章节3"); // 不影响 prototype
 ```
 
 ### 5.2 误区二：clone() 方法不调用构造方法（设计问题）
@@ -269,22 +276,40 @@ copy.getSections().add("章节3"); // 不影响 prototype
 // ⚠️ 注意：clone() 不会调用任何构造方法！
 public class Singleton implements Cloneable {
     private static final Singleton INSTANCE = new Singleton();
+
     private Singleton() { System.out.println("构造方法被调用"); }
 
+    public static Singleton getInstance() {
+        return INSTANCE;
+    }
+
     @Override
-    public Singleton clone() {
-        return (Singleton) super.clone(); // 不会调用构造方法！
+    public Singleton clone() throws CloneNotSupportedException {
+        // 不会调用私有构造方法，仍能创建第二个实例
+        return (Singleton) super.clone();
     }
 }
 
 // 这意味着：
-// 1. 单例模式的类不应该实现 Cloneable，否则可以通过 clone 破坏单例
-// 2. 如果构造方法中有重要的初始化逻辑，clone 后的对象可能状态不完整
+// 1. 单例模式的类不应实现 Cloneable，否则可通过 clone 破坏单例
+// 2. 私有构造方法无法阻止类内部通过 super.clone() 创建新实例，单例需自行维护该约束
+// 3. 若构造方法中有重要初始化逻辑，clone 后的对象可能状态不完整
 
-// ✅ 防御措施：在 clone() 中抛出异常
-@Override
-public Object clone() throws CloneNotSupportedException {
-    throw new CloneNotSupportedException("单例对象不允许克隆");
+// ✅ 防御措施：在 clone() 中抛出异常，禁止克隆
+// 注意：这只约束 clone 路径，反射、反序列化仍可能绕过单例约束
+public final class SafeSingleton {
+    private static final SafeSingleton INSTANCE = new SafeSingleton();
+
+    private SafeSingleton() {}
+
+    public static SafeSingleton getInstance() {
+        return INSTANCE;
+    }
+
+    @Override
+    protected Object clone() throws CloneNotSupportedException {
+        throw new CloneNotSupportedException("单例对象不允许克隆");
+    }
 }
 ```
 
@@ -307,12 +332,12 @@ public class Node {
 
 **Q1：原型模式解决了什么问题？**
 
-> 原型模式解决了对象创建成本高的问题。当创建对象需要复杂的初始化操作（如数据库查询、文件解析、网络请求）时，通过克隆已有的原型对象来创建新对象，可以跳过耗时的初始化过程。同时，原型模式也适用于需要创建大量相似对象的场景，只需克隆后修改差异化属性即可。
+> 原型模式解决的是对象创建成本高的问题。当创建对象需要复杂初始化（如数据库查询、文件解析、网络请求）时，克隆已有原型可跳过已完成的初始化。它适用于对象大部分状态可复用、差异化字段较少、且复制成本低于重新构建成本的场景；若构造本身并不昂贵，直接创建通常更简单。同时，原型模式也适合创建大量相似对象，只需克隆后修改差异化属性即可。
 
 **Q2：浅拷贝和深拷贝的区别？**
 
-> 浅拷贝只复制对象的第一层：基本类型复制值，引用类型复制引用（新旧对象共享同一个引用对象）。深拷贝递归复制所有层级，新旧对象完全独立。Java 中 `Object.clone()` 默认是浅拷贝，深拷贝可以通过序列化/反序列化或手动递归复制实现。工作中需要根据对象是否包含可变引用类型字段来选择拷贝方式。
+> 浅拷贝只复制对象的第一层：基本类型复制值，引用类型复制引用（新旧对象共享同一个引用对象）。深拷贝旨在复制对象需要独立维护的可达状态，实际独立范围取决于复制策略——Java 序列化复制的是可序列化对象图，`transient` 字段、静态字段不参与复制。Java 中 `Object.clone()` 默认是浅拷贝，深拷贝可通过序列化/反序列化或手动递归复制实现。工作中需根据对象是否包含可变引用类型字段、哪些状态需要共享来选择拷贝方式。
 
 **Q3：原型模式和 Spring 的 prototype 作用域有什么关系？**
 
-> Spring 的 `scope="prototype"` 表示每次获取 Bean 时都创建新实例，这与原型模式的"克隆"思想有概念上的相似性（都是创建新对象），但实现方式不同：Spring prototype 作用域是通过反射调用构造方法创建新对象，而原型模式是通过克隆已有对象。严格来说，Spring 的 prototype 作用域不是原型模式的实现。
+> Spring 的 `scope="prototype"` 表示每次获取 Bean 时都创建新实例，这与原型模式的"克隆"思想有概念上的相似性（都是创建新对象），但实现方式不同：Spring prototype 作用域由容器按 Bean 定义创建新实例，而原型模式是通过克隆已有对象。严格来说，Spring 的 prototype 作用域不是原型模式的实现。
