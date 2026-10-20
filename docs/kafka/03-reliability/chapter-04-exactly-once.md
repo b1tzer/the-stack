@@ -1,16 +1,18 @@
 # Exactly Once 语义
 
 > Exactly Once 是消息系统的最高可靠性保证：消息恰好被处理一次，不丢不重。本文讲清三种语义的区别、事务机制，以及消费端的 Exactly Once 实现。
+>
+> 先划定边界：Kafka 的 Exactly Once 只覆盖 Kafka 内部的「消费 → 处理 → 生产」链路，即输出消息与输入 Offset 在同一个事务中原子提交。它不保证业务代码只执行一次，也不会让数据库、外部服务的副作用自动变成恰好一次——跨系统场景仍需业务层幂等兜底。
 
 > 前置知识：本文是 Kafka 最难的部分，建议先读 [ACK 与幂等 §4 事务](../02-core/chapter-05-ack-and-idempotence.md#transactions) 再回来。
 
 ## 1. 三种语义
 
-| 语义 | 说明 | 实现 |
+| 语义 | 说明 | 典型配置（生产端视角） |
 | :-- | :-- | :-- |
 | At Most Once | 最多一次，可能丢消息 | acks=0 |
 | At Least Once | 至少一次，可能重复 | acks=all + 重试 |
-| Exactly Once | 恰好一次，不丢不重 | 幂等 + 事务 |
+| Exactly Once | 恰好一次，不丢不重 | 幂等生产者 + 事务；消费-生产还需把 Offset 纳入事务 |
 
 ## 2. 幂等生产者：单分区 Exactly Once
 
@@ -40,7 +42,7 @@ try {
 
 ### 3.2 Transaction Coordinator
 
-**Transaction Coordinator 是运行在每个 Broker 上的逻辑组件**，不是独立部署的进程或服务。它的职责是跟踪事务的进行状态，并把提交/回滚决定持久化到 `__transaction_state` 主题。先解释两个新名词：`__transaction_state` 是 Kafka 的内部 topic，专门存储事务状态；`transactional.id` 是生产者跨重启的唯一标识（用于把新旧实例关联到同一个事务）。
+**Transaction Coordinator 是运行在每个 Broker 上的逻辑组件**，不是独立部署的进程或服务。它的职责是跟踪事务的进行状态，并把提交/回滚决定持久化到 `__transaction_state` 主题。先解释两个新名词：`__transaction_state` 是 Kafka 的内部 topic，专门存储事务状态；`transactional.id` 是生产者的逻辑实例标识——同一逻辑实例重启前后必须保持不变，新实例才能接管事务身份并 fencing 旧实例，但不同并发实例必须用不同 ID，否则会互相 fencing，它不是每次启动新生成的随机 ID。
 
 事务由它管理：
 
@@ -69,7 +71,7 @@ Transaction Coordinator → __transaction_state：
 
 分两步的意义在于**崩溃恢复**：第一步完成后"提交"决定已持久化，这是 point of no return——即使 Coordinator 此时宕机，重启后读到 PrepareCommit 也会继续完成第二步，最终保证所有参与分区都收到 COMMIT 标记，不会出现一部分分区提交、另一部分回滚的分裂。回滚（abort）是对称的两步：PrepareAbort → 各分区写 ABORT 标记 → CompleteAbort。
 
-**`read_committed` 消费者靠什么感知提交**：Broker 在事务提交时会往各分区写入一条**控制记录（control record）** 作为 COMMIT 标记。`read_committed` 消费者读到这个标记，才知道之前那些"未提交"的事务消息现在可以放行；读到 ABORT 标记则跳过整批。这也是事务会引入额外延迟的原因——消费者要多等一个控制消息到达。
+**`read_committed` 消费者靠什么感知提交**：事务提交时，Broker 会往各参与分区写入 COMMIT/ABORT **控制记录（control record）**。可见范围由 Broker 根据事务状态和 LSO 决定（详见 §3.3），不是消费者逐条读控制记录自行放行。这也是事务会引入额外延迟的原因——消费者要多等事务结果落地。
 
 ### 3.3 事务隔离级别 {#isolation-level}
 
@@ -78,7 +80,7 @@ props.put("isolation.level", "read_committed");   // 只读已提交的事务消
 props.put("isolation.level", "read_uncommitted");  // 读所有消息（默认）
 ```
 
-事务消息写入分区后，`read_committed` 消费者暂时看不到它；只有 Coordinator 把 COMMIT 标记写进 `__transaction_state` 后，这些消息才对消费者可见。
+事务消息写入分区后，`read_committed` 消费者暂时看不到它。可见性由两部分决定：COMMIT/ABORT **控制记录（control record）** 由 Coordinator 写入各参与分区，而不是写进 `__transaction_state`（后者只存事务状态日志）；消费者以 **LSO（Last Stable Offset，稳定读取边界）** 为界，只读取 LSO 之前的记录。已提交事务中的消息可读，已中止事务的消息被过滤，尚未完成的事务及其之后同一分区的记录会被 LSO 挡住暂时不可见——因此一个较早的未完成事务会拖住同一分区内位于它之后的所有消息，但不会影响其他分区。
 
 ### 3.4 消费-生产 Exactly Once 模式
 
@@ -98,7 +100,14 @@ while (true) {
             String result = process(record.value());
             producer.send(new ProducerRecord<>("output-topic", record.key(), result));
         }
-        // 将消费 Offset 也纳入事务
+        // 按分区计算下一批应消费的 Offset，与输出消息一并原子提交
+        Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>();
+        for (TopicPartition partition : records.partitions()) {
+            long nextOffset = records.records(partition).stream()
+                    .mapToLong(ConsumerRecord::offset)
+                    .max().orElseThrow() + 1;
+            offsets.put(partition, new OffsetAndMetadata(nextOffset));
+        }
         producer.sendOffsetsToTransaction(offsets, consumer.groupMetadata());
         producer.commitTransaction();
     } catch (Exception e) {
@@ -115,7 +124,7 @@ while (true) {
 
 ## 4. 消费端 Exactly Once
 
-Kafka 的事务只保证生产端。消费端的 Exactly Once 需要额外处理：
+Kafka 的事务能原子提交 Kafka 输出消息与消费 Offset，但无法自动保证数据库写入、HTTP 调用等外部副作用的原子性。消费端与外部系统的 Exactly Once 需要额外处理：
 
 | 场景 | 方案 |
 | :-- | :-- |
@@ -132,15 +141,15 @@ Kafka 的事务只保证生产端。消费端的 Exactly Once 需要额外处理
 | 复杂度增加 | 需要配置 transactional.id、isolation.level |
 | 存储开销 | 事务状态日志占用存储 |
 
-性能下降来自三个叠加的延迟源：每条事务消息多带一个"未提交"标记、提交时多一次与 Coordinator 的往返（两阶段）、消费者要等控制消息到达才放行。这三处都是事务语义强加的开销，无法用参数消除，只能靠"只在真正需要跨分区原子性的场景用事务"来规避。
+性能下降来自事务协议的固有开销：提交决定需要持久化到 `__transaction_state`、各参与分区要写入 COMMIT/ABORT 控制记录、`read_committed` 消费者要等事务结果落地才放行。这些成本来自事务协调与原子提交本身，调参只能改善整体性能、无法消除，只能靠"只在真正需要跨分区原子性的场景用事务"来规避。
 
-> 大多数场景用 At Least Once + 幂等消费就够了。只有 Kafka → Kafka 的流处理场景才需要完整的 Exactly Once。
+> 大多数场景用 At Least Once + 幂等消费就够了。完整的 Exactly Once 典型适用于 Kafka → Kafka 的消费-生产场景；是否需要取决于业务对输出不重复与 Offset 原子提交的要求，而非是否属于流处理。
 
 ## 6. 配置清单
 
 ```java
 // 生产者
-props.put("transactional.id", "unique-id");
+props.put("transactional.id", "unique-id");   // 示例值：同一逻辑实例重启保持稳定，不同并发实例用不同 ID
 props.put("enable.idempotence", true);
 props.put("acks", "all");
 props.put("transaction.timeout.ms", 60000);
