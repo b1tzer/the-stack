@@ -108,7 +108,6 @@ export default withOpenInEditor(defineConfig({
   lang: 'zh-CN',
   srcExclude: [
     '_snippets/**',
-    'kafka/RESTRUCTURE-PLAN.md',
   ],
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
