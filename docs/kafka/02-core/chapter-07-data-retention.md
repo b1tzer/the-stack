@@ -12,7 +12,7 @@
 
 ## 2. 删除策略
 
-Kafka 删除的最小单位是**日志段（Segment）**，不是单条消息。一个 Partition 的日志由多个 Segment 文件组成，每个 Segment 有一个时间戳范围和大小。当整个 Segment 超过保留阈值时，整个文件被删除。
+在 delete 保留策略下，Kafka 删除的最小单位是**日志段（Segment）**，不是单条消息。一个 Partition 的日志由多个 Segment 文件组成，每个 Segment 有一个时间戳范围和大小。当整个 Segment 超过保留阈值时，整个文件被删除。
 
 ### 按时间保留
 
@@ -20,7 +20,7 @@ Kafka 删除的最小单位是**日志段（Segment）**，不是单条消息。
 log.retention.hours=168    # 保留 7 天（默认）
 ```
 
-Broker 定期检查每个 Segment 的最大时间戳。如果当前时间 - Segment 最大时间戳 > `log.retention.hours`，删除整个 Segment。
+Broker 定期检查每个 Segment 的最大时间戳，达到保留条件的日志段会被删除。删除并非时间一到立即执行，而是由后台清理线程定期触发；时间戳语义受 `message.timestamp.type` 配置影响。
 
 ### 按大小保留
 
@@ -35,7 +35,7 @@ log.retention.bytes=1073741824  # 每个分区最多保留 1GB
 
 如果要删除单条消息，你需要在文件中找到这条消息的位置，把它标记为已删除或重写文件。这在追加日志的存储模型下代价极高——你不能原地修改文件（追加日志的"不可变"原则）。
 
-分段后，删除变成了"删文件"——零拷贝开销，操作系统直接回收磁盘空间。代价是删除粒度较粗：默认 1GB 一个 Segment，即使只有一条消息过期，也要等整个 Segment 过期才能删。
+分段后，删除变成了"删文件"——无需重写日志文件，删除操作主要针对日志段文件及其关联索引。代价是删除粒度较粗：默认滚动阈值约 1 GiB 一个 Segment，即使其中只有一条消息超过保留期限，也要等整个日志段满足删除条件后一起删除。
 
 ## 3. 压缩策略：保留每个 Key 的最新值
 
@@ -45,7 +45,7 @@ log.retention.bytes=1073741824  # 每个分区最多保留 1GB
 - 配置中心：每个配置项的最新值
 - 用户 Session：每个 Session 的最新数据
 
-压缩策略（`log.cleanup.policy=compact`）保留每个 Key 的最新值，删除旧版本：
+压缩策略（`cleanup.policy=compact`）保留每个 Key 的最新值，删除旧版本：
 
 ```txt
 压缩前：                      压缩后：
@@ -57,7 +57,7 @@ Key1: Value3 (offset 4)
 Key3: Value1 (offset 5)
 ```
 
-压缩后的 Topic 像一个持久化的 HashMap——每个 Key 只保留最新的一条消息。
+压缩收敛后，Topic 像一个持久化的 HashMap——每个 Key 只保留最新的一条消息。但压缩由后台 Cleaner 异步执行，活跃段不参与压缩，同一 Key 的多个历史版本可能暂时共存，不能把压缩日志等同于实时更新的 KV 存储。
 
 ### 墓碑消息（Tombstone）
 
@@ -67,15 +67,15 @@ Key3: Value1 (offset 5)
 producer.send(new ProducerRecord<>("topic", key, null));
 ```
 
-这条 null-value 消息就是"墓碑"。压缩过程中，它会删除该 Key 的所有旧版本。墓碑消息本身保留 `log.cleaner.delete.retention.ms`（默认 24 小时）后被清理。
+这条 null-value 消息就是"墓碑"。Cleaner 处理到该墓碑时，会清理该 Key 的所有旧版本。墓碑至少按配置的保留窗口（`log.cleaner.delete.retention.ms`，默认 24 小时）保留，超过窗口后可能在后续压缩中被清理。
 
 ## 4. 混合策略
 
 ```properties
-log.cleanup.policy=delete,compact
+cleanup.policy=delete,compact
 ```
 
-先压缩（保留每个 Key 的最新值），再按时间删除旧数据。适用于需要"保留最新状态，但也不要无限增长"的场景，如事件溯源。
+`delete` 与 `compact` 两种策略同时生效，而不是严格串行的"先压缩、再删除"。压缩保留每个 Key 的最新值，按时间/大小删除则可能移除包含最新 Key 的整个日志段，因此混合策略无法保证最新状态无限期保留。适用于只需在有限保留窗口内保留最新状态、同时限制存储增长的场景。
 
 ## 5. 磁盘容量规划
 
@@ -88,5 +88,7 @@ log.cleanup.policy=delete,compact
 ```txt
 1亿 × 1KB × 7 × 3 × 1.2 = 2.52 TB
 ```
+
+这是粗略估算，1KB 按平均消息大小计算，实际磁盘占用还受压缩率、批次开销、索引文件、分区负载不均等因素影响。
 
 磁盘空间不足的排查见 [磁盘空间不足](../05-troubleshooting/chapter-05-disk-space.md)。

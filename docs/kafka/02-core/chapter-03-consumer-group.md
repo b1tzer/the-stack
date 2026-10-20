@@ -8,9 +8,9 @@
 
 **需求一：并行消费**。3 个消费者，每个消费一个分区，速度变 3 倍。
 
-**需求二：不重复消费**。同一条消息不能被两个消费者同时处理——否则下游系统会收到重复数据。
+**需求二：同一分区不被并发消费**。同一条消息不能被两个消费者同时处理——否则下游系统会收到重复数据。
 
-这两个需求之间有矛盾。如果 3 个消费者各自独立消费所有 3 个分区，那就是 3 倍的重复处理。如果要避免重复，就必须有一个规则：**每个分区只分配给一个消费者**。
+这两个需求之间有矛盾。如果 3 个消费者各自独立消费所有 3 个分区，那就是 3 倍的重复处理。要避免这种重复，就必须有一个规则：**每个分区只分配给一个消费者**。这条规则约束的是"谁在消费哪个分区"，不涉及"消息是否被处理多次"——后者由 Offset 提交和故障恢复决定，见 [§7 Offset 管理](#offset-management)。
 
 消费者组就是这个规则的实现。
 
@@ -31,7 +31,7 @@ Consumer Group B（3 个消费者）：
 
 核心规则：
 
-- **一个分区只能被组内一个消费者消费**：保证组内不重复消费
+- **一个分区只能被组内一个消费者消费**：保证同一分区不被组内多个消费者同时消费。这是"分区所有权"层面的互斥，不等于"消息只处理一次"
 - **一个消费者可以消费多个分区**：分区数 > 消费者数时
 - **消费者数 > 分区数**：多余的消费者空闲，浪费资源
 - **不同组独立消费**：Group A 和 Group B 各自维护自己的 Offset，互不影响
@@ -73,13 +73,13 @@ Topic 有 3 个分区，消费者组有 5 个消费者
 
 ### 4.1 Rebalance 期间发生了什么 {#rebalance-flow}
 
-上面描述的是 **Eager（急切式）Rebalance**，也是 Kafka 长期以来的默认行为，流程是"全停 → 重新分配 → 恢复"：
+上面描述的是 **Eager（急切式）Rebalance**，也是 Kafka 长期以来的默认行为，流程是"全停 → 重新分配 → 恢复"。下面是经典消费者组协议下的概念流程，并非协议的精确执行顺序：
 
 ```txt
 1. 某个消费者离开，向 Coordinator 发送 LeaveGroup
 2. Coordinator 通知组内所有消费者："停止消费，准备 Rebalance"
 3. 所有消费者发送 JoinGroup，报告自己订阅了哪些 Topic
-4. Coordinator 选出 Group Leader（第一个加入的消费者）
+4. Coordinator 选出 Group Leader（通常是第一个加入组的成员）
 5. Group Leader 根据分配策略计算分区分配方案
 6. Group Leader 把方案发给 Coordinator
 7. Coordinator 把每个消费者的分配方案分发给对应消费者
@@ -88,7 +88,7 @@ Topic 有 3 个分区，消费者组有 5 个消费者
 
 Eager 模式下，Rebalance 期间**所有消费者停止消费**。这不是 bug，而是有意为之——如果在重新分配过程中允许消费，可能出现同一个分区被两个消费者同时消费的窗口。
 
-但"全停"不是唯一选择。Eager 的代价是：哪怕只有一个分区需要迁移，整个组的消费也会整体停顿一次。Kafka 2.4 起（[KIP-429](https://cwiki.apache.org/confluence/spaces/KAFKA/pages/103090108/KIP-429+Kafka+Consumer+Incremental+Rebalance+Protocol)）引入 **Cooperative（协作式）Rebalance**，把重分配拆成多轮，只暂停真正需要迁移的分区，其余分区照常消费。它由 `CooperativeStickyAssignor` 承载，Kafka 3.0 起成为默认分配策略。两者的取舍见 [§5 分配策略](#assignor)。
+但"全停"不是唯一选择。Eager 的代价是：哪怕只有一个分区需要迁移，整个组的消费也会整体停顿一次。Kafka 2.4 起（[KIP-429](https://cwiki.apache.org/confluence/spaces/KAFKA/pages/103090108/KIP-429+Kafka+Consumer+Incremental+Rebalance+Protocol)）引入 **Cooperative（协作式）Rebalance**，把重分配拆成多轮，只暂停真正需要迁移的分区，其余分区照常消费。它由 `CooperativeStickyAssignor` 承载。Kafka 3.0 起默认策略列表加入了它，但默认仍优先用 RangeAssignor，需显式配置才会启用。Eager 与 Cooperative 的取舍见 [§5 分配策略](#assignor)。
 
 ## 5. 分配策略 {#assignor}
 
@@ -121,9 +121,9 @@ CooperativeSticky（逐步迁移）：
 | `RoundRobinAssignor` | 早期 | Eager | 与 Range 同属最早两种 |
 | `StickyAssignor` | 0.11.0.0（2017） | Eager | [KIP-54](https://cwiki.apache.org/confluence/spaces/KAFKA/pages/62692483/KIP-54+-+Sticky+Partition+Assignment+Strategy) |
 | `CooperativeStickyAssignor` | 2.4.0（2019） | Eager / Cooperative | [KIP-429](https://cwiki.apache.org/confluence/spaces/KAFKA/pages/103090108/KIP-429+Kafka+Consumer+Incremental+Rebalance+Protocol) |
-| 默认改为 `CooperativeSticky` | 3.0（2021） | Cooperative | [KIP-726](https://cwiki.apache.org/confluence/spaces/KAFKA/pages/177048248/KIP-726+Make+the+cooperative-sticky+range+as+the+default+assignor) |
+| 默认列表加入 `CooperativeSticky`（实际仍默认用 Range） | 3.0（2021） | Eager（默认）/ Cooperative（显式配置后） | [KIP-726](https://cwiki.apache.org/confluence/spaces/KAFKA/pages/177048248/KIP-726+Make+the+cooperative-sticky+range+as+the+default+assignor) |
 
-**生产环境选型**：Kafka 3.0 起默认即 `CooperativeStickyAssignor`，无需配置。Kafka 2.4 起同样可用，显式配置即可：
+**生产环境选型**：Kafka 3.0 起默认 `partition.assignment.strategy` 是列表 `[RangeAssignor, CooperativeStickyAssignor]`，RangeAssignor 排在首位，所以用默认配置时实际仍走 RangeAssignor（Eager 协议）。要启用协作式 Rebalance，需显式配置为只保留 `CooperativeStickyAssignor`（Kafka 2.4 起即可用）：
 
 ```java
 props.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG,
@@ -132,9 +132,9 @@ props.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG,
 
 ::: warning 版本差异
 
-- **2.4+ 可用**：`CooperativeStickyAssignor` 自 2.4.0 引入，2.4 及以后的 2.x 都能用，显式配置即生效，与 3.0 行为等价。
-- **3.0+ 新集群**：默认已是 CooperativeSticky，无需配置，直接受益。
-- **存量老集群迁移**：已在运行的老消费者组要从 `Range/RoundRobin/Sticky` 迁到 Cooperative，必须走 [KIP-429](https://cwiki.apache.org/confluence/spaces/KAFKA/pages/103090108/KIP-429+Kafka+Consumer+Incremental+Rebalance+Protocol) 的两步滚动升级——第一次滚动把 `CooperativeStickyAssignor` 加到策略列表末尾（此时仍走 Eager），第二次滚动再移除旧的 `Range/RoundRobin/Sticky`。不能一步到位，否则组内新旧消费者混用 Eager / Cooperative 协议，同一分区可能被两个消费者同时认领、都提交 offset。
+- **2.4+ 可用**：`CooperativeStickyAssignor` 自 2.4.0 引入，2.4 及以后的 2.x 都能用，显式配置即生效。
+- **3.0+ 默认值变化**：[KIP-726](https://cwiki.apache.org/confluence/spaces/KAFKA/pages/177048248/KIP-726+Make+the+cooperative-sticky+range+as+the+default+assignor) 把默认 `partition.assignment.strategy` 从单独的 `RangeAssignor` 改为列表 `[RangeAssignor, CooperativeStickyAssignor]`，但 RangeAssignor 排在首位，所以新消费者组用默认配置时实际仍选 RangeAssignor（Eager 协议），并不会"默认启用 Cooperative"。
+- **如何启用 Cooperative**：显式把 `partition.assignment.strategy` 配成只含 `CooperativeStickyAssignor`（即移除 RangeAssignor）。对已在运行的组，一次滚动发布即可完成切换——KIP-726 引入动态协议选择，协调器按"所有成员都支持的策略"协商，未升级成员仍走 Eager，避免新旧混用时同一分区被两个消费者同时认领。这与 2.x 时代 [KIP-429](https://cwiki.apache.org/confluence/spaces/KAFKA/pages/103090108/KIP-429+Kafka+Consumer+Incremental+Rebalance+Protocol) 要求的"两步滚动升级"不同。
 - **组内配置必须一致**：`partition.assignment.strategy` 是组级协商出来的，只要组内有一个消费者不支持 Cooperative，整组退回 Eager。
 :::
 
@@ -146,7 +146,7 @@ props.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG,
 
 **`max.poll.interval.ms`**：poll 间隔超时。消费者必须在两次 `poll()` 调用之间不超过这个时间。如果处理消息太久没调用 `poll()`，Coordinator 认为消费者"卡住了"。
 
-两个超时的区别在于：`session.timeout.ms` 检测的是"消费者进程是否还活着"（网络分区、进程崩溃），`max.poll.interval.ms` 检测的是"消费者是否还在正常消费"（处理逻辑阻塞、死锁）。
+两个超时的区别在于：`session.timeout.ms` 检测的是"消费者进程是否还活着"（网络分区、进程崩溃），`max.poll.interval.ms` 检测的是"消费者是否还在持续调用 poll()"（处理耗时过长、未能及时拉取下一批消息）。
 
 ## 7. Offset 管理 {#offset-management}
 
@@ -158,7 +158,7 @@ props.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG,
 
 **手动提交**（`enable.auto.commit=false`）：你控制什么时候提交 Offset。正确做法是处理完消息后再提交。但这里也有陷阱：如果你逐条处理逐条提交，性能极差；如果你等一批全部处理完再提交，处理过程中宕机，这批消息会被重新消费。
 
-这就是为什么 Kafka 的消费端天然支持"At Least Once"——消息可能被重复消费，但不会丢失。要实现 Exactly Once，需要在业务层做幂等处理。
+这就是为什么 Kafka 的消费端默认呈现"At Least Once"语义——消息可能被重复消费，但不会静默丢失（前提是 Offset 提交时机不早于处理完成；若处理失败后仍提交 Offset，仍会丢失）。要实现 Exactly Once，需要在业务层做幂等处理。
 
 ### 7.2 Offset 存在哪里
 
@@ -168,7 +168,7 @@ Offset 存储在 `__consumer_offsets` 这个内部 Topic 中。Key 是 `(group.i
 
 传统消费者组中，消费者重启就会向 Group Coordinator（Broker）申请新的 `member.id` ，加入群组会触发 Rebalance。但在滚动部署场景下，你希望重启一个消费者不影响其他消费者。
 
-静态成员（`group.instance.id`）解决了这个问题：消费者指定一个固定的 ID，重启后 Coordinator 用 ID 识别它是"同一个消费者"，只要在 `session.timeout.ms` 内重新连接就不触发 Rebalance。
+静态成员（`group.instance.id`）解决了这个问题：消费者指定一个固定的 ID，重启后 Coordinator 用 ID 识别它是"同一个消费者"，只要在 `session.timeout.ms` 内重新连接，通常就能避免因短暂重启触发 Rebalance。
 
 ## 9. Lag 监控
 
@@ -186,6 +186,6 @@ Lag 过大的排查见 [消费者 Lag 过大](../05-troubleshooting/chapter-01-c
 
 ## 10. 一句话总结
 
-- 消费者组通过"一个分区只分配给一个消费者"的规则，在并行消费和不重复消费之间找到了平衡。
+- 消费者组通过"一个分区只分配给一个消费者"的规则，在并行消费和分区互斥之间找到了平衡——它解决的是"谁消费哪个分区"，不是"消息是否被重复处理"。
 - Rebalance 是消费者组的动态适应机制——组成员变化时重新计算分配方案，代价是消费暂停。
 - 分区数是消费并行度的天花板，Offset 是消费进度的"进度条"。
