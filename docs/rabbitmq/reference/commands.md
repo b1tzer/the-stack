@@ -84,9 +84,6 @@ rabbitmqctl clear_policy ha-all
 # 启用管理插件
 rabbitmq-plugins enable rabbitmq_management
 
-# 启用延迟消息插件
-rabbitmq-plugins enable rabbitmq_delayed_message_exchange
-
 # 列出插件
 rabbitmq-plugins list
 ```

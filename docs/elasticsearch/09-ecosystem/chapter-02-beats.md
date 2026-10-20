@@ -2,7 +2,7 @@
 
 ## 1. Beats 概述
 
-Beats 是 Elastic Stack 的轻量级数据采集器，用于将数据发送到 Elasticsearch 或 Logstash。
+Beats 是 Elastic Stack 的轻量级数据采集器，用于将数据发送到 Elasticsearch 或 Logstash。本文示例以 Filebeat 8.x 为准，旧的 `log` input 自 7.16 起弃用、9.0 默认禁用，应改用 `filestream` input。
 
 | Beat | 用途 | 数据源 |
 | :-- | :-- | :-- |
@@ -20,28 +20,42 @@ Beats 是 Elastic Stack 的轻量级数据采集器，用于将数据发送到 E
 ```yaml
 # filebeat.yml
 filebeat.inputs:
-  - type: log
+  - type: filestream
+    id: nginx-access
     enabled: true
     paths:
       - /var/log/nginx/access.log
     fields:
       app: nginx
       log_type: access
-    multiline:
-      pattern: '^\d{4}-\d{2}-\d{2}'
-      negate: true
-      match: after
 
-  - type: log
+  - type: filestream
+    id: app-json
     enabled: true
     paths:
-      - /var/log/app/*.log
-    json.keys_under_root: true
-    json.add_error_key: true
+      - /var/log/app/*.json
+    parsers:
+      - ndjson:
+          add_error_key: true
+
+  - type: filestream
+    id: app-error
+    enabled: true
+    paths:
+      - /var/log/app/error.log
+    parsers:
+      - multiline:
+          type: pattern
+          pattern: '^\d{4}-\d{2}-\d{2}'
+          negate: true
+          match: after
 
 output.elasticsearch:
   hosts: ["http://localhost:9200"]
+  # 8.x 默认启用 ILM 与数据流，此时自定义 index 被忽略，写入目标由数据流名称决定，
+  # 索引模板负责映射与设置，ILM 负责生命周期；下方 index 仅在 setup.ilm.enabled: false 时生效。
   index: "filebeat-%{[agent.version]}-%{+yyyy.MM.dd}"
+  # elastic 为超级用户，仅本地演示；生产环境应使用专用账号并启用 HTTPS
   username: "elastic"
   password: "${ES_PASSWORD}"
 
@@ -91,6 +105,7 @@ metricbeat.modules:
 
 output.elasticsearch:
   hosts: ["http://localhost:9200"]
+  # 同 Filebeat，默认 ILM 启用时 index 被忽略，写入目标由数据流名称决定
   index: "metricbeat-%{+yyyy.MM.dd}"
 ```
 
@@ -130,22 +145,30 @@ filter {
   if [fields][app] == "nginx" {
     grok {
       match => { "message" => "%{COMBINEDAPACHELOG}" }
+      tag_on_failure => ["_nginx_grok_failure"]
+    }
+    date {
+      match => [ "timestamp", "dd/MMM/yyyy:HH:mm:ss Z" ]
     }
   }
 }
 output {
   elasticsearch {
     hosts => ["localhost:9200"]
-    index => "%{[fields][app]}-%{+YYYY.MM.dd}"
+    index => "%{[fields][app]}-%{+yyyy.MM.dd}"
   }
 }
 ```
 
+`%{COMBINEDAPACHELOG}` 面向 Apache combined 格式，Nginx 使用兼容的 `log_format` 时才能复用，否则需按实际格式调整。grok 匹配失败时事件仍会进入输出，只是被打上 `_nginx_grok_failure` 标签，需在 Kibana 中监控该标签以发现解析失败。date filter 把日志发生时间写入 `@timestamp`，否则按日期滚动的索引会落在采集时间而非日志时间。索引日期格式用小写 `yyyy`（日历年），大写 `YYYY` 是周归属年。动态索引依赖 `[fields][app]`，该字段缺失或值异常会产生意外索引名。
+
 ## 6. 最佳实践
 
-- 日志采集使用 Filebeat，资源消耗比 Logstash 小
+- 一般场景下日志采集优先用 Filebeat，资源消耗通常比 Logstash 小
 - 使用 Module 简化常见日志的采集配置
-- 大规模场景使用 Kafka 作为中间缓冲
+- 大规模场景用 Kafka 缓冲与解耦，但不自动提供端到端不丢保证
 - 配置 `multiline` 处理多行日志（如 Java 异常堆栈）
 - 使用 `fields` 添加元数据字段
 - 监控 Beats 自身的运行状态
+- Filebeat 的读取进度记录在 registry 文件，重启后从上次位置续采，但不构成端到端无丢失、无重复保证
+- 下游不可用时事件先进入内存队列（默认），需要持久化可启用磁盘队列，两者容量都有限

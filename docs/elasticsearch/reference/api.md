@@ -1,8 +1,10 @@
 # Elasticsearch API 速查
 
+> 以下示例为 Kibana Dev Tools Console 语法，可直接粘贴到 Console 中执行；若在终端执行，需自行转换为 curl 命令。
+
 ## 索引管理
 
-```bash
+```http
 # 创建索引
 PUT /my-index
 {
@@ -20,14 +22,14 @@ GET /my-index
 POST /my-index/_open
 POST /my-index/_close
 
-# 重新索引
+# 重新索引（_reindex 不会自动复制 mapping/settings，需预先创建并配置目标索引）
 POST _reindex
 { "source": { "index": "old-index" }, "dest": { "index": "new-index" } }
 ```
 
 ## 文档 CRUD
 
-```bash
+```http
 # 索引文档（自动生成 ID）
 POST /my-index/_doc
 { "title": "Hello", "content": "World" }
@@ -46,7 +48,7 @@ POST /my-index/_update/1
 # 删除文档
 DELETE /my-index/_doc/1
 
-# 批量操作
+# 批量操作（NDJSON 格式，每行独立，末尾需换行；Content-Type: application/x-ndjson，响应需检查 errors 与逐项结果）
 POST _bulk
 { "index": { "_index": "my-index", "_id": "1" } }
 { "title": "Doc 1" }
@@ -56,7 +58,7 @@ POST _bulk
 
 ## 搜索
 
-```bash
+```http
 # 基本搜索
 GET /my-index/_search
 { "query": { "match": { "title": "hello" } } }
@@ -80,7 +82,7 @@ GET /my-index/_search
   "highlight": { "fields": { "title": {} } }
 }
 
-# 分页
+# 分页（from/size 适合浅分页，深分页用 search_after）
 GET /my-index/_search
 { "from": 0, "size": 10, "query": { "match_all": {} } }
 
@@ -91,19 +93,19 @@ GET /my-index/_search
 
 ## 聚合
 
-```bash
+```http
 # 指标聚合
 GET /my-index/_search
 { "aggs": { "avg_price": { "avg": { "field": "price" } } } }
 
-# 桶聚合
+# 桶聚合（字符串字段通常用 keyword 类型；text 字段使用其 .keyword 子字段）
 GET /my-index/_search
 { "aggs": { "by_category": { "terms": { "field": "category" } } } }
 ```
 
 ## 集群管理
 
-```bash
+```http
 # 集群健康
 GET /_cluster/health
 

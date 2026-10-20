@@ -35,7 +35,13 @@ PUT /orders
       "items": {
         "type": "nested",
         "properties": {
-          "product": { "type": "text", "analyzer": "ik_max_word" },
+          "product": {
+            "type": "text",
+            "analyzer": "ik_max_word",
+            "fields": {
+              "keyword": { "type": "keyword" }
+            }
+          },
           "price": { "type": "integer" },
           "quantity": { "type": "integer" }
         }
@@ -67,6 +73,8 @@ GET /orders/_search
 }
 ```
 
+`nested` 查询返回匹配的根文档，响应中的 `items` 仍包含全部嵌套对象；需要定位实际命中的子文档时，使用 `inner_hits`。
+
 ### 2.3 Nested 聚合
 
 ```json
@@ -86,6 +94,8 @@ GET /orders/_search
   }
 }
 ```
+
+`nested` 聚合工作在嵌套文档作用域；如需回到根文档作用域统计订单数量或按根文档字段分组，使用 `reverse_nested`。
 
 ## 3. Parent-Child（Join 类型）
 
@@ -171,15 +181,17 @@ GET /company/_search
 | 维度 | Nested | Parent-Child |
 | :-- | :-- | :-- |
 | 存储方式 | 同一文档，隐藏子文档 | 不同文档，通过 Join Field 关联 |
-| 查询性能 | 快（同一文档内查找） | 慢（需要跨文档关联） |
+| 查询性能 | 同一根文档内的嵌套关联，通常开销更低；开销随嵌套对象数量增长 | 跨文档关联，依赖 global ordinals，通常更慢 |
 | 更新子文档 | 需要更新整个父文档 | 可以独立更新子文档 |
 | 适用场景 | 子文档少、读多写少 | 子文档多、频繁更新 |
-| 聚合支持 | 好 | 有限 |
-| 数据量建议 | 每个父文档 < 100 个嵌套对象 | 子文档数量无硬限制 |
+| 聚合支持 | 好 | 支持 `children`/`parent` 聚合，但跨文档开销较高 |
+| 数据量建议 | 经验参考：每个父文档 < 100 个嵌套对象（非硬限制，以压测为准） | 子文档数量无硬限制 |
+
+成本来源不同：Nested 的每个嵌套对象都是隐藏的 Lucene 文档，更新根文档时需要重写；Parent-Child 查询通过 global ordinals 做跨文档关联，但换来了子文档独立更新的能力。关联设计的完整讨论见 [Nested vs Join 关系建模](../06-data-modeling/chapter-02-nested-vs-join.md)。
 
 ## 5. 应用层关联
 
-对于复杂的关联关系，推荐在应用层处理：
+对于复杂的关联关系，推荐在应用层处理（示例假设字段使用默认动态映射，`name` 自带 `.keyword` 子字段）：
 
 ```json
 // 先查询部门
@@ -197,8 +209,8 @@ GET /employees/_search
 
 ## 6. 最佳实践
 
-- 子文档数量少（< 100）且读多写少 → 使用 `nested`
+- 子文档数量少（经验参考 < 100，非硬限制）且读多写少 → 使用 `nested`
 - 子文档需要独立更新 → 使用 `parent-child`
 - 关联关系复杂 → 使用应用层关联或反规范化
 - Nested 查询的 `score_mode` 控制子文档得分如何合并（`avg`/`max`/`sum`）
-- Parent-Child 查询必须指定 `routing`，确保父子文档在同一分片
+- 索引 Parent-Child 文档时，父子文档必须使用相同 `routing`，确保落在同一分片；查询时可按需指定 `routing` 限定搜索分片范围，`has_child`/`has_parent` 并不强制要求

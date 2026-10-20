@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="520" viewBox="0 0 880 520" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif" role="img" aria-label="RabbitMQ 整体架构图">
+  <defs>
+    <marker id="arrow-red" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#DC382D"/>
+    </marker>
+    <marker id="arrow-gray" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#57606a"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="880" height="520" fill="#ffffff"/>
+
+  <rect x="118" y="28" width="644" height="464" rx="8" fill="#f6f8fa" stroke="#9aa4af" stroke-width="1.2" stroke-dasharray="6 4"/>
+  <text x="440" y="52" text-anchor="middle" dominant-baseline="middle" font-size="14" font-weight="700" fill="#24292f">RabbitMQ Broker</text>
+
+  <rect x="300" y="88" width="280" height="250" rx="8" fill="#f6f8fa" stroke="#9aa4af" stroke-width="1.2" stroke-dasharray="6 4"/>
+  <text x="440" y="110" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="600" fill="#24292f">Virtual Host</text>
+
+  <rect x="316" y="140" width="88" height="60" rx="6" fill="#fff1f0" stroke="#DC382D" stroke-width="1.5"/>
+  <text x="360" y="170" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="600" fill="#DC382D">Exchange</text>
+
+  <rect x="476" y="140" width="88" height="60" rx="6" fill="#fff1f0" stroke="#DC382D" stroke-width="1.5"/>
+  <text x="520" y="170" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="600" fill="#DC382D">Queue</text>
+
+  <line x1="404" y1="170" x2="474" y2="170" stroke="#DC382D" stroke-width="1.5" marker-end="url(#arrow-red)"/>
+  <text x="440" y="162" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="#57606a">binding</text>
+
+  <rect x="476" y="244" width="88" height="44" rx="6" fill="#ffffff" stroke="#c0c8d0" stroke-width="1.2"/>
+  <text x="520" y="266" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#24292f">Store</text>
+  <line x1="520" y1="200" x2="520" y2="242" stroke="#57606a" stroke-width="1.2" marker-end="url(#arrow-gray)"/>
+
+  <rect x="136" y="88" width="128" height="160" rx="6" fill="#ffffff" stroke="#c0c8d0" stroke-width="1.2"/>
+  <text x="200" y="110" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="600" fill="#24292f">Connection</text>
+  <text x="200" y="134" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="#57606a">Channel 1</text>
+  <text x="200" y="156" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="#57606a">Channel 2</text>
+  <text x="200" y="178" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="#57606a">Channel 3</text>
+  <text x="200" y="202" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="#57606a">...</text>
+
+  <rect x="616" y="88" width="128" height="160" rx="6" fill="#ffffff" stroke="#c0c8d0" stroke-width="1.2"/>
+  <text x="680" y="110" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="600" fill="#24292f">Connection</text>
+  <text x="680" y="134" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="#57606a">Channel 1</text>
+  <text x="680" y="156" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="#57606a">Channel 2</text>
+  <text x="680" y="178" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="#57606a">Channel 3</text>
+  <text x="680" y="202" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="#57606a">...</text>
+
+  <rect x="136" y="392" width="608" height="92" rx="8" fill="#f6f8fa" stroke="#9aa4af" stroke-width="1.2" stroke-dasharray="6 4"/>
+  <text x="440" y="414" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="600" fill="#24292f">Erlang Runtime</text>
+
+  <rect x="148" y="428" width="130" height="46" rx="6" fill="#ffffff" stroke="#c0c8d0" stroke-width="1.2"/>
+  <text x="213" y="445" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#24292f">Mnesia</text>
+  <text x="213" y="463" text-anchor="middle" dominant-baseline="middle" font-size="10" fill="#57606a">元数据</text>
+
+  <rect x="296" y="428" width="130" height="46" rx="6" fill="#ffffff" stroke="#c0c8d0" stroke-width="1.2"/>
+  <text x="361" y="445" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#24292f">ETS</text>
+  <text x="361" y="463" text-anchor="middle" dominant-baseline="middle" font-size="10" fill="#57606a">热数据</text>
+
+  <rect x="444" y="428" width="130" height="46" rx="6" fill="#ffffff" stroke="#c0c8d0" stroke-width="1.2"/>
+  <text x="509" y="445" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#24292f">Per-Queue Process</text>
+  <text x="509" y="463" text-anchor="middle" dominant-baseline="middle" font-size="10" fill="#57606a">每队列进程</text>
+
+  <rect x="592" y="428" width="130" height="46" rx="6" fill="#ffffff" stroke="#c0c8d0" stroke-width="1.2"/>
+  <text x="657" y="445" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#24292f">IO Thread Pool</text>
+  <text x="657" y="463" text-anchor="middle" dominant-baseline="middle" font-size="10" fill="#57606a">IO 线程池</text>
+
+  <rect x="12" y="133" width="88" height="64" rx="6" fill="#ffffff" stroke="#c0c8d0" stroke-width="1.2"/>
+  <text x="56" y="159" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="600" fill="#24292f">Producer</text>
+  <text x="56" y="179" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="#57606a">生产者</text>
+
+  <rect x="780" y="133" width="88" height="64" rx="6" fill="#ffffff" stroke="#c0c8d0" stroke-width="1.2"/>
+  <text x="824" y="159" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="600" fill="#24292f">Consumer</text>
+  <text x="824" y="179" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="#57606a">消费者</text>
+
+  <line x1="100" y1="165" x2="134" y2="165" stroke="#DC382D" stroke-width="1.5" marker-end="url(#arrow-red)"/>
+  <text x="118" y="150" text-anchor="middle" dominant-baseline="middle" font-size="10" fill="#DC382D">AMQP</text>
+
+  <line x1="264" y1="165" x2="314" y2="168" stroke="#DC382D" stroke-width="1.5" marker-end="url(#arrow-red)"/>
+
+  <line x1="564" y1="168" x2="614" y2="165" stroke="#DC382D" stroke-width="1.5" marker-end="url(#arrow-red)"/>
+
+  <line x1="744" y1="165" x2="778" y2="165" stroke="#DC382D" stroke-width="1.5" marker-end="url(#arrow-red)"/>
+  <text x="761" y="150" text-anchor="middle" dominant-baseline="middle" font-size="10" fill="#DC382D">AMQP</text>
+</svg>

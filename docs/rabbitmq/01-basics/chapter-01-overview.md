@@ -49,7 +49,7 @@ RabbitMQ 与 Kafka 的设计重点不同。RabbitMQ 围绕 Exchange、Binding �
 | 延迟特征 | 面向消息分发与消费，延迟受队列类型、消息持久化、确认策略、负载与网络等因素影响 | 延迟受批处理、生产者配置、副本确认策略、消费方式与负载等因素影响 |
 | 协议支持 | 原生支持 AMQP 0-9-1；4.0 起 AMQP 1.0 成为核心协议；通过插件支持 MQTT、STOMP，并内置 Stream 协议 | 使用自有二进制协议，拥有多种语言客户端及连接器生态 |
 | 死信处理 | 通过 Dead Letter Exchange（DLX）及队列参数构建死信流程 | 没有与 DLX 完全对应的 Broker 级死信路由，通常通过应用或消费框架设计重试与死信主题 |
-| 延迟消息 | 可通过 `rabbitmq_delayed_message_exchange` 插件实现定时延迟投递 | 通常通过延迟主题、时间戳调度或外部调度机制实现 |
+| 延迟消息 | 通过 TTL + DLX 实现延迟投递，4.4 起 Quorum Queue 原生支持投递延迟 | 通常通过延迟主题、时间戳调度或外部调度机制实现 |
 | 堆积与回放 | 队列类型不同，堆积、存储与消费语义也不同；Stream Queue 支持按 offset 回放 | 以持久化分区日志为核心，可在保留策略范围内按 offset 重新消费 |
 | 扩展与高可用 | 通过多节点集群与合适的队列类型实现；能力取决于队列类型与分布方式 | 通过分区分布与副本机制扩展；效果取决于分区数、复制配置与负载 |
 | 运维与选型成本 | 需理解 Exchange、Binding、队列类型、确认与死信等机制 | 需理解 Topic、Partition、消费组、保留策略、副本与再均衡等机制 |
@@ -133,10 +133,10 @@ Producer                    Broker                     Consumer
 ### 8.2 延迟任务
 
 ```txt
-订单创建 ──▶ delay.exchange（延迟30分钟）──▶ order.timeout.queue ──▶ 检查支付状态
+订单创建 ──▶ delay.order.timeout.queue（TTL 30 分钟）──▶ order.timeout.queue ──▶ 检查支付状态
 ```
 
-延迟消息插件（rabbitmq_delayed_message_exchange）实现。
+消息先进入带 TTL 的延迟队列，到期后经 DLX 路由到处理队列。RabbitMQ 4.3 下延迟消息插件（rabbitmq_delayed_message_exchange）已停止维护且依赖的 Mnesia 已移除，实现细节见[消息 TTL](./05-consumer/chapter-04-message-ttl.md)。
 
 ### 8.3 RPC 调用
 

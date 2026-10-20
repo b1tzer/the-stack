@@ -14,30 +14,28 @@ ES 的全文检索建立在**倒排索引**之上：把文档里的文本拆成�
 | 太细：`"Java编程语言"` → `["J","a","v","a","编","程","语","言"]` | 噪音多、精度差 |
 | 合理：`"Java编程语言"` → `["Java","编程","语言"]` | 搜 "Java"、"编程"、"语言" 都能命中 |
 
-英文天然以空格和标点分词，但中文没有分隔符，词语边界需要专门算法识别——这正是 IK 分词器要解决的问题。
-
-**生活类比**：分词器像一个"断句专家"。英文句子里词之间有空格，断句简单；中文句子没有空格，必须理解语义才能正确切词。
+英文通常依靠空白、标点和语言分词规则确定词项边界。中文没有天然分隔符，词语边界需要专门算法识别，这正是 IK 分词器要解决的问题。
 
 ## 2. 分词发生在两个时机 {#two-phases}
 
-这是全文最关键的一点：**同一段文本会被分词两次，目的完全不同。**
+文档写入索引时会进行一次分析，查询文本也会在执行查询时进行分析。两次分析可以使用不同的配置。
 
 ```mermaid
 flowchart LR
-    W["文档 'Java编程语言'"] -->|"索引时"| I["ik_max_word 分词<br>[Java, 编程语言, 编程, 语言]"] --> IDX["写入倒排索引"]
-    Q["查询 '编程'"] -->|"查询时"| S["ik_smart 分词<br>[编程]"] --> IDX
+    W["文档 'Java编程语言'"] -->|"索引时"| I["ik_max_word 分词<br>[Java, 编程语言, 编程, 语言]"] -->|"写入"| IDX["倒排索引"]
+    Q["查询 '编程'"] -->|"查询时"| S["ik_smart 分词<br>[编程]"] -->|"匹配"| IDX
 ```
 
-| 时机 | 做什么 | 目标 |
+| 时机 | 做什么 | 常见意图 |
 | :-- | :-- | :-- |
-| **索引时** | 把文档文本拆成词项，写入倒排索引 | 让更多可能的查询词都能命中，**提高召回率** |
-| **查询时** | 把查询词也拆成词项，去倒排索引匹配 | 精确匹配用户意图，**提高精确度** |
+| **索引时** | 把文档文本拆成词项，写入倒排索引 | 让更多可能的查询词都能命中（召回取向） |
+| **查询时** | 把查询词也拆成词项，去倒排索引匹配 | 尽量贴合用户意图（精度取向） |
 
-两者目标相反，所以实践中常给索引和查询配置不同的分词器（见 [§5.3](#index-vs-search)）。理解这一点，才能看懂后文"索引用 `ik_max_word`、查询用 `ik_smart`"的推荐。
+两次分析的目标和配置不必相同，实践中常见做法是索引用较细切分、查询用较粗切分（见 [§5.3](#index-vs-search)）。但"索引必提召回、查询必提精度"不是普遍规律，实际效果还取决于查询类型、布尔组合与相关性排序。
 
 ## 3. 分词器的三层架构 {#analyzer-architecture}
 
-每个分词器（Analyzer）由三个组件**按顺序**组成：
+每个分析器（Analyzer，习惯上也称分词器）由三个组件**按顺序**组成，其中负责切分的是分词器（Tokenizer）：
 
 ```mermaid
 flowchart LR
@@ -53,7 +51,7 @@ flowchart LR
 | **Tokenizer** | 把字符流切成词项（**必须且唯一**） | `Hello World` → `[Hello, World]` |
 | **Token Filter** | 对词项做后处理（小写、去停用词、同义词） | `[Hello, World]` → `[hello, world]` |
 
-三者中 **Tokenizer 是必须的**，Char Filter 和 Token Filter 可以有零个或多个。分词质量主要由 Tokenizer 决定。
+三者中 **Tokenizer 是必须的**，Char Filter 和 Token Filter 可以有零个或多个。Tokenizer 决定初始切分结果，Char Filter 与 Token Filter 会在分析链中继续修改文本或词项；中文分词效果还取决于分词器的词典与切分策略。
 
 ## 4. ES 内置分词器
 
@@ -61,11 +59,11 @@ flowchart LR
 
 | 分词器 | 分词规则 | 示例输入 | 分词结果 | 适用场景 |
 | :-- | :-- | :-- | :-- | :-- |
-| **standard** | 按 Unicode 文本分割，转小写 | `"Java编程 Very Cool"` | `[java, 编, 程, very, cool]` | 默认分词器，英文效果好，**中文逐字切分** |
+| **standard** | 按 Unicode 文本边界切分，转小写 | `"Java编程 Very Cool"` | `[java, 编, 程, very, cool]` | 默认分词器，英文效果好，**不识别中文词语边界** |
 | **simple** | 按非字母字符分割，转小写 | `"Hello-World 123"` | `[hello, world]` | 简单英文文本 |
 | **whitespace** | 按空格分割，不转小写 | `"Hello World"` | `[Hello, World]` | 保留大小写 |
 | **keyword** | 不分词，整段作为一个词项 | `"Hello World"` | `[Hello World]` | 精确匹配（ID、邮箱） |
-| **pattern** | 按正则分割 | `"foo-bar_baz"` | `[foo, bar, baz]`（按 `\W+`） | 自定义分隔符 |
+| **pattern** | 按正则分割 | `"foo-bar_baz"` | `[foo, bar_baz]`（按 `\W+`，`_` 属单词字符不切分） | 自定义分隔符 |
 
 ### 4.2 用 _analyze 测试分词
 
@@ -78,7 +76,7 @@ GET /_analyze
 # tokens: [java, 编, 程, 语, 言, 非, 常, 强, 大]
 ```
 
-> ⚠️ **关键问题**：`standard` 对中文是**逐字切分**，无法识别词语边界。搜 "编程" 时，实际切成了 "编" 和 "程" 两个字分别去匹配，会命中大量无关文档。
+> ⚠️ `standard` 按 Unicode 文本边界切分，不提供中文词语识别能力。对无空格的中文输入，通常会把每个字切成独立词项。搜 "编程" 时实际切成 "编" 和 "程" 两个字分别匹配，语义区分能力弱，可能引入大量语义无关的结果。
 
 ## 5. IK 中文分词器
 
@@ -87,17 +85,18 @@ IK 是 ES 生态最常用的中文分词插件，用**词典匹配算法**切词
 ### 5.1 安装
 
 ```bash
-# 版本必须与 ES 版本一致
+# 版本必须与 ES 版本一致（以下为模板，请替换为实际版本号）
+# 核对步骤：1) 确认 ES 版本；2) 在 GitHub Releases 页面确认对应插件版本存在
 ./bin/elasticsearch-plugin install https://github.com/medcl/elasticsearch-analysis-ik/releases/download/v8.x.x/elasticsearch-analysis-ik-8.x.x.zip
 # 安装后重启 ES
 ```
 
 ### 5.2 两种分词模式
 
-| 模式 | 分词器 | 策略 | 用途 |
+| 模式 | 分词器 | 策略 | 常见用途 |
 | :-- | :-- | :-- | :-- |
-| **细粒度** | `ik_max_word` | 穷举所有可能的词组合 | **索引时**，提高召回 |
-| **粗粒度** | `ik_smart` | 消歧选最合理的一条切分，不重复 | **查询时**，提高精度 |
+| **细粒度** | `ik_max_word` | 尽可能细粒度切分，输出较多词项 | **索引时**（召回取向） |
+| **粗粒度** | `ik_smart` | 较粗粒度切分，输出较少词项 | **查询时**（精度取向） |
 
 ```bash
 GET /_analyze
@@ -106,12 +105,14 @@ GET /_analyze
 
 GET /_analyze
 { "analyzer": "ik_smart", "text": "Java编程语言非常强大" }
-# [java, 编程语言, 非常, 强大] —— 最少切分，不再拆 "编程语言"
+# [java, 编程语言, 非常, 强大] —— 切分较粗，不再拆 "编程语言"
 ```
 
 ### 5.3 索引时 vs 查询时的搭配 {#index-vs-search}
 
-呼应 [§2](#two-phases) 的两个时机：索引用 `ik_max_word` 多切分（"编程语言" 同时产生 "编程语言"、"编程"、"语言" 三个词项），查询用 `ik_smart` 少切分（"编程" 只产生 "编程" 一个词项）。
+呼应 [§2](#two-phases) 的两个时机：一种常见实践是索引用 `ik_max_word` 多切分（"编程语言" 同时产生 "编程语言"、"编程"、"语言" 三个词项），查询用 `ik_smart` 少切分（"编程" 只产生 "编程" 一个词项）。
+
+> ⚠️ **注意**：这不是普遍成立的优化规律。索引时增加词项可以扩大部分查询的匹配范围，但也可能引入不符合业务语义的匹配；查询时减少切分不一定提高精确度，具体结果还取决于查询类型（如 `match_phrase` 依赖词项位置）、布尔组合方式和相关性排序。最终选择应由业务查询模式决定，建议用 `_analyze` 和实际 `_search` 对比验证，而非机械套用固定组合。
 
 ```bash
 PUT /articles
@@ -133,11 +134,13 @@ PUT /articles
 }
 ```
 
-效果：
+基于上述配置和分词结果，预期行为如下（实际命中还取决于查询类型和操作符）：
 
 - 索引 "Java编程语言" 时，倒排索引里同时有 `java`、`编程语言`、`编程`、`语言` 四个词项。
-- 搜 "编程" 时，查询词被 `ik_smart` 切成 `[编程]`，命中倒排索引里的 "编程" ✅
-- 搜 "编程语言" 时，切成 `[编程语言]`，精确命中 ✅
+- 搜 "编程" 时（`match` 查询），查询词被 `ik_smart` 切成 `[编程]`，能命中倒排索引中的 "编程" 词项。
+- 搜 "编程语言" 时（`match` 查询），切成 `[编程语言]`，能命中倒排索引中的 "编程语言" 词项。
+
+> 建议用 `_search` 实际验证：不同查询类型（`match` vs `match_phrase`）、不同操作符（`or` vs `and`）会产生不同的命中结果。
 
 ### 5.4 自定义词典
 
@@ -146,7 +149,8 @@ IK 依赖内置词典，但专业术语、新词、品牌名常不在词典里�
 **本地词典**：
 
 ```xml
-<!-- config/IKAnalyzer.cfg.xml -->
+<!-- 配置文件通常位于 plugins/analysis-ik/config/ 目录下，
+     具体路径随插件版本与部署方式不同 -->
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
 <properties>
@@ -172,10 +176,12 @@ SpringBoot
 ```
 
 > 远程词典接口返回纯文本（每行一个词），并通过 `Last-Modified` 或 `ETag` 响应头告知 IK 是否有更新，IK 定期轮询。
+>
+> 生产环境中，集群内参与索引和查询的节点需保持词典版本一致，否则同一文本可能在不同节点产生不同的分析结果。
 
 ## 6. 自定义分词器
 
-内置和 IK 都不满足时，可以自定义：自己选 Char Filter、Tokenizer、Token Filter 组装。
+内置和 IK 都不满足时，可以自定义：自己选 Char Filter、Tokenizer、Token Filter 组装。本节各示例相互独立，请在各自独立的索引上分别执行，避免同名索引重复创建冲突。
 
 ### 6.1 组装一个自定义分词器
 
@@ -208,6 +214,17 @@ PUT /my_index
 
 结构上就是 [§3](#analyzer-architecture) 的三层：`char_filter` → `tokenizer` → `filter`。
 
+可用 `_analyze` 验证分析链的实际输出：
+
+```bash
+POST /my_index/_analyze
+{
+  "analyzer": "my_analyzer",
+  "text": "Java & Redis; 数据在这里"
+}
+# 可核对：& 是否转成 and、是否按空格/逗号/分号切分、英文是否转小写；中文部分因 pattern 不切词而保持整段
+```
+
 ### 6.2 同义词过滤器
 
 ```bash
@@ -233,7 +250,11 @@ PUT /my_index
 }
 ```
 
-同义词建议放文件维护：
+> ⚠️ **同义词解析与分词器的兼容性**：ES 从 6.0 起，同义词过滤器使用它**之前**的分析链（tokenizer + 前置 filter）解析同义词规则。当 tokenizer 是 `ik_max_word` 时，规则中的中文文本也会被 `ik_max_word` 切分，可能影响多词同义词规则。例如 `手机, 手机设备` 中的 "手机设备" 若被切成 "手机" 和 "设备"，规则的匹配行为会随之改变。多词同义词还涉及词项位置与短语匹配，不能只检查最终词项是否出现。
+>
+> 建议：① 同义词规则尽量使用单字或已确认不会被切分的词；② 查询时处理多词同义词优先评估 `synonym_graph` 过滤器；③ 用 `_analyze` 验证规则解析，再用实际查询验证匹配行为。
+
+同义词较多时建议改用文件维护，将 filter 的 `synonyms` 换成 `synonyms_path` 指向文件路径（与内联 `synonyms` 是两种配置方式，二选一）：
 
 ```txt
 # config/analysis/synonyms.txt
@@ -246,7 +267,8 @@ PUT /my_index
 ### 6.3 拼音分词（拼音搜索）
 
 ```bash
-# 安装拼音插件
+# 安装拼音插件（版本号需与 ES 版本一致，以下为模板，请替换为实际版本）
+# 核对步骤：1) 确认 ES 版本；2) 在 GitHub Releases 页面确认对应插件版本存在
 ./bin/elasticsearch-plugin install https://github.com/medcl/elasticsearch-analysis-pinyin/releases/download/v8.x.x/elasticsearch-analysis-pinyin-8.x.x.zip
 
 PUT /my_index
@@ -258,6 +280,7 @@ PUT /my_index
           "type": "pinyin",
           "keep_full_pinyin": true,
           "keep_joined_full_pinyin": true,
+          "keep_first_letter": true,
           "keep_original": true,
           "remove_duplicated_term": true
         }
@@ -272,7 +295,8 @@ PUT /my_index
     }
   }
 }
-# 搜 "bianchen" 或 "bc" 能匹配到 "编程"
+# 本节只演示拼音分析链的 settings 配置；字段映射需与该 settings 放在同一索引，完整落地见 §7.1
+# 可用 _analyze 直接验证分析器（无需建字段）：GET /my_index/_analyze { "analyzer": "ik_pinyin_analyzer", "text": "编程" }
 ```
 
 ## 7. Mapping 中的分词器配置
@@ -282,6 +306,27 @@ PUT /my_index
 ```bash
 PUT /articles
 {
+  "settings": {
+    "analysis": {
+      "filter": {
+        "my_pinyin": {
+          "type": "pinyin",
+          "keep_full_pinyin": true,
+          "keep_joined_full_pinyin": true,
+          "keep_first_letter": true,
+          "keep_original": true,
+          "remove_duplicated_term": true
+        }
+      },
+      "analyzer": {
+        "ik_pinyin_analyzer": {
+          "type": "custom",
+          "tokenizer": "ik_max_word",
+          "filter": ["my_pinyin"]
+        }
+      }
+    }
+  },
   "mappings": {
     "properties": {
       "title": { "type": "text", "analyzer": "ik_max_word", "search_analyzer": "ik_smart" },
@@ -309,15 +354,15 @@ PUT /articles
 | **keyword** | ❌ 整值作为一个词项 | 精确匹配（ID、状态、标签） | `term`、`terms`、`range` |
 
 ```bash
-# ❌ 错误：text 字段被分词了，term 查完整值找不到
+# ⚠️ term 不分析查询文本，直接匹配词项；text 字段的完整原文通常不构成独立词项，可能查不到
 GET /articles/_search
 { "query": { "term": { "title": "Java编程" } } }
 
-# ✅ 正确：text 字段用 match
+# ✅ 全文匹配 text 字段用 match（会先分析查询文本）
 GET /articles/_search
 { "query": { "match": { "title": "Java编程" } } }
 
-# ✅ 正确：keyword 字段用 term
+# ✅ 精确匹配完整值用 keyword 字段 + term
 GET /articles/_search
 { "query": { "term": { "tags": "Java" } } }
 ```
@@ -348,11 +393,11 @@ flowchart TD
 
 **Q：为什么 standard 分词器对中文效果差？**
 
-> `standard` 按 Unicode 文本分割，英文靠空格和标点分词，中文没有空格，被逐字切分。"编程语言" 被切成 "编"、"程"、"语"、"言" 四个字。搜 "编程" 时实际搜的是 "编" 和 "程"，会命中大量无关文档。
+> `standard` 不识别中文词语边界，无空格的中文输入通常被切成单字，语义区分能力弱（见 §4.2 的 `_analyze` 示例）。需要中文词语级检索时改用 IK。
 
 **Q：ik_max_word 和 ik_smart 怎么选？**
 
-> 索引时用 `ik_max_word`（多切分，提高召回），查询时用 `ik_smart`（少切分，提高精度），通过 `analyzer` 和 `search_analyzer` 分别配置。原因见 [§2](#two-phases)。
+> 常见起点是索引用 `ik_max_word`、查询用 `ik_smart`，通过 `analyzer` 和 `search_analyzer` 分别配置。但这并非普遍规律，最终选择应由业务查询模式决定。详见 [§5.3](#index-vs-search)。
 
 **Q：如何让 IK 识别新词？**
 
@@ -364,4 +409,4 @@ flowchart TD
 
 **Q：修改分词器后，已有数据要重新索引吗？**
 
-> 要。分词器变更只影响新写入数据，已有数据的倒排索引不会自动更新，需要 Reindex 重建索引。
+> 取决于改的是哪一部分。修改**索引时**分析器，已有文档的倒排索引不会自动重建，若要让旧数据按新规则分词，需要新建索引并 Reindex。只修改**查询时**分析器，不影响已有倒排索引，但会改变后续查询文本的分析结果。修改 IK 词典，同样不会自动重建已有词项。上线前应分别验证索引时与查询时的分析结果，再决定是否需要 Reindex。

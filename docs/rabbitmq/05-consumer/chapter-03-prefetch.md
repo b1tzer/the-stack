@@ -27,6 +27,8 @@ channel.basicQos(10);
 | 1 | 一次只推 1 条，处理完再推下一条 |
 | N | 最多有 N 条未确认消息 |
 
+Prefetch 只在手动确认下生效。使用自动确认（autoAck）时消息投递即被确认，`未确认消息数` 恒为 0，Prefetch 起不到限流作用。
+
 ## 3. Prefetch 的工作原理
 
 ```txt
@@ -48,19 +50,17 @@ Broker 维护一个滑动窗口：`未确认消息数 < Prefetch` 时才推送�
 | 100+ | 消息处理很快（内存操作）、高吞吐场景 |
 | 0 | 不推荐（除非 Consumer 有自己完善的背压机制） |
 
-**经验法则**：Prefetch 设为 Consumer 每秒处理能力的 1-2 倍。如果 Consumer 每秒处理 50 条，Prefetch 设为 50-100。
+**经验法则**：上表分档只是调优起点。Prefetch 的合理值还受消息大小、确认延迟和消费者并发影响，没有固定公式，最终值以压测为准。
 
-## 5. 全局 Prefetch vs  Channel Prefetch
+## 5. Prefetch 的作用范围
+
+`basicQos(n)` 设置的是 per-consumer 预取额度，同一 Channel 上每个消费者各自独立拥有 n 条未确认消息的额度，互不影响：
 
 ```java
-// Channel 级别：这个 Channel 上所有消费者共享
-channel.basicQos(10);
-
-// 全局级别：这个 Connection 上所有 Channel 共享
-channel.basicQos(100, true);  // global = true
+channel.basicQos(10);  // 每个消费者各自最多 10 条未确认消息
 ```
 
-**推荐用 Channel 级别**（global = false），每个消费者的 Prefetch 独立控制。
+旧版的 `basicQos(n, true)` 会把额度设为整个 Channel 共享（global QoS）。该用法已在 RabbitMQ 4.0 移除，4.3 起默认拒绝，除非显式开启 `deprecated_features.permit.global_qos`，新代码不要使用。
 
 ## 6. 背压（Backpressure）
 
@@ -71,10 +71,12 @@ Consumer 处理慢 → unacked 消息数达到 Prefetch → Broker 停止推送
 Consumer ack 一条 → unacked 减 1 → Broker 恢复推送
 ```
 
-这是一种优雅的流控机制：不需要 Consumer 主动拒绝，Prefetch 自动调节推送速率。
+这是一种被动式流控：不需要 Consumer 主动拒绝，达到 Prefetch 上限后 Broker 自然暂停推送。
 
 ## 7. Quorum Queue 的 Prefetch 注意事项
 
-Quorum Queue 的消息默认不在内存中缓存（`x-max-in-memory-length = 0`）。如果 Prefetch 设得很大，大量消息会被推送到 Consumer，但 Consumer 处理慢时，这些消息需要从磁盘重新读取。
+Quorum Queue 基于 Raft 实现，消息体始终存储到磁盘，内存中只保留每条消息的元数据。`x-max-in-memory-length` 参数虽然仍被接受，但已不再起作用，效果等同于设为 0。
 
-建议：Quorum Queue 的 Prefetch 不要设太大，10-50 是合理范围。
+即使把 Prefetch 设成 0（不限制），单个消费者在 Quorum Queue 上最多也只能持有 2000 条未确认消息，这是 Broker 为避免 Raft 日志失控而设的上限。
+
+官方建议 Quorum Queue 使用较高的 Prefetch 值，避免消费者在等待 ACK 流转期间被饿死。因此不要照搬 Classic Queue 的「Prefetch 越小越安全」直觉，10-50 只能作为初始试验值，最终值应结合消息大小、处理耗时和吞吐量压测确定。

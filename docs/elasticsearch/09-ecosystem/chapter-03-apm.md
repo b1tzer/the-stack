@@ -8,6 +8,8 @@ APM（Application Performance Monitoring）用于监控应用程序的性能，�
 应用服务 → APM Agent → APM Server → Elasticsearch → Kibana APM UI
 ```
 
+数据不通时可按 Agent → APM Server → Elasticsearch → Kibana 的顺序排查，但故障可能同时出现在多个环节，需结合 Agent 上报状态与各组件日志综合判断。
+
 ## 2. APM 组件
 
 | 组件 | 说明 |
@@ -47,17 +49,15 @@ java -javaagent:/path/to/elastic-apm-agent-1.44.0.jar \
   -jar my-app.jar
 ```
 
-### 4.1 Spring Boot 配置
+### 4.1 配置文件方式
 
-```yaml
-# application.yml
-elastic:
-  apm:
-    service_name: my-spring-app
-    server_urls: http://localhost:8200
-    application_packages: com.example
-    enable_instrumentation: true
-    capture_body: all
+`-javaagent` 方式不会读取 Spring Boot 的 `application.yml`，配置需通过 `elasticapm.properties`、系统属性或环境变量传入。若要改用 Spring Boot 配置文件管理 APM 参数，需引入 Spring Boot 集成组件，此处不展开。
+
+```properties
+# elasticapm.properties（放在 Agent JAR 同目录，或用 config_file 指定）
+service_name=my-spring-app
+server_urls=http://localhost:8200
+application_packages=com.example
 ```
 
 ## 5. Python Agent
@@ -67,6 +67,7 @@ elastic:
 pip install elastic-apm
 
 # Flask 应用
+from flask import Flask
 import elasticapm
 from elasticapm.contrib.flask import ElasticAPM
 
@@ -102,13 +103,15 @@ def my_function():
 ## 8. 自定义追踪
 
 ```java
-// Java - 手动创建 Span
-Span span = ElasticApm.currentSpan();
+// Java - 手动创建子 Span
+Span span = ElasticApm.currentSpan()
+    .startSpan("db", "redis", "command");
 span.setName("custom-redis-operation");
-span.setType("db");
-span.setSubtype("redis");
-try {
+try (Scope scope = span.activate()) {
     // 业务逻辑
+} catch (Exception e) {
+    span.captureException(e);
+    throw e;
 } finally {
     span.end();
 }
@@ -117,8 +120,7 @@ try {
 ## 9. 最佳实践
 
 - 生产环境所有核心服务部署 APM Agent
-- 设置合理的采样率（如 10%），避免数据量过大
-- 使用 `transaction_sample_rate` 控制采样
+- 使用 `transaction_sample_rate` 控制采样，避免数据量过大；10% 仅为示例，实际需权衡存储成本与低频故障、尾延迟的诊断能力
 - APM 数据保留策略建议 7~30 天
 - 监控 APM Server 自身的性能
 - 使用告警功能及时发现性能异常

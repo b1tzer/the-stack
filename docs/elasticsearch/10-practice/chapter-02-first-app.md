@@ -2,6 +2,11 @@
 
 > 创建索引、导入数据、搜索查询的完整流程。
 
+## 运行前提
+
+- Elasticsearch 8.x，已安装 [IK 分词插件](../02-indexing/chapter-04-chinese-analysis.md)，插件版本需与 ES 版本一致
+- Spring Boot 通过 BOM 管理 Spring Data Elasticsearch 版本，客户端与服务端的兼容性需按所选版本组合确认
+
 ## 1. 创建索引
 
 ```bash
@@ -28,6 +33,8 @@ PUT /products
 }
 ```
 
+未单独指定 `search_analyzer`，查询侧默认复用 `ik_max` 的细粒度分词。
+
 ## 2. 导入数据
 
 ```bash
@@ -37,6 +44,8 @@ POST _bulk
 { "index": { "_index": "products", "_id": "2" } }
 { "name": "MacBook Pro", "category": "电脑", "price": 14999, "description": "专业级笔记本电脑", "created_at": "2026-01-15" }
 ```
+
+HTTP 状态码成功不代表每条文档都写入成功，需检查响应顶层的 `errors` 字段，为 `true` 时遍历 `items` 定位失败项。
 
 ## 3. 搜索
 
@@ -91,3 +100,5 @@ public interface ProductRepository extends ElasticsearchRepository<Product, Stri
     List<Product> findByNameContaining(String name);
 }
 ```
+
+`@Field(analyzer = "ik_max")` 依赖 §1 预先创建的索引：实体注解只声明字段使用该分析器，分析器定义来自索引 settings，应用启动前需先执行创建索引请求，或通过 `@Setting` 声明同等的分析器配置。

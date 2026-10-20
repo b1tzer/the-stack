@@ -88,7 +88,7 @@ channel.basicPublish("", "delay.order.timeout", props, body);
 
 **注意**：队列级 `x-message-ttl` 让整队消息共享同一个过期时间，不存在队头阻塞。队头阻塞（Head-of-Line Blocking）出现在同一队列的消息用不同 TTL（per-message TTL，通过 `expiration` 属性设置）时——经典队列只检查队头消息是否过期，若队头 TTL 更长，后面的消息即使已到期也要等队头先被移出。
 
-**解决方案**：使用延迟消息插件（rabbitmq_delayed_message_exchange），它在 Exchange 层面实现延迟，没有 Head-of-Line Blocking 问题。
+**解决方案**：延迟消息插件（rabbitmq_delayed_message_exchange）在 Exchange 层面实现延迟，没有队头阻塞问题，但它已停止维护，依赖的 Mnesia 在 RabbitMQ 4.3 中已移除，无法在 4.3 上使用。4.3 下的延迟方案以 TTL + DLX 为准，需要精确延迟时可升级到 4.4 及以上由 Quorum Queue 原生支持，或改用商业版 Tanzu RabbitMQ 的延迟队列，详见[消息 TTL](../05-consumer/chapter-04-message-ttl.md)。
 
 ## 6. 死信队列的最佳实践
 
