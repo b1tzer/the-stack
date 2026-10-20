@@ -32,9 +32,10 @@
 ## 3. 高层设计
 
 ```txt
-Client → LB → App Server → Cache → DB
-                      ↓
-                  Message Queue → Worker
+同步读链路（常见读路径）：Client → LB → App Server → Cache
+            缓存未命中 → DB（回源后回填 Cache）
+
+异步处理链路：App Server → Message Queue → Worker
 ```
 
 核心步骤：
@@ -46,15 +47,21 @@ Client → LB → App Server → Cache → DB
 
 ## 4. 容量估算
 
+容量估算用于在方案初期建立数量级直觉，结论是粗估而非精确值。
+
 ```txt
 假设：DAU = 1000万，每人每天 10 次操作
-  QPS = 1000万 × 10 / 86400 ≈ 1200 QPS
-  峰值 QPS ≈ 3 × 1200 = 3600 QPS
+  平均 QPS = 1000万 × 10 / 86400 ≈ 1200 QPS（全天请求均摊到 86400 秒）
+  峰值 QPS ≈ 3 × 1200 = 3600 QPS（峰值系数 3 只是示例假设）
 
 存储：每条记录 1KB，每天 1亿条
   日增量 = 1亿 × 1KB = 100GB/天
   年增量 = 100GB × 365 = 36TB/年
 ```
+
+- 峰值系数 3 不是通用常数，实际峰值取决于活跃时段与业务事件，需用压测或历史流量标定。
+- 1KB 是逻辑记录大小，实际存储占用还需计入索引、副本、日志与保留周期。
+- 估算结果要回到单实例承载能力与压测数据，验证实例数量与冗余是否够用，方法见 [高并发设计](./chapter-02-high-concurrency.md)。
 
 ## 5. 常见设计模式
 
@@ -66,6 +73,8 @@ Client → LB → App Server → Cache → DB
 | 高可用 | 主从 + 自动故障转移 |
 | 低延迟 | 缓存 + 本地计算 |
 
+上表是常见思路，不是一一对应的充分条件。消息队列能削峰解耦，却不会提升数据库的持续写入能力，消费速度长期低于生产速度时积压只会增长；主从加自动切换也不等于高可用，复制延迟、脑裂与切换期间的写入丢失仍需单独应对。选型要回到吞吐、延迟、一致性、运维复杂度与团队能力等维度综合判断，详见 [高并发设计](./chapter-02-high-concurrency.md)、[高可用设计](./chapter-03-high-availability.md)、[高性能设计](./chapter-04-high-performance.md)、[可扩展设计](./chapter-05-scalability.md)。
+
 ## 6. 权衡讨论
 
 每个设计决策都有 trade-off：
@@ -73,6 +82,8 @@ Client → LB → App Server → Cache → DB
 | 决策 | 选择 A | 选择 B |
 | :-- | :-- | :-- |
 | 数据库 | MySQL（成熟） | TiDB（分布式） |
-| 缓存 | Redis（快） | Memcached（简单） |
+| 缓存 | Redis（功能丰富） | Memcached（极简） |
 | 消息队列 | RabbitMQ（低延迟） | Kafka（高吞吐） |
-| 一致性 | 强一致（安全） | 最终一致（性能） |
+| 一致性 | 强一致 | 最终一致 |
+
+表中标签只提示最突出的差异，不是选型的全部依据。强一致与最终一致不是「安全」与「性能」的对立，而是读写语义、故障模型与延迟预算的综合权衡；MySQL 与 TiDB 的取舍还要看数据规模、事务需求与运维成本。一致性模型见 [CAP 理论与 BASE 理论](./chapter-06-distributed-theory.md)。
