@@ -20,20 +20,27 @@
 ## 3. 重构到模式
 
 ```java
-// 重构前：大量 if-else
+// 重构前：大量 if-else，未知类型直接报错（type 为 null 时抛 NPE）
 if (type.equals("alipay")) {
     // 支付宝逻辑
 } else if (type.equals("wechat")) {
     // 微信逻辑
+} else {
+    throw new IllegalArgumentException("不支持的支付类型: " + type);
 }
 
-// 重构后：策略模式
+// 重构后：策略模式，未知类型同样报错；显式判空将 null 统一为 IllegalArgumentException
 interface Payment { void pay(BigDecimal amount); }
 Map<String, Payment> payments = Map.of(
     "alipay", new Alipay(),
     "wechat", new WechatPay()
 );
-payments.get(type).pay(amount);
+
+Payment payment = payments.get(type);
+if (payment == null) {
+    throw new IllegalArgumentException("不支持的支付类型: " + type);
+}
+payment.pay(amount);
 ```
 
 ## 4. 重构时机
@@ -91,6 +98,8 @@ record ShippingAddress(String street, String city, String zipCode, String phone)
 void createOrder(OrderRequest request) { /* ... */ }
 ```
 
+> 适用条件：当一组参数具有稳定的业务关联、共同的校验规则或独立演化需求时再封装，不要仅凭参数数量决定。
+
 ### 5.3 以多态取代条件表达式（Replace Conditional with Polymorphism）
 
 ```java
@@ -133,7 +142,23 @@ class VipPricing implements PricingStrategy {
         return basePrice.multiply(BigDecimal.valueOf(0.7));
     }
 }
+
+// 策略选择：未知类型回退到原价，与原 if-else 的默认分支（return basePrice）一致
+class PricingStrategies {
+    private static final Map<String, PricingStrategy> STRATEGIES = Map.of(
+        "regular", new RegularPricing(),
+        "premium", new PremiumPricing(),
+        "vip", new VipPricing()
+    );
+
+    static BigDecimal calculate(String customerType, BigDecimal basePrice) {
+        PricingStrategy strategy = STRATEGIES.get(customerType);
+        return strategy != null ? strategy.calculate(basePrice) : basePrice;
+    }
+}
 ```
+
+> 适用条件：当不同分支代表相对独立、需要独立变化的行为时再考虑多态；稳定且简单的条件分支，保留 if-else 往往更直接。
 
 ### 5.4 以工厂取代构造函数（Replace Constructor with Factory）
 
@@ -155,12 +180,15 @@ class OrderFactory {
     }
     
     private static BigDecimal calculateShippingFee(String type) {
+        // 非 express 默认普通运费 5 元，属既有业务约定
         return "express".equals(type)
             ? BigDecimal.valueOf(20)
             : BigDecimal.valueOf(5);
     }
 }
 ```
+
+> 适用条件：当创建过程包含需要集中管理的规则、复杂构造或类型选择时再引入工厂；简单构造不必额外增加抽象层。
 
 ## 6. 安全重构的实践原则
 
@@ -172,6 +200,13 @@ class OrderFactory {
 | 使用 IDE 工具 | IntelliJ 的 Refactor 菜单自动处理引用 |
 | 版本控制 | 每个小步骤单独提交，方便回滚 |
 | 避免重构+修改 | 重构和功能修改分开提交 |
+
+当面对缺少测试的遗留代码时，上述原则依然适用，但需要先建立可验证的行为基线：
+
+1. 明确本次重构必须保留的外部行为：返回值、异常、持久化结果及外部调用。
+2. 无法直接测试时，用特征化测试（Characterization Tests）记录现有行为，而不是直接编写理想行为的测试。
+3. 依赖难以隔离时，先寻找可测试的接缝（Seam），或通过包装、委托隔离必要依赖，避免一开始就大规模改造。
+4. 每完成一个结构变更就运行相关测试；涉及跨模块契约时，再执行集成或端到端验证。
 
 ```java
 // 安全重构流程示例：将 God Class 拆分为多个类
@@ -188,5 +223,7 @@ void shouldCalculateDiscount() {
 // Step 5: 删除 GodClass 中的旧代码
 // Step 6: 运行所有测试确认无误
 ```
+
+以上测试仅为流程示意，单个测试不足以验证 God Class 拆分的全部行为。实际重构需覆盖所有涉及的现有行为；比较 BigDecimal 时优先使用 compareTo，避免 equals 对数值相同但 scale 不同的结果误判。
 
 > **重构戒律**：重构不是重写。重构是在保持行为不变的前提下改善结构。如果你需要改变行为，那是修改功能，不是重构。两者不要混在一起做。
