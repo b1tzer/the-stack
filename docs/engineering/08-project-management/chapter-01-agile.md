@@ -6,14 +6,18 @@
 | :-- | :-- |
 | Product Owner | 需求管理、优先级排序 |
 | Scrum Master | 流程守护、障碍移除 |
-| Development Team | 跨职能团队 |
+| Developers | 负责 Sprint Backlog 与可用增量，贯彻质量要求 |
+
+Product Owner、Scrum Master 和 Developers 是 Scrum Team 的三种责任领域（accountabilities），不是组织架构中的三个固定岗位。
 
 | 仪式 | 频率 | 时长 |
 | :-- | :-- | :-- |
 | Sprint Planning | 每 Sprint 开始 | 2-4h |
-| Daily Standup | 每天 | 15min |
+| Daily Scrum | 每天 | 15min |
 | Sprint Review | 每 Sprint 结束 | 1-2h |
 | Retrospective | 每 Sprint 结束 | 1h |
+
+上表时长是实践参考，不是 Scrum 的统一强制要求。以 Sprint Planning 为例，Scrum Guide 给出的时间盒上限为一个月 Sprint 对应 8 小时，较短 Sprint 通常更短。
 
 ## 2. Kanban
 
@@ -30,6 +34,8 @@
 | 交付 | 持续 | 一次性 |
 | 反馈 | 快速 | 延迟 |
 | 风险 | 早期发现 | 后期发现 |
+
+这张表适合入门概览，不能直接作为工程选型依据。敏捷不必然意味着持续发布到生产，团队可以迭代开发、集中发布；瀑布式项目也可以通过原型、阶段评审和增量验证提前发现风险。真正决定选型的是需求不确定性、反馈成本、系统风险、合规约束和发布机制。敏捷和瀑布是不同的计划与反馈策略，不是「灵活」与「僵化」的简单对立，混合治理与迭代交付可以并存。
 
 ## 4. Scrum 实战详解
 
@@ -57,6 +63,8 @@
 - [ ] 用户可以设置一个默认地址
 - [ ] 地址信息包含：省、市、区、详细地址、收货人、手机号
 - [ ] 手机号格式校验
+- [ ] 删除默认地址前必须先指定新的默认地址，避免出现无默认地址的非法状态
+- [ ] 并发修改同一地址不丢失更新，后写覆盖先写或提示冲突
 ```
 
 ### 4.2 Sprint Planning 实践
@@ -79,12 +87,14 @@
 ## 容量评估
 团队速率：20 点/Sprint
 本 Sprint 承诺：15 点（预留 buffer）
+
+Sprint Planning 的决策顺序是先定 Sprint Goal，再据容量、历史速率、依赖和风险制定计划。历史速率是预测参考，不是个人绩效指标，也不构成必须完成的承诺。Sprint Backlog 由 Developers 为实现 Sprint Goal 制定并持续调整，示例中的负责人列只是协作安排，不是 Scrum 的强制规则。Sprint Goal 通常保持稳定，若已失去意义，Product Owner 可以取消整个 Sprint。
 ```
 
-### 4.3 Daily Standup 实践
+### 4.3 Daily Scrum 实践
 
 ```markdown
-# 每日站会（15 分钟）
+# 每日 Scrum（15 分钟，俗称站会）
 
 每人回答三个问题：
 1. 昨天完成了什么？
@@ -122,8 +132,16 @@
 | 维度 | Scrum | Kanban |
 | :-- | :-- | :-- |
 | 节奏 | 固定 Sprint（1-4 周） | 持续流动 |
-| 角色 | PO、SM、Dev Team | 无固定角色 |
-| 变更 | Sprint 内不接受变更 | 随时可加入新任务 |
-| 适用场景 | 需求相对稳定 | 需求频繁变化、运维团队 |
+| 角色 | PO、SM、Developers | 不强制角色划分 |
+| 变更 | Sprint Goal 稳定，Backlog 可协商 | 按优先级与 WIP 限制流入 |
+| 适用场景 | 复杂问题、需求演进 | 需求频繁变化、运维团队 |
 
 > **敏捷的本质**：不是遵循某个框架的仪式，而是快速反馈、持续改进。如果站会变成了形式主义，那就改掉它。敏捷是手段，不是目的。
+
+## 关联阅读
+
+敏捷流程本身不能保证软件可交付，还需要工程实践支撑短反馈周期：
+
+- [Git 工作流](../06-engineering-practices/chapter-01-git-workflow.md)
+- [代码评审](../06-engineering-practices/chapter-02-code-review.md)
+- [CI/CD 持续集成与持续交付](../06-engineering-practices/chapter-04-cicd.md)
