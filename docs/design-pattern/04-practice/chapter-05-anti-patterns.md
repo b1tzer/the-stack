@@ -71,7 +71,7 @@ public class UserService {
 // 实际：一个文件 2000 行，反而更难找
 ```
 
-**解决方案：** 大胆拆分。一个类超过 300 行就该考虑拆分。
+**解决方案：** 大胆拆分。判断依据是类是否同时承担多个变化原因，而非行数。
 
 ### 2.3 面条代码（Spaghetti Code）
 
@@ -100,7 +100,7 @@ public void processOrder(Order order) {
 }
 ```
 
-**解决方案：** 策略模式 + 状态模式 + 卫语句（early return）。
+**解决方案：** 先按业务语义拆分条件、提取有意义的方法，再根据变化原因决定是否引入[策略模式](../03-behavioral/chapter-01-strategy.md)、[状态模式](../03-behavioral/chapter-06-state.md)或卫语句（early return），不因嵌套深就默认套用多态。迁移过程见[重构到设计模式](./chapter-04-refactoring-to-patterns.md)。
 
 ### 2.4 复制粘贴编程（Copy-Paste Programming）
 
@@ -134,7 +134,7 @@ public class OrderService {
 // 问题：修改日志格式？要改 N 个地方！
 ```
 
-**解决方案：** 模板方法、AOP、装饰器。
+**解决方案：** 模板方法（流程固定、部分步骤可变）、AOP（横切关注点，如日志、监控）、装饰器（按需组合增强行为）。本例的计时与日志属横切关注点，适合 AOP；重复代码是否套用模式，取决于它是否具有相同的变化原因。
 
 ### 2.5 金锤子（Golden Hammer）
 
@@ -168,17 +168,18 @@ public class UserValidator {
     public static UserValidator getInstance() { return INSTANCE; }
 
     public boolean validate(User user) {
-        // 无状态的验证逻辑，不需要单例！
+        // 无状态的验证逻辑，交给 Spring 管理即可
         return user.getName() != null && user.getName().length() >= 3;
     }
 }
 
 // 问题：
-// 1. 无状态的类用单例没有意义
-// 2. 难以测试（全局状态、mock 困难）
-// 3. Spring 管理的 Bean 默认就是单例，不需要手动实现
+// 1. 无状态对象是否用单实例，应看是否需要共享实例、由谁管理生命周期，以及是否存在并发安全与测试隔离问题
+// 2. 手写单例的隐患不在「无状态」，而在静态入口隐藏依赖、共享可变状态，以及强制全局唯一妨碍测试隔离
+// 3. Spring 的默认单例作用域（每个 Bean 定义每个容器一个实例）与 GoF 单例（整个 JVM 唯一）不是同一概念
 
-// ✅ 正确：Spring @Component 天然单例，不需要手写
+// ✅ 正确：无状态验证器既可交给 Spring 管理，也可作普通对象使用；
+// 是否合适，取决于是否隐藏依赖、强制全局唯一或妨碍测试与生命周期管理
 @Component
 public class UserValidator {
     public boolean validate(User user) { /* ... */ }
@@ -196,26 +197,40 @@ public class StringFactory {
 }
 
 // String 就是 String，不需要工厂！
-// 只有创建逻辑复杂时才需要工厂
+// 工厂的价值在封装具体类型选择、隔离调用方与实现、统一创建策略，
+// 创建逻辑复杂只是其中一种情况；没有这些收益的工厂包装才是反模式
 ```
 
 ### 2.8 观察者泄漏（Observer Leak）
 
 ```java
-// ❌ 反模式：注册了观察者但忘记取消注册
-public class OrderListener implements ApplicationListener<OrderEvent> {
-    // 每次创建一个 OrderListener 实例就注册一次
-    // 但从不取消注册，导致内存泄漏
+// ❌ 反模式：注册了监听器，却从不注销
+public class Subject {
+    private final List<Consumer<OrderEvent>> listeners = new ArrayList<>();
+
+    public void register(Consumer<OrderEvent> listener) {
+        listeners.add(listener);
+    }
+
+    public void unregister(Consumer<OrderEvent> listener) {
+        listeners.remove(listener);
+    }
+
+    public void publish(OrderEvent event) {
+        listeners.forEach(listener -> listener.accept(event));
+    }
 }
 
-// 在 Web 应用中尤其危险：
-// 每次请求创建新实例，但旧实例永远不会被 GC（因为被 Subject 引用）
+// 泄漏条件：不再需要的监听器仍被长期存活的发布者引用，未注销的引用会
+// 延长监听器及其关联对象的存活时间，使其无法按预期回收。
+// 若监听器仍需要接收事件，或随发布者一同销毁，则不算泄漏。
 
-// ✅ 正确：Spring @EventListener 自动管理生命周期
+// ✅ 正确：容器管理的监听器由容器负责发现与注册；手动向长期存活对象注册的
+// 回调或订阅，仍需根据注册方与订阅方的生命周期自行注销
 @Component
 public class OrderListener {
     @EventListener
-    public void onOrder(OrderEvent event) { /* Spring 管理，无需手动取消 */ }
+    public void onOrder(OrderEvent event) { /* 容器管理生命周期 */ }
 }
 ```
 
@@ -278,36 +293,37 @@ public class AppConfig {
 
 ## 3. 反模式检测清单
 
-| 信号 | 可能的反模式 |
+这些信号只是排查线索，不能直接证明设计有缺陷，需要结合业务语义进一步核实。
+
+| 风险信号 | 需要核实的问题 |
 | :-- | :-- |
-| 一个类超过 500 行 | 上帝类 |
-| 同一段代码出现 3 次以上 | 复制粘贴 |
-| 嵌套超过 3 层 | 面条代码 |
-| 构造函数超过 5 个参数 | 缺少建造者 |
-| if-else 超过 5 个分支 | 缺少策略/状态模式 |
-| 修改一个功能要改 3 个以上文件 | 缺少单一职责 |
-| "这个类太大了不敢改" | 上帝类 |
-| "这段代码谁写的？" | 缺少文档和模式 |
+| 类持续增长 | 是否同时承担多个变化原因？修改一处是否牵连其他职责？ |
+| 相似代码重复出现 | 是否具有相同业务语义与变化原因？抽取后是否形成不合理耦合？ |
+| 构造函数参数过多 | 参数是否属于同一概念对象？是否存在不合法的参数组合？ |
+| 条件分支持续增加 | 分支是否代表独立、可替换的算法，或明确的状态转换？ |
+| 代码难以测试 | 是依赖难以隔离、隐藏副作用，还是测试缺少合适边界？ |
 
 ## 4. 如何避免反模式？
 
 1. **Code Review**：让同事帮你检查，自己很难发现自己的反模式
-2. **测试先行**：写不出测试的代码通常设计有问题
-3. **30 秒规则**：如果一个类需要 30 秒以上才能理解，就该重构
+2. **测试先行**：难以独立验证行为，常提示依赖难以隔离或职责过重，值得排查，但不等于必然有设计缺陷
+3. **30 秒规则**：作为个人经验提示使用——如果一个类需要很久才能理解，多半值得重构，但这不是硬性判据
 4. **Boy Scout Rule**：每次路过都让代码比来时更好一点
 5. **持续学习**：读《重构》《Clean Code》《设计模式》
 
 ## 5. 正模式 vs 反模式对照表
 
+下表是方向性速查，具体选型还需结合变化原因与适用条件判断，见对应模式章节。
+
 | 场景 | 正模式 | 反模式 |
 | :-- | :-- | :-- |
 | 多种算法 | 策略模式 | if-else 地狱 |
 | 复杂对象创建 | 建造者 | 构造函数 10 个参数 |
-| 全局唯一 | 单例（Spring 管理） | 全局变量、静态方法 |
+| 共享实例 | 单例（Spring 容器管理） | 全局变量、静态方法 |
 | 通知多个对象 | 观察者 | 直接调用所有依赖 |
 | 接口不兼容 | 适配器 | 改老代码 |
 | 增强功能 | 装饰器 | 修改原始类 |
 | 树形结构 | 组合模式 | 到处 instanceof |
 | 大量相似对象 | 享元 | 每个都 new |
 
-> **一句话记忆口诀**：识别反模式比学习模式更重要——上帝类、复制粘贴、面条代码是三大最常见的反模式，Code Review 和测试是最好的预防手段。
+> **一句话记忆口诀**：识别反模式比学习模式更重要——上帝类、复制粘贴和面条代码是常见的反模式，Code Review 和测试有助于及早发现和预防。

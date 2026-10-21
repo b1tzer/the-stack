@@ -100,6 +100,7 @@ public class PaymentService {
     private final Map<String, PaymentStrategy> strategies;
 
     public PaymentService(List<PaymentStrategy> strategyList) {
+        // getType() 必须唯一，重复类型会导致 toMap 抛 IllegalStateException
         this.strategies = strategyList.stream()
             .collect(Collectors.toMap(PaymentStrategy::getType, s -> s));
     }
@@ -117,12 +118,13 @@ public class PaymentService {
 **Step 4：使用**
 
 ```java
-// Spring 自动注入所有 PaymentStrategy 实现
+// Spring 自动注入所有注册为 Bean 的 PaymentStrategy 实现
 @Autowired
 private PaymentService paymentService;
 
 paymentService.pay("alipay", new BigDecimal("100"));
-// 新增银联支付？只需新增 UnionPayStrategy 类，不修改任何现有代码！
+// 新增银联支付：新增 UnionPayStrategy 类并注册为 Bean（@Component），
+// 保证 getType() 返回的类型标识唯一，无需修改 PaymentService。
 ```
 
 ## 3. 实战案例二：复杂构造 → 建造者模式
@@ -161,19 +163,24 @@ public class HttpRequest {
     private final String url;
     private final String method;
     private final Map<String, String> headers;
+    private final Map<String, String> queryParams;
     private final String body;
     private final int timeout;
     private final boolean followRedirects;
     private final int retryCount;
+    private final String proxy;
 
     private HttpRequest(Builder builder) {
         this.url = builder.url;
         this.method = builder.method;
-        this.headers = builder.headers;
+        // 浅层防御性复制：避免 build() 后继续修改 Builder 污染已构建的对象
+        this.headers = new HashMap<>(builder.headers);
+        this.queryParams = new HashMap<>(builder.queryParams);
         this.body = builder.body;
         this.timeout = builder.timeout;
         this.followRedirects = builder.followRedirects;
         this.retryCount = builder.retryCount;
+        this.proxy = builder.proxy;
     }
 
     public static Builder builder(String url) {
@@ -184,18 +191,22 @@ public class HttpRequest {
         private final String url;
         private String method = "GET";
         private Map<String, String> headers = new HashMap<>();
+        private Map<String, String> queryParams = new HashMap<>();
         private String body;
         private int timeout = 5000;
         private boolean followRedirects = true;
         private int retryCount = 0;
+        private String proxy;
 
         public Builder(String url) { this.url = url; }
         public Builder method(String method) { this.method = method; return this; }
         public Builder header(String key, String value) { headers.put(key, value); return this; }
+        public Builder queryParam(String key, String value) { queryParams.put(key, value); return this; }
         public Builder body(String body) { this.body = body; return this; }
         public Builder timeout(int timeout) { this.timeout = timeout; return this; }
         public Builder followRedirects(boolean follow) { this.followRedirects = follow; return this; }
         public Builder retryCount(int count) { this.retryCount = count; return this; }
+        public Builder proxy(String proxy) { this.proxy = proxy; return this; }
 
         public HttpRequest build() {
             if (url == null || url.isEmpty()) throw new IllegalStateException("URL 不能为空");
@@ -265,7 +276,7 @@ public class OrderService {
     }
 }
 
-// 观察者们（各自独立，互不影响）
+// 观察者们（各自独立订阅，与 OrderService 解耦）
 @Component
 public class EmailNotifier {
     @EventListener
@@ -286,6 +297,8 @@ public class PointsUpdater {
 // 新增通知？只需新增一个 @EventListener 类，不修改 OrderService！
 ```
 
+> **事务与执行边界**：`@EventListener` 默认在发布线程同步执行，会参与 `completeOrder()` 的调用链；加上 `@Async` 后监听器转到独立线程，可能在事务提交前就开始处理，异常也不会沿原调用栈回传给发布者。进程内事件解决的是组件间的通知耦合，并不自动提供「事务提交后执行」「持久化消息」或「跨服务可靠投递」的保证。需要**在有事务的前提下**、提交后再执行时，改用 `@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)`（无活动事务时该监听器默认不执行）；需要可靠的跨进程投递时，应引入 Outbox 等机制并配套重试与幂等，而不是把 `@Async` 当成可靠消息机制。
+
 ## 5. 实战案例四：重复流程 → 模板方法
 
 ### 5.1 重构前：数据导出的重复代码
@@ -293,21 +306,21 @@ public class PointsUpdater {
 ```java
 public class ExcelExporter {
     public void export() {
-        DataSource ds = connect();    // 重复
-        List<Data> data = query(ds);  // 重复
+        Connection conn = connect();    // 重复
+        List<Data> data = query(conn);  // 重复
         String formatted = toExcel(data);  // 独特
         writeExcel(formatted);             // 独特
-        close(ds);                    // 重复
+        close(conn);                    // 重复
     }
 }
 
 public class CsvExporter {
     public void export() {
-        DataSource ds = connect();    // 重复！
-        List<Data> data = query(ds);  // 重复！
+        Connection conn = connect();    // 重复！
+        List<Data> data = query(conn);  // 重复！
         String formatted = toCsv(data);    // 独特
         writeCsv(formatted);               // 独特
-        close(ds);                    // 重复！
+        close(conn);                    // 重复！
     }
 }
 ```
@@ -318,16 +331,19 @@ public class CsvExporter {
 public abstract class DataExporter {
     // 模板方法：定义骨架
     public final void export() {
-        DataSource ds = connect();        // 公共步骤
-        List<Data> data = query(ds);      // 公共步骤
-        String formatted = format(data);  // 子类实现
-        write(formatted);                 // 子类实现
-        close(ds);                        // 公共步骤
+        Connection conn = connect();        // 公共步骤：获取资源
+        try {
+            List<Data> data = query(conn);      // 公共步骤
+            String formatted = format(data);  // 子类实现
+            write(formatted);                 // 子类实现
+        } finally {
+            close(conn);                        // 公共步骤：异常路径也保证释放
+        }
     }
 
-    protected DataSource connect() { /* 公共实现 */ }
-    protected List<Data> query(DataSource ds) { /* 公共实现 */ }
-    protected void close(DataSource ds) { /* 公共实现 */ }
+    protected Connection connect() { /* 公共实现 */ }
+    protected List<Data> query(Connection conn) { /* 公共实现 */ }
+    protected void close(Connection conn) { /* 公共实现 */ }
 
     protected abstract String format(List<Data> data);
     protected abstract void write(String formatted);
@@ -353,9 +369,9 @@ public class ExcelExporter extends DataExporter {
 
 ```java
 // ❌ 为了用模式而用模式
-// 只有 2 种固定支付方式，用策略模式 → 过度设计
-// 只有 1 个观察者，用观察者模式 → 过度设计
-// 对象创建很简单，用工厂模式 → 过度设计
+// 支付方式固定、从不扩展，硬上策略模式 → 过度设计
+// 通知方固定、无需解耦，硬上观察者模式 → 过度设计
+// 对象创建简单、参数稳定，硬上工厂模式 → 过度设计
 
 // ✅ 正确态度：模式是工具，不是目标
 // 简单问题用简单方案
