@@ -555,4 +555,4 @@ try {
 }
 ```
 
-> **争议**：Martin Kleppmann 在 2016 年发文《How to do distributed locking》指出，Redlock 依赖多个 Redis 节点的时钟近似同步，时钟漂移或进程暂停（如 GC 停顿超过租约时长）会导致两个客户端同时认为自己持有锁。因此 Redlock 只提供「尽力而为」的互斥，不构成严格的安全保证。若资源写入需要严格互斥，应在存储层加**栅栏令牌（Fencing Token）**校验，而非仅依赖客户端锁。实际工程中，如果对一致性要求极高，建议使用 ZooKeeper 或 Etcd；如果业务能容忍极小概率的锁失效，Redis 方案的性能优势更明显。
+> **争议**：Martin Kleppmann 在 2016 年发文《How to do distributed locking》指出，Redlock 依赖多个 Redis 节点的时钟近似同步，时钟漂移或进程暂停（如 GC 停顿超过租约时长）会导致两个客户端同时认为自己持有锁。因此 Redlock 只提供「尽力而为」的互斥，不构成严格的安全保证。若资源写入需要严格互斥，应在存储层加**栅栏令牌（Fencing Token）** 校验，而非仅依赖客户端锁。实际工程中，如果对一致性要求极高，建议使用 ZooKeeper 或 Etcd；如果业务能容忍极小概率的锁失效，Redis 方案的性能优势更明显。
