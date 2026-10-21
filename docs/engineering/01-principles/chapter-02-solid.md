@@ -22,6 +22,8 @@ class EmailService {
 }
 ```
 
+判断一个类是否承担了多个职责，看它是否会因多种不同的原因而被修改：当一个类同时因数据库变化、邮件规则变化等互不相干的原因需要改动时，就应当拆分。判断与重构信号见 [代码坏味道](./chapter-04-code-smells.md) 中的「发散式变化」与「霰弹式修改」。
+
 ## 2. O - 开闭原则 (OCP)
 
 对扩展开放，对修改关闭。
@@ -34,6 +36,8 @@ interface Payment {
 class Alipay implements Payment { /* ... */ }
 class WechatPay implements Payment { /* ... */ }
 ```
+
+扩展点不是越多越好。当新支付渠道持续出现、各渠道行为存在稳定差异时，策略接口有助于隔离变化；若只有两个固定分支且没有扩展需求，直接使用条件分支反而更简单。抽象的价值取决于变化发生的概率与隔离变化的收益，而非是否使用了接口。策略模式的具体实现见 [设计模式专题](/design-pattern/03-behavioral/chapter-01-strategy)。
 
 ## 3. L - 里氏替换原则 (LSP)
 
@@ -61,8 +65,24 @@ class Square extends Rectangle {
     @Override
     void setHeight(int h) { this.width = h; this.height = h; }
 }
+```
 
-// 好：使用接口约束行为，避免违反 LSP
+问题不在几何上「正方形是不是长方形」，而在可变的 `Rectangle` 提供了独立设置宽、高的行为契约。`Square` 重写 `setWidth`、`setHeight` 后把两个维度绑在一起，破坏了下述依赖独立设置的调用方预期：
+
+```java
+// 调用方依赖 Rectangle 可独立设置宽、高
+static void resize(Rectangle rectangle) {
+    rectangle.setWidth(10);
+    rectangle.setHeight(5);
+    if (rectangle.area() != 50) {   // 预期 10 * 5
+        throw new IllegalStateException("行为契约被破坏");
+    }
+}
+// 将 Square 传入后面积变为 25，调用方预期被破坏
+```
+
+```java
+// 好：改用共同接口表达所需能力，避免不必要的继承
 interface AreaCalculable {
     double area();
 }
@@ -126,7 +146,7 @@ class OrderService {
     public void save(Order order) { dao.insert(order); }
 }
 
-// 好：依赖抽象，通过构造器注入
+// 好：依赖抽象，由业务核心定义持久化端口
 interface OrderRepository {
     void save(Order order);
     Order findById(Long id);
@@ -137,13 +157,6 @@ class MySQLOrderRepository implements OrderRepository {
     public void save(Order order) { /* MySQL 保存 */ }
     @Override
     public Order findById(Long id) { /* MySQL 查询 */ return null; }
-}
-
-class RedisOrderRepository implements OrderRepository {
-    @Override
-    public void save(Order order) { /* Redis 保存 */ }
-    @Override
-    public Order findById(Long id) { /* Redis 查询 */ return null; }
 }
 
 // 高层模块依赖接口，具体实现由外部注入
@@ -161,14 +174,16 @@ class OrderService {
 }
 ```
 
+`OrderRepository` 是业务核心定义的持久化端口，MySQL 等基础设施负责实现它，业务层不依赖具体数据库类型。接口本身不能保证可替换性，实现仍需满足相同的业务契约（事务、一致性等）；构造器注入只是把具体实现的选择与组装移到外部，DIP 的核心是依赖方向而非注入方式。依赖方向的更多讨论见 [软件架构演进](../03-architecture/chapter-01-architecture-styles.md)。
+
 ## 6. SOLID 原则的权衡与实践
 
 | 原则 | 过度使用的风险 | 实践建议 |
 | :-- | :-- | :-- |
 | SRP | 类爆炸，过度拆分 | 只在职责确实不同时才拆分 |
-| OCP | 过度抽象，创建大量接口 | 遵循 Rule of Three：第三次变化时再抽象 |
+| OCP | 过度抽象，创建大量接口 | 不要仅因预期扩展就提前抽象，等变化呈现出稳定共同结构再提取扩展点 |
 | LSP | 设计约束过多 | 明确子类的行为契约 |
 | ISP | 接口过多，管理困难 | 按客户端需求分组，而非按实现分组 |
-| DIP | 抽象层过多，代码晦涩 | 对变化频繁的依赖使用 DIP |
+| DIP | 抽象层过多，代码晦涩 | 需要隔离业务策略与基础设施细节时，明确依赖抽象的边界 |
 
 > **总结**：SOLID 不是教条，而是指导原则。在实际项目中，需要根据团队规模、业务复杂度和交付压力做权衡。过度设计和设计不足同样有害。

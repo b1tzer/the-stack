@@ -6,13 +6,15 @@
 
 生产者发送一条消息到 Broker，Broker 返回"成功"。但这个"成功"到底意味着什么？
 
-**场景一**：消息写入了 Leader 的内存缓冲区，还没落盘。Leader 宕机，消息丢失。这算"成功"吗？
+**场景一**：消息到达 Leader，还留在内存缓冲区，没追加进日志。Leader 宕机，消息丢失。这算"成功"吗？
 
-**场景二**：消息写入了 Leader 的磁盘，但 Follower 还没同步。Leader 宕机，Follower 当选新 Leader，消息丢失。这算"成功"吗？
+**场景二**：消息追加进了 Leader 的日志，但 Follower 还没同步。Leader 宕机，Follower 当选新 Leader，消息丢失。这算"成功"吗？
 
-**场景三**：消息写入了 Leader 和所有 Follower 的磁盘。Leader 宕机，消息还在。这才是真正的"成功"。
+**场景三**：消息追加进了 Leader 和所有 ISR 副本的日志。Leader 宕机，消息还在。这才是"成功"。
 
-三种场景对应三种 ACK 模式。Kafka 把选择权交给了你——你可以根据业务对可靠性的要求，选择愿意付出多少代价。
+这三个场景展示的是"写成功"的不同边界。Kafka 的 ACK 配置让你在这些边界之间做选择：发出去就不管（acks=0）、Leader 写入日志即确认（acks=1）、所有 ISR 副本都写入才确认（acks=all）——选择越靠后，可靠性越高，代价也越大。
+
+注意，这里的"成功"是「副本确认」层面的成功，不是「磁盘持久化」层面的成功。Kafka 把消息追加到日志后即视为已确认，是否真正刷到物理磁盘由操作系统的页缓存机制决定（由 `log.flush.interval.messages`、`log.flush.interval.ms` 控制）。所以 `acks=all` 保证的是「副本层面不丢」，而不是「掉电都不丢」——后者需要强制 fsync，代价是吞吐大幅下降。
 
 ## 2. 三种 ACK 模式 {#ack-modes}
 
@@ -38,19 +40,19 @@ Leader → Producer：返回 ACK
 
 Leader 写入自己的日志后就返回确认。此时 Follower 可能还没来得及同步。如果 Leader 立刻宕机，Follower 当选新 Leader，这条消息就丢了。
 
-这个"丢失窗口"有多大？取决于 Follower 同步的延迟——通常是毫秒级。所以在大多数情况下 acks=1 不会丢消息，但在极端情况下（Leader 写入后立刻宕机）存在丢消息的可能。
+这个"丢失窗口"有多大？取决于 Follower 同步的延迟。只要 Follower 还没把这条消息同步过去，Leader 此刻宕机，消息就会丢失。所以 acks=1 存在丢消息的可能，具体丢失风险取决于故障发生时 Follower 的同步进度。
 
 ### acks=all：所有 ISR 确认
 
 ```txt
 Producer → Leader：写入本地日志
-Leader → Follower A：Fetch 同步
-Leader → Follower B：Fetch 同步
+Follower A → Leader：Fetch 拉取
+Follower B → Leader：Fetch 拉取
 （所有 ISR 副本确认后）
 Leader → Producer：返回 ACK
 ```
 
-消息写入所有 ISR 副本后才返回确认。只要 ISR 中至少有一个副本存活，消息就不会丢。
+消息追加到所有 ISR 副本的日志后才返回确认。在正常的副本故障模型下，只要 ISR 中至少有一个副本存活，已确认的消息就不会因为副本故障而丢失。
 
 代价：吞吐最低（必须等最慢的 Follower），但可靠性最高。
 
@@ -62,7 +64,7 @@ Leader → Producer：返回 ACK
 
 ## 3. 幂等生产者：重试导致的重复 {#idempotent-producer}
 
-`acks=all` 消除了"丢消息"的问题，但引入了"重复消息"的问题。
+`acks=all` 大幅降低了"丢消息"的风险，但引入了"重复消息"的问题。
 
 ```txt
 Producer 发送 msg → Broker 写入成功 → 返回 ACK
@@ -92,6 +94,8 @@ Broker 侧维护：每个 PID 的期望 Sequence Number
 
 关键设计：Broker 不需要保存所有已处理消息的 ID，只需要为每个 PID 保存一个"期望的下一个 Sequence Number"。空间开销极小，但能精确去重。
 
+上面的示例是简化模型，只说明顺序写入与重复重试两种基本情况；实际 Broker 按 batch 维护序列号状态，乱序批次的处理见下一小节。
+
 开启幂等只需 `enable.idempotence=true`，PID 与 Sequence Number 由 Kafka 自动维护：
 
 ```java
@@ -117,7 +121,7 @@ msg1 重试成功
 Broker 收到的顺序：Seq=1, Seq=2, Seq=0
 ```
 
-Kafka 内部维护了一个重排序缓冲区，能对最多 5 个在途请求进行重排序。超过 5 个就无法保证去重。这个数字是性能和正确性的平衡点。
+这里的关键不是"重排"，而是 Broker 端的去重状态。幂等生产者靠 (PID, 分区级 Sequence Number) 让 Broker 识别重复：Broker 为每个生产者保存最近 5 个 batch 的序列号范围，收到新 batch 时据此判断它是重复的旧批次，还是中间有 batch 缺失的乱序批次。这个状态窗口与在途请求上限是配套设计的，因此 Kafka 官方要求启用幂等时 `max.in.flight.requests.per.connection` 必须 ≤ 5。把在途请求压在这个上限内，重试请求与新请求的序列号范围才不会超出 Broker 能识别的窗口。
 
 ## 4. 事务：跨分区的 Exactly Once {#transactions}
 
@@ -131,9 +135,12 @@ Producer → Coordinator: beginTransaction()
 Producer → Broker: send(topic1, msg1)  ← 消息写入，但对消费者不可见
 Producer → Broker: send(topic2, msg2)
 Producer → Coordinator: commitTransaction()
-Coordinator → __transaction_state: 写入 COMMIT 标记
-Consumer（read_committed）: 看到 COMMIT 标记后，msg1 和 msg2 才可见
+Coordinator → __transaction_state: 持久化 COMMIT 决定
+Coordinator → 各参与分区: 写入事务提交标记（Transaction Marker）
+Consumer（read_committed）: 越过 LSO 后，msg1 和 msg2 才可见
 ```
+
+事务状态持久化和消息可见性是两步：Coordinator 先在 `__transaction_state` 持久化提交决定，再向各参与分区写入提交标记；`read_committed` 消费者要等到对应分区的 Last Stable Offset（LSO）越过已提交消息后才能真正读到它们。
 
 **为什么需要 Epoch**：旧 Producer 实例因网络分区"失联"，你用同一个 `transactional.id` 起了新实例。新实例的 Epoch 递增。旧实例"复活"后发请求，Epoch 对不上，被拒绝。没有 Epoch，旧实例就能继续往事务里写数据，污染新实例的状态。
 
@@ -142,6 +149,13 @@ Consumer（read_committed）: 看到 COMMIT 标记后，msg1 和 msg2 才可见
 ## 5. 消费-生产 Exactly Once
 
 最常见的 Exactly Once 场景：消费 Topic A → 处理 → 写入 Topic B，同时提交 Offset。
+
+这个流程要真正成立，有几个前提不能省：
+
+- 生产者必须配置 `transactional.id` 并调用 `initTransactions()`（对应下面代码里的 ⭐）。
+- 消费者必须关闭自动提交（`enable.auto.commit=false`），消费位点改由事务一并提交。
+- `offsets` 必须是「本批已处理记录的下一消费位点」，并用当前消费者组的元数据提交。
+- 输出 Topic 的下游消费者必须设置 `isolation.level=read_committed`，才能过滤掉未提交事务的消息。
 
 ```java
 producer.initTransactions();   // ⭐ 只执行一次：向 Transaction Coordinator 注册，获取 PID + Epoch
@@ -152,13 +166,14 @@ while (true) {
         // ③ 逐条处理并写入输出 Topic；此刻消息带「未提交」标记，下游 read_committed 消费者不可见
         producer.send(new ProducerRecord<>("output-topic", process(record)));
     }
-    // ④ 把「本批消费到的 Offset」也登记进当前事务，交给 Coordinator 一并提交
+    // ④ 把「本批已处理记录的下一消费位点」登记进当前事务，交给 Coordinator 一并提交
+    //    offsets 为 Map<TopicPartition, OffsetAndMetadata>，值是每分区最后已处理记录的 offset + 1（此处省略构造过程）
     producer.sendOffsetsToTransaction(offsets, consumer.groupMetadata());
     producer.commitTransaction();  // ⑤ 提交：输出消息与 Offset 同时生效
 }
 ```
 
-输出 Topic 的消息和输入 Topic 的 Offset 在同一个事务中原子提交——要么都成功，要么都回滚。消费者重启后从提交的 Offset 继续，不会重复处理。
+输出 Topic 的消息和输入 Topic 的 Offset 在同一个事务中原子提交——要么都成功，要么都回滚。消费者重启后从已提交的 Offset 继续消费。但要分清边界：这里的原子性只覆盖「Kafka 内部的输出与消费位点」。业务处理函数本身仍可能被重复执行，数据库写入、HTTP 调用等外部副作用也不会自动回滚，这些仍要靠下一节的消费端去重兜底。
 
 ## 6. 消费端去重
 
@@ -176,23 +191,23 @@ Kafka 的事务只保证生产端。消费端的重复无法靠 Kafka 消除—�
 
 ```java
 // 生产者：可靠性优先
-props.put("acks", "all");                              // 所有 ISR 副本确认后才返回成功，不丢消息
+props.put("acks", "all");                              // 所有 ISR 副本确认后才返回成功，正常副本故障下不丢消息
 props.put("enable.idempotence", true);                 // 开启幂等，重试不产生重复消息
 props.put("retries", Integer.MAX_VALUE);               // 网络异常时无限重试，实际时长由 delivery.timeout.ms 封顶
 props.put("delivery.timeout.ms", 120000);              // 单条消息发送总超时 120 秒，超时放弃并回调异常
-props.put("max.in.flight.requests.per.connection", 5); // 幂等在途请求上限，保证乱序可重排去重
+props.put("max.in.flight.requests.per.connection", 5); // 幂等在途请求上限，超过则 Broker 无法可靠去重
 ```
 
 ```properties
 # Broker：配合生产者
 min.insync.replicas=2                # ISR 至少 2 个副本，防止 acks=all 退化为单副本写入
-unclean.leader.election.enable=false # 禁止落后副本当选 Leader，杜绝已确认消息丢失
+unclean.leader.election.enable=false # 禁止落后副本当选 Leader，降低已确认消息因选举而丢失的风险
 default.replication.factor=3         # 新建 Topic 默认 3 副本
 ```
 
 ## 8. 一句话总结
 
 - 三种 ACK 模式是可靠性与吞吐的权衡——acks=all 是最可靠的选择，但需要付出等待副本同步的代价。
-- 幂等通过 PID + Sequence Number 消除重试导致的重复，代价几乎为零。
+- 幂等通过 PID + Sequence Number 消除重试导致的重复，额外开销通常较小。
 - 事务通过 Transaction Coordinator 实现跨分区原子写入，适用于消费-生产 Exactly Once 场景。
 - 大多数场景用 At Least Once + 幂等消费就够了，只有 Kafka → Kafka 的流处理才需要完整事务。

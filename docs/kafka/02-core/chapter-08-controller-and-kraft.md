@@ -41,9 +41,9 @@ Kafka 2.8 之前，Controller 依赖外部的 ZooKeeper 集群存储元数据：
 
 **单点**：只有一个 Active Controller。它宕机后，新 Controller 需要从 ZooKeeper 重新加载全量元数据——集群越大，恢复越慢。
 
-**双写**：元数据要同时写 ZooKeeper 和 Controller 本地缓存。两处数据的一致性靠各种边界条件保证，历史上多次出 bug。
+**双写**：元数据的权威存储在 ZooKeeper，Controller 本地还要维护一份运行时状态，两处需要保持一致。这种一致性靠各种边界条件保证，历史上多次出 bug。
 
-**扩展瓶颈**：ZooKeeper 的 watch 机制在集群规模增大时成为瓶颈——每个 Broker 都要 watch 大量 znode，ZooKeeper 的压力随 Broker 数和分区数线性增长。
+**扩展瓶颈**：ZooKeeper 模式下 Controller 要 watch 大量 znode，任何变更都要先经 ZK 通知 Controller，再由 Controller 广播给所有 Broker。这条通知链路在分区数和 Broker 数增长时开销显著，Controller 单点成为瓶颈。
 
 **运维复杂**：需要单独维护一个 ZooKeeper 集群，它有自己的配置、监控、升级流程。
 
@@ -58,8 +58,9 @@ ZooKeeper 模式：
   Controller ←→ ZooKeeper（外部）←→ Broker
 
 KRaft 模式：
-  Controller Quorum（3~5 个节点）←→ Broker
-  元数据存储在 __cluster_metadata 内部 Topic
+  Controller Quorum（3~5 个节点）—Raft 复制—→ 多数派提交
+  Broker（observer）—fetch 拉取—→ Active Controller
+  元数据存储在 Controller 的元数据日志（__cluster_metadata）
 ```
 
 ### 关键区别
@@ -69,18 +70,20 @@ KRaft 模式：
 | 元数据存储 | 外部 ZooKeeper | 内部 `__cluster_metadata` 日志 |
 | Controller 数量 | 1 个 Active | 3 或 5 个（Raft Quorum） |
 | 故障恢复 | 重新加载全量元数据 | Raft 自动选主，增量追赶 |
-| 元数据传播 | ZK watch + 本地缓存 | 消费元数据日志 |
-| 外部依赖 | 需要 ZooKeeper 集群 | 无 |
+| 元数据传播 | ZK watch + 本地缓存 | Broker 主动拉取（fetch） |
+| 外部依赖 | 需要 ZooKeeper 集群 | 不需要 ZooKeeper 集群 |
 
 ### 为什么 Raft 比 ZooKeeper 更好
 
 Raft 是一种共识协议，它的核心思想是：**多数节点同意才能提交**。KRaft Controller Quorum 中有 3~5 个节点，Active Controller（Raft Leader）接收元数据写入，复制到多数节点后才提交。
 
-Active Controller 故障时，Raft 自动选举新 Leader。新 Leader 已经有了所有已提交的元数据（因为它参与了多数派确认），增量追赶未提交的部分即可。不需要全量重载——这比 ZooKeeper 模式的恢复快得多。
+Active Controller 故障时，Raft 自动选举新 Leader。Raft 的选举规则保证新 Leader 一定拥有全部已提交的元数据。投票者只会把选票投给日志不比自己旧的候选者（比较最后任期和偏移量），而任何已提交日志都已复制到多数派节点——候选者要凑齐多数派选票，就必须覆盖这些已提交日志，否则持有它们的节点不会投票给它。未提交的日志则可能在换届时被覆盖。因此新 Leader 无需像 ZooKeeper 模式那样从外部存储全量重载元数据。这是架构上的优势：恢复不再随集群规模线性恶化，但实际恢复时间仍取决于选举耗时、日志追赶和状态重建。
 
 ### 元数据传播
 
-所有 Broker 消费 `__cluster_metadata` 这个内部 Topic，实时更新本地的元数据缓存。这比 ZooKeeper 的 watch 机制更高效——watch 是"推"模式，每个 znode 变更都要通知所有 watch 者；消费日志是"拉"模式，Broker 按自己的节奏消费，不给 Controller 增加压力。
+元数据传播分两条路径。Controller 之间：Active Controller 把元数据变更写入 `__cluster_metadata` 这个单分区元数据日志，通过 Raft 复制到其他 Controller，多数派确认后才提交。Controller 与 Broker 之间：Broker 是元数据日志的 observer（观察者），不参与投票，而是通过 fetch 机制定期向 Active Controller 拉取元数据增量并更新本地缓存——这与普通消费者组消费业务 Topic 是两回事。
+
+这套"拉"模式比 ZooKeeper 的 watch"推"模式更高效。watch 模式下每个 znode 变更都要通知所有 watch 者，Controller 的推送压力随 Broker 数和分区数增长；fetch 模式下 Broker 按自己的节奏拉取，落后时只补增量，Controller 不承担主动推送的负担。
 
 ## 5. 迁移的影响
 
@@ -93,10 +96,12 @@ Active Controller 故障时，Raft 自动选举新 Leader。新 Leader 已经有
 
 ## 6. 配置
 
+下面的示例是**静态 Quorum** 配置，`controller.quorum.voters` 显式列出所有投票节点。Kafka 3.9 起支持**动态 Quorum**（KIP-853），改用 `controller.quorum.bootstrap.servers` 引导发现 Quorum，运行时可通过 `kafka-metadata-quorum.sh` 增删 Controller。静态或动态 Quorum 在集群格式化时决定；Kafka 4.1 起可按迁移流程把已运行的静态 Quorum 转为动态，不能仅靠修改配置项切换。新集群部署优先考虑动态 Quorum。
+
 ```properties
-# KRaft 模式
-process.roles=broker,controller    # 或分开部署
+# KRaft 模式（静态 Quorum）
+process.roles=broker,controller    # 合并部署；生产环境建议分离为 broker 与 controller 独立节点
 node.id=1
-controller.quorum.voters=1@host1:9093,2@host2:9093,3@host3:9093
+controller.quorum.voters=1@host1:9093,2@host2:9093,3@host3:9093   # 动态 Quorum 改用 controller.quorum.bootstrap.servers
 controller.listener.names=CONTROLLER
 ```

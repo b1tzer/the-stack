@@ -1,6 +1,6 @@
 # 状态模式（State Pattern）
 
-> **一句话记忆口诀**：状态模式消灭 if-else，每种状态一个类，状态自动转换，订单状态机是最经典的例子。
+> **一句话记忆口诀**：状态模式把状态相关行为分配给状态对象，每种状态一个类，状态按设计约定转换，订单状态机是最经典的例子。
 
 ## 1. 🏠 生活类比
 
@@ -11,7 +11,7 @@
 - 出货中：什么都不能做，等出货完成
 - 缺货：什么都不能做，等补货
 
-状态机会根据当前状态决定允许哪些操作，以及操作后转换到什么状态。
+状态机会根据当前状态决定允许哪些操作，以及操作后转换到什么状态。这里为了简化，把售货机建模为互斥的单状态模型，真实场景中「缺货」可能是某个商品的库存状态而非整台机器的运行状态。
 
 ## 2. 💩 烂代码：if-else 地狱
 
@@ -52,7 +52,7 @@ public class Order {
     }
 }
 
-// 5 个状态 × 4 个操作 = 20 个 if-else 分支！
+// 完整实现中，状态与操作的每个组合都要单独判断，分支随状态和操作数量相乘增长
 // 新增一个状态？所有方法都要加 else if！
 ```
 
@@ -134,7 +134,9 @@ public class PaidState implements OrderState {
 
     @Override
     public void cancel(OrderContext context) {
-        System.out.println("❌ 订单已取消，退款处理中...");
+        // 本例只演示状态流转，不是完整的已支付订单取消流程：
+        // 订单业务状态与退款是两件事，退款需另走流程（发起请求、异步处理、失败重试等）。
+        System.out.println("❌ 订单已取消");
         context.setState(new CancelledState());
     }
 
@@ -226,9 +228,12 @@ public class OrderContext {
     public OrderContext(String orderId, BigDecimal amount) {
         this.orderId = orderId;
         this.amount = amount;
+        // 每次转换 new 新状态对象便于直观展示；无状态的状态类也可共享实例，持有订单特有数据时则不能共享
         this.state = new CreatedState(); // 初始状态
     }
 
+    // 教学简化：公开 setState 便于展示状态流转，但外部可绕过状态类直接切换状态。
+    // 生产环境应收敛为包级可见或提供受控转换入口；若上下文被多线程共享，还需额外做并发控制。
     public void setState(OrderState state) {
         System.out.println("状态变更: " + this.state.getStateName() + " → " + state.getStateName());
         this.state = state;
@@ -267,20 +272,22 @@ public class Main {
 
 ## 5. 🔧 框架应用
 
-| 框架/类 | 说明 |
-| :-- | :-- |
-| Spring State Machine | Spring 官方状态机框架 |
-| `Thread.State` | 线程状态：NEW → RUNNABLE → BLOCKED → WAITING → TERMINATED |
-| TCP 连接状态 | LISTEN → SYN_SENT → ESTABLISHED → FIN_WAIT → CLOSED |
-| `Lifecycle` 接口 | Spring Bean 生命周期状态管理 |
-| `OrderStatus` 枚举 | 电商系统订单状态机 |
+> **区分两类概念**：状态模式是 GoF 设计模式，强调状态对象、上下文与转换逻辑的组织方式；状态机是建模概念，强调状态与合法转换。`Thread.State`、TCP 连接状态、`OrderStatus` 枚举属于后者，本身并不代表采用了状态模式。
+
+| 类型 | 示例 | 说明 |
+| :-- | :-- | :-- |
+| 状态机框架 | Spring State Machine | 支持状态、事件、转换、守卫、动作等机制的状态机框架，可承载状态模式等设计方式 |
+| 状态机建模 | `Thread.State` | 线程状态枚举：NEW、RUNNABLE、BLOCKED、WAITING、TIMED_WAITING、TERMINATED |
+| 状态机建模 | TCP 连接状态 | LISTEN → SYN_SENT → ESTABLISHED → FIN_WAIT → CLOSED |
+| 状态机建模 | `OrderStatus` 枚举 | 电商订单状态，只表示状态，是否用状态模式取决于行为如何组织 |
+| 相关机制 | `Lifecycle` 接口 | Spring Bean 生命周期管理，仅凭接口本身不能认定是状态模式 |
 
 ## 6. ⚠️ 适用场景
 
 **适合：**
 
 - 对象的行为随**内部状态**改变而改变
-- 代码中存在大量与**状态相关的条件分支**
+- 多个操作反复判断同一状态，且各状态的行为与转换规则逐渐复杂
 - 状态转换规则明确，可以用状态图表示
 - 典型场景：订单状态机、审批流程、游戏状态
 
@@ -293,9 +300,12 @@ public class Main {
 
 | 对比维度 | 状态模式 | 策略模式 |
 | :-- | :-- | :-- |
-| **切换方式** | 状态**自动转换**（内部驱动） | 客户端**主动选择**（外部驱动） |
+| **切换方式** | 状态转换通常由状态对象或上下文驱动 | 策略通常由调用方或上下文选择（外部驱动） |
 | **关注点** | 对象在不同状态下的**行为差异** | **算法**的可替换性 |
-| **状态感知** | 状态对象**知道**下一个状态是什么 | 策略对象**不知道**其他策略 |
+| **状态感知** | 状态对象通常参与转换，但转换也可由上下文或协调逻辑负责 | 重点在于替换算法或行为，通常由调用方或上下文选择 |
 | **典型场景** | 订单状态机、TCP 连接状态 | 支付方式选择、排序算法 |
 
-> **一句话记忆口诀**：状态模式把每种状态封装为类，消灭 if-else，状态自动转换，`Thread.State` 和订单状态机是最经典的例子。
+**相关文档**：
+
+- [策略模式](./chapter-01-strategy.md)：状态模式与策略模式的选型边界
+- [行为型模式对比](./chapter-11-behavioral-comparison.md)：策略 vs 状态、策略 vs 模板方法的职责取舍

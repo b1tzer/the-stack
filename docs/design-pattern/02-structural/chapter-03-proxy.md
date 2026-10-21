@@ -5,7 +5,7 @@ title: 代理模式（Proxy Pattern）
 
 # 代理模式（Proxy Pattern）
 
-> **一句话记忆口诀**：代理控制访问，静态代理编译期织入，JDK 动态代理基于接口，CGLIB 基于继承，Spring AOP 优先 JDK 代理。
+> **一句话记忆口诀**：代理控制访问，静态代理手动实现，JDK 动态代理基于接口，CGLIB 基于继承，Spring AOP 默认使用 CGLIB。
 
 ## 1. 引入：它解决了什么问题？
 
@@ -158,6 +158,7 @@ public class LoggingOrderServiceProxy implements OrderService {
 
 ```java
 import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 
@@ -179,9 +180,16 @@ public class LoggingInvocationHandler implements InvocationHandler {
         long start = System.currentTimeMillis();
 
         // 通过反射调用真实对象的方法
-        Object result = method.invoke(target, args);
+        // 注意：method.invoke 会把目标方法抛出的异常包装为 InvocationTargetException，
+        // 需要解包并重新抛出 cause，否则调用方看到的异常与直接调用目标对象时不同
+        Object result;
+        try {
+            result = method.invoke(target, args);
+        } catch (InvocationTargetException e) {
+            throw e.getCause();
+        }
 
-        // 后置处理
+        // 后置处理：仅在目标方法正常返回后执行
         System.out.println("[LOG] 方法耗时: " + (System.currentTimeMillis() - start) + "ms");
         return result;
     }
@@ -209,7 +217,9 @@ public class Main {
 ```
 
 > **JDK 动态代理的底层原理**：
-> `Proxy.newProxyInstance()` 在运行期通过 `ProxyGenerator` 生成一个继承 `Proxy` 类并实现目标接口的字节码，加载到 JVM 中。代理类的每个方法都调用 `InvocationHandler.invoke()`，实现统一拦截。
+> `Proxy.newProxyInstance()` 在运行期动态生成一个继承 `Proxy` 类并实现目标接口的代理类字节码，加载到 JVM 中。代理类的每个方法都调用 `InvocationHandler.invoke()`，实现统一拦截。（`ProxyGenerator` 是 JDK 内部实现细节，不同版本可能变化，不宜作为公共契约依赖）
+>
+> ⚠️ **异常传播边界**：即使解包 `InvocationTargetException`，也不保证与直接调用目标对象完全一致。如果目标方法抛出接口未声明的受检异常，代理调用仍会将其包装为 `UndeclaredThrowableException`，这是 JDK 动态代理的固有行为，编写横切逻辑时需注意。
 
 #### 3.2.3 方式三：CGLIB 动态代理（运行期生成，基于继承）
 
@@ -221,9 +231,9 @@ import net.sf.cglib.proxy.MethodProxy;
 // ===== CGLIB MethodInterceptor =====
 // 设计原因：目标类没有实现接口时，通过继承目标类生成子类代理
 // 代价：
-//   1. 目标类和方法不能是 final（final 类/方法无法被继承/覆盖）
+//   1. final 类无法代理（继承失败）；final 方法无法被子类覆盖拦截
 //   2. 需要额外引入 CGLIB 依赖（Spring 已内置）
-//   3. 生成子类的开销比 JDK 代理略大，但方法调用性能更好（FastClass 机制）
+//   3. 运行期存在字节码生成与初始化的开销，调用路径与 JDK 代理不同
 public class LoggingMethodInterceptor implements MethodInterceptor {
     @Override
     public Object intercept(Object obj, Method method, Object[] args, MethodProxy proxy)
@@ -231,7 +241,7 @@ public class LoggingMethodInterceptor implements MethodInterceptor {
         System.out.println("[CGLIB LOG] 调用方法: " + method.getName());
         long start = System.currentTimeMillis();
 
-        // invokeSuper 调用父类（真实对象）的方法，避免反射开销
+        // 通过 MethodProxy.invokeSuper 调用代理实例的父类实现
         Object result = proxy.invokeSuper(obj, args);
 
         System.out.println("[CGLIB LOG] 方法耗时: " + (System.currentTimeMillis() - start) + "ms");
@@ -285,8 +295,8 @@ flowchart TD
 | **生成时机** | 编译期 | 运行期 | 运行期 |
 | **实现机制** | 手动实现接口 | 实现接口，反射调用 | 继承目标类，字节码增强 |
 | **接口要求** | 需要接口 | **必须有接口** | **不需要接口** |
-| **final 限制** | 无 | 无 | final 类/方法无法代理 |
-| **性能** | 最好（直接调用） | 较好（JDK 8+ 优化后） | 好（FastClass 避免反射） |
+| **final 限制** | 无 | 无 | final 类无法代理；final 方法无法覆盖拦截 |
+| **性能** | 直接方法调用，无运行期生成开销 | 运行期生成代理类，通过反射委托，JDK 8+ 已大幅优化 | 运行期生成子类，通过覆盖方法拦截，开销取决于生成与调用路径 |
 | **维护成本** | 高（每个接口写一个代理类） | 低 | 低 |
 | **Spring 使用** | 不使用 | 有接口时优先使用 | 无接口时使用 |
 
@@ -294,34 +304,34 @@ flowchart TD
 
 | 对比维度 | 代理模式 | 装饰器模式 |
 | :-- | :-- | :-- |
-| **目的** | 控制对对象的**访问**（权限、延迟加载） | **增强**对象的功能 |
-| **关系** | 代理通常自己创建真实对象 | 装饰器由外部传入被装饰对象 |
-| **透明性** | 调用方不知道在访问代理 | 调用方知道在使用装饰器 |
+| **核心意图** | 控制对对象的**访问**（权限、延迟加载、远程访问） | **增强**对象的功能（保持接口兼容、组合职责） |
 | **典型例子** | Spring AOP、Feign Client | `BufferedInputStream`、`Collections.unmodifiableList()` |
+
+> 两者结构相似，都持有被包装对象的引用。区分的关键是**设计意图**：代理为对象设置访问控制边界，装饰器为对象附加职责。「对象由谁创建」「调用方是否知情」只是常见实现特征，不能作为稳定的判定标准——代理可以接收外部传入的目标对象，装饰器也可以被透明使用，两者都能多层组合。
 
 ### 4.3 Spring AOP 代理选择策略
 
 ```mermaid
 flowchart TD
     A[Spring 创建 Bean 代理] --> B{目标类是否实现接口?}
-    B -->|是| C{是否强制使用 CGLIB?}
-    C -->|否| D[使用 JDK 动态代理]
-    C -->|是 proxyTargetClass=true| E[使用 CGLIB 代理]
+    B -->|是| C{proxyTargetClass 是否为 true?}
+    C -->|false| D[使用 JDK 动态代理]
+    C -->|true| E[使用 CGLIB 代理]
     B -->|否| E
-    note1["Spring Boot 2.x 默认 proxyTargetClass=true<br/>即默认使用 CGLIB"]
+    E -.-> note1
+    note1["Spring Boot 2.x / 3.x 默认 proxyTargetClass=true<br/>即默认使用 CGLIB"]
 ```
 
-> ⚠️ **Spring Boot 2.x 的变化**：Spring Boot 2.0 开始默认将 `spring.aop.proxy-target-class=true`，即默认使用 CGLIB 代理，即使目标类有接口。原因是避免某些场景下 JDK 代理导致的类型转换异常。
+> ⚠️ **Spring Boot 默认代理策略**：Spring Boot 2.0 起（含 3.x）在自动配置场景下默认将 `spring.aop.proxy-target-class=true`，即默认使用 CGLIB 代理，即使目标类实现了接口；显式设置 `spring.aop.proxy-target-class=false` 可改回 JDK 动态代理。注意这是 Spring Boot 自动配置的默认行为，不等于所有 Spring AOP 场景都必然使用 CGLIB，具体仍受配置与代理创建方式影响。
 
 ### 4.4 在 Spring / JDK 中的应用
 
-| 框架/类 | 代理类型 | 说明 |
+| 框架/类 | 典型代理方式 | 说明 |
 | :-- | :-- | :-- |
 | Spring `@Transactional` | JDK/CGLIB | 事务管理 AOP |
 | Spring `@Cacheable` | JDK/CGLIB | 缓存 AOP |
 | Feign Client | JDK 动态代理 | 接口生成 HTTP 客户端 |
 | MyBatis `@Mapper` | JDK 动态代理 | 接口生成 SQL 执行器 |
-| `Collections.synchronizedList()` | 静态代理 | 线程安全包装 |
 
 ## 5. 边界：异常情况与常见误区
 
@@ -333,19 +343,21 @@ flowchart TD
 public class OrderService {
     public void createOrder(Order order) {
         // 直接调用同类方法，绕过了代理！
-        // this.saveOrder() 中的 this 是真实对象，不是代理对象
+        // 目标对象方法内部用 this 调用，不会自动绕回外部代理
         this.saveOrder(order);
     }
 
     @Transactional
     public void saveOrder(Order order) {
-        // 事务不会生效！
+        // saveOrder 上的 @Transactional 拦截不会单独触发！
+        // （若外层 createOrder 已在事务中，本次操作仍处于该外层事务内）
         orderRepository.save(order);
     }
 }
 
-// 原因：Spring AOP 是基于代理的，只有通过代理对象调用方法才会触发拦截。
-// 同类内部调用使用 this 引用，绕过了代理对象。
+// 原因：Spring AOP 基于代理，只有通过代理对象调用方法才会触发拦截。
+// 同类内部用 this 调用绕过了代理，不会单独触发 saveOrder 上的事务拦截；
+// 但 saveOrder 的事务行为仍受外层事务影响（若外层已有事务，则并入其中）。
 
 // ✅ 解决方案一：注入自身代理
 @Service
@@ -366,7 +378,7 @@ public class OrderService {
 // ✅ 解决方案二：拆分到不同 Service 类
 ```
 
-### 5.2 误区二：CGLIB 代理 final 类/方法（运行期异常）
+### 5.2 误区二：CGLIB 代理 final 类（运行期异常）
 
 ```java
 // ❌ 错误：对 final 类使用 CGLIB 代理
@@ -389,6 +401,8 @@ public class UserServiceImpl implements UserService {
 }
 ```
 
+> 补充：`final` 方法不会导致代理创建失败，但该方法无法被子类覆盖，因此对该方法的调用不会被 CGLIB 拦截。
+
 ### 5.3 误区三：JDK 动态代理强转为实现类（运行期 ClassCastException）
 
 ```java
@@ -410,12 +424,12 @@ proxy.createOrder(order); // 通过接口调用
 
 **Q1：JDK 动态代理和 CGLIB 代理有什么区别？Spring 如何选择？**
 
-> JDK 动态代理基于接口，运行期通过 `Proxy.newProxyInstance()` 生成实现目标接口的代理类，目标类必须实现接口；CGLIB 基于继承，通过字节码增强生成目标类的子类，不需要接口，但 final 类/方法无法代理。Spring 的选择策略：Spring Boot 2.x 默认使用 CGLIB（`proxyTargetClass=true`）；若显式配置 `proxyTargetClass=false`，则有接口时用 JDK 代理，无接口时用 CGLIB。
+> JDK 动态代理基于接口，运行期通过 `Proxy.newProxyInstance()` 生成实现目标接口的代理类，目标类必须实现接口；CGLIB 基于继承，通过字节码增强生成目标类的子类，不需要接口，但 final 类无法代理、final 方法无法覆盖拦截。Spring 的选择策略：Spring Boot 2.x 及 3.x 自动配置下默认使用 CGLIB（`proxyTargetClass=true`），即使目标类实现了接口；显式设置 `proxyTargetClass=false` 时，有接口用 JDK 代理，无接口用 CGLIB。
 
 **Q2：Spring AOP 为什么会出现事务失效？**
 
-> Spring AOP 基于代理实现，只有通过代理对象调用方法才会触发拦截逻辑（如事务管理）。当同一个类中方法 A 调用方法 B 时，使用的是 `this` 引用（真实对象），绕过了代理，导致 B 上的 `@Transactional` 失效。解决方案：①将方法拆分到不同 Service 类；②通过 `ApplicationContext` 获取代理对象后调用；③注入自身代理（`@Autowired` 注入自身）。
+> Spring AOP 基于代理实现，只有通过代理对象调用方法才会触发拦截逻辑（如事务管理）。当同一个类中方法 A 调用方法 B 时，方法内部用 `this` 调用绕过了代理，不会单独触发 B 上的 `@Transactional` 拦截（其事务行为仍受外层事务影响）。解决方案：①将方法拆分到不同 Service 类；②通过 `ApplicationContext` 获取代理对象后调用；③注入自身代理（`@Autowired` 注入自身）。
 
 **Q3：代理模式和装饰器模式有什么区别？**
 
-> 两者结构相似，都持有被包装对象的引用，但目的不同：代理模式的目的是**控制访问**，代理通常自己创建或持有真实对象，调用方不知道在访问代理（透明代理），典型例子是 Spring AOP、Feign Client；装饰器模式的目的是**增强功能**，被装饰对象由外部传入，调用方知道在使用装饰器，典型例子是 `BufferedInputStream` 包装 `FileInputStream`。
+> 两者结构相似，都持有被包装对象的引用，但核心意图不同：代理模式的意图是**控制访问**（权限检查、延迟加载、远程访问），装饰器模式的意图是**增强功能**（保持接口兼容、组合职责），典型例子分别是 Spring AOP、Feign Client 与 `BufferedInputStream`、`Collections.unmodifiableList()`。「对象由谁创建」「调用方是否知情」只是常见实现特征，不是稳定的判定标准。

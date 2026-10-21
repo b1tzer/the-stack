@@ -212,7 +212,7 @@ public class SimpleTcpClient {
 ```bash
 # 启动抓包
 sudo tcpdump -i lo -w /tmp/tcp_capture.pcap port 8080
-```
+
 # 运行上面的 Java 程序，发送几条消息
 
 # 用 Wireshark 打开

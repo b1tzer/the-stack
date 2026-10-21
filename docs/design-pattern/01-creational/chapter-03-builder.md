@@ -22,16 +22,14 @@ User user = User.builder()
     .name("张三")
     .age(25)
     .email("zhangsan@example.com")
-    .address(Address.builder()
-        .city("北京")
-        .district("朝阳区")
-        .build())
     .build();
 ```
 
 ## 4. ✨ 实现
 
 ```java
+import java.util.Objects;
+
 public class User {
     private final String name;
     private final int age;
@@ -53,19 +51,31 @@ public class User {
         public Builder name(String name) { this.name = name; return this; }
         public Builder age(int age) { this.age = age; return this; }
         public Builder email(String email) { this.email = email; return this; }
-        public User build() { return new User(this); }
+        
+        public User build() {
+            Objects.requireNonNull(name, "name");
+            Objects.requireNonNull(email, "email");
+            if (age < 0) {
+                throw new IllegalArgumentException("age must be >= 0");
+            }
+            return new User(this);
+        }
     }
 }
 ```
 
+`final` 只保证字段赋值后不可变，不保证对象有效。校验放在 `build()`，是因为构造方法是 `private` 的，所有创建都经过 Builder 这一条路径。
+
 ## 5. 🔧 框架应用
 
 - Spring: `BeanDefinitionBuilder`
-- JDK: `StringBuilder`、`Stream.Builder`
+- JDK: `Stream.Builder`（典型的 Builder API）、`StringBuilder`（相似的逐步构建用法，主要解决字符串拼接）
 - Lombok: `@Builder`
 
 ## 6. ⚠️ 适用场景
 
-- 参数多（>4 个）
-- 参数可选
+- 参数较多且部分可选
+- 创建表达式难以阅读
 - 需要不可变对象
+
+参数数量只是经验提示，不是硬性门槛。参数少且含义清晰时，优先用构造方法或静态工厂；参数虽多但全部必填、顺序清晰时，也不必强上建造者。

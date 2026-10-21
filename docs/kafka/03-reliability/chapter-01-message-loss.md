@@ -48,7 +48,7 @@ Controller 从 ISR 里选一个新 Leader（某个 Follower）
 → 生产者以为"发送成功"，消息实际丢了
 ```
 
-`acks=1` 的丢失窗口 = Follower 拉取同步的间隔，通常只有毫秒级。所以它在绝大多数时候不丢，唯独"Leader 写入后立刻宕机"这个临界时刻会丢。对账、金融类场景必须用 `acks=all` 关掉这个窗口；日志、埋点类场景可以接受它换来更低的延迟。
+`acks=1` 的丢失窗口从 Leader 确认写入开始，到这条消息被 Follower 拉取同步为止，时长取决于副本同步速度，通常很短。所以它在绝大多数时候不丢，唯独"Leader 写入后立刻宕机"这个临界时刻会丢。对账、金融类场景通常应使用 `acks=all` 并配置合适的 `min.insync.replicas` 关掉这个窗口；日志、埋点类场景可以接受它换来更低的延迟。
 
 `acks=0` 则连这个窗口都没有——发出去就不等确认，网络层丢包生产者毫无感知，属于"能接受丢才用"的模式。
 
@@ -66,7 +66,7 @@ Controller 从 ISR 里选一个新 Leader（某个 Follower）
 `acks=all` 有一个隐蔽的失效条件，只看"all"三个字会被骗过去。关键在 ISR 收缩：
 
 ```txt
-正常：ISR = {Leader, F1, F2}，min.insync.replicas=2
+正常：ISR = {Leader, F1, F2}，min.insync.replicas=1
 F2 掉队（超过 replica.lag.time.max.ms）→ ISR = {Leader, F1}
 F1 也掉队 → ISR = {Leader}（收缩到只剩一个副本）
 
@@ -75,7 +75,7 @@ F1 也掉队 → ISR = {Leader}（收缩到只剩一个副本）
   → 满足"所有 ISR 副本已写入" → 返回 ACK
   → 但这等价于 acks=1：数据只在一个副本上
 
-Leader 宕机 → 消息永久丢失
+Leader 宕机 → 已 ACK 的消息可能永久丢失（此时无其他同步副本持有这份数据）
 ```
 
 根源：`acks=all` 保证的是"写入所有 **ISR** 副本"，不是"写入所有副本"。ISR 收缩到只剩 Leader 时，`acks=all` 就退化成了单副本写入，而生产者完全不知情。
@@ -119,7 +119,7 @@ process(records);
 consumer.commitSync();
 ```
 
-提交时机"提前"就丢消息、"延后"就重复消息，这是一体两面。延后一面的处理见 [消息去重](./chapter-02-message-dedup.md)。
+提交时机提前，可能跳过尚未处理完的消息；提交延后，则可能导致重复消费。两者是同一个进度管理问题的不同表现，延后提交带来的重复消费及处理方式见 [消息去重](./chapter-02-message-dedup.md)。
 
 #### Rebalance 把提交时机问题推到分区被夺走的边界
 
@@ -136,7 +136,7 @@ Rebalance 触发，分区 P 被收回、分给消费者 B
   → 静默丢失
 ```
 
-`ConsumerRebalanceListener` 的 `onPartitionsRevoked` 回调就是为这个边界设计的：分区被收回时，Kafka 会调用这个回调，你在这里把「已处理到的 offset」同步提交一次，新消费者才能从正确位置接手：
+`ConsumerRebalanceListener` 的 `onPartitionsRevoked` 回调就是为这个边界设计的：分区被收回时，Kafka 会调用这个回调，你在这里把「已处理到的 offset」同步提交一次，新消费者才能从正确位置接手。这段示例的前提是消费者已关闭自动提交（`enable.auto.commit=false`），否则定时提交仍会按「已 poll 的位置」推进 offset，手动提交就形同虚设；`commitSync` 失败时也不能默认进度已安全保存：
 
 ```java
 Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>();
@@ -162,6 +162,7 @@ consumer.subscribe(Collections.singletonList("my-topic"), new ConsumerRebalanceL
 
 while (true) {
     ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
+    // 假设按分区顺序处理，且 process(r) 成功返回后才更新进度；并发处理时需按分区维护连续完成的 offset
     for (ConsumerRecord<String, String> r : records) {
         process(r);
         // 每处理完一条，记录「下一条该消费的位置」= 已处理 offset + 1
@@ -180,12 +181,12 @@ Rebalance 的触发与暂停机制见 [消费者组 §4.1](../02-core/chapter-03
 ### Step 1：确认是哪个环节
 
 ```bash
-# 检查 Broker 侧的消息总量
+# 查看各分区最新 Offset（--time -1），这是 Offset 边界而非实际消息条数
 kafka-run-class.sh kafka.tools.GetOffsetShell \
     --broker-list localhost:9092 --topic my-topic --time -1
 
-# 对比生产者的发送计数
-# 对比消费者的消费计数
+# 交叉核对生产者成功发送计数、分区 Offset、消费者组已提交 Offset、业务实际处理计数
+# 各口径不完全相同，Offset 差值不等于可消费消息数，日志压缩、保留、事务会产生空洞
 ```
 
 ### Step 2：检查生产端配置
@@ -236,6 +237,16 @@ isolation.level=read_committed  # 事务场景
 ```
 
 > 其中 `enable.idempotence` 是幂等生产者开关（见 [幂等生产者](../02-core/chapter-05-ack-and-idempotence.md#idempotent-producer)），`isolation.level=read_committed` 是事务场景的消费隔离级别（见 [事务隔离级别](./chapter-04-exactly-once.md#isolation-level)）。
+
+### 保证边界
+
+上面这份清单分别约束不同环节，但组合起来不等于端到端的「消息不丢」。可靠性的边界分三层：
+
+- **生产可靠性**：`acks=all`、`min.insync.replicas≥2`、`unclean.leader.election.enable=false` 要求写入至少得到配置所要求的 ISR 副本确认、禁止非同步副本通过 unclean election 成为 Leader，从而降低已确认消息在故障切换中丢失的风险，约束范围止于 Broker 落盘。
+- **消费可靠性**：`enable.auto.commit=false` 加上处理完再提交，保证「进度不越过未处理完的消息」，代价是失败重试会带来重复消费。
+- **端到端业务可靠性**：前两层之外，还需要业务幂等（见 [消息去重](./chapter-02-message-dedup.md#idempotent-consumer)）或 Kafka 事务原子提交输出与 Offset（见 [Exactly Once](./chapter-04-exactly-once.md)）。
+
+Kafka 无法保证「业务处理结果」与「消费 Offset」原子一致。消费者处理成功后、提交 Offset 前宕机，只能靠重复消费或业务幂等兜底，这不是配置能填平的边界。
 
 ## 5. 预防
 

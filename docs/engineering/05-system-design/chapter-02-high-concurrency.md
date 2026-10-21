@@ -24,8 +24,9 @@
 ### 1.3 线程模型与资源消耗
 
 ```java
-// 传统同步模型：一个请求占一个线程，线程是昂贵资源
-// Tomcat 默认 200 线程，意味着最多同时处理 200 个请求
+// 传统同步模型：一个请求占一个工作线程，线程是昂贵资源
+// Tomcat 默认 200 工作线程，同步模型下最多同时处理约 200 个请求
+// （异步 Servlet 可在等待期间释放工作线程，不受此上限约束）
 @GetMapping("/order/{id}")
 public Order getOrder(@PathVariable Long id) {
     Order order = orderService.findById(id);     // 线程阻塞等待 DB
@@ -33,8 +34,8 @@ public Order getOrder(@PathVariable Long id) {
     return enrichOrder(order, user);
 }
 
-// 异步模型（WebFlux / Virtual Thread）：不阻塞线程
-// 虚拟线程可以创建百万级，不再受 OS 线程数限制
+// 响应式模型（WebFlux）：非阻塞 IO + 异步信号，等待期间不占用工作线程
+// 前提是链路中的数据库、RPC 调用都采用非阻塞实现
 @GetMapping("/order/{id}")
 public Mono<Order> getOrder(@PathVariable Long id) {
     return orderService.findById(id)
@@ -42,6 +43,11 @@ public Mono<Order> getOrder(@PathVariable Long id) {
             .map(user -> enrichOrder(order, user)));
 }
 ```
+
+响应式（WebFlux）和虚拟线程是两种不同的模型，不能混为一谈：
+
+- **响应式**：非阻塞 IO 加异步信号，等待期间释放工作线程，但要求全链路非阻塞，混入阻塞式 JDBC 调用仍会占住线程。
+- **虚拟线程**：代码仍是同步阻塞写法，在支持卸载的阻塞操作中阻塞时，虚拟线程从载体线程卸载、不占用 OS 线程；但部分场景（如 synchronized 内、部分 native 调用）会发生 pinning，无法及时卸载。可创建的虚拟线程数量大，但不等于系统可承载的请求数，数据库连接池等下游资源仍是上限。
 
 ## 2. 流量模型
 
@@ -57,15 +63,19 @@ public Mono<Order> getOrder(@PathVariable Long id) {
 
 ### 2.2 核心经验公式
 
+估算并发压力，用 Little 定律：
+
 ```txt
-并发线程数 = QPS × RT（秒）
+平均在途请求数 = QPS × RT（秒）
 ```
 
 推导过程：
 
 - 假设 QPS = 1000，每个请求处理时间 RT = 100ms = 0.1s
 - 在任意时刻，系统中同时在处理的请求数 = 1000 × 0.1 = 100
-- 所以需要至少 100 个并发线程
+- 这是在途请求数的估算，不是必须配置 100 个线程
+
+注意区分两个概念：在途请求可能正在执行 CPU 计算，也可能阻塞等待数据库、网络等资源。平均在途请求数不等于所需线程数，线程数还需结合 CPU 核数、阻塞等待时间占比、下游连接池上限等因素综合确定。
 
 **实际应用**：
 
@@ -74,37 +84,38 @@ public Mono<Order> getOrder(@PathVariable Long id) {
 
 秒杀开始瞬间峰值 QPS = 50,000
 商品详情接口 RT = 20ms = 0.02s
-所需并发线程数 = 50,000 × 0.02 = 1,000
+平均在途请求数 = 50,000 × 0.02 = 1,000
 
 下单接口 RT = 200ms = 0.2s（涉及库存扣减、订单创建）
-所需并发线程数 = 50,000 × 0.2 = 10,000
+平均在途请求数 = 50,000 × 0.2 = 10,000
 
-结论：下单接口是瓶颈，需要缓存拦截大部分请求，
+结论：下单接口压力最大，需要缓存拦截大部分请求，
       真正到达下单接口的 QPS 控制在 1,000 以内
 ```
 
 ### 2.3 容量规划公式
 
 ```txt
-所需机器数 = 峰值 QPS / 单机 QPS 承载能力
+所需机器数 = 峰值 QPS / 单机可持续 QPS
 
-单机 QPS = 并发线程数 / 平均 RT(秒)
-         = (线程池大小 × CPU 利用率目标) / 平均 RT(秒)
+单机可持续 QPS = 平均在途请求数 / 平均 RT(秒)
 ```
+
+这个公式表达的是理论关系，不是直接的配置工具。实际单机可持续 QPS 受 CPU 核数、IO 等待比例、下游连接池上限、延迟目标和压测结果共同制约，需要以压测数据为准，而不是用公式反推线程池大小。线程数也不等于实际平均在途请求数，只有在请求确实由这些工作线程同步处理、线程充分占用时才近似成立。
 
 ```java
 // 示例：评估 Tomcat 线程池配置
 // 机器配置：4C8G
-// 目标 CPU 利用率：70%（留 30% 余量应对突发）
 // 平均接口 RT：50ms
+// 压测得到单机可持续 QPS 约 2,800（CPU 利用率约 70%，留余量应对突发）
 
-// Tomcat 默认线程数 200
-// 理论单机 QPS = 200 / 0.05 = 4,000
-// 但实际要考虑 CPU 利用率，有效 QPS ≈ 4,000 × 0.7 = 2,800
+// Tomcat 默认 200 个工作线程，是工作线程数上限，不是并发上限
+// 同步模型下 200 线程对应约 200 个在途请求
+// 单机 QPS = 200 / 0.05 = 4,000 是理论上限，实际受 CPU、连接池制约约为 2,800
 
 // 如果峰值 QPS = 20,000
-// 所需机器数 = 20,000 / 2,800 ≈ 8 台（向上取整，建议冗余 20%）
-// 实际部署 10 台
+// 所需机器数 = 20,000 / 2,800 ≈ 8 台（向上取整）
+// 再预留容量余量，应对单机故障、滚动发布期间的容量损失，实际部署 10 台
 ```
 
 ## 3. 水平扩展与无状态设计
@@ -116,10 +127,10 @@ public Mono<Order> getOrder(@PathVariable Long id) {
 | 维度 | 垂直扩展（Scale Up） | 水平扩展（Scale Out） |
 | :-- | :-- | :-- |
 | 方式 | 升级单机配置（加 CPU、加内存） | 增加机器数量 |
-| 上限 | 物理极限（单机最多多少核多少内存） | 理论无上限 |
+| 上限 | 物理极限（单机最多多少核多少内存） | 可近似线性扩展，但受共享依赖与运维成本制约 |
 | 成本 | 非线性增长（高端硬件溢价） | 线性增长 |
 | 复杂度 | 低（不用改代码） | 高（需要无状态、分布式） |
-| 容错 | 单点故障 | 任意一台挂不影响整体 |
+| 容错 | 单点故障 | 单实例故障时其余实例可继续服务，前提是剩余容量充足 |
 | 推荐 | 早期、数据库层 | 应用层、缓存层 |
 
 ```txt
@@ -233,6 +244,8 @@ public class OrderController {
 | 缓存层 | 热点数据缓存 | Redis 集群、多级缓存 | 拦截 80-95% 读请求 |
 | 数据库 | 持久化存储 | 主从分离、分库分表 | 最终承受的请求量大幅减少 |
 
+表中的比例是示例值，实际效果取决于缓存命中率、请求分布、资源类型和访问模式，并非通用预期。
+
 ### 4.3 每层的工程实践
 
 #### 4.3.1 网关层：限流
@@ -240,19 +253,19 @@ public class OrderController {
 ```java
 // 令牌桶限流（使用 Guava RateLimiter）
 @RestController
-public class SeckillController {
+public class FlashSaleController {
 
     // 每秒放行 1000 个请求
     private final RateLimiter rateLimiter = RateLimiter.create(1000);
 
-    @PostMapping("/seckill/{itemId}")
-    public ResponseEntity<String> seckill(@PathVariable Long itemId) {
+    @PostMapping("/flash-sale/{itemId}")
+    public ResponseEntity<String> flashSale(@PathVariable Long itemId) {
         // 尝试获取令牌，最多等待 200ms
         if (!rateLimiter.tryAcquire(200, TimeUnit.MILLISECONDS)) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .body("系统繁忙，请稍后再试");
         }
-        return ResponseEntity.ok(seckillService.seckill(itemId));
+        return ResponseEntity.ok(flashSaleService.flashSale(itemId));
     }
 }
 ```
@@ -268,13 +281,13 @@ public class SeckillController {
 | **滑动窗口** | 按时间窗口统计请求数 | ❌ 精确控制 | API 精确限流 |
 | **固定窗口** | 按固定时间段统计 | ⚠️ 有边界突刺 | 简单场景 |
 
-**秒杀场景选令牌桶**：允许用户在前 100ms 内集中提交（突发），然后匀速放行。如果用漏桶，所有请求被强制匀速，用户体验差。
+**秒杀场景选令牌桶**：令牌桶允许短时突发（突发额度取决于桶容量配置），让真实用户能在秒杀瞬间提交请求，而不是被强制匀速拖慢。但秒杀的核心是保护库存、订单等下游资源，如果目标是让下游匀速消化请求，漏桶的流量整形同样适用，选型取决于保护对象，不是单纯的"用户体验"。
 
-**API 限流选滑动窗口**：需要精确控制"每分钟最多 100 次调用"，滑动窗口没有固定窗口的"边界突刺"问题（窗口交替瞬间允许 2 倍流量）。
+**API 限流选滑动窗口**：需要精确控制"每分钟最多 100 次调用"，滑动窗口能避免固定窗口在窗口交替瞬间的计数突刺（固定窗口在交替瞬间允许 2 倍流量）。
 
-实际项目中，Sentinel 默认使用滑动窗口，Guava RateLimiter 使用令牌桶。选型时看需求：要突发能力用令牌桶，要精确控制用滑动窗口。
+实际项目中，Sentinel 的 QPS 限流底层基于滑动窗口计数，Guava RateLimiter 是基于令牌桶的平滑限速实现（SmoothBursty 允许突发、SmoothWarmingUp 带预热）。选型时看需求：要突发能力用令牌桶，要精确控制用滑动窗口。
 
-滑动窗口限流的一个完整实现：
+滑动窗口限流的一个教学实现（仅说明算法原理，生产环境建议用 Sentinel 等成熟组件）：
 
 ```java
 class SlidingWindowRateLimiter {
@@ -301,6 +314,11 @@ class SlidingWindowRateLimiter {
     }
 }
 ```
+
+这个实现有两个局限，不能直接用于生产：
+
+- 它是单机限流，每个 JVM 实例各自计数，多个应用实例部署后无法协同完成全局限流。分布式全局限流需要共享计数器（如 Redis + Lua）或集中式限流方案，并权衡一致性、延迟和故障策略。
+- TreeMap 按毫秒记录并在每次请求时遍历窗口内全部记录，高请求量下遍历开销和 synchronized 全局锁竞争会随时间戳数量增长。生产实现通常采用固定数量的时间桶等有界结构。
 
 #### 4.3.3 缓存层：多级缓存
 
@@ -349,6 +367,8 @@ public class ProductService {
     }
 }
 ```
+
+上面是读路径的多级缓存回填。写路径需要单独处理两级缓存的失效顺序和并发回填竞争，TTL 只能限制旧数据的存活时间，不能保证强一致性。
 
 #### 4.3.4 数据库层：读写分离
 
@@ -450,8 +470,9 @@ public class OrderQueryService {
 
 ```java
 // Redis 原子扣减库存（Lua 脚本保证原子性）
-// stock:seckill:{itemId} = 库存数
-// seckill:users:{itemId} = 已抢到的用户集合
+// 两个键使用相同的 hash tag {itemId}，确保在 Redis Cluster 中落在同一哈希槽
+// stock:flash-sale:{itemId} = 库存数
+// flash-sale:users:{itemId} = 已抢到的用户集合
 private static final String LUA_SCRIPT = """
     local stock = tonumber(redis.call('GET', KEYS[1]))
     if stock == nil or stock <= 0 then
@@ -467,7 +488,7 @@ private static final String LUA_SCRIPT = """
     """;
 
 @Service
-public class SeckillService {
+public class FlashSaleService {
 
     @Autowired
     private StringRedisTemplate redisTemplate;
@@ -475,11 +496,11 @@ public class SeckillService {
     @Autowired
     private RabbitTemplate rabbitTemplate;
 
-    public String seckill(Long itemId, Long userId) {
+    public String flashSale(Long itemId, Long userId) {
         // ⑤ Redis 原子扣减
         Long result = redisTemplate.execute(
             new DefaultRedisScript<>(LUA_SCRIPT, Long.class),
-            List.of("stock:seckill:" + itemId, "seckill:users:" + itemId),
+            List.of("stock:flash-sale:{" + itemId + "}", "flash-sale:users:{" + itemId + "}"),
             String.valueOf(userId)
         );
 
@@ -487,13 +508,21 @@ public class SeckillService {
         if (result == -2) return "请勿重复抢购";
 
         // ⑥ 发送 MQ，异步创建订单
-        SeckillMessage message = new SeckillMessage(itemId, userId);
-        rabbitTemplate.convertAndSend("seckill.exchange", "seckill.order", message);
+        FlashSaleMessage message = new FlashSaleMessage(itemId, userId);
+        rabbitTemplate.convertAndSend("flash-sale.exchange", "flash-sale.order", message);
 
-        return "抢购成功，正在创建订单";
+        return "已受理，订单创建中";
     }
 }
 ```
+
+这里 Redis 只是预扣库存，真正的订单创建异步进行。有几个一致性要点需要补全：
+
+- MQ 发送失败时，库存已扣减但订单未创建。convertAndSend() 只表示消息"发出去了"，不是可靠交付。需要配合 RabbitMQ 发布确认、消费端幂等，以及对 Redis 预扣结果与订单状态的对账，失败时幂等补偿。
+- 要区分两个概念：库存总量键（stock:flash-sale:{itemId}）是秒杀期间的库存计数，不能设置 TTL 或随意过期，否则库存数据丢失、重新初始化后可能超卖。订单超时未支付时，释放的是该笔订单对应的预占，需要单独记录预占关系（用户、数量、到期时间），并按业务规则幂等释放。
+- 关于 Outbox：本地消息表或 Outbox 解决的是"数据库事务内写业务数据与写待发送消息"的原子性，但这里的 Redis 预扣与数据库不在同一事务，仅靠 Outbox 不能自动保证 Redis 预扣成功与消息记录成功原子提交，仍需对账和幂等补偿兜底。
+
+返回"已受理"而非"抢购成功"，因为此刻订单尚未落库，只有订单服务确认创建成功后才是真正抢购成功。
 
 ### 4.5 高并发设计 Checklist
 

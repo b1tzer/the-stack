@@ -55,7 +55,7 @@ public class RequestProcessor {
 
 ### 1.2 工作中的典型应用场景
 
-| 场景 | Spring/JDK 中的例子 |
+| 场景 | Java 生态中的例子 |
 | :-- | :-- |
 | HTTP 请求过滤 | Servlet `FilterChain` |
 | Spring 安全 | Spring Security `SecurityFilterChain` |
@@ -223,7 +223,7 @@ public class Main {
 }
 ```
 
-### 3.3 Servlet Filter 责任链示例（JDK 经典实现）
+### 3.3 Servlet Filter 责任链示例（Servlet API 的典型实现）
 
 ```java
 // Servlet Filter 是责任链模式的标准实现
@@ -282,9 +282,9 @@ flowchart TD
 
 | 对比维度 | 责任链模式 | 装饰器模式 |
 | :-- | :-- | :-- |
-| **目的** | 请求沿链传递，某个处理者**处理后终止** | 每层都处理，**全部执行** |
-| **终止条件** | 某个处理者处理后可以终止传递 | 所有装饰器都会执行 |
-| **处理结果** | 通常只有一个处理者真正处理 | 每层都对结果进行增强 |
+| **设计意图** | 为请求选择处理者，沿链传递，可中途终止 | 通过包装对象叠加、增强行为 |
+| **执行特征** | 处理者可选择终止，也可逐级传递（非纯责任链） | 通常各层依次执行，逐层增强结果 |
+| **处理结果** | 纯责任链只有一个处理者处理，非纯多个处理者参与 | 各层增强被包装对象的行为，结果叠加 |
 | **典型例子** | Servlet Filter、Spring Security | `BufferedInputStream`、IO 流 |
 
 ### 4.2 责任链的两种变体
@@ -292,14 +292,14 @@ flowchart TD
 | 变体 | 特点 | 适用场景 |
 | :-- | :-- | :-- |
 | **纯责任链** | 只有一个处理者处理请求，处理后不再传递 | 审批流程、路由 |
-| **非纯责任链** | 每个处理者都处理，然后继续传递 | Servlet Filter、日志 |
+| **非纯责任链** | 允许多个处理者依次参与处理，各自决定是否继续传递 | Servlet Filter、日志 |
 
-### 4.3 在 Spring / JDK 中的应用
+### 4.3 在 Java 生态中的应用
 
 | 框架/类 | 说明 |
 | :-- | :-- |
 | Servlet `FilterChain` | HTTP 请求过滤链 |
-| Spring Security `SecurityFilterChain` | 安全过滤链（约 15 个 Filter） |
+| Spring Security `SecurityFilterChain` | 安全过滤链（过滤器数量取决于版本与配置） |
 | MyBatis `InterceptorChain` | SQL 执行拦截链 |
 | Netty `ChannelPipeline` | 网络请求处理链 |
 | Spring MVC `HandlerInterceptor` | 请求拦截器链 |
@@ -309,25 +309,30 @@ flowchart TD
 ### 5.1 误区一：责任链过长导致性能问题（运行期问题）
 
 ```java
-// ❌ 问题：责任链节点过多，每个请求都要经过所有节点
-// 如果有 50 个 Filter，每个请求都要经过 50 次判断
-// Spring Security 默认有约 15 个 Filter，每个请求都要经过
+// ❌ 问题：责任链节点过多，单个请求要经过的节点随之增多
+// 节点越多，单请求需要执行的判断越多，性能开销越大
+// Spring Security 的过滤器链同样如此，链越长单请求开销越大
 
 // ✅ 建议：
 // 1. 将高频拦截的 Handler 放在链的前端（如认证失败率高，认证放第一位）
 // 2. 对不需要处理的请求快速跳过（如静态资源跳过认证）
 // 3. 控制责任链长度，避免过度拆分
 public class AuthFilter implements Filter {
-    private static final List<String> SKIP_PATHS = List.of("/static/", "/health");
+    private static final String HEALTH_PATH = "/health";
+    private static final String STATIC_PREFIX = "/static/";
 
     @Override
-    public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain) {
+    public void doFilter(ServletRequest req, ServletResponse resp,
+                         FilterChain chain) throws IOException, ServletException {
         String path = ((HttpServletRequest) req).getRequestURI();
-        if (SKIP_PATHS.stream().anyMatch(path::startsWith)) {
+        // /health 精确匹配，/static/ 前缀匹配，避免 /health 误匹配 /healthcheck
+        boolean skip = HEALTH_PATH.equals(path) || path.startsWith(STATIC_PREFIX);
+        if (skip) {
             chain.doFilter(req, resp); // 快速跳过，不做认证
             return;
         }
-        // 正常认证逻辑...
+        // 正常认证逻辑
+        chain.doFilter(req, resp);
     }
 }
 ```
@@ -344,7 +349,7 @@ public class LoggingHandler extends Handler {
     }
 }
 
-// ✅ 正确：非关键处理者应该捕获异常，保证链的继续执行
+// ✅ 正确：对于日志、指标等允许失败的辅助处理，捕获异常保证链继续执行
 public class LoggingHandler extends Handler {
     @Override
     protected Response doHandle(Request request) {
@@ -360,6 +365,8 @@ public class LoggingHandler extends Handler {
 ```
 
 ### 5.3 误区三：责任链末端没有默认处理者，请求"消失"（运行期问题）
+
+§3.2 的简化版 `handle()` 在链末端无处理者时直接返回 null，调用方拿到 null 后无法区分"放行"与"无人处理"。在这套示例中，null 只表示当前处理者不负责生成响应，到达链末端仍为 null 时由兜底逻辑生成默认响应。下面给出两种避免该问题的方案：保证末端处理者存在，或在抽象类中兜底返回默认响应。
 
 ```java
 // ❌ 错误：责任链末端没有处理者，请求没有响应
@@ -389,12 +396,12 @@ public final Response handle(Request request) {
 
 **Q1：责任链模式解决了什么问题？Servlet Filter 如何体现责任链？**
 
-> 责任链模式解决了请求需要经过多个处理步骤，且每个步骤可以决定是否继续传递的问题。将处理者串联成链，请求沿链传递，每个处理者决定是否处理并是否继续传递，避免了将所有处理逻辑堆在一个方法里的强耦合问题。Servlet Filter 是责任链的经典实现：每个 Filter 实现 `doFilter()` 方法，调用 `chain.doFilter()` 将请求传递给下一个 Filter，不调用则终止链。Spring Security 就是通过约 15 个 Filter 组成的责任链实现认证、授权、CSRF 防护等功能。
+> 责任链模式解决了请求需要经过多个处理步骤，且每个步骤可以决定是否继续传递的问题。将处理者串联成链，请求沿链传递，每个处理者决定是否处理并是否继续传递，避免了将所有处理逻辑堆在一个方法里的强耦合问题。Servlet Filter 是责任链的经典实现：每个 Filter 实现 `doFilter()` 方法，调用 `chain.doFilter()` 将请求传递给下一个 Filter，不调用则终止链。Spring Security 就是通过 `SecurityFilterChain` 定义的责任链实现认证、授权、CSRF 防护等功能，过滤器数量取决于版本与配置。
 
 **Q2：责任链模式和装饰器模式有什么区别？**
 
-> 两者结构相似（都是链式调用），但目的不同：责任链模式中，某个处理者处理请求后可以**终止传递**，通常只有一个处理者真正处理请求（如认证失败直接返回 401，不再继续）；装饰器模式中，每层装饰器都会执行，**全部执行**后返回增强的结果（如 `BufferedInputStream` 和 `GZIPInputStream` 都会处理数据）。判断标准：如果某个节点可以终止流程，用责任链；如果每层都要处理，用装饰器。
+> 两者结构相似（都是链式调用），但设计意图不同：责任链模式关注为请求选择处理者并控制传递，处理者可以中途终止（如认证失败直接返回 401，不再继续），也可以逐级传递（非纯责任链，如 Servlet Filter）；装饰器模式关注通过包装对象叠加行为，每层装饰器都会执行，返回逐层增强的结果（如 `BufferedInputStream` 和 `GZIPInputStream` 都会处理数据）。判断标准主要看设计意图：为请求选择处理者、控制传递，用责任链；为对象叠加行为、逐层增强，用装饰器。能否中途终止只是责任链的典型特征，不是唯一判据。
 
 **Q3：Spring Security 的过滤器链是如何工作的？**
 
-> Spring Security 通过 `SecurityFilterChain` 实现责任链模式，包含约 15 个 Filter（如 `UsernamePasswordAuthenticationFilter`、`BasicAuthenticationFilter`、`ExceptionTranslationFilter` 等）。每个请求进入时，按顺序经过所有 Filter，每个 Filter 可以处理请求（如认证）或直接传递。关键 Filter 如 `FilterSecurityInterceptor` 在链末端做权限校验，`ExceptionTranslationFilter` 捕获认证/授权异常并转换为 HTTP 响应。可以通过 `HttpSecurity` 配置添加自定义 Filter 到链中的指定位置。
+> Spring Security 通过 `SecurityFilterChain` 实现责任链模式，每条链由多个 Filter 组成（如 `UsernamePasswordAuthenticationFilter`、`BasicAuthenticationFilter`、`ExceptionTranslationFilter` 等，具体数量和组成取决于版本与配置）。每个请求进入时，先匹配对应的 `SecurityFilterChain`，再按顺序经过该链上的 Filter，每个 Filter 可以处理请求（如认证）或直接传递。授权默认由 `AuthorizationFilter` 完成（Spring Security 6 起，早期版本的 `FilterSecurityInterceptor` 仅在特定配置下使用），`ExceptionTranslationFilter` 捕获认证/授权异常并转换为 HTTP 响应。可以通过 `HttpSecurity` 配置添加自定义 Filter 到链中的指定位置。

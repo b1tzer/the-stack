@@ -60,6 +60,7 @@ public class OrderFacade {
     public boolean placeOrder(Order order) {
         if (!inventory.checkStock(order.getProductId())) return false;
         inventory.reserveStock(order.getProductId(), order.getQuantity());
+        payment.validateCard(order.getCardNumber());
         payment.charge(order.getAmount());
         shipping.createShipment(order);
         notification.sendEmail(order.getUserEmail(), "订单已创建");
@@ -69,8 +70,10 @@ public class OrderFacade {
 
 // ===== 客户端调用 =====
 OrderFacade facade = new OrderFacade(inventory, payment, shipping, notification);
-facade.placeOrder(order); // 一行代码搞定！
+facade.placeOrder(order); // 客户端面向统一入口，一次调用完成下单
 ```
+
+> **边界说明**：外观模式负责统一调用入口和组织子系统交互，不保证跨子系统操作的原子性。当流程涉及库存、支付、物流等独立系统时，需要根据业务要求单独设计失败补偿、幂等、重试与状态恢复机制。外观类可以负责发起这些机制，但不能替代它们。
 
 ### 1.4 在 Spring / JDK 中的应用
 
@@ -79,11 +82,13 @@ facade.placeOrder(order); // 一行代码搞定！
 | `JdbcTemplate` | 封装了 Connection、Statement、ResultSet 的复杂操作 |
 | `SLF4J` | 日志门面，统一 Log4j、Logback 等日志框架的接口 |
 | `RestTemplate` | 封装了 HTTP 连接、序列化、错误处理等细节 |
-| Spring `ApplicationContext` | 统一了 BeanFactory、ResourceLoader、EventPublisher 等子系统 |
+| Spring `ApplicationContext` | 整合 BeanFactory、ResourceLoader、ApplicationEventPublisher、MessageSource 等接口，提供统一的应用上下文访问入口 |
+
+> 注：上表组件并非都是严格意义上的经典外观模式。例如 `JdbcTemplate` 的设计同时包含模板方法与回调机制，不能仅凭它隐藏了 JDBC 操作就认定其设计意图只有外观模式。本节将它们作为「外观模式的相似应用」列举，帮助理解统一入口这一共性。
 
 ### 1.5 常见误区
 
-- **误区**：外观类变成"上帝类" → 外观类只做**编排和委托**，不包含业务逻辑
+- **误区**：外观类变成"上帝类" → 外观类应以**简化调用和协调子系统**为主要职责，复杂、可复用的领域规则应放到领域对象或领域服务中，避免演变成承载大量无关职责的上帝类
 - **误区**：有了外观就不能直接访问子系统 → 外观是**可选的便捷入口**，不阻止直接访问
 
 ## 2. 桥接、组合、享元：进入单页详解

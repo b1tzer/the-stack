@@ -64,6 +64,8 @@ classDiagram
 
 ## 4. 💻 完整代码实现
 
+> 示例中每个 `public` 顶层类应放入同名的 `.java` 文件（`FileSystemNode.java`、`FileNode.java`、`DirectoryNode.java`、`Main.java`），不要整体保存为单个源文件；拆分后各文件需自行添加所需的 `import`（如 `FileSystemNode.java`、`DirectoryNode.java` 需 `import java.util.*;`）。同时，当前实现假定调用方传入的是合法的树形结构，`DirectoryNode` 未做防环校验，把目录自身或祖先加入子节点会导致无限递归。
+
 ```java
 import java.util.*;
 
@@ -199,6 +201,8 @@ public class Main {
 
 ### 4.1 进阶示例：组织架构薪资计算
 
+> 薪资以分为单位的 `long` 存储，避免 `double` 的二进制浮点精度误差；金额类型属于业务领域的设计选择，并非组合模式的必要组成部分。
+
 ```java
 // ===== 抽象组件 =====
 public abstract class OrganizationComponent {
@@ -210,7 +214,7 @@ public abstract class OrganizationComponent {
         this.title = title;
     }
 
-    public abstract double calculateSalary();
+    public abstract long calculateSalary();
     public abstract int headcount();
 
     public void add(OrganizationComponent component) {
@@ -220,15 +224,15 @@ public abstract class OrganizationComponent {
 
 // ===== 叶子：员工 =====
 public class Employee extends OrganizationComponent {
-    private double salary;
+    private long salary; // 以分为单位，避免浮点精度误差
 
-    public Employee(String name, String title, double salary) {
+    public Employee(String name, String title, long salary) {
         super(name, title);
         this.salary = salary;
     }
 
     @Override
-    public double calculateSalary() { return salary; }
+    public long calculateSalary() { return salary; }
 
     @Override
     public int headcount() { return 1; }
@@ -248,9 +252,9 @@ public class Department extends OrganizationComponent {
     }
 
     @Override
-    public double calculateSalary() {
+    public long calculateSalary() {
         return members.stream()
-                .mapToDouble(OrganizationComponent::calculateSalary)
+                .mapToLong(OrganizationComponent::calculateSalary)
                 .sum();
     }
 
@@ -266,17 +270,17 @@ public class Department extends OrganizationComponent {
 Department company = new Department("科技公司", "公司");
 
 Department techDept = new Department("技术部", "部门");
-techDept.add(new Employee("张三", "Java 工程师", 25000));
-techDept.add(new Employee("李四", "前端工程师", 20000));
+techDept.add(new Employee("张三", "Java 工程师", 2500000));
+techDept.add(new Employee("李四", "前端工程师", 2000000));
 
 Department salesDept = new Department("销售部", "部门");
-salesDept.add(new Employee("王五", "销售经理", 30000));
+salesDept.add(new Employee("王五", "销售经理", 3000000));
 
 company.add(techDept);
 company.add(salesDept);
 
 System.out.println("公司总人数: " + company.headcount());     // 3
-System.out.println("公司月薪总额: " + company.calculateSalary()); // 75000
+System.out.println("公司月薪总额: " + company.calculateSalary()); // 7500000 分 = 75000 元
 ```
 
 ## 5. 🔧 框架应用
@@ -287,7 +291,7 @@ System.out.println("公司月薪总额: " + company.calculateSalary()); // 75000
 | `javax.swing.JMenu` / `JMenuItem` | 菜单树：JMenu 可以包含 JMenuItem 或其他 JMenu |
 | MyBatis `SqlNode` | 动态 SQL 的 `<if>`、`<choose>`、`<foreach>` 组成树形结构 |
 | Jackson `JsonNode` | ObjectNode 包含子节点，ValueNode 是叶子 |
-| Spring Security `AccessDecisionVoter` | 投票器组合 |
+| Spring `CompositeCacheManager` | 统一 `CacheManager` 接口，组合多个委托的缓存管理器 |
 | HTML DOM | Document → Element → Text Node 树形结构 |
 
 ## 6. ⚠️ 适用场景
@@ -310,4 +314,4 @@ System.out.println("公司月薪总额: " + company.calculateSalary()); // 75000
 | **透明组合** | 抽象组件中 | 客户端统一处理 | 叶子节点被迫实现无意义方法 |
 | **安全组合** | 只在容器中 | 接口干净 | 客户端需要区分类型 |
 
-> JDK 用的是**透明组合**：`java.awt.Component` 中有 `add()` 方法，叶子节点调用会抛异常。
+> JDK AWT 属于**安全组合**：添加子组件的 `add()` 方法定义在 `java.awt.Container` 中，而非共同抽象 `java.awt.Component` 上，叶子节点（如 `Label`、`Button`）不暴露子节点管理操作。

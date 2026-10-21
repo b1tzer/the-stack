@@ -7,6 +7,6 @@
 - [订单状态流转](./chapter-03-order-state-machine.md)
 - [高并发计数](./chapter-04-counter.md)
 - [短链系统](./chapter-05-short-url.md)
-- [秒杀](./chapter-06-seckill.md)
+- [秒杀](./chapter-06-flash-sale.md)
 - [分布式定时调度](./chapter-07-scheduled-task.md)
 - [支付回调与对账](./chapter-08-payment-reconciliation.md)

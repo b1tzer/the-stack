@@ -62,7 +62,7 @@ RabbitMQ 与 Kafka 的设计重点不同。RabbitMQ 围绕 Exchange、Binding �
 | :-- | :-- | :-- |
 | 百万级 QPS 持续吞吐 | 单队列/单节点吞吐有上限，需靠横向扩展弥补；经典队列堆积后存在内存换页开销 | Kafka / Pulsar（吞吐需通过基准测试按实际负载评估，不应视为固定边界） |
 | 大量消息堆积 | 经典队列在长时间堆积、内存压力下会换页到磁盘，吞吐受影响 | Kafka（顺序写磁盘，长时间堆积场景吞吐通常更稳定） |
-| 消息回溯 | 不支持按 offset 重新消费 | Kafka（Stream Queue 3.9+ 提供 offset 回放，详见[队列类型](./03-queue/chapter-04-stream-queue.md)） |
+| 消息回溯 | 不支持按 offset 重新消费 | Kafka（Stream Queue 3.9+ 提供 offset 回放，详见[队列类型](../03-queue/chapter-04-stream-queue.md)） |
 | 流处理 | 无原生流处理引擎 | Kafka Streams / Flink |
 | 日志收集 | 高吞吐场景不是强项 | Kafka |
 
@@ -92,7 +92,7 @@ Producer ──▶ Exchange ──binding──▶ Queue ──▶ Consumer
 | Fanout | 忽略 routing key，广播到所有绑定队列 | 广播通知、实时推送 |
 | Headers | 根据消息 headers 匹配 | 复杂条件路由（少用） |
 
-通过 Exchange + Binding 的组合，可以覆盖从点对点到发布/订阅的大多数路由需求；更细的绑定与路由规则见[Exchange 基础](./02-exchange/chapter-01-exchange-basics.md)。
+通过 Exchange + Binding 的组合，可以覆盖从点对点到发布/订阅的大多数路由需求；更细的绑定与路由规则见[Exchange 基础](../02-exchange/chapter-01-exchange-basics.md)。
 
 ## 7. 可靠性保障层次
 
@@ -114,7 +114,7 @@ Producer                    Broker                     Consumer
 - **Broker 端**：Durable Queue 保证队列元数据与（持久化）消息在重启后存活；持久化消息属性决定单条消息是否落盘；Quorum 队列通过 Raft 复制提供节点故障容错。持久化配置本身不构成"消息已安全落盘"的保证，仍需 Confirm 配合。
 - **消费端**：Manual ACK 在业务处理成功后才确认，处理失败或崩溃时消息可重新投递。Manual ACK 是消费端的投递确认，并不等同于业务事务的提交边界——若先 ACK 再提交业务、或提交业务后 ACK 前崩溃，都可能导致重复或丢失，因此仍需配合幂等处理。
 
-生产环境通常以 **Durable Queue + Persistent Message + Publisher Confirm + Manual ACK** 作为可靠性基线。但这只是基础配置，不等于端到端恰好一次：生产者仍需处理不可路由消息，消费者仍需处理重复投递并做幂等。底层机制与协议细节见[发布确认](./04-producer/chapter-02-publisher-confirm.md)、[ACK 机制](./05-consumer/chapter-02-ack-mechanism.md)与[仲裁队列](./03-queue/chapter-03-quorum-queue.md)。
+生产环境通常以 **Durable Queue + Persistent Message + Publisher Confirm + Manual ACK** 作为可靠性基线。但这只是基础配置，不等于端到端恰好一次：生产者仍需处理不可路由消息，消费者仍需处理重复投递并做幂等。底层机制与协议细节见[发布确认](../04-producer/chapter-02-publisher-confirm.md)、[ACK 机制](../05-consumer/chapter-02-ack-mechanism.md)与[仲裁队列](../03-queue/chapter-03-quorum-queue.md)。
 
 ## 8. 典型使用场景
 
@@ -128,7 +128,7 @@ Producer                    Broker                     Consumer
 （Fanout 或 Topic Exchange，三个队列各自绑定到 Exchange）
 ```
 
-一条订单事件进入三个独立队列，每个服务消费自己队列里的消息。需要强调的是：RabbitMQ 中多个消费者订阅**同一个队列**时是竞争消费（一条消息只投递给其中一个消费者），并不会自动广播给所有消费者。要让库存、通知、积分三个服务都处理同一事件，必须分别绑定三个队列到 Exchange，由 Exchange 的路由规则决定哪些队列收到消息。Exchange 与绑定规则详见[Exchange 基础](./02-exchange/chapter-01-exchange-basics.md)。
+一条订单事件进入三个独立队列，每个服务消费自己队列里的消息。需要强调的是：RabbitMQ 中多个消费者订阅**同一个队列**时是竞争消费（一条消息只投递给其中一个消费者），并不会自动广播给所有消费者。要让库存、通知、积分三个服务都处理同一事件，必须分别绑定三个队列到 Exchange，由 Exchange 的路由规则决定哪些队列收到消息。Exchange 与绑定规则详见[Exchange 基础](../02-exchange/chapter-01-exchange-basics.md)。
 
 ### 8.2 延迟任务
 
@@ -136,7 +136,7 @@ Producer                    Broker                     Consumer
 订单创建 ──▶ delay.order.timeout.queue（TTL 30 分钟）──▶ order.timeout.queue ──▶ 检查支付状态
 ```
 
-消息先进入带 TTL 的延迟队列，到期后经 DLX 路由到处理队列。RabbitMQ 4.3 下延迟消息插件（rabbitmq_delayed_message_exchange）已停止维护且依赖的 Mnesia 已移除，实现细节见[消息 TTL](./05-consumer/chapter-04-message-ttl.md)。
+消息先进入带 TTL 的延迟队列，到期后经 DLX 路由到处理队列。RabbitMQ 4.3 下延迟消息插件（rabbitmq_delayed_message_exchange）已停止维护且依赖的 Mnesia 已移除，实现细节见[消息 TTL](../05-consumer/chapter-04-message-ttl.md)。
 
 ### 8.3 RPC 调用
 
@@ -158,4 +158,4 @@ RabbitMQ 可用于构建 RPC 消息模式（借助 reply-to 与关联 ID），�
 | 4.1.x / 4.0.x | 4.0 起移除经典镜像队列；4.1 起 Khepri 可选 | 仅商业支持，建议升级 |
 | 3.13.x 及更早 | 经典镜像队列仍可用（3.13 实验性 Khepri） | 不推荐新项目，逐步迁移 |
 
-**关键变化（跨大版本升级务必注意）**：RabbitMQ 4.0 起**彻底移除了经典镜像队列（Classic Mirrored Queue）**，复制型队列只保留 Quorum Queue 与 Stream Queue。从 3.x 升级到 4.x 是破坏性变更，需经 3.13 → 4.2 → 4.3 逐级升级并开启相应 feature flag（升级前用 `rabbitmqctl list_feature_flags` 确认必需 flag 已启用）；旧版基于镜像队列的运维经验不能直接套用到 4.x。**例外**：若 3.13 集群已开启 Khepri 元数据存储，则无法按常规方式原地升级到 4.x，需规划蓝绿迁移等替代方案。新项目应直接使用 Quorum Queue，不要使用镜像队列。详细的队列类型与迁移见[仲裁队列](./03-queue/chapter-03-quorum-queue.md)与[集群基础](./07-clustering/chapter-01-cluster-basics.md)。
+**关键变化（跨大版本升级务必注意）**：RabbitMQ 4.0 起**彻底移除了经典镜像队列（Classic Mirrored Queue）**，复制型队列只保留 Quorum Queue 与 Stream Queue。从 3.x 升级到 4.x 是破坏性变更，需经 3.13 → 4.2 → 4.3 逐级升级并开启相应 feature flag（升级前用 `rabbitmqctl list_feature_flags` 确认必需 flag 已启用）；旧版基于镜像队列的运维经验不能直接套用到 4.x。**例外**：若 3.13 集群已开启 Khepri 元数据存储，则无法按常规方式原地升级到 4.x，需规划蓝绿迁移等替代方案。新项目应直接使用 Quorum Queue，不要使用镜像队列。详细的队列类型与迁移见[仲裁队列](../03-queue/chapter-03-quorum-queue.md)与[集群基础](../07-clustering/chapter-01-cluster-basics.md)。

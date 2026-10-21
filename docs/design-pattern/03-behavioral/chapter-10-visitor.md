@@ -80,6 +80,8 @@ classDiagram
 
 ## 4. 💻 完整代码实现
 
+> 下面的示例由多个 public 顶层类型组成，每个类型需放入同名 `.java` 文件、位于同一包中（Java 不允许在同一个普通源文件中声明多个 public 顶层类或接口）。示例聚焦访问者模式的职责分离，JSON 拼接与三角形边长校验均为教学简化，生产环境应使用成熟的 JSON 库并校验输入。
+
 ```java
 import java.util.*;
 
@@ -107,7 +109,9 @@ public class Circle implements Shape {
 
     @Override
     public void accept(ShapeVisitor visitor) {
-        visitor.visit(this); // 第二次分派：根据 this 的类型调用对应 visit 方法
+        // 编译期根据 this 的静态类型选择 visit(Circle)；
+        // 运行期根据 visitor 的实际类型分派到具体访问者实现。
+        visitor.visit(this);
     }
 }
 
@@ -249,7 +253,7 @@ public class Main {
 | 编译器 AST 遍历 | 对语法树节点执行不同操作（类型检查、代码生成） |
 | Spring `BeanDefinitionVisitor` | 访问并处理 BeanDefinition 中的属性值 |
 | `java.nio.file.FileVisitor` | 遍历文件树时执行不同操作（`visitFile`、`visitDirectory`） |
-| Lombok `AbstractAnnotationProcessor` | 注解处理器遍历 AST |
+| `com.sun.source.util.TreeScanner` | JDK 编译器 API 内置的 AST 访问者，遍历语法树节点 |
 | Jackson `JsonSerializer` | 对不同类型执行不同的序列化逻辑 |
 
 ### 5.1 NIO FileVisitor 示例
@@ -272,6 +276,8 @@ Files.walkFileTree(start, new SimpleFileVisitor<Path>() {
 });
 ```
 
+`FileVisitor` 是访问者式接口，但它比经典 GoF 访问者多一层职责。`FileVisitResult` 不只是访问结果，还允许调用方通过 `CONTINUE`、`SKIP_SUBTREE`、`SKIP_SIBLINGS`、`TERMINATE` 控制后续遍历行为。因此 `FileVisitor` 同时承担遍历控制协议的职责，并非纯粹的双分派访问者。
+
 ## 6. ⚠️ 适用场景
 
 **适合：**
@@ -287,12 +293,14 @@ Files.walkFileTree(start, new SimpleFileVisitor<Path>() {
 ### 6.1 双分派机制
 
 ```java
-// 第一次分派：编译时确定调用 accept 的具体类型（多态）
+// 第一次动态分派：通过 Shape 引用调用 accept(visitor)，运行期选择具体元素类的 accept() 实现
 shape.accept(visitor);
 
-// 第二次分派：运行时根据 this 的类型选择对应的 visit 方法
-// Circle.accept → visitor.visit(this) → 调用 visit(Circle)
-// Rectangle.accept → visitor.visit(this) → 调用 visit(Rectangle)
+// 编译期重载解析：accept() 内编译器根据 this 的静态类型选择对应的 visit 重载
+// Circle.accept → visitor.visit(this)，编译期解析为 visit(Circle)
+// Rectangle.accept → visitor.visit(this)，编译期解析为 visit(Rectangle)
+
+// 第二次动态分派：运行期根据 visitor 的实际类型，分派到编译期已确定的 visit 重载的具体实现
 ```
 
 ## 7. 🔍 访问者 vs 策略 vs 命令
@@ -304,4 +312,4 @@ shape.accept(visitor);
 | **操作类型** | 多种（每种一个 Visitor） | 多种（每种一个 Strategy） | 多种（每种一个 Command） |
 | **典型场景** | AST 遍历、文档导出 | 支付方式、排序算法 | 撤销/重做、任务队列 |
 
-> **一句话记忆口诀**：访问者将数据结构与操作分离，通过双分派实现运行期方法选择，数据结构稳定但操作多变时使用，`FileVisitor` 是 JDK 中最经典的例子。
+> **一句话记忆口诀**：访问者将数据结构与操作分离，通过双分派实现运行期方法选择，数据结构稳定但操作多变时使用，编译器AST遍历是最经典的例子。

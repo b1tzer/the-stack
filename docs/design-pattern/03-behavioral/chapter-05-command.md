@@ -5,16 +5,16 @@ title: 行为型补充 — 命令、迭代器、中介者、备忘录、状态�
 
 # 行为型补充 — 七种行为型设计模式
 
-> **一句话记忆口诀**：命令封装请求、迭代器遍历集合、中介者解耦交互、备忘录保存快照、状态消灭 if-else、访问者双分派、解释器解析语法。
+> **一句话记忆口诀**：命令封装请求、迭代器遍历集合、中介者解耦交互、备忘录保存快照、状态组织行为、访问者双分派、解释器解析语法。
 
 ## 1. 命令模式（Command Pattern）
 
 ### 1.1 引入：它解决了什么问题？
 
-当需要将"请求"参数化、排队执行、支持撤销/重做时，直接调用方法无法满足：
+当需要将请求参数化、排队执行、记录历史或支持撤销时，请求的选择、执行与历史管理容易耦合在调用点，难以统一扩展：
 
 ```java
-// ❌ 反例：遥控器直接调用设备方法，无法撤销、无法排队
+// ❌ 反例：遥控器直接调用设备方法，请求与具体操作耦合，撤销、排队、记录历史都需额外封装
 public class RemoteControl {
     public void pressButton(String device, String action) {
         if ("light".equals(device) && "on".equals(action)) {
@@ -24,12 +24,12 @@ public class RemoteControl {
         } else if ("tv".equals(device) && "on".equals(action)) {
             tv.powerOn();
         }
-        // 无法撤销上一步操作！无法记录操作历史！
+        // 请求分散在 if-else 中，难以统一撤销、排队或记录历史
     }
 }
 ```
 
-**问题根因**：请求的发送者与接收者直接耦合，无法对请求进行参数化、排队、撤销等操作。
+**问题根因**：请求缺少独立的表示，调用者直接编排具体操作，导致请求的选择、执行与历史管理耦合在一起。命令模式把请求封装为对象，使调用者能在不依赖具体接收者的情况下提交操作，也为排队、记录、重试或撤销提供统一扩展点。
 
 ### 1.2 类比与定义
 
@@ -58,19 +58,16 @@ public class LightOnCommand implements Command {
 
 // ===== 调用者：遥控器 =====
 public class RemoteControl {
-    private Command lastCommand;
-    private Deque<Command> history = new ArrayDeque<>();
+    private final Deque<Command> history = new ArrayDeque<>();
 
     public void pressButton(Command command) {
         command.execute();
         history.push(command);
-        lastCommand = command;
     }
 
     public void pressUndo() {
-        if (lastCommand != null) {
-            lastCommand.undo();
-            history.pop();
+        if (!history.isEmpty()) {
+            history.pop().undo();
         }
     }
 }
@@ -88,8 +85,19 @@ remote.pressUndo(); // 撤销 → 关灯
 | :-- | :-- |
 | `Runnable` / `Callable` | 将任务封装为对象，提交给线程池执行 |
 | 线程池 `ThreadPoolExecutor` | 命令队列（BlockingQueue）存储待执行的任务 |
-| Spring Batch `Step` | 每个 Step 是一个命令对象 |
+| Spring Batch `Step` | 将一段批处理工作组织为可执行步骤，具有任务封装特征 |
 | `javax.swing.Action` | Swing 中的动作命令 |
+
+### 1.5 关键边界与常见误解
+
+命令模式只解决「把请求封装成对象」，它本身并不附带以下能力，需要在具体场景中另行设计：
+
+- **幂等与重试**：命令对象不保证幂等，重试可能重复产生副作用，是否安全重试取决于具体命令的实现。
+- **撤销与补偿**：`undo()` 不是普遍存在的逆操作。对涉及外部系统调用的命令，撤销通常需要显式的补偿逻辑，而非简单的逆向方法。上面的历史栈只记录 `execute()` 正常返回的命令，不保证操作的原子性，也不涵盖部分失败后的补偿。
+- **排队与持久化**：`BlockingQueue` 只提供内存中的任务排队，不包含持久化、进程崩溃恢复或可靠投递语义。
+- **框架映射**：`Runnable` / `Callable` 是命令式的任务抽象，`ThreadPoolExecutor` 是执行与调度设施，Spring Batch 的 `Step` 是带命令式特征的批处理步骤抽象，都不宜不加限定地等同于 GoF 命令模式本身。
+
+这些能力是否必需、如何实现，取决于具体场景，而不是命令模式的必备特征。
 
 ## 2. 迭代器、中介者、备忘录、状态、访问者：进入单页详解
 
@@ -98,7 +106,7 @@ remote.pressUndo(); // 撤销 → 关灯
 - [迭代器模式](./chapter-07-iterator.md)——把遍历从集合中抽离，客户端不再关心底层结构。
 - [中介者模式](./chapter-08-mediator.md)——把对象间的网状调用收拢到中介者，降为星型拓扑。
 - [备忘录模式](./chapter-09-memento.md)——在不破坏封装的前提下捕获状态快照，用于撤销与回滚。
-- [状态模式](./chapter-06-state.md)——把每个状态封装成类，用状态机替代 if-else，状态自行决定何时切换。
+- [状态模式](./chapter-06-state.md)——把每个状态封装成类，用状态机替代 if-else，状态转换集中到状态对象。
 - [访问者模式](./chapter-10-visitor.md)——在数据结构稳定的前提下，把多变的操作集中到访问者里。
 
 ## 3. 解释器模式（Interpreter Pattern）
@@ -173,6 +181,8 @@ System.out.println(expr.interpret()); // 输出 16
 | MyBatis 动态 SQL | `<if>`、`<where>` 等标签的解析 |
 | `java.text.Format` | 日期/数字格式化表达式 |
 
+以上多为涉及表达式或语法解析的相关机制，并不都严格实现经典 GoF 解释器模式：`Pattern` 更接近正则的编译与匹配机制，`java.text.Format` 更接近格式化而非语法树解析。
+
 ### 3.5 适用条件与局限
 
 - **适用**：语法简单、效率要求不高的场景（如配置解析、规则引擎）
@@ -186,7 +196,7 @@ System.out.println(expr.interpret()); // 输出 16
 | **迭代器模式** | 统一遍历 | 不同集合遍历方式不一致 | hasNext/next |
 | **中介者模式** | 集中交互 | 对象间网状耦合 | 星型拓扑 |
 | **备忘录模式** | 保存快照 | 需要撤销/回滚到历史状态 | 状态快照、Undo Log |
-| **状态模式** | 状态驱动 | 行为随状态变化的 if-else | 状态机、自动转换 |
+| **状态模式** | 状态驱动 | 行为随状态变化的 if-else | 状态机、分支收敛 |
 | **访问者模式** | 分离操作 | 数据结构稳定但操作多变 | 双分派 |
 | **解释器模式** | 解析语法 | 需要解释执行特定语言 | 表达式树、文法 |
 

@@ -37,7 +37,7 @@
 
 **实践与参考**
 
-- [设计模式入门](./04-practice/chapter-01-getting-started.md)、[Spring 中的设计模式](./04-practice/chapter-02-spring-patterns.md)、[JDK 中的设计模式](./04-practice/chapter-03-jdk-patterns.md)、[反模式](./04-practice/chapter-05-anti-patterns.md)
+- [设计模式入门](./04-practice/chapter-01-getting-started.md)、[Spring 中的设计模式](./04-practice/chapter-02-spring-patterns.md)、[JDK 中的设计模式](./04-practice/chapter-03-jdk-patterns.md)、[重构到设计模式](./04-practice/chapter-04-refactoring-to-patterns.md)、[反模式](./04-practice/chapter-05-anti-patterns.md)
 - 速查：[设计模式速查表](./reference/pattern-cheatsheet.md)、[UML 类图速查](./reference/uml-cheatsheet.md)
 
 ## 内容边界

@@ -43,7 +43,7 @@ public class OrderService {
 
 1. `OrderService` 与所有通知方强耦合，新增通知方必须修改核心业务代码
 2. 通知逻辑与业务逻辑混在一起，违反单一职责原则
-3. 某个通知失败会影响其他通知的执行
+3. 当前实现按顺序调用通知方，某个调用抛出未处理异常时，后续通知会中断
 
 ### 1.2 工作中的典型应用场景
 
@@ -208,6 +208,8 @@ public class Main {
 }
 ```
 
+> **实现说明**：`CopyOnWriteArrayList` 适合读多写少、遍历频繁的观察者集合，通知遍历基于数组快照，取消订阅不会中止已开始的通知；高频注册或取消订阅时，每次写都会复制整个数组，成本较高。示例选择「单个观察者失败后继续通知其他观察者」这一策略，`log.error` 只做记录，不等于失败恢复——若通知承担关键业务责任，还需定义失败传播、重试与幂等策略。此外，`OrderCompletedEvent` 的 `final` 字段只保证引用不变，不保证 `Order` 内容不再变化，需要稳定事件快照时应传递订单 ID、必要字段或不可变 DTO。
+
 ### 3.3 Spring 事件机制（工作中最常用）
 
 ```java
@@ -250,7 +252,7 @@ public class EmailNotifier {
 @Component
 public class InventoryUpdater {
     @EventListener
-    @Async // 异步处理，不阻塞主流程
+    @Async // 交给异步执行器处理，通常不等待其执行完成；任务提交失败与异步异常需单独处理
     public void onOrderCompleted(OrderCompletedEvent event) {
         inventoryService.deduct(event.getOrder());
     }
@@ -280,10 +282,12 @@ flowchart TD
 
 | 对比维度 | 观察者模式 | 发布-订阅模式 |
 | :-- | :-- | :-- |
-| **耦合度** | Subject 直接持有 Observer 引用，有一定耦合 | 通过消息中间件完全解耦 |
-| **通信方式** | 同步（直接调用） | 可以异步（消息队列） |
+| **依赖关系** | Subject 直接持有 Observer 引用，有一定耦合 | 通过事件通道/中间件路由，发布者与订阅者互不感知 |
+| **执行时机** | 默认同步，也可异步调度 | 通常异步，取决于中间件实现 |
 | **中间层** | 无 | 有（消息中间件/事件总线） |
 | **典型例子** | JDK `Observable`、Spring `ApplicationEvent` | Kafka、RabbitMQ |
+
+> 上表是入门级的简化区分。同步/异步、进程内/跨进程取决于具体实现，并非两种模式的固有属性：观察者同样可以异步调度，发布-订阅也不必然依赖消息中间件。Spring `ApplicationEvent` 是观察者模式的典型代表（进程内），Kafka 是发布-订阅的典型代表（跨进程），但两者在进程边界、持久化、投递语义与故障恢复上的差异，不能仅凭同步或异步来定义。
 
 ### 4.2 在 Spring / JDK 中的应用
 
@@ -340,28 +344,63 @@ public void onOrderCompleted(OrderCompletedEvent event) {
 // 注意：@Async 需要在配置类上加 @EnableAsync
 ```
 
-### 5.3 误区三：观察者持有 Subject 引用，形成循环依赖（设计问题）
+### 5.3 误区三：在事务方法内发布事件，忽略事务提交边界（数据一致性问题）
 
 ```java
-// ❌ 错误：观察者持有 Subject 引用，在 update 中修改 Subject 状态
-public class InventoryObserver implements OrderObserver {
-    private final OrderService orderService; // 持有 Subject 引用！
-
-    @Override
-    public void onOrderCompleted(OrderCompletedEvent event) {
-        // 在观察者中修改 Subject 状态，可能触发再次通知，形成无限循环！
-        orderService.updateOrderStatus(event.getOrder(), OrderStatus.SHIPPED);
-    }
+// ❌ 问题：在 @Transactional 内发布事件，默认同步监听器在事务提交前执行
+@Transactional
+public void completeOrder(Order order) {
+    order.setStatus(OrderStatus.COMPLETED);
+    orderRepository.save(order);
+    eventPublisher.publishEvent(new OrderCompletedEvent(this, order));
+    // 监听器此时可能已经执行，但事务尚未提交；
+    // 若事务随后回滚，监听器产生的外部副作用（邮件、短信）不会随之回滚。
 }
+```
 
-// ✅ 正确：观察者只处理自己的业务，不修改 Subject 状态
-public class InventoryObserver implements OrderObserver {
-    @Override
+Spring 的普通事件发布不会自动等待事务提交。默认同步监听器在 `publishEvent()` 调用过程中执行，可能在事务提交前访问数据库或触发外部操作；`@Async` 引入线程切换后，监听任务可能在原事务提交前开始，也可能在回滚后继续执行。对订单、库存、通知这类业务，这不再是性能问题，而是数据一致性边界。
+
+```java
+// ✅ 正确：需要「事务提交后」再执行的副作用，用 @TransactionalEventListener
+@Component
+public class EmailNotifier {
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onOrderCompleted(OrderCompletedEvent event) {
-        inventoryService.deduct(event.getOrder()); // 只处理库存，不触碰订单
+        emailService.sendConfirmation(event.getOrder());
     }
 }
 ```
+
+`@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)` 在关联事务成功提交后执行监听器，适合提交后的非关键副作用。它默认要求发布事件时存在可关联的事务：没有事务时，监听器默认不执行，除非启用 `fallbackExecution`。`AFTER_COMMIT` 只约束执行阶段，不提供进程崩溃后的事件恢复或可靠投递保证。若监听器在提交后还要执行新的数据库写操作，应使用独立事务（如 `@Transactional(propagation = Propagation.REQUIRES_NEW)`）并确认调用经过 Spring 代理。需要跨进程可靠投递时，应进一步考虑事务 Outbox、消息投递重试与幂等消费，而不是仅添加 `@Async`。
+
+### 5.4 误区四：观察者修改业务状态触发再次通知，形成事件反馈循环（设计问题）
+
+这里要先澄清概念：持有 Subject 引用本身不构成「循环依赖」。循环依赖通常指依赖注入层面 A 与 B 互相注入导致无法实例化；而这里的问题是「事件反馈循环」——观察者在处理事件时修改业务状态并再次发布事件，若缺少状态转换条件或幂等处理，可能无限递归。
+
+```java
+// ❌ 错误：观察者处理事件时反向修改业务状态并再次发布事件，可能形成事件反馈循环
+public class InventoryObserver implements OrderObserver {
+    private final OrderService orderService; // 持有 Subject 引用本身不是错误
+
+    @Override
+    public void onOrderCompleted(OrderCompletedEvent event) {
+        // 修改订单状态并再次发布事件，若未做状态判断/幂等，可能递归触发，形成无限循环
+        orderService.updateOrderStatus(event.getOrder(), OrderStatus.SHIPPED);
+        orderService.publishEvent(new OrderShippedEvent(event.getOrder()));
+    }
+}
+
+// ✅ 正确：观察者可以调用领域服务完成后续业务，但需通过状态判断/幂等避免重复触发
+public class InventoryObserver implements OrderObserver {
+    @Override
+    public void onOrderCompleted(OrderCompletedEvent event) {
+        // 只做库存扣减，不反向修改订单状态、不重复发布同一事件
+        inventoryService.deduct(event.getOrder());
+    }
+}
+```
+
+避免无限循环的关键不是「禁止持有 Subject 引用」，而是明确事件语义、限定状态转换条件、做幂等处理或限制重复发布。
 
 ## 6. 总结：面试标准化表达
 
@@ -373,8 +412,8 @@ public class InventoryObserver implements OrderObserver {
 
 **Q2：观察者模式和发布-订阅模式有什么区别？**
 
-> 观察者模式中，Subject 直接持有 Observer 的引用列表，通知时直接调用，两者有直接依赖关系，通常是同步的；发布-订阅模式引入了消息中间件（如 Kafka、RabbitMQ），发布者和订阅者完全解耦，互不知道对方的存在，支持异步、跨进程通信。Spring 的 `ApplicationEvent` 是观察者模式（同进程内）；Kafka 是发布-订阅模式（跨进程）。
+> 两者核心区别在于耦合关系：观察者模式中 Subject 直接持有 Observer 引用列表，通知时直接调用，两者有直接依赖；发布-订阅模式通过事件通道或消息中间件（如 Kafka、RabbitMQ）路由，发布者与订阅者互不知道对方存在。同步/异步、进程内/跨进程取决于具体实现，并非两种模式的固有属性——观察者同样可以异步调度。Spring 的 `ApplicationEvent` 是观察者模式的典型代表（进程内），Kafka 是发布-订阅的典型代表（跨进程），但应关注它们在进程边界、持久化、投递语义上的差异，而非仅凭同步或异步定义模式。
 
 **Q3：使用观察者模式有哪些注意事项？**
 
-> 三个主要注意点：①异常隔离——每个观察者的异常应该被捕获，避免一个观察者失败影响其他观察者；②异步处理——耗时的观察者逻辑应该异步执行（Spring `@Async`），避免阻塞主流程；③避免循环依赖——观察者不应该修改 Subject 的状态，否则可能触发再次通知形成无限循环。另外，观察者列表应使用线程安全的集合（如 `CopyOnWriteArrayList`），避免并发修改异常。
+> 主要注意点：①异常隔离——每个观察者的异常应被捕获，避免一个观察者失败影响其他观察者，但「继续通知」是一种策略选择，日志记录不等于失败恢复，关键业务还需定义失败传播、重试与幂等；②异步处理——耗时的观察者逻辑应异步执行（Spring `@Async`），避免阻塞主流程；③事务边界——在事务方法内发布事件时，默认同步监听器可能在事务提交前执行，需要「提交后执行」时用 `@TransactionalEventListener(phase = AFTER_COMMIT)`，跨进程可靠投递还需 Outbox 与重试；④避免事件反馈循环——观察者不应无节制地反向修改业务状态并重复发布事件。另外，观察者列表可用线程安全的集合（如 `CopyOnWriteArrayList`），但它适合读多写少、遍历频繁的场景，且遍历基于快照，不保证取消订阅能中止已开始的通知。

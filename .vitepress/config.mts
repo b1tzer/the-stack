@@ -108,7 +108,6 @@ export default withOpenInEditor(defineConfig({
   lang: 'zh-CN',
   srcExclude: [
     '_snippets/**',
-    'kafka/RESTRUCTURE-PLAN.md',
   ],
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
@@ -315,7 +314,7 @@ export default withOpenInEditor(defineConfig({
             { text: '订单状态流转', link: '/scenarios/05-cases/chapter-03-order-state-machine' },
             { text: '高并发计数', link: '/scenarios/05-cases/chapter-04-counter' },
             { text: '短链系统', link: '/scenarios/05-cases/chapter-05-short-url' },
-            { text: '秒杀', link: '/scenarios/05-cases/chapter-06-seckill' },
+            { text: '秒杀', link: '/scenarios/05-cases/chapter-06-flash-sale' },
             { text: '分布式定时调度', link: '/scenarios/05-cases/chapter-07-scheduled-task' },
             { text: '支付回调与对账', link: '/scenarios/05-cases/chapter-08-payment-reconciliation' },
           ],
@@ -877,6 +876,56 @@ export default withOpenInEditor(defineConfig({
             { text: '高延迟排查', link: '/kafka/05-troubleshooting/chapter-04-high-latency' },
             { text: '磁盘空间不足', link: '/kafka/05-troubleshooting/chapter-05-disk-space' },
             { text: 'Broker 故障', link: '/kafka/05-troubleshooting/chapter-06-broker-failure' },
+          ],
+        },
+        {
+          text: '运维',
+          collapsed: true,
+          items: [
+            { text: '监控体系', link: '/kafka/06-operations/chapter-01-monitoring' },
+            { text: '集群管理', link: '/kafka/06-operations/chapter-02-cluster-management' },
+            { text: '安全配置', link: '/kafka/06-operations/chapter-03-security' },
+          ],
+        },
+        {
+          text: '多集群与容灾',
+          collapsed: true,
+          items: [
+            { text: '多集群拓扑', link: '/kafka/07-multi-cluster/chapter-01-scenarios' },
+            { text: 'MirrorMaker 2', link: '/kafka/07-multi-cluster/chapter-02-mirrormaker2' },
+            { text: 'Offset 翻译与切换', link: '/kafka/07-multi-cluster/chapter-03-offset-translation' },
+            { text: '灾备演练', link: '/kafka/07-multi-cluster/chapter-04-dr-drill' },
+          ],
+        },
+        {
+          text: 'Kafka Streams',
+          collapsed: true,
+          items: [
+            { text: 'Streams 概览', link: '/kafka/08-streams/chapter-01-streams-basics' },
+            { text: '流操作', link: '/kafka/08-streams/chapter-02-stream-operations' },
+            { text: '窗口', link: '/kafka/08-streams/chapter-03-windowing' },
+            { text: '状态存储', link: '/kafka/08-streams/chapter-04-state-store' },
+            { text: 'Streams Exactly Once', link: '/kafka/08-streams/chapter-05-exactly-once-streams' },
+          ],
+        },
+        {
+          text: 'Kafka Connect',
+          collapsed: true,
+          items: [
+            { text: 'Connect 基础', link: '/kafka/09-connect/chapter-01-connect-basics' },
+            { text: '配置与转换', link: '/kafka/09-connect/chapter-02-connect-config' },
+            { text: '常用连接器', link: '/kafka/09-connect/chapter-03-connect-plugins' },
+            { text: 'Connect 监控', link: '/kafka/09-connect/chapter-04-connect-monitoring' },
+          ],
+        },
+        {
+          text: '实践',
+          collapsed: true,
+          items: [
+            { text: '第一个应用', link: '/kafka/10-practice/chapter-01-first-app' },
+            { text: 'AdminClient', link: '/kafka/10-practice/chapter-02-admin-client' },
+            { text: '常见模式', link: '/kafka/10-practice/chapter-03-common-patterns' },
+            { text: 'Spring Kafka 入口', link: '/kafka/10-practice/chapter-04-spring-kafka' },
           ],
         },
         {

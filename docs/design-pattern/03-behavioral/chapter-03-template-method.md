@@ -5,7 +5,7 @@ title: 模板方法模式（Template Method Pattern）
 
 # 模板方法模式（Template Method Pattern）
 
-> **一句话记忆口诀**：模板方法定骨架，子类填细节，`AbstractList` 和 `HttpServlet` 是最经典的例子，钩子方法让子类控制流程。
+> **一句话记忆口诀**：模板方法定骨架，子类填细节，`AbstractList` 和 `HttpServlet` 是典型例子，钩子方法让子类控制流程。
 
 ## 1. 引入：它解决了什么问题？
 
@@ -123,10 +123,13 @@ public abstract class DataExporter {
      */
     public final void export() {
         DataSource ds = connectDataSource();    // 步骤1：连接（公共实现）
-        List<Data> data = queryData(ds);        // 步骤2：查询（公共实现）
-        String formatted = formatData(data);    // 步骤3：格式化（子类实现）
-        writeToFile(formatted);                 // 步骤4：写文件（子类实现）
-        closeConnection(ds);                    // 步骤5：关闭（公共实现）
+        try {
+            List<Data> data = queryData(ds);    // 步骤2：查询（公共实现）
+            String formatted = formatData(data); // 步骤3：格式化（子类实现）
+            writeToFile(formatted);             // 步骤4：写文件（子类实现）
+        } finally {
+            closeConnection(ds);                // 步骤5：关闭（公共实现，finally 保证释放）
+        }
 
         // 钩子方法：子类可以选择是否发送通知
         if (shouldSendNotification()) {
@@ -200,17 +203,19 @@ public class PdfExporter extends DataExporter {
     }
 }
 
-// ===== HttpServlet 模板方法示例（JDK 经典实现）=====
+// ===== HttpServlet 模板方法示例（Servlet API 经典实现）=====
 // HttpServlet.service() 是模板方法，根据请求类型调用 doGet/doPost
 public class MyServlet extends HttpServlet {
     // 只需实现差异步骤，不需要关心请求分发逻辑
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) {
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
         resp.getWriter().write("处理 GET 请求");
     }
 
     @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp) {
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
         resp.getWriter().write("处理 POST 请求");
     }
     // service() 方法（模板方法）在 HttpServlet 父类中定义，不需要覆盖
@@ -247,7 +252,7 @@ flowchart TD
 | **实现机制** | **继承**，子类覆盖抽象方法 | **组合**，Context 持有策略接口 |
 | **算法骨架** | 父类定义**固定骨架**，子类填充步骤 | 无固定骨架，整个算法可替换 |
 | **扩展方式** | 创建新子类 | 创建新策略类，注入 Context |
-| **运行期切换** | ❌ 编译期确定 | ✅ 运行期切换 |
+| **运行期切换** | 通常编译期确定（钩子可在骨架内留可变点） | 通常支持运行期切换 |
 | **典型例子** | `HttpServlet`、`AbstractList` | `Comparator`、线程池拒绝策略 |
 
 ### 4.2 钩子方法 vs 抽象方法
@@ -266,7 +271,7 @@ flowchart TD
 | `AbstractList` | `iterator()`、`listIterator()` | 子类实现 `get()`/`size()` |
 | `JdbcTemplate` | `execute()` | 封装连接/关闭，回调处理 SQL |
 | `AbstractBeanFactory` | `getBean()` | Spring Bean 获取骨架 |
-| `AbstractApplicationContext` | `refresh()` | Spring 容器启动骨架（12步） |
+| `AbstractApplicationContext` | `refresh()` | Spring 容器启动骨架（常见总结为 12 步） |
 
 ## 5. 边界：异常情况与常见误区
 
@@ -366,8 +371,8 @@ public class Child extends Base {
 
 **Q2：Spring 的 refresh() 方法是什么设计模式？**
 
-> `AbstractApplicationContext.refresh()` 是模板方法模式的经典应用。`refresh()` 定义了 Spring 容器启动的 12 个步骤（如 `prepareRefresh()`、`obtainFreshBeanFactory()`、`finishBeanFactoryInitialization()` 等），其中 `obtainFreshBeanFactory()` 是抽象方法，由 `ClassPathXmlApplicationContext` 和 `AnnotationConfigApplicationContext` 等子类分别实现（XML 解析 vs 注解扫描）。这样不同类型的 ApplicationContext 共享相同的启动流程，只有 BeanFactory 的创建方式不同。
+> `AbstractApplicationContext.refresh()` 是模板方法模式的经典应用。`refresh()` 定义了 Spring 容器启动的固定一系列步骤（常见总结为 12 步，如 `prepareRefresh()`、`obtainFreshBeanFactory()`、`finishBeanFactoryInitialization()` 等）。其中 `obtainFreshBeanFactory()` 本身是具体方法，内部调用 `refreshBeanFactory()` 和 `getBeanFactory()` 这两个抽象方法，真正被子类差异化实现的是后者。以 BeanFactory 创建为例：`ClassPathXmlApplicationContext` 继承 `AbstractRefreshableApplicationContext`（由它实现 `refreshBeanFactory()` 的 BeanFactory 创建骨架），XML 解析由中间层 `AbstractXmlApplicationContext` 实现 `loadBeanDefinitions()`，`ClassPathXmlApplicationContext` 主要负责类路径资源配置；`AnnotationConfigApplicationContext` 则继承 `GenericApplicationContext`，在构造时即创建好 BeanFactory，注解扫描由 `AnnotatedBeanDefinitionReader` 完成。这样不同类型的 ApplicationContext 共享相同的启动流程，主要体现在 BeanFactory 的创建方式不同。
 
 **Q3：模板方法模式和策略模式如何选择？**
 
-> 选择标准：如果算法有**固定的流程骨架**，只有部分步骤不同，用模板方法（继承）；如果整个算法都可能被替换，或者需要**运行期动态切换**算法，用策略模式（组合）。模板方法的优点是代码复用好，缺点是继承关系固定，不够灵活；策略模式的优点是运行期可切换，缺点是没有代码复用。实际工作中，策略模式更常用，因为组合优于继承，且更容易测试。
+> 选择标准：如果算法有**固定的流程骨架**，只有部分步骤不同，用模板方法（继承）；如果整个算法都可能被替换，或者需要**运行期动态切换**算法，用策略模式（组合）。模板方法的优点是公共步骤复用集中，缺点是继承关系固定，不够灵活；策略模式的优点是运行期可切换，缺点是公共流程的复用不如模板方法那样由父类骨架自动保证，需要额外设计。实际工作中，策略模式更常用，因为组合优于继承，且更容易测试。

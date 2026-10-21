@@ -16,7 +16,7 @@ Socket 的价值就在这里：**它把复杂的网络协议栈封装成了一�
 
 ### 1.2 Socket 通过文件描述符访问
 
-在 Unix/Linux 中，应用程序通过**文件描述符（File Descriptor, fd）**访问 Socket。操作系统把一切 I/O 资源都抽象为 fd——普通文件、管道、设备、网络连接，对应用来说都是一个 `int` 数字。fd 是应用访问 Socket 的入口，不是 Socket 本身。
+在 Unix/Linux 中，应用程序通过**文件描述符（File Descriptor, fd）** 访问 Socket。操作系统把一切 I/O 资源都抽象为 fd——普通文件、管道、设备、网络连接，对应用来说都是一个 `int` 数字。fd 是应用访问 Socket 的入口，不是 Socket 本身。
 
 ![fd-table](/java/fd-table.svg)
 
