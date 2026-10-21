@@ -80,6 +80,8 @@ jobs:
 
   build-and-deploy:
     name: Build & Deploy
+    needs: sync-dev-to-main
+    if: ${{ always() && needs.sync-dev-to-main.result != 'failure' && needs.sync-dev-to-main.result != 'cancelled' }}
     runs-on: ubuntu-latest
     env:
       NODE_OPTIONS: '--max-old-space-size=4096'
