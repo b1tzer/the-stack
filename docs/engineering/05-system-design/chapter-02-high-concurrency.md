@@ -253,19 +253,19 @@ public class OrderController {
 ```java
 // 令牌桶限流（使用 Guava RateLimiter）
 @RestController
-public class SeckillController {
+public class FlashSaleController {
 
     // 每秒放行 1000 个请求
     private final RateLimiter rateLimiter = RateLimiter.create(1000);
 
-    @PostMapping("/seckill/{itemId}")
-    public ResponseEntity<String> seckill(@PathVariable Long itemId) {
+    @PostMapping("/flash-sale/{itemId}")
+    public ResponseEntity<String> flashSale(@PathVariable Long itemId) {
         // 尝试获取令牌，最多等待 200ms
         if (!rateLimiter.tryAcquire(200, TimeUnit.MILLISECONDS)) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .body("系统繁忙，请稍后再试");
         }
-        return ResponseEntity.ok(seckillService.seckill(itemId));
+        return ResponseEntity.ok(flashSaleService.flashSale(itemId));
     }
 }
 ```
@@ -471,8 +471,8 @@ public class OrderQueryService {
 ```java
 // Redis 原子扣减库存（Lua 脚本保证原子性）
 // 两个键使用相同的 hash tag {itemId}，确保在 Redis Cluster 中落在同一哈希槽
-// stock:seckill:{itemId} = 库存数
-// seckill:users:{itemId} = 已抢到的用户集合
+// stock:flash-sale:{itemId} = 库存数
+// flash-sale:users:{itemId} = 已抢到的用户集合
 private static final String LUA_SCRIPT = """
     local stock = tonumber(redis.call('GET', KEYS[1]))
     if stock == nil or stock <= 0 then
@@ -488,7 +488,7 @@ private static final String LUA_SCRIPT = """
     """;
 
 @Service
-public class SeckillService {
+public class FlashSaleService {
 
     @Autowired
     private StringRedisTemplate redisTemplate;
@@ -496,11 +496,11 @@ public class SeckillService {
     @Autowired
     private RabbitTemplate rabbitTemplate;
 
-    public String seckill(Long itemId, Long userId) {
+    public String flashSale(Long itemId, Long userId) {
         // ⑤ Redis 原子扣减
         Long result = redisTemplate.execute(
             new DefaultRedisScript<>(LUA_SCRIPT, Long.class),
-            List.of("stock:seckill:{" + itemId + "}", "seckill:users:{" + itemId + "}"),
+            List.of("stock:flash-sale:{" + itemId + "}", "flash-sale:users:{" + itemId + "}"),
             String.valueOf(userId)
         );
 
@@ -508,8 +508,8 @@ public class SeckillService {
         if (result == -2) return "请勿重复抢购";
 
         // ⑥ 发送 MQ，异步创建订单
-        SeckillMessage message = new SeckillMessage(itemId, userId);
-        rabbitTemplate.convertAndSend("seckill.exchange", "seckill.order", message);
+        FlashSaleMessage message = new FlashSaleMessage(itemId, userId);
+        rabbitTemplate.convertAndSend("flash-sale.exchange", "flash-sale.order", message);
 
         return "已受理，订单创建中";
     }
@@ -519,7 +519,7 @@ public class SeckillService {
 这里 Redis 只是预扣库存，真正的订单创建异步进行。有几个一致性要点需要补全：
 
 - MQ 发送失败时，库存已扣减但订单未创建。convertAndSend() 只表示消息"发出去了"，不是可靠交付。需要配合 RabbitMQ 发布确认、消费端幂等，以及对 Redis 预扣结果与订单状态的对账，失败时幂等补偿。
-- 要区分两个概念：库存总量键（stock:seckill:{itemId}）是秒杀期间的库存计数，不能设置 TTL 或随意过期，否则库存数据丢失、重新初始化后可能超卖。订单超时未支付时，释放的是该笔订单对应的预占，需要单独记录预占关系（用户、数量、到期时间），并按业务规则幂等释放。
+- 要区分两个概念：库存总量键（stock:flash-sale:{itemId}）是秒杀期间的库存计数，不能设置 TTL 或随意过期，否则库存数据丢失、重新初始化后可能超卖。订单超时未支付时，释放的是该笔订单对应的预占，需要单独记录预占关系（用户、数量、到期时间），并按业务规则幂等释放。
 - 关于 Outbox：本地消息表或 Outbox 解决的是"数据库事务内写业务数据与写待发送消息"的原子性，但这里的 Redis 预扣与数据库不在同一事务，仅靠 Outbox 不能自动保证 Redis 预扣成功与消息记录成功原子提交，仍需对账和幂等补偿兜底。
 
 返回"已受理"而非"抢购成功"，因为此刻订单尚未落库，只有订单服务确认创建成功后才是真正抢购成功。

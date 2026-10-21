@@ -314,7 +314,7 @@ export default withOpenInEditor(defineConfig({
             { text: '订单状态流转', link: '/scenarios/05-cases/chapter-03-order-state-machine' },
             { text: '高并发计数', link: '/scenarios/05-cases/chapter-04-counter' },
             { text: '短链系统', link: '/scenarios/05-cases/chapter-05-short-url' },
-            { text: '秒杀', link: '/scenarios/05-cases/chapter-06-seckill' },
+            { text: '秒杀', link: '/scenarios/05-cases/chapter-06-flash-sale' },
             { text: '分布式定时调度', link: '/scenarios/05-cases/chapter-07-scheduled-task' },
             { text: '支付回调与对账', link: '/scenarios/05-cases/chapter-08-payment-reconciliation' },
           ],
