@@ -71,6 +71,7 @@ classDiagram
 
 ```java
 import java.util.*;
+import java.util.stream.StreamSupport;
 
 // ===== 自定义集合：书架 =====
 public class BookShelf implements Iterable<Book> {
@@ -157,15 +158,15 @@ public class Main {
             System.out.println(book);
         }
 
-        // 方式三：Stream（内部迭代）
-        shelf.stream()
+        // 方式三：Stream（内部迭代，Iterable 需经 StreamSupport 转流）
+        StreamSupport.stream(shelf.spliterator(), false)
              .filter(b -> b.getName().contains("设计"))
              .forEach(System.out::println);
     }
 }
 ```
 
-### 4.1 进阶示例：支持多种遍历方式的迭代器
+### 4.1 进阶示例：二叉树支持多种遍历方式（中序实现示例）
 
 ```java
 // ===== 二叉树支持前序、中序、后序遍历 =====
@@ -185,6 +186,8 @@ public class BinaryTree<T> implements Iterable<T> {
             case POSTORDER -> new PostorderIterator<>(root);
         };
     }
+
+    // PreorderIterator 和 PostorderIterator 的实现从略，此处仅展示不同遍历顺序对应的迭代器选择。
 
     // 中序迭代器实现
     private static class InorderIterator<T> implements Iterator<T> {
@@ -206,6 +209,9 @@ public class BinaryTree<T> implements Iterable<T> {
 
         @Override
         public T next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException();
+            }
             TreeNode<T> node = stack.pop();
             pushLeft(node.right);
             return node.value;
@@ -239,25 +245,29 @@ class TreeNode<T> {
 - 需要**统一遍历**不同类型的集合
 - 不想暴露集合的**内部结构**
 - 需要**多种遍历方式**（前序/中序/后序）
-- 需要**延迟加载**（Stream 的惰性求值）
+- 需要**惰性遍历**（迭代器按 next 逐个取元素，可配合 MyBatis Cursor 流式读取大数据量）
 
 **不适合：**
 
 - 集合结构简单，直接 for 循环即可
-- 需要随机访问（迭代器只能顺序访问）
+- 需要按索引频繁随机访问（Iterator 接口没有随机访问方法，单靠 Iterator 不合适）
 
 ## 7. 🔍 迭代器的 fail-fast vs fail-safe
 
 | 类型 | 代表 | 特点 |
 | :-- | :-- | :-- |
-| **fail-fast** | `ArrayList.iterator()` | 遍历中修改集合 → 抛 `ConcurrentModificationException` |
+| **fail-fast** | `ArrayList.iterator()` | 遍历中修改集合 → 可能抛 `ConcurrentModificationException` |
 | **fail-safe** | `CopyOnWriteArrayList.iterator()` | 遍历中修改集合 → 不抛异常（遍历的是快照） |
+
+> **说明**：fail-safe 是常见非正式称呼，并非 Java 集合框架的正式分类。ArrayList 迭代器通过内部修改次数检查「尽力检测」结构性修改，但不保证一定抛出异常；上面的异常发生在同一线程的遍历过程中，说明 fail-fast 并不只针对并发场景。CopyOnWriteArrayList 的迭代器遍历的是创建迭代器时的快照，因此看不到之后的更新，代价是每次写操作都要复制整个数组，写多读少时开销较大。
 
 ```java
 // fail-fast 示例
 List<String> list = new ArrayList<>(Arrays.asList("a", "b", "c"));
 for (String s : list) {
-    if ("b".equals(s)) list.remove(s); // ❌ ConcurrentModificationException
+    if ("a".equals(s)) {
+        list.remove(s); // 当前 ArrayList 实现会在后续迭代时抛出 CME
+    }
 }
 
 // 正确做法：使用迭代器的 remove 方法
@@ -266,5 +276,3 @@ while (it.hasNext()) {
     if ("b".equals(it.next())) it.remove(); // ✅ 安全删除
 }
 ```
-
-> **一句话记忆口诀**：迭代器提供统一的遍历接口（hasNext/next），for-each 底层就是迭代器，`java.util.Iterator` 和 `Iterable` 是 JDK 中最标准的实现。

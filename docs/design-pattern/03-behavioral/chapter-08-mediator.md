@@ -1,6 +1,6 @@
 # 中介者模式（Mediator Pattern）
 
-> **一句话记忆口诀**：中介者用一个中心对象封装对象间的所有交互，从网状耦合变成星型拓扑，聊天室和MQ是最经典的例子。
+> **一句话记忆口诀**：中介者用一个中心对象封装一组对象之间的协作交互，从网状耦合变成星型拓扑，聊天室是最经典的教学例子。
 
 ## 1. 🏠 生活类比
 
@@ -31,12 +31,12 @@ public class User {
     }
 }
 
-// N 个用户有 N*(N-1) 个关系！
+// 当所有用户两两建立有向联系时，N 个用户有 N*(N-1) 个关系！
 // 新增一个用户，所有现有用户都要更新联系人列表！
 // 移除一个用户，所有用户都要从联系人列表中删除！
 ```
 
-**问题根因**：对象之间直接交互形成网状耦合，N 个对象有 N² 个关系，难以维护和扩展。
+**问题根因**：对象之间直接交互形成网状耦合。N 个对象两两直接交互时，无向连接有 N(N-1)/2 条、有向交互有 N(N-1) 条，关系数量随 N 平方增长，难以维护和扩展。
 
 ## 3. ✨ 中介者模式方案
 
@@ -66,17 +66,19 @@ flowchart TD
 
 ## 4. 💻 完整代码实现
 
-```java
-import java.util.*;
+> 以下示例拆分为四个源文件：`ChatRoom.java`、`ChatRoomImpl.java`、`User.java`、`Main.java`。代码块内以 `// ===== 文件 Xxx.java` 开头的行是文件分隔标记，每个文件从该标记的下一行开始，只含一个 `public` 顶层类型，可直接编译运行。
 
-// ===== 中介者接口 =====
+```java
+// ===== 文件 ChatRoom.java：中介者接口 =====
 public interface ChatRoom {
     void register(User user);
     void sendMessage(String message, User sender);
     void sendPrivateMessage(String message, User sender, String toName);
 }
 
-// ===== 具体中介者：聊天室 =====
+// ===== 文件 ChatRoomImpl.java：具体中介者 =====
+import java.util.*;
+
 public class ChatRoomImpl implements ChatRoom {
     private final Map<String, User> users = new HashMap<>();
 
@@ -105,7 +107,7 @@ public class ChatRoomImpl implements ChatRoom {
     }
 }
 
-// ===== 同事类：用户 =====
+// ===== 文件 User.java：同事类 =====
 public class User {
     private final String name;
     private ChatRoom chatRoom; // 只依赖中介者，不依赖其他 User
@@ -136,7 +138,7 @@ public class User {
     }
 }
 
-// ===== 使用示例 =====
+// ===== 文件 Main.java：使用示例 =====
 public class Main {
     public static void main(String[] args) {
         ChatRoom room = new ChatRoomImpl();
@@ -164,14 +166,18 @@ public class Main {
 }
 ```
 
-### 4.1 进阶示例：表单字段联动
+> 示例聚焦中介者结构，省略了重复用户名去重、`setChatRoom` 的重复调用与空值校验、按用户名而非对象身份排除发送者等边界处理。
+
+## 4.1 进阶示例：表单字段联动
+
+> 以下为框架无关的示意代码，`TextField`、`PasswordField`、`Button`、`Label` 为抽象类型，不可直接编译运行。
 
 ```java
 // ===== 场景：注册表单中多个字段相互依赖 =====
-// 用户名输入 → 验证是否已存在
-// 密码输入 → 强度检测
-// 确认密码 → 一致性检查
-// 所有字段校验通过 → 启用注册按钮
+// 用户名输入 → 校验长度（至少 3 个字符）
+// 密码输入 → 校验长度（至少 8 个字符）
+// 确认密码 → 校验两次输入一致
+// 全部通过 → 启用注册按钮
 
 // 中介者：表单控制器
 public class FormMediator {
@@ -196,36 +202,29 @@ public class FormMediator {
     }
 
     private void onUsernameChanged(String value) {
-        if (value.length() < 3) {
-            messageLabel.setText("用户名至少3个字符");
-            registerButton.setEnabled(false);
-        } else {
-            messageLabel.setText("");
-            checkFormValid();
-        }
+        validateForm();
     }
 
     private void onPasswordChanged(String value) {
-        if (value.length() < 8) {
-            messageLabel.setText("密码至少8个字符");
-            registerButton.setEnabled(false);
-        } else {
-            messageLabel.setText("");
-            checkFormValid();
-        }
+        validateForm();
     }
 
     private void onConfirmChanged(String value) {
-        if (!value.equals(passwordField.getValue())) {
-            messageLabel.setText("两次密码不一致");
-            registerButton.setEnabled(false);
-        } else {
-            messageLabel.setText("");
-            checkFormValid();
-        }
+        validateForm();
     }
 
-    private void checkFormValid() {
+    // 集中校验：统一计算提示信息与按钮状态，避免单个字段清空其他字段的错误提示
+    private void validateForm() {
+        if (usernameField.getValue().length() < 3) {
+            messageLabel.setText("用户名至少3个字符");
+        } else if (passwordField.getValue().length() < 8) {
+            messageLabel.setText("密码至少8个字符");
+        } else if (!passwordField.getValue().equals(confirmPasswordField.getValue())) {
+            messageLabel.setText("两次密码不一致");
+        } else {
+            messageLabel.setText("示例校验通过");
+        }
+
         boolean valid = usernameField.getValue().length() >= 3
                 && passwordField.getValue().length() >= 8
                 && passwordField.getValue().equals(confirmPasswordField.getValue());
@@ -237,13 +236,21 @@ public class FormMediator {
 
 ## 5. 🔧 框架应用
 
+**直接体现中介者思想（封装一组对象的交互规则）：**
+
 | 框架/类 | 说明 |
 | :-- | :-- |
-| Spring `ApplicationEventPublisher` | 事件发布者作为中介，解耦生产者和消费者 |
-| MQ（Kafka/RabbitMQ） | 消息队列作为中介，解耦生产者和消费者 |
-| Spring MVC `DispatcherServlet` | 中央调度器，协调 Controller、ViewResolver 等 |
-| `java.util.Timer` | 定时器作为中介，协调多个 TimerTask |
-| Netty `EventLoop` | 事件循环作为中介，协调 Channel 和 Handler |
+| 表单控制器（4.1 节 `FormMediator`） | 集中管理多个字段之间的联动规则 |
+
+**具有相似协调/调度机制（间接通信或集中调度，勿等同于 GoF 中介者）：**
+
+| 框架/类 | 说明 |
+| :-- | :-- |
+| Spring MVC `DispatcherServlet` | 前端控制器集中协调请求处理流程，具有中介者特征 |
+| Spring `ApplicationEventPublisher` | 事件发布者解耦发布者与订阅者，兼具观察者特征 |
+| MQ（Kafka/RabbitMQ） | 消息代理解耦生产者与消费者，属消息基础设施 |
+| `java.util.Timer` | 定时器调度多个 TimerTask，属调度器 |
+| Netty `EventLoop` | 事件循环协调 Channel 与 Handler，属事件调度机制 |
 
 ## 6. ⚠️ 适用场景
 
@@ -252,12 +259,16 @@ public class FormMediator {
 - 多个对象之间存在**复杂的交互关系**
 - 不希望对象之间**直接引用**
 - 需要**集中管理**对象间的交互逻辑
-- 典型场景：聊天室、表单联动、MQ、调度器
+- 典型场景：聊天室、表单联动、集中调度
 
 **不适合：**
 
 - 对象之间交互简单，直接调用更清晰
 - 中介者本身变得过于复杂（"上帝对象"）
+
+**设计权衡：**
+
+中介者并没有消除复杂度，只是把交互复杂度从参与者之间转移到中介者内部。当交互规则、状态管理与错误处理增多，中介者可能演变成修改频繁的"上帝对象"，此时应按业务流程或职责边界拆分为多个中介者。跨进程的消息协调还需额外处理顺序、重试、幂等与一致性，这些属于消息系统的工程问题，不能只靠中介者模式解决。
 
 ## 7. 🔍 中介者 vs 观察者
 
@@ -265,9 +276,9 @@ public class FormMediator {
 | :-- | :-- | :-- |
 | **通信方式** | 通过中介者**集中转发** | Subject **直接通知** Observer |
 | **耦合度** | 所有同事类只依赖中介者 | Subject 持有 Observer 列表 |
-| **交互复杂度** | N 个对象只有 N 个关系 | N 个对象有 N×M 个关系 |
-| **典型例子** | 聊天室、MQ | 事件监听、Spring Event |
+| **交互复杂度** | 交互规则集中在中介者 | Subject 维护订阅关系，一对多通知 |
+| **典型例子** | 聊天室、表单联动 | 事件监听、Spring Event |
 
-> 实际上，Spring 的 `ApplicationEventPublisher` 融合了两种模式：既是中介者（解耦发布者和订阅者），又是观察者（一对多通知）。
+> 实际上，Spring 的 `ApplicationEventPublisher` 主要体现发布订阅和观察者思想，其集中分发具有一定中介特征，但不宜直接归类为 GoF 中介者模式。
 
-> **一句话记忆口诀**：中介者把网状耦合变成星型拓扑，所有交互通过中心对象协调，MQ 和 DispatcherServlet 是最经典的例子。
+> **一句话记忆口诀**：中介者把网状耦合变成星型拓扑，相关协作通过中心对象协调，聊天室是最典型的教学例子。
