@@ -56,26 +56,13 @@ jobs:
 
           echo "should_merge=true" >> "$GITHUB_OUTPUT"
 
-      - name: Create and merge PR
+      - name: Push dev to main
         if: steps.analyze.outputs.should_merge == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          existing_pr=$(gh pr list --base main --head dev --state open --json number -q '.[0].number')
-
-          if [ -n "${existing_pr}" ] && [ "${existing_pr}" != "null" ]; then
-            echo "已存在 dev -> main 的 PR（#${existing_pr}），直接合并。"
-            pr_number="${existing_pr}"
+          if git push origin origin/dev:refs/heads/main; then
+            echo "已通过 fast-forward 将 dev 推送到 main。"
           else
-            echo "创建 dev -> main 的 PR。"
-            gh pr create --base main --head dev \
-              --title "chore: 自动同步 dev → main" \
-              --body "由每日自动部署流程自动创建，合入 dev 分支超过 1 小时的新提交。"
-            pr_number=$(gh pr list --base main --head dev --state open --json number -q '.[0].number')
-          fi
-
-          if ! gh pr merge "${pr_number}" --merge --admin --delete-branch=false; then
-            echo "::warning::PR #${pr_number} 合并失败（可能存在冲突），请手动处理 dev → main 的合并。"
+            echo "::warning::fast-forward 推送失败，main 可能包含 dev 之外的提交，请手动处理 dev → main 的合并。"
           fi
 
   build-and-deploy:
