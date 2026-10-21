@@ -56,13 +56,30 @@ jobs:
 
           echo "should_merge=true" >> "$GITHUB_OUTPUT"
 
-      - name: Push dev to main
+      - name: Create PR and wait for checks
         if: steps.analyze.outputs.should_merge == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if git push origin origin/dev:refs/heads/main; then
-            echo "已通过 fast-forward 将 dev 推送到 main。"
+          existing_pr=$(gh pr list --base main --head dev --state open --json number -q '.[0].number')
+
+          if [ -n "${existing_pr}" ] && [ "${existing_pr}" != "null" ]; then
+            echo "已存在 dev -> main 的 PR（#${existing_pr}），直接复用。"
+            pr_number="${existing_pr}"
           else
-            echo "::warning::fast-forward 推送失败，main 可能包含 dev 之外的提交，请手动处理 dev → main 的合并。"
+            echo "创建 dev -> main 的 PR。"
+            gh pr create --base main --head dev \
+              --title "chore: 自动同步 dev → main" \
+              --body "由每日自动部署流程自动创建，合入 dev 分支超过 1 小时的新提交。"
+            pr_number=$(gh pr list --base main --head dev --state open --json number -q '.[0].number')
+          fi
+
+          echo "等待 PR #${pr_number} 的检查完成..."
+          if gh pr checks "${pr_number}" --watch --fail-fast; then
+            echo "所有检查通过，合并 PR #${pr_number}。"
+            gh pr merge "${pr_number}" --merge --admin --delete-branch=false
+          else
+            echo "::warning::PR #${pr_number} 检查未全部通过，跳过合并，请手动处理。"
           fi
 
   build-and-deploy:
