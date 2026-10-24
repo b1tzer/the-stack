@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 360" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <defs>
+    <marker id="arrGray" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#757575"/>
+    </marker>
+    <marker id="arrGreen" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#2e7d32"/>
+    </marker>
+    <marker id="arrRed" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#c62828"/>
+    </marker>
+  </defs>
+
+  <text x="470" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">ICP 索引下推：过滤发生在回表之前还是之后</text>
+
+  <!-- 不用 ICP -->
+  <text x="40" y="64" font-size="12" font-weight="bold" fill="#c62828">不用 ICP：先全部回表，再过滤</text>
+
+  <rect x="40" y="88" width="280" height="56" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="180" y="112" text-anchor="middle" fill="#0d47a1" font-size="11" font-weight="bold">索引定位 name LIKE '张%'</text>
+  <text x="180" y="132" text-anchor="middle" fill="#555555" font-size="10">得到一批主键</text>
+
+  <line x1="324" y1="116" x2="356" y2="116" stroke="#757575" stroke-width="1.8" marker-end="url(#arrGray)"/>
+
+  <rect x="370" y="88" width="240" height="56" rx="6" fill="#ffebee" stroke="#c62828" stroke-width="1.4"/>
+  <text x="490" y="112" text-anchor="middle" fill="#c62828" font-size="11" font-weight="bold">全部主键回表</text>
+  <text x="490" y="132" text-anchor="middle" fill="#b71c1c" font-size="10">age≠25 的行白回了一次</text>
+
+  <line x1="614" y1="116" x2="646" y2="116" stroke="#757575" stroke-width="1.8" marker-end="url(#arrGray)"/>
+
+  <rect x="660" y="88" width="220" height="56" rx="6" fill="#f5f5f5" stroke="#757575" stroke-width="1.4"/>
+  <text x="770" y="112" text-anchor="middle" fill="#424242" font-size="11" font-weight="bold">Server 层过滤 age=25</text>
+  <text x="770" y="132" text-anchor="middle" fill="#555555" font-size="10">过滤发生在回表之后</text>
+
+  <!-- 用 ICP -->
+  <text x="40" y="196" font-size="12" font-weight="bold" fill="#1b5e20">用 ICP：索引层先过滤，只回表命中的行</text>
+
+  <rect x="40" y="220" width="320" height="56" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="200" y="244" text-anchor="middle" fill="#0d47a1" font-size="11" font-weight="bold">索引定位 + 引擎内顺手判断 age=25</text>
+  <text x="200" y="264" text-anchor="middle" fill="#555555" font-size="10">age 是索引第二列，索引里就有它的值</text>
+
+  <line x1="364" y1="248" x2="406" y2="248" stroke="#2e7d32" stroke-width="1.8" marker-end="url(#arrGreen)"/>
+
+  <rect x="420" y="220" width="200" height="56" rx="6" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.4"/>
+  <text x="520" y="244" text-anchor="middle" fill="#1b5e20" font-size="11" font-weight="bold">仅命中行回表</text>
+  <text x="520" y="264" text-anchor="middle" fill="#555555" font-size="10">不满足的行根本不回表</text>
+
+  <line x1="624" y1="248" x2="656" y2="248" stroke="#2e7d32" stroke-width="1.8" marker-end="url(#arrGreen)"/>
+
+  <rect x="670" y="220" width="180" height="56" rx="6" fill="#f5f5f5" stroke="#757575" stroke-width="1.4"/>
+  <text x="760" y="244" text-anchor="middle" fill="#424242" font-size="11" font-weight="bold">结果</text>
+  <text x="760" y="264" text-anchor="middle" fill="#555555" font-size="10">过滤已在引擎层完成</text>
+
+  <!-- 底部前提 -->
+  <rect x="40" y="304" width="860" height="40" rx="8" fill="#f5f5f5" stroke="#bdbdbd" stroke-width="1.2"/>
+  <text x="470" y="329" text-anchor="middle" font-size="11" font-weight="bold" fill="#424242">前提：过滤列在联合索引里（Extra = Using index condition）；ICP 减少的是回表次数，索引定位本身不变</text>
+</svg>

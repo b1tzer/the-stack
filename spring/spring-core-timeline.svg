@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1140 166" width="1140" height="166" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif">
+  <style>
+	.title { font-size: 16px; font-weight: bold; fill: #1e293b; text-anchor: middle; }
+	.year { font-size: 13px; font-weight: bold; fill: #1e293b; text-anchor: middle; }
+	.node-title { font-size: 13px; font-weight: bold; fill: #334155; text-anchor: middle; }
+	.node-desc { font-size: 12px; fill: #64748b; text-anchor: middle; }
+	.axis { stroke: #cbd5e1; stroke-width: 2; }
+	.dot { fill: #5b9e3a; }
+  </style>
+
+  <text x="570" y="24" class="title">Spring 生态演进</text>
+
+  <line x1="60" y1="80" x2="1080" y2="80" class="axis"/>
+
+  <circle cx="100" cy="80" r="5" class="dot"/>
+  <text x="100" y="56" class="year">2002</text>
+  <text x="100" y="106" class="node-title">Rod Johnson</text>
+  <text x="100" y="126" class="node-desc">《Expert One-on-One J2EE》</text>
+
+  <circle cx="290" cy="80" r="5" class="dot"/>
+  <text x="290" y="56" class="year">2004</text>
+  <text x="290" y="106" class="node-title">Spring 1.0</text>
+  <text x="290" y="126" class="node-desc">IoC + AOP</text>
+
+  <circle cx="480" cy="80" r="5" class="dot"/>
+  <text x="480" y="56" class="year">2009</text>
+  <text x="480" y="106" class="node-title">Spring 3.0</text>
+  <text x="480" y="126" class="node-desc">Java Config + REST</text>
+
+  <circle cx="670" cy="80" r="5" class="dot"/>
+  <text x="670" y="56" class="year">2014</text>
+  <text x="670" y="106" class="node-title">Spring Boot 1.0</text>
+  <text x="670" y="126" class="node-desc">自动配置</text>
+
+  <circle cx="860" cy="80" r="5" class="dot"/>
+  <text x="860" y="56" class="year">2017</text>
+  <text x="860" y="106" class="node-title">Spring 5.0</text>
+  <text x="860" y="126" class="node-desc">WebFlux</text>
+
+  <circle cx="1050" cy="80" r="5" class="dot"/>
+  <text x="1050" y="56" class="year">2022</text>
+  <text x="1050" y="106" class="node-title">Spring 6.0</text>
+  <text x="1050" y="126" class="node-desc">JDK 17 + Jakarta</text>
+</svg>

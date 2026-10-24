@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 390" width="1000" height="390" font-family="'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif">
+  <style>
+    .title { font-size: 20px; font-weight: 700; fill: #1e293b; text-anchor: middle; }
+    .group-box { fill: none; stroke: #94a3b8; stroke-width: 1.5; stroke-dasharray: 6 4; rx: 10; }
+    .group-label { font-size: 14px; font-weight: 700; fill: #1e293b; }
+    .module { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.2; rx: 6; }
+    .module-title { font-size: 13px; font-weight: 700; fill: #1e293b; text-anchor: middle; }
+    .topic-label { font-size: 11px; fill: #64748b; text-anchor: middle; }
+    .leader { fill: #0369a1; }
+    .follower { fill: #b45309; }
+    .producer { fill: #eff6ff; stroke: #3b82f6; stroke-width: 1.4; rx: 8; }
+    .consumer { fill: #f0fdf4; stroke: #22c55e; stroke-width: 1.4; rx: 8; }
+    .arrow { stroke: #64748b; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+    .arrow-label { font-size: 11px; fill: #64748b; text-anchor: middle; }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <text x="500" y="34" class="title">Kafka 整体架构</text>
+
+  <!-- Kafka Cluster -->
+  <rect x="240" y="64" width="520" height="310" class="group-box"/>
+  <text x="260" y="88" class="group-label">Kafka Cluster</text>
+
+  <!-- Broker 1 -->
+  <rect x="265" y="100" width="140" height="150" class="module"/>
+  <text x="335" y="120" class="module-title">Broker 1</text>
+  <text x="335" y="140" class="topic-label">Topic A</text>
+  <g font-size="12" text-anchor="middle">
+    <text x="335" y="164" class="leader">P0 · Leader</text>
+    <text x="335" y="186" class="follower">P1 · Follower</text>
+    <text x="335" y="208" class="follower">P2 · Follower</text>
+  </g>
+
+  <!-- Broker 2 -->
+  <rect x="430" y="100" width="140" height="150" class="module"/>
+  <text x="500" y="120" class="module-title">Broker 2</text>
+  <text x="500" y="140" class="topic-label">Topic A</text>
+  <g font-size="12" text-anchor="middle">
+    <text x="500" y="164" class="follower">P0 · Follower</text>
+    <text x="500" y="186" class="leader">P1 · Leader</text>
+    <text x="500" y="208" class="follower">P2 · Follower</text>
+  </g>
+
+  <!-- Broker 3 -->
+  <rect x="595" y="100" width="140" height="150" class="module"/>
+  <text x="665" y="120" class="module-title">Broker 3</text>
+  <text x="665" y="140" class="topic-label">Topic A</text>
+  <g font-size="12" text-anchor="middle">
+    <text x="665" y="164" class="follower">P0 · Follower</text>
+    <text x="665" y="186" class="follower">P1 · Follower</text>
+    <text x="665" y="208" class="leader">P2 · Leader</text>
+  </g>
+
+  <!-- 元数据管理 -->
+  <rect x="265" y="270" width="470" height="60" class="module"/>
+  <text x="500" y="300" class="module-title">元数据管理：KRaft / ZooKeeper</text>
+  <text x="500" y="318" class="topic-label">集群协调 · Controller 选举 · 元数据存储</text>
+
+  <!-- Producer -->
+  <rect x="50" y="165" width="150" height="100" class="producer"/>
+  <text x="125" y="200" class="module-title">Producer</text>
+  <text x="125" y="222" class="topic-label">发送消息到</text>
+  <text x="125" y="240" class="topic-label">分区 Leader</text>
+
+  <!-- Consumer Group -->
+  <rect x="800" y="165" width="160" height="100" class="consumer"/>
+  <text x="880" y="200" class="module-title">Consumer Group</text>
+  <text x="880" y="222" class="topic-label">从分区 Leader</text>
+  <text x="880" y="240" class="topic-label">拉取消息</text>
+
+  <!-- 箭头 -->
+  <line x1="202" y1="215" x2="238" y2="215" class="arrow"/>
+  <text x="220" y="205" class="arrow-label">发送</text>
+  <line x1="762" y1="215" x2="798" y2="215" class="arrow"/>
+  <text x="780" y="205" class="arrow-label">拉取</text>
+</svg>

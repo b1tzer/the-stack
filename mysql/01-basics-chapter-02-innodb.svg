@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 440" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="12">
+  <defs>
+    <marker id="arrBlue" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#1565c0"/>
+    </marker>
+    <marker id="arrOrange" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#e65100"/>
+    </marker>
+  </defs>
+
+  <text x="470" y="28" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">InnoDB 架构：内存结构与磁盘结构</text>
+
+  <!-- 内存结构面板 -->
+  <rect x="50" y="54" width="340" height="360" rx="6" fill="#fafafa" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="220" y="84" text-anchor="middle" font-size="14" font-weight="bold" fill="#0d47a1">内存结构</text>
+  <line x1="70" y1="96" x2="370" y2="96" stroke="#bbdefb" stroke-width="1"/>
+
+  <rect x="80" y="108" width="280" height="62" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="220" y="134" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">Buffer Pool</text>
+  <text x="220" y="156" text-anchor="middle" font-size="11" fill="#555555">缓存数据页与索引页</text>
+
+  <rect x="80" y="184" width="280" height="62" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="220" y="210" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">Change Buffer</text>
+  <text x="220" y="232" text-anchor="middle" font-size="11" fill="#555555">缓存非唯一二级索引的修改</text>
+
+  <rect x="80" y="260" width="280" height="62" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="220" y="286" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">Adaptive Hash Index</text>
+  <text x="220" y="308" text-anchor="middle" font-size="11" fill="#555555">热点页的自适应哈希索引</text>
+
+  <rect x="80" y="336" width="280" height="62" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="220" y="362" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">Log Buffer</text>
+  <text x="220" y="384" text-anchor="middle" font-size="11" fill="#555555">Redo 缓冲，定期落盘</text>
+
+  <!-- 磁盘结构面板 -->
+  <rect x="550" y="54" width="340" height="360" rx="6" fill="#fafafa" stroke="#e65100" stroke-width="1.4"/>
+  <text x="720" y="84" text-anchor="middle" font-size="14" font-weight="bold" fill="#bf360c">磁盘结构</text>
+  <line x1="570" y1="96" x2="870" y2="96" stroke="#ffe0b2" stroke-width="1"/>
+
+  <rect x="580" y="108" width="280" height="62" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="720" y="134" text-anchor="middle" font-size="13" font-weight="bold" fill="#bf360c">系统表空间</text>
+  <text x="720" y="156" text-anchor="middle" font-size="11" fill="#555555">ibdata 文件，共享数据与元数据</text>
+
+  <rect x="580" y="184" width="280" height="62" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="720" y="210" text-anchor="middle" font-size="13" font-weight="bold" fill="#bf360c">独立表空间</text>
+  <text x="720" y="232" text-anchor="middle" font-size="11" fill="#555555">每表一个 .ibd 文件</text>
+
+  <rect x="580" y="260" width="280" height="62" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="720" y="286" text-anchor="middle" font-size="13" font-weight="bold" fill="#bf360c">Redo Log</text>
+  <text x="720" y="308" text-anchor="middle" font-size="11" fill="#555555">循环写，保证崩溃恢复</text>
+
+  <rect x="580" y="336" width="280" height="62" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="720" y="362" text-anchor="middle" font-size="13" font-weight="bold" fill="#bf360c">Undo Log</text>
+  <text x="720" y="384" text-anchor="middle" font-size="11" fill="#555555">回滚与 MVCC 历史版本</text>
+
+  <!-- 交互箭头 -->
+  <text x="471" y="156" text-anchor="middle" font-size="11" fill="#0d47a1">页加载进内存</text>
+  <line x1="546" y1="170" x2="396" y2="170" stroke="#1565c0" stroke-width="1.6" marker-end="url(#arrBlue)"/>
+
+  <text x="471" y="256" text-anchor="middle" font-size="11" fill="#bf360c">脏页异步刷盘</text>
+  <line x1="396" y1="270" x2="546" y2="270" stroke="#e65100" stroke-width="1.6" marker-end="url(#arrOrange)"/>
+</svg>

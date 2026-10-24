@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 612 442" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#555555"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1565c0"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="306" y="26" text-anchor="middle" font-size="12" font-weight="bold" fill="#333333">TCP 状态机</text>
+
+  <!-- CLOSED -->
+  <rect x="251" y="38" width="110" height="34" rx="7" fill="#eceff1" stroke="#666666" stroke-width="1.7"/>
+  <text x="306" y="60" text-anchor="middle" font-size="12" font-weight="bold" fill="#333333">CLOSED</text>
+
+  <!-- Arrow: CLOSED → SYN_SENT -->
+  <line x1="306" y1="72" x2="306" y2="98" stroke="#555555" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <text x="319" y="89" font-size="9" fill="#1565c0">connect()</text>
+
+  <!-- SYN_SENT -->
+  <rect x="251" y="102" width="110" height="34" rx="7" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.7"/>
+  <text x="306" y="123" text-anchor="middle" font-size="12" font-weight="bold" fill="#0d47a1">SYN_SENT</text>
+
+  <!-- Arrow: SYN_SENT → ESTABLISHED (center) -->
+  <line x1="306" y1="136" x2="306" y2="162" stroke="#555555" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <text x="319" y="153" font-size="9" fill="#2e7d32">SYN+ACK</text>
+
+  <!-- Arrow: SYN_SENT → CLOSED (left) -->
+  <path d="M295,140 L180,140 L180,65 L295,65" fill="none" stroke="#c62828" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <text x="149" y="110" text-anchor="end" font-size="9" fill="#c62828">超时重试</text>
+
+  <!-- Arrow: SYN_SENT → CLOSED (right) -->
+  <path d="M425,140 L540,140 L540,65 L425,65" fill="none" stroke="#c62828" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <text x="463" y="110" font-size="9" fill="#c62828">RST</text>
+
+  <!-- ESTABLISHED -->
+  <rect x="242" y="166" width="128" height="34" rx="7" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.7"/>
+  <text x="306" y="187" text-anchor="middle" font-size="12" font-weight="bold" fill="#1b5e20">ESTABLISHED</text>
+
+  <!-- Arrow: ESTABLISHED → FIN_WAIT_1 -->
+  <line x1="306" y1="200" x2="306" y2="225" stroke="#555555" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <text x="319" y="217" font-size="9" fill="#1565c0">close()</text>
+
+  <!-- FIN_WAIT_1 -->
+  <rect x="251" y="230" width="110" height="34" rx="7" fill="#fff3e0" stroke="#e65100" stroke-width="1.7"/>
+  <text x="306" y="251" text-anchor="middle" font-size="12" font-weight="bold" fill="#bf360c">FIN_WAIT_1</text>
+
+  <!-- Arrow: FIN_WAIT_1 → FIN_WAIT_2 -->
+  <line x1="306" y1="264" x2="306" y2="289" stroke="#555555" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <text x="319" y="280" font-size="9" fill="#2e7d32">ACK</text>
+
+  <!-- FIN_WAIT_2 -->
+  <rect x="251" y="293" width="110" height="34" rx="7" fill="#fff3e0" stroke="#e65100" stroke-width="1.7"/>
+  <text x="306" y="314" text-anchor="middle" font-size="12" font-weight="bold" fill="#bf360c">FIN_WAIT_2</text>
+
+  <!-- Arrow: FIN_WAIT_2 → TIME_WAIT -->
+  <line x1="306" y1="327" x2="306" y2="353" stroke="#555555" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <text x="319" y="344" font-size="9" fill="#4a148c">FIN</text>
+
+  <!-- TIME_WAIT -->
+  <rect x="251" y="357" width="110" height="34" rx="7" fill="#ffcdd2" stroke="#c62828" stroke-width="1.7"/>
+  <text x="306" y="378" text-anchor="middle" font-size="12" font-weight="bold" fill="#b71c1c">TIME_WAIT</text>
+
+  <!-- Arrow: TIME_WAIT → CLOSED -->
+  <line x1="306" y1="391" x2="306" y2="416" stroke="#555555" stroke-width="1.3" marker-end="url(#arrow)"/>
+  <text x="319" y="408" font-size="9" fill="#c62828">2MSL</text>
+
+  <!-- Final CLOSED -->
+  <rect x="251" y="416" width="110" height="26" rx="7" fill="#eceff1" stroke="#666666" stroke-width="1.7"/>
+  <text x="306" y="434" text-anchor="middle" font-size="10" fill="#333333">CLOSED</text>
+
+  <!-- Server side (right) annotations -->
+  <text x="493" y="187" font-size="10" fill="#666666">服务端正常路径：</text>
+  <text x="493" y="204" font-size="10" fill="#666666">SYN_RCVD → ESTABLISHED</text>
+  <text x="493" y="221" font-size="10" fill="#666666">→ CLOSE_WAIT → LAST_ACK</text>
+  <text x="493" y="238" font-size="10" fill="#666666">→ CLOSED</text>
+</svg>

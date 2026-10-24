@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 720" width="1300" height="720" font-family="'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif">
+  <style>
+    .title { font-size: 28px; font-weight: 700; fill: #0f172a; text-anchor: middle; }
+    .group-box { fill: none; stroke-width: 2; stroke-dasharray: 6 4; rx: 10; }
+    .group-label { font-size: 18px; font-weight: 700; }
+    .module { stroke-width: 1.4; rx: 6; }
+    .module-text { font-size: 15px; text-anchor: middle; dominant-baseline: central; }
+    .module-title { font-size: 15px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+    .sub-label { font-size: 16px; font-weight: 700; }
+    .hint { font-size: 14px; }
+    .leader { fill: #2563eb; }
+    .follower { fill: #e11d48; }
+    .arrow { stroke-width: 1.8; fill: none; marker-end: url(#arrowhead); }
+    .dash-arrow { stroke-width: 1.4; fill: none; stroke-dasharray: 4 3; marker-end: url(#arrowhead-gray); }
+    .arrow-label { font-size: 14px; text-anchor: middle; }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#16a34a"/>
+    </marker>
+    <marker id="arrowhead-gray" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#a78bfa"/>
+    </marker>
+  </defs>
+
+  <text x="650" y="34" class="title">Kafka 核心组件全景图</text>
+
+  <!-- 协调组件 -->
+  <rect x="60" y="64" width="1180" height="104" class="group-box" stroke="#7c3aed"/>
+  <text x="80" y="88" class="group-label" fill="#6d28d9">协调组件</text>
+  <rect x="100" y="104" width="245" height="44" class="module" fill="#ede9fe" stroke="#a78bfa"/>
+  <text x="222.5" y="126" class="module-title" fill="#4c1d95">Transaction Coordinator</text>
+  <rect x="375" y="104" width="245" height="44" class="module" fill="#ede9fe" stroke="#a78bfa"/>
+  <text x="497.5" y="126" class="module-title" fill="#4c1d95">Controller</text>
+  <rect x="650" y="104" width="245" height="44" class="module" fill="#ede9fe" stroke="#a78bfa"/>
+  <text x="772.5" y="126" class="module-title" fill="#4c1d95">KRaft Controller</text>
+  <rect x="925" y="104" width="245" height="44" class="module" fill="#ede9fe" stroke="#a78bfa"/>
+  <text x="1047.5" y="126" class="module-title" fill="#4c1d95">Group Coordinator</text>
+
+  <!-- 垂直虚线：协调组件 → 下层 -->
+  <line x1="222.5" y1="168" x2="222.5" y2="210" class="dash-arrow" stroke="#a78bfa"/>
+  <line x1="497.5" y1="168" x2="497.5" y2="210" class="dash-arrow" stroke="#a78bfa"/>
+  <line x1="772.5" y1="168" x2="772.5" y2="210" class="dash-arrow" stroke="#a78bfa"/>
+  <line x1="1047.5" y1="168" x2="1047.5" y2="210" class="dash-arrow" stroke="#a78bfa"/>
+
+  <!-- 生产者 -->
+  <rect x="60" y="214" width="300" height="470" class="group-box" stroke="#16a34a"/>
+  <text x="80" y="240" class="group-label" fill="#15803d">生产者 Producer</text>
+  <rect x="90" y="256" width="240" height="46" class="module" fill="#dcfce7" stroke="#4ade80"/>
+  <text x="210" y="279" class="module-title" fill="#15803d">Producer（send 入口）</text>
+  <rect x="90" y="316" width="240" height="46" class="module" fill="#dcfce7" stroke="#4ade80"/>
+  <text x="210" y="339" class="module-text" fill="#14532d">拦截器 → 序列化 → 分区器</text>
+  <rect x="90" y="376" width="240" height="46" class="module" fill="#dcfce7" stroke="#4ade80"/>
+  <text x="210" y="399" class="module-text" fill="#14532d">RecordAccumulator（累加器）</text>
+  <rect x="90" y="436" width="240" height="46" class="module" fill="#dcfce7" stroke="#4ade80"/>
+  <text x="210" y="459" class="module-text" fill="#14532d">Sender（发送线程）</text>
+  <rect x="90" y="496" width="240" height="46" class="module" fill="#dcfce7" stroke="#4ade80"/>
+  <text x="210" y="519" class="module-text" fill="#14532d">Batch（批量）</text>
+  <rect x="90" y="556" width="240" height="46" class="module" fill="#dcfce7" stroke="#4ade80"/>
+  <text x="210" y="579" class="module-text" fill="#14532d">ACK：0 / 1 / all</text>
+  <rect x="90" y="616" width="240" height="46" class="module" fill="#dcfce7" stroke="#4ade80"/>
+  <text x="210" y="639" class="module-text" fill="#14532d">幂等生产者（PID + Seq）</text>
+
+  <!-- 消费者 -->
+  <rect x="940" y="214" width="300" height="470" class="group-box" stroke="#ea580c"/>
+  <text x="960" y="240" class="group-label" fill="#c2410c">消费者 Consumer</text>
+  <rect x="970" y="256" width="240" height="46" class="module" fill="#ffedd5" stroke="#fb923c"/>
+  <text x="1090" y="279" class="module-title" fill="#c2410c">Consumer</text>
+  <rect x="970" y="316" width="240" height="46" class="module" fill="#ffedd5" stroke="#fb923c"/>
+  <text x="1090" y="339" class="module-text" fill="#7c2d12">Consumer Group（组）</text>
+  <rect x="970" y="376" width="240" height="46" class="module" fill="#ffedd5" stroke="#fb923c"/>
+  <text x="1090" y="399" class="module-text" fill="#7c2d12">Rebalance（重平衡）</text>
+  <rect x="970" y="436" width="240" height="46" class="module" fill="#ffedd5" stroke="#fb923c"/>
+  <text x="1090" y="459" class="module-text" fill="#7c2d12">Poll（拉取）</text>
+  <rect x="970" y="496" width="240" height="46" class="module" fill="#ffedd5" stroke="#fb923c"/>
+  <text x="1090" y="519" class="module-text" fill="#7c2d12">Commit（提交 Offset）</text>
+  <rect x="970" y="556" width="240" height="46" class="module" fill="#ffedd5" stroke="#fb923c"/>
+  <text x="1090" y="579" class="module-text" fill="#7c2d12">Lag（消费延迟）</text>
+  <rect x="970" y="616" width="240" height="46" class="module" fill="#ffedd5" stroke="#fb923c"/>
+  <text x="1090" y="639" class="module-text" fill="#7c2d12">Heartbeat（心跳）</text>
+
+  <!-- Broker 集群 -->
+  <rect x="400" y="214" width="500" height="470" class="group-box" stroke="#2563eb"/>
+  <text x="420" y="240" class="group-label" fill="#1d4ed8">Broker 集群</text>
+
+  <!-- 存储模型 -->
+  <text x="420" y="272" class="sub-label" fill="#0d9488">存储模型</text>
+  <rect x="420" y="288" width="95" height="44" class="module" fill="#cffafe" stroke="#22d3ee"/>
+  <text x="467.5" y="310" class="module-title" fill="#155e75">Topic</text>
+  <line x1="515" y1="310" x2="540" y2="310" class="arrow" stroke="#0d9488"/>
+  <rect x="545" y="288" width="95" height="44" class="module" fill="#cffafe" stroke="#22d3ee"/>
+  <text x="592.5" y="310" class="module-title" fill="#155e75">Partition</text>
+  <line x1="640" y1="310" x2="665" y2="310" class="arrow" stroke="#0d9488"/>
+  <rect x="670" y="288" width="95" height="44" class="module" fill="#cffafe" stroke="#22d3ee"/>
+  <text x="717.5" y="310" class="module-title" fill="#155e75">Segment</text>
+  <line x1="765" y1="310" x2="790" y2="310" class="arrow" stroke="#0d9488"/>
+  <rect x="795" y="288" width="95" height="44" class="module" fill="#cffafe" stroke="#22d3ee"/>
+  <text x="842.5" y="310" class="module-title" fill="#155e75">Offset</text>
+
+  <!-- 副本机制 -->
+  <text x="420" y="372" class="sub-label" fill="#0891b2">副本机制</text>
+  <g font-size="15" text-anchor="middle">
+    <rect x="420" y="388" width="145" height="150" class="module" fill="#dbeafe" stroke="#60a5fa"/>
+    <text x="492.5" y="410" font-weight="700" fill="#1e40af">Broker 0</text>
+    <text x="492.5" y="438" class="leader">P0 · Leader</text>
+    <text x="492.5" y="464" class="follower">P1 · Follower</text>
+    <text x="492.5" y="490" class="follower">P2 · Follower</text>
+
+    <rect x="585" y="388" width="145" height="150" class="module" fill="#dbeafe" stroke="#60a5fa"/>
+    <text x="657.5" y="410" font-weight="700" fill="#1e40af">Broker 1</text>
+    <text x="657.5" y="438" class="follower">P0 · Follower</text>
+    <text x="657.5" y="464" class="leader">P1 · Leader</text>
+    <text x="657.5" y="490" class="follower">P2 · Follower</text>
+
+    <rect x="750" y="388" width="145" height="150" class="module" fill="#dbeafe" stroke="#60a5fa"/>
+    <text x="822.5" y="410" font-weight="700" fill="#1e40af">Broker 2</text>
+    <text x="822.5" y="438" class="follower">P0 · Follower</text>
+    <text x="822.5" y="464" class="follower">P1 · Follower</text>
+    <text x="822.5" y="490" class="leader">P2 · Leader</text>
+  </g>
+
+  <text x="420" y="574" class="hint" fill="#0369a1">Leader 处理读写；Follower 只同步数据</text>
+  <text x="420" y="594" class="hint" fill="#0369a1">ISR = 同步副本集　AR = 全部副本　OSR = 落后副本</text>
+  <text x="420" y="622" class="hint" fill="#0369a1">acks=all：消息写入所有 ISR 副本才算成功</text>
+
+  <!-- 水平箭头：生产者 → Broker → 消费者 -->
+  <line x1="360" y1="300" x2="398" y2="300" class="arrow" stroke="#16a34a"/>
+  <text x="379" y="290" class="arrow-label" fill="#15803d">发送</text>
+  <line x1="902" y1="300" x2="938" y2="300" class="arrow" stroke="#ea580c"/>
+  <text x="920" y="290" class="arrow-label" fill="#c2410c">拉取</text>
+</svg>

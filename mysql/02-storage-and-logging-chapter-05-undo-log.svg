@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 340" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <defs>
+    <marker id="arrOrange" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#e65100"/>
+    </marker>
+    <marker id="arrBlue" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#1565c0"/>
+    </marker>
+    <marker id="arrGreen" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#2e7d32"/>
+    </marker>
+  </defs>
+
+  <text x="470" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">Undo Log：回滚段里的存储结构，服务回滚与 MVCC</text>
+
+  <!-- 存储层级 -->
+  <rect x="40" y="56" width="520" height="250" rx="8" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.4"/>
+  <text x="56" y="80" fill="#1b5e20" font-size="12" font-weight="bold">Undo 表空间（undo_001 / undo_002）</text>
+
+  <rect x="56" y="92" width="488" height="200" rx="6" fill="#ffffff" stroke="#81c784" stroke-width="1.2"/>
+  <text x="68" y="114" fill="#2e7d32" font-size="12" font-weight="bold">回滚段（rollback segment）</text>
+
+  <rect x="72" y="132" width="136" height="76" rx="4" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.2"/>
+  <text x="140" y="164" text-anchor="middle" fill="#1b5e20" font-size="12" font-weight="bold">Undo 页 ①</text>
+  <text x="140" y="186" text-anchor="middle" fill="#555555" font-size="10">多条逆向记录</text>
+
+  <line x1="212" y1="170" x2="226" y2="170" stroke="#2e7d32" stroke-width="1.8" marker-end="url(#arrGreen)"/>
+
+  <rect x="240" y="132" width="136" height="76" rx="4" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.2"/>
+  <text x="308" y="164" text-anchor="middle" fill="#1b5e20" font-size="12" font-weight="bold">Undo 页 ②</text>
+  <text x="308" y="186" text-anchor="middle" fill="#555555" font-size="10">多条逆向记录</text>
+
+  <line x1="380" y1="170" x2="394" y2="170" stroke="#2e7d32" stroke-width="1.8" marker-end="url(#arrGreen)"/>
+
+  <rect x="408" y="132" width="136" height="76" rx="4" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.2"/>
+  <text x="476" y="164" text-anchor="middle" fill="#1b5e20" font-size="12" font-weight="bold">Undo 页 ③</text>
+  <text x="476" y="186" text-anchor="middle" fill="#555555" font-size="10">多条逆向记录</text>
+
+  <text x="72" y="248" fill="#555555" font-size="10">多个事务共享回滚段，Undo 页用链表串起来；Purge 清理后空间才释放</text>
+
+  <!-- 两个用途 -->
+  <rect x="600" y="70" width="300" height="88" rx="8" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="616" y="100" fill="#bf360c" font-size="13" font-weight="bold">① 回滚（逆向操作）</text>
+  <text x="616" y="126" fill="#555555" font-size="10">读旧值，把行改回修改前的状态</text>
+
+  <rect x="600" y="190" width="300" height="88" rx="8" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="616" y="220" fill="#0d47a1" font-size="13" font-weight="bold">② MVCC（版本链）</text>
+  <text x="616" y="246" fill="#555555" font-size="10">沿 roll_ptr 回溯，找历史版本</text>
+
+  <line x1="560" y1="114" x2="586" y2="114" stroke="#e65100" stroke-width="1.8" marker-end="url(#arrOrange)"/>
+  <line x1="560" y1="234" x2="586" y2="234" stroke="#1565c0" stroke-width="1.8" marker-end="url(#arrBlue)"/>
+</svg>

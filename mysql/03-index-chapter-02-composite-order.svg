@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 370" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <text x="470" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">联合索引 idx_a_b_c：叶子按 (a, b, c) 字典序排列</text>
+
+  <!-- a 组标签 -->
+  <text x="300" y="176" text-anchor="end" fill="#0d47a1" font-size="12" font-weight="bold">a = 1 区间</text>
+  <text x="300" y="316" text-anchor="end" fill="#bf360c" font-size="12" font-weight="bold">a = 2 区间</text>
+
+  <line x1="310" y1="70" x2="310" y2="254" stroke="#90caf9" stroke-width="2"/>
+  <line x1="310" y1="266" x2="310" y2="350" stroke="#ffcc80" stroke-width="2"/>
+
+  <!-- 条目 -->
+  <rect x="326" y="70" width="280" height="40" rx="4" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.2"/>
+  <text x="466" y="95" text-anchor="middle" fill="#0d47a1" font-size="13" font-weight="bold">(1, 1, 1)</text>
+
+  <rect x="326" y="118" width="280" height="40" rx="4" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.2"/>
+  <text x="466" y="143" text-anchor="middle" fill="#0d47a1" font-size="13" font-weight="bold">(1, 1, 2)</text>
+
+  <rect x="326" y="166" width="280" height="40" rx="4" fill="#bbdefb" stroke="#1565c0" stroke-width="1.2"/>
+  <text x="466" y="191" text-anchor="middle" fill="#0d47a1" font-size="13" font-weight="bold">(1, 2, 1)</text>
+
+  <rect x="326" y="214" width="280" height="40" rx="4" fill="#bbdefb" stroke="#1565c0" stroke-width="1.2"/>
+  <text x="466" y="239" text-anchor="middle" fill="#0d47a1" font-size="13" font-weight="bold">(1, 2, 5)</text>
+
+  <rect x="326" y="266" width="280" height="40" rx="4" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="466" y="291" text-anchor="middle" fill="#bf360c" font-size="13" font-weight="bold">(2, 1, 1)</text>
+
+  <rect x="326" y="314" width="280" height="40" rx="4" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="466" y="339" text-anchor="middle" fill="#bf360c" font-size="13" font-weight="bold">(2, 1, 3)</text>
+
+  <!-- b 组标签 -->
+  <text x="630" y="98" fill="#1565c0" font-size="11" font-weight="bold">b=1</text>
+  <text x="630" y="138" fill="#1565c0" font-size="10">（区间内有序）</text>
+  <text x="630" y="194" fill="#1565c0" font-size="11" font-weight="bold">b=2</text>
+  <text x="630" y="214" fill="#1565c0" font-size="10">（区间内有序）</text>
+  <text x="630" y="290" fill="#e65100" font-size="11" font-weight="bold">b 又从 1 开始</text>
+  <text x="630" y="310" fill="#e65100" font-size="10">（a 换区间，重新排序）</text>
+
+  <!-- 反例标注 -->
+  <text x="770" y="196" fill="#c62828" font-size="11" font-weight="bold">只写 WHERE b=2：</text>
+  <text x="770" y="216" fill="#555555" font-size="10">b=2 散落在 a=1、a=2</text>
+  <text x="770" y="234" fill="#555555" font-size="10">多个区间里，树上无序，</text>
+  <text x="770" y="252" fill="#555555" font-size="10">无法定位，只能全扫</text>
+</svg>

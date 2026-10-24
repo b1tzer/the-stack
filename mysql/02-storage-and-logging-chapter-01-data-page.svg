@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 630" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <text x="470" y="28" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">InnoDB 数据页物理布局（16KB）</text>
+
+  <!-- 左侧：连续物理空间 -->
+  <line x1="140" y1="52" x2="140" y2="568" stroke="#9e9e9e" stroke-width="1" stroke-dasharray="5,4"/>
+  <line x1="136" y1="52" x2="144" y2="52" stroke="#9e9e9e" stroke-width="1"/>
+  <line x1="136" y1="568" x2="144" y2="568" stroke="#9e9e9e" stroke-width="1"/>
+  <text x="120" y="310" transform="rotate(-90 120 310)" text-anchor="middle" fill="#9e9e9e" font-size="11">16KB 连续物理空间</text>
+
+  <!-- 1. File Header -->
+  <rect x="200" y="52" width="560" height="48" fill="#e8eaf6" stroke="#3949ab" stroke-width="1.4"/>
+  <text x="216" y="74" fill="#3949ab" font-size="12" font-weight="bold">File Header</text>
+  <text x="216" y="92" fill="#555555" font-size="10">38 字节 · 页编号 / 类型 / 表空间</text>
+  <rect x="700" y="64" width="44" height="24" rx="3" fill="#3949ab"/>
+  <text x="722" y="80" text-anchor="middle" fill="#ffffff" font-size="10">固定</text>
+
+  <!-- 2. Page Header -->
+  <rect x="200" y="100" width="560" height="48" fill="#e8eaf6" stroke="#3949ab" stroke-width="1.4"/>
+  <text x="216" y="122" fill="#3949ab" font-size="12" font-weight="bold">Page Header</text>
+  <text x="216" y="140" fill="#555555" font-size="10">56 字节 · 记录数 / 槽数 / 空闲段起点</text>
+  <rect x="700" y="112" width="44" height="24" rx="3" fill="#3949ab"/>
+  <text x="722" y="128" text-anchor="middle" fill="#ffffff" font-size="10">固定</text>
+
+  <!-- 3. Infimum / Supremum -->
+  <rect x="200" y="148" width="560" height="44" fill="#f3e5f5" stroke="#8e24aa" stroke-width="1.4"/>
+  <text x="216" y="170" fill="#6a1b9a" font-size="12" font-weight="bold">Infimum / Supremum</text>
+  <text x="216" y="186" fill="#555555" font-size="10">26 字节 · 页内最小 / 最大边界记录（虚拟）</text>
+
+  <!-- 4. User Records -->
+  <rect x="200" y="192" width="560" height="170" fill="#f1f8e9" stroke="#2e7d32" stroke-width="1.4"/>
+  <text x="216" y="214" fill="#1b5e20" font-size="12" font-weight="bold">User Records（用户记录）</text>
+  <text x="744" y="214" text-anchor="end" fill="#2e7d32" font-size="10" font-weight="bold">▼ 向下增长</text>
+
+  <rect x="216" y="226" width="420" height="26" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="426" y="243" text-anchor="middle" fill="#1b5e20" font-size="10">记录（物理位置与主键无关）</text>
+  <rect x="216" y="260" width="420" height="26" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="426" y="277" text-anchor="middle" fill="#1b5e20" font-size="10">记录</text>
+  <rect x="216" y="294" width="420" height="26" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
+  <text x="426" y="311" text-anchor="middle" fill="#1b5e20" font-size="10">记录</text>
+
+  <text x="216" y="346" fill="#555555" font-size="10">逻辑顺序（next_record 链表）见 §1.2</text>
+
+  <!-- 5. Free Space -->
+  <rect x="200" y="362" width="560" height="64" fill="#ffffff" stroke="#bdbdbd" stroke-width="1.2" stroke-dasharray="5,4"/>
+  <text x="480" y="390" text-anchor="middle" fill="#757575" font-size="12" font-weight="bold">Free Space（空闲空间）</text>
+  <text x="480" y="412" text-anchor="middle" fill="#757575" font-size="10">剩余可用，被上下两端挤压、逐渐缩小</text>
+
+  <!-- 6. Page Directory -->
+  <rect x="200" y="426" width="560" height="88" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="216" y="448" fill="#bf360c" font-size="12" font-weight="bold">Page Directory（页目录）</text>
+  <text x="744" y="448" text-anchor="end" fill="#e65100" font-size="10" font-weight="bold">▲ 向上增长</text>
+
+  <rect x="216" y="458" width="110" height="32" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="271" y="479" text-anchor="middle" fill="#bf360c" font-size="10" font-weight="bold">slot0</text>
+  <rect x="342" y="458" width="110" height="32" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="397" y="479" text-anchor="middle" fill="#bf360c" font-size="10" font-weight="bold">slot1</text>
+  <rect x="468" y="458" width="110" height="32" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="523" y="479" text-anchor="middle" fill="#bf360c" font-size="10" font-weight="bold">…</text>
+  <rect x="594" y="458" width="110" height="32" rx="3" fill="#ffe0b2" stroke="#e65100" stroke-width="1"/>
+  <text x="649" y="479" text-anchor="middle" fill="#bf360c" font-size="10" font-weight="bold">slotN</text>
+
+  <text x="216" y="508" fill="#555555" font-size="10">每个 slot 指向一组最后一条记录的偏移（分组与二分见 §1.3）</text>
+
+  <!-- 7. File Trailer -->
+  <rect x="200" y="514" width="560" height="48" fill="#e8eaf6" stroke="#3949ab" stroke-width="1.4"/>
+  <text x="216" y="536" fill="#3949ab" font-size="12" font-weight="bold">File Trailer</text>
+  <text x="216" y="554" fill="#555555" font-size="10">8 字节 · 校验和 / LSN，检测页是否写坏</text>
+  <rect x="700" y="526" width="44" height="24" rx="3" fill="#3949ab"/>
+  <text x="722" y="542" text-anchor="middle" fill="#ffffff" font-size="10">固定</text>
+
+  <!-- 底部总结 -->
+  <text x="470" y="600" text-anchor="middle" fill="#757575" font-size="11">两段头、一段尾是元数据；User Records 与 Page Directory 从两端向中间增长，中间的 Free Space 逐渐被挤占</text>
+</svg>

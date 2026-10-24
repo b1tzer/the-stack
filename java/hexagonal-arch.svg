@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 612 476" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="10">
+  <defs>
+    <marker id="arX1" markerWidth="8" markerHeight="8" refX="4" refY="8" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#555555"/>
+    </marker>
+  </defs>
+
+  <text x="306" y="24" text-anchor="middle" font-size="12" font-weight="bold" fill="#333333">六边形架构（Ports &amp; Adapters）</text>
+
+  <!-- Outer hexagon container -->
+  <rect x="68" y="39" width="476" height="400" rx="10" fill="#f8f9fa" stroke="#bdbdbd" stroke-width="1.3"/>
+
+  <!-- Input Adapters -->
+  <g transform="translate(100,60)">
+    <text x="221" y="14" text-anchor="middle" font-size="11" font-weight="bold" fill="#1565c0">适配器（输入端）</text>
+    <rect x="17" y="24" width="102" height="31" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+    <text x="68" y="42" text-anchor="middle" font-size="10" fill="#0d47a1">REST API</text>
+    <rect x="144" y="24" width="102" height="31" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+    <text x="196" y="42" text-anchor="middle" font-size="10" fill="#0d47a1">gRPC</text>
+    <rect x="272" y="24" width="102" height="31" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3"/>
+    <text x="323" y="42" text-anchor="middle" font-size="10" fill="#0d47a1">MQ</text>
+  </g>
+
+  <!-- Arrows from input adapters to input ports -->
+  <line x1="153" y1="110" x2="221" y2="138" stroke="#1565c0" stroke-width="1" marker-end="url(#arX1)"/>
+  <line x1="298" y1="110" x2="289" y2="138" stroke="#1565c0" stroke-width="1" marker-end="url(#arX1)"/>
+  <line x1="425" y1="110" x2="357" y2="138" stroke="#1565c0" stroke-width="1" marker-end="url(#arX1)"/>
+
+  <!-- Input Ports -->
+  <g transform="translate(140,166)">
+    <rect x="0" y="0" width="289" height="48" rx="5" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
+    <text x="144" y="17" text-anchor="middle" font-size="11" font-weight="bold" fill="#1b5e20">端口（Ports）</text>
+    <text x="72" y="36" text-anchor="middle" font-size="9" fill="#2e7d32">OrderService（输入端口）</text>
+    <text x="217" y="36" text-anchor="middle" font-size="9" fill="#2e7d32">OrderRepository（输出端口）</text>
+  </g>
+
+  <!-- Arrow from ports to domain -->
+  <line x1="264" y1="192" x2="264" y2="212" stroke="#2e7d32" stroke-width="1.3" marker-end="url(#arX1)"/>
+
+  <!-- Domain Core -->
+  <g transform="translate(140,254)">
+    <rect x="0" y="0" width="289" height="68" rx="7" fill="#fff3e0" stroke="#e65100" stroke-width="1.7"/>
+    <text x="144" y="20" text-anchor="middle" font-size="12" font-weight="bold" fill="#bf360c">业务核心（Domain）</text>
+    <text x="144" y="41" text-anchor="middle" font-size="10" fill="#bf360c">Order / OrderItem / ...</text>
+    <text x="144" y="58" text-anchor="middle" font-size="9" fill="#bdbdbd">纯业务逻辑，零外部依赖</text>
+  </g>
+
+  <!-- Arrow from domain to output ports -->
+  <line x1="264" y1="287" x2="264" y2="308" stroke="#e65100" stroke-width="1.3" marker-end="url(#arX1)"/>
+
+  <!-- Output Ports -->
+  <g transform="translate(140,366)">
+    <rect x="0" y="0" width="289" height="48" rx="5" fill="#fff3e0" stroke="#e65100" stroke-width="1.3"/>
+    <text x="144" y="17" text-anchor="middle" font-size="11" font-weight="bold" fill="#bf360c">端口（Ports）</text>
+    <text x="72" y="36" text-anchor="middle" font-size="9" fill="#e65100">PaymentGateway（输出端口）</text>
+    <text x="217" y="36" text-anchor="middle" font-size="9" fill="#e65100">InventoryService（输出端口）</text>
+  </g>
+
+  <!-- Arrows from output ports to output adapters -->
+  <line x1="187" y1="362" x2="153" y2="386" stroke="#e65100" stroke-width="1" marker-end="url(#arX1)"/>
+  <line x1="340" y1="362" x2="357" y2="386" stroke="#e65100" stroke-width="1" marker-end="url(#arX1)"/>
+
+  <!-- Output Adapters -->
+  <g transform="translate(100,456)">
+    <text x="221" y="12" text-anchor="middle" font-size="11" font-weight="bold" fill="#c62828">适配器（输出端）</text>
+    <rect x="51" y="19" width="102" height="31" rx="3" fill="#ffcdd2" stroke="#c62828" stroke-width="1.3"/>
+    <text x="102" y="37" text-anchor="middle" font-size="10" fill="#b71c1c">MySQL</text>
+    <rect x="255" y="19" width="102" height="31" rx="3" fill="#ffcdd2" stroke="#c62828" stroke-width="1.3"/>
+    <text x="306" y="37" text-anchor="middle" font-size="10" fill="#b71c1c">Redis</text>
+  </g>
+
+  <!-- Key benefit callout -->
+  <g transform="translate(100,520)">
+    <rect x="0" y="0" width="442" height="24" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="0.8"/>
+    <text x="221" y="15" text-anchor="middle" font-size="9" fill="#1b5e20" font-weight="bold">关键收益：业务核心零外部依赖 — 换 REST 为 gRPC、换 MySQL 为 MongoDB，业务代码不动</text>
+  </g>
+</svg>

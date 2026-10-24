@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 400" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="12">
+  <defs>
+    <marker id="arrGray" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L7,3 L0,6 Z" fill="#757575"/>
+    </marker>
+  </defs>
+
+  <text x="470" y="28" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">MySQL 三层架构</text>
+
+  <!-- 请求 / 返回方向 -->
+  <text x="75" y="50" text-anchor="middle" font-size="11" fill="#757575">请求</text>
+  <line x1="75" y1="58" x2="75" y2="350" stroke="#757575" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <text x="865" y="374" text-anchor="middle" font-size="11" fill="#757575">返回结果</text>
+  <line x1="865" y1="350" x2="865" y2="58" stroke="#757575" stroke-width="1.6" marker-end="url(#arrGray)"/>
+
+  <!-- 连接层 -->
+  <rect x="140" y="56" width="660" height="68" rx="6" fill="#f5f5f5" stroke="#757575" stroke-width="1.4"/>
+  <line x1="310" y1="66" x2="310" y2="114" stroke="#bdbdbd" stroke-width="1"/>
+  <text x="170" y="96" font-size="14" font-weight="bold" fill="#424242">连接层</text>
+  <text x="340" y="96" fill="#555555">认证、线程池、连接管理</text>
+
+  <!-- 服务层 -->
+  <rect x="140" y="144" width="660" height="118" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <line x1="310" y1="154" x2="310" y2="178" stroke="#90caf9" stroke-width="1"/>
+  <text x="170" y="172" font-size="14" font-weight="bold" fill="#0d47a1">服务层</text>
+  <text x="340" y="172" fill="#1565c0">SQL 解析、优化、执行</text>
+
+  <rect x="180" y="186" width="173" height="64" rx="6" fill="#ffffff" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="266" y="212" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">解析器</text>
+  <text x="266" y="234" text-anchor="middle" font-size="11" fill="#555555">语法分析、语义分析</text>
+
+  <rect x="383" y="186" width="173" height="64" rx="6" fill="#ffffff" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="469" y="212" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">优化器</text>
+  <text x="469" y="234" text-anchor="middle" font-size="11" fill="#555555">执行计划选择</text>
+
+  <rect x="586" y="186" width="173" height="64" rx="6" fill="#ffffff" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="672" y="212" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">执行器</text>
+  <text x="672" y="234" text-anchor="middle" font-size="11" fill="#555555">调用存储引擎接口</text>
+
+  <!-- 存储引擎层 -->
+  <rect x="140" y="282" width="660" height="68" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <line x1="310" y1="292" x2="310" y2="340" stroke="#ffcc80" stroke-width="1"/>
+  <text x="170" y="322" font-size="14" font-weight="bold" fill="#bf360c">存储引擎层</text>
+  <text x="340" y="322" fill="#555555">InnoDB / MyISAM / Memory（插件式，可替换）</text>
+</svg>

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 430" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <text x="470" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">innodb_flush_log_at_trx_commit：日志刷到哪一层</text>
+
+  <!-- Log Buffer -->
+  <rect x="120" y="70" width="700" height="64" rx="8" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="140" y="96" fill="#0d47a1" font-size="13" font-weight="bold">Log Buffer（内存）</text>
+  <text x="140" y="116" fill="#555555" font-size="10">innodb_log_buffer_size，默认 16MB</text>
+  <rect x="540" y="84" width="264" height="36" rx="6" fill="#ffebee" stroke="#c62828" stroke-width="1.2"/>
+  <text x="672" y="106" text-anchor="middle" fill="#c62828" font-size="10" font-weight="bold">值 0：不主动刷，等后台每秒 fsync</text>
+
+  <!-- OS Page Cache -->
+  <rect x="120" y="170" width="700" height="64" rx="8" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="140" y="196" fill="#bf360c" font-size="13" font-weight="bold">OS Page Cache（操作系统缓存）</text>
+  <text x="140" y="216" fill="#555555" font-size="10">操作系统管理的文件缓存</text>
+  <rect x="540" y="184" width="264" height="36" rx="6" fill="#fff8e1" stroke="#e65100" stroke-width="1.2"/>
+  <text x="672" y="206" text-anchor="middle" fill="#bf360c" font-size="10" font-weight="bold">值 2：写到 OS 缓存，OS 每秒刷</text>
+
+  <!-- 磁盘 -->
+  <rect x="120" y="270" width="700" height="64" rx="8" fill="#f5f5f5" stroke="#757575" stroke-width="1.4"/>
+  <text x="140" y="296" fill="#424242" font-size="13" font-weight="bold">磁盘（物理扇区）</text>
+  <text x="140" y="316" fill="#555555" font-size="10">fsync 返回后，日志在物理介质上</text>
+  <rect x="540" y="284" width="264" height="36" rx="6" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.2"/>
+  <text x="672" y="306" text-anchor="middle" fill="#1b5e20" font-size="10" font-weight="bold">值 1：提交即 fsync，物理落盘</text>
+
+  <!-- 层间提示 -->
+  <text x="40" y="156" fill="#9e9e9e" font-size="10">逐层向下 = 更接近物理磁盘</text>
+
+  <!-- 底部结论 -->
+  <rect x="120" y="360" width="700" height="44" rx="8" fill="#f5f5f5" stroke="#bdbdbd" stroke-width="1.2"/>
+  <text x="470" y="387" text-anchor="middle" font-size="11" font-weight="bold" fill="#424242">值 0 怕 MySQL 进程崩溃 · 值 2 只怕整机断电 · 值 1 什么都不怕（每次 fsync，最慢）</text>
+</svg>
