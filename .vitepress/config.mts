@@ -111,6 +111,11 @@ export default withOpenInEditor(defineConfig({
   ],
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
+    ['script', { async: '', src: 'https://www.googletagmanager.com/gtag/js?id=G-ZV6SVQFCWW' }],
+    ['script', {}, `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-ZV6SVQFCWW');`],
   ],
   srcDir: './docs',
   outDir: './site',
