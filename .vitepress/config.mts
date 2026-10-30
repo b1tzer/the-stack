@@ -223,13 +223,14 @@ gtag('config', 'G-ZV6SVQFCWW');`],
     nav: [
       { text: 'Java', link: '/java/', activeMatch: '^/java/' },
       { text: 'Spring', link: '/spring/', activeMatch: '^/spring/' },
-      { text: 'Redis', link: '/redis/', activeMatch: '^/redis/' },
       {
         text: '数据库',
-        activeMatch: '^/(mysql|postgresql)/',
+        activeMatch: '^/(mysql|postgresql|redis|elasticsearch)/',
         items: [
           { text: 'MySQL', link: '/mysql/' },
           { text: 'PostgreSQL', link: '/postgresql/' },
+          { text: 'Redis', link: '/redis/' },
+          { text: 'Elasticsearch', link: '/elasticsearch/' },
         ],
       },
       {
@@ -240,7 +241,6 @@ gtag('config', 'G-ZV6SVQFCWW');`],
           { text: 'RabbitMQ', link: '/rabbitmq/' },
         ],
       },
-      { text: 'Elasticsearch', link: '/elasticsearch/', activeMatch: '^/elasticsearch/' },
       {
         text: '工程',
         activeMatch: '^/(design-pattern|engineering|ai)/',
