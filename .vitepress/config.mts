@@ -111,6 +111,11 @@ export default withOpenInEditor(defineConfig({
   ],
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }],
+    ['script', { async: '', src: 'https://www.googletagmanager.com/gtag/js?id=G-ZV6SVQFCWW' }],
+    ['script', {}, `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-ZV6SVQFCWW');`],
   ],
   srcDir: './docs',
   outDir: './site',
@@ -218,13 +223,14 @@ export default withOpenInEditor(defineConfig({
     nav: [
       { text: 'Java', link: '/java/', activeMatch: '^/java/' },
       { text: 'Spring', link: '/spring/', activeMatch: '^/spring/' },
-      { text: 'Redis', link: '/redis/', activeMatch: '^/redis/' },
       {
         text: '数据库',
-        activeMatch: '^/(mysql|postgresql)/',
+        activeMatch: '^/(mysql|postgresql|redis|elasticsearch)/',
         items: [
           { text: 'MySQL', link: '/mysql/' },
           { text: 'PostgreSQL', link: '/postgresql/' },
+          { text: 'Redis', link: '/redis/' },
+          { text: 'Elasticsearch', link: '/elasticsearch/' },
         ],
       },
       {
@@ -235,7 +241,6 @@ export default withOpenInEditor(defineConfig({
           { text: 'RabbitMQ', link: '/rabbitmq/' },
         ],
       },
-      { text: 'Elasticsearch', link: '/elasticsearch/', activeMatch: '^/elasticsearch/' },
       {
         text: '工程',
         activeMatch: '^/(design-pattern|engineering|ai)/',
