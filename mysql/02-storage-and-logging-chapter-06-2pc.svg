@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 430" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <defs>
+    <marker id="arrGray" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#757575"/>
+    </marker>
+    <marker id="arrGreen" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#2e7d32"/>
+    </marker>
+    <marker id="arrRed" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#c62828"/>
+    </marker>
+  </defs>
+
+  <text x="470" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">两阶段提交：prepare → 写 Binlog → commit</text>
+
+  <!-- 三步 -->
+  <rect x="40" y="70" width="260" height="76" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="170" y="100" text-anchor="middle" fill="#0d47a1" font-size="12" font-weight="bold">① InnoDB：写 Redo Log</text>
+  <text x="170" y="124" text-anchor="middle" fill="#555555" font-size="10">标记 prepare（先占位）</text>
+
+  <line x1="304" y1="108" x2="326" y2="108" stroke="#757575" stroke-width="1.8" marker-end="url(#arrGray)"/>
+
+  <rect x="340" y="70" width="240" height="76" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="460" y="100" text-anchor="middle" fill="#bf360c" font-size="12" font-weight="bold">② Server：写 Binlog</text>
+  <text x="460" y="124" text-anchor="middle" fill="#555555" font-size="10">XID 事件写入，分水岭</text>
+
+  <line x1="584" y1="108" x2="596" y2="108" stroke="#757575" stroke-width="1.8" marker-end="url(#arrGray)"/>
+
+  <rect x="610" y="70" width="290" height="76" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="755" y="100" text-anchor="middle" fill="#0d47a1" font-size="12" font-weight="bold">③ InnoDB：Redo 标记 commit</text>
+  <text x="755" y="124" text-anchor="middle" fill="#555555" font-size="10">事务真正提交</text>
+
+  <!-- 恢复裁决 -->
+  <text x="40" y="194" fill="#424242" font-size="12" font-weight="bold">崩溃恢复：扫描 prepare 状态的事务，用 Binlog 裁决</text>
+
+  <rect x="40" y="210" width="320" height="100" rx="6" fill="#fff8e1" stroke="#e65100" stroke-width="1.4"/>
+  <text x="200" y="248" text-anchor="middle" fill="#bf360c" font-size="12" font-weight="bold">在 Binlog 里找该事务的 XID</text>
+  <text x="200" y="274" text-anchor="middle" fill="#555555" font-size="10">prepare 记录携带 XID</text>
+
+  <line x1="364" y1="228" x2="546" y2="228" stroke="#2e7d32" stroke-width="1.8" marker-end="url(#arrGreen)"/>
+  <line x1="364" y1="292" x2="546" y2="292" stroke="#c62828" stroke-width="1.8" marker-end="url(#arrRed)"/>
+
+  <rect x="560" y="200" width="340" height="56" rx="6" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.4"/>
+  <text x="576" y="232" fill="#1b5e20" font-size="12" font-weight="bold">找到 XID → 提交，补写 redo commit</text>
+
+  <rect x="560" y="280" width="340" height="56" rx="6" fill="#ffebee" stroke="#c62828" stroke-width="1.4"/>
+  <text x="576" y="312" fill="#b71c1c" font-size="12" font-weight="bold">找不到 → 回滚（Binlog 未落地）</text>
+
+  <!-- 底部结论 -->
+  <rect x="40" y="360" width="860" height="44" rx="8" fill="#f5f5f5" stroke="#bdbdbd" stroke-width="1.2"/>
+  <text x="470" y="387" text-anchor="middle" font-size="11" font-weight="bold" fill="#424242">Binlog 的写入是分水岭：写成功前主从都不该有这笔，写成功后主库必须提交以保持一致</text>
+</svg>

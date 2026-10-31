@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 442 323" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+  <text x="221" y="24" text-anchor="middle" font-size="12" font-weight="bold" fill="#333333">多线程 Reactor 模式</text>
+  <!-- Main Reactor -->
+  <rect x="85" y="42" width="272" height="68" rx="8" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.7"/>
+  <text x="221" y="65" text-anchor="middle" fill="#4a148c" font-weight="bold" font-size="11">Main Reactor Thread</text>
+  <text x="221" y="82" text-anchor="middle" fill="#666666" font-size="10">Selector.select() — 只处理 ACCEPT 和 READ 事件</text>
+  <text x="221" y="99" text-anchor="middle" fill="#888888" font-size="9">Accept → 注册 READ | Read → 提交给 Worker Pool</text>
+  <!-- Arrow down -->
+  <line x1="221" y1="110" x2="221" y2="144" stroke="#7b1fa2" stroke-width="1.7" marker-end="url(#ar4)"/>
+  <!-- Worker Pool -->
+  <rect x="51" y="149" width="340" height="144" rx="8" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.7"/>
+  <text x="221" y="170" text-anchor="middle" fill="#1b5e20" font-weight="bold" font-size="11">Worker Thread Pool</text>
+  <!-- Workers -->
+  <rect x="76" y="187" width="94" height="85" rx="5" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.3"/>
+  <text x="123" y="208" text-anchor="middle" fill="#1b5e20" font-weight="bold">Thread-1</text>
+  <text x="123" y="225" text-anchor="middle" fill="#555555" font-size="9">decode</text>
+  <text x="123" y="241" text-anchor="middle" fill="#555555" font-size="9">process</text>
+  <text x="123" y="256" text-anchor="middle" fill="#555555" font-size="9">encode + write</text>
+  <rect x="178" y="187" width="94" height="85" rx="5" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.3"/>
+  <text x="225" y="208" text-anchor="middle" fill="#1b5e20" font-weight="bold">Thread-2</text>
+  <text x="225" y="225" text-anchor="middle" fill="#555555" font-size="9">decode</text>
+  <text x="225" y="241" text-anchor="middle" fill="#555555" font-size="9">process</text>
+  <text x="225" y="256" text-anchor="middle" fill="#555555" font-size="9">encode + write</text>
+  <rect x="280" y="187" width="94" height="85" rx="5" fill="#eceff1" stroke="#bdbdbd" stroke-width="0.8"/>
+  <text x="327" y="225" text-anchor="middle" fill="#999999">...</text>
+  <!-- Footer -->
+  <text x="221" y="314" text-anchor="middle" fill="#888888" font-size="10">Reactor 线程只负责事件检测和分发，业务逻辑交给 Worker 线程池处理</text>
+  <defs><marker id="ar4" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#7b1fa2"/></marker></defs>
+</svg>

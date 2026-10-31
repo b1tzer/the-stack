@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 870" width="760" height="870" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif">
+  <style>
+    text { dominant-baseline: central; }
+    .title { font-size: 16px; font-weight: bold; fill: #24292f; }
+    .stage-title { font-size: 13px; font-weight: bold; }
+    .stage-box { fill: #f6f8fa; stroke: #9aa4af; stroke-width: 1.2; stroke-dasharray: 5 4; }
+    .card { stroke-width: 1.2; }
+    .card-name { font-size: 13px; font-weight: bold; }
+    .card-desc { font-size: 12px; fill: #57606a; }
+    .card-src { font-size: 10px; fill: #8b949e; font-family: 'SF Mono', Consolas, Menlo, monospace; }
+    .arrow { stroke: #57606a; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
+    .arrow-dash { stroke: #57606a; stroke-width: 1.5; fill: none; stroke-dasharray: 6 4; marker-end: url(#arrowhead); }
+    .marker-arrow { fill: #57606a; }
+    .footnote { font-size: 10px; fill: #8b949e; }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 9 3.5, 0 7" class="marker-arrow"/>
+    </marker>
+  </defs>
+
+  <text x="380" y="24" class="title" text-anchor="middle">Spring Bean 生命周期主流程</text>
+
+  <rect x="30" y="44" width="700" height="98" rx="10" class="stage-box"/>
+  <text x="50" y="64" class="stage-title" fill="#0d47a1">创建对象</text>
+  <rect x="60" y="74" width="640" height="56" rx="6" class="card" fill="#e3f2fd" stroke="#1565c0"/>
+  <text x="76" y="96" class="card-name" fill="#0d47a1">① 实例化</text>
+  <text x="684" y="96" class="card-src" text-anchor="end">createBeanInstance()</text>
+  <text x="76" y="117" class="card-desc">通过构造器或工厂方法创建 Bean 实例</text>
+
+  <line x1="380" y1="142" x2="380" y2="168" class="arrow"/>
+
+  <rect x="30" y="168" width="700" height="394" rx="10" class="stage-box"/>
+  <text x="50" y="188" class="stage-title" fill="#1b5e20">填充与初始化</text>
+
+  <rect x="60" y="198" width="640" height="56" rx="6" class="card" fill="#e8f5e9" stroke="#2e7d32"/>
+  <text x="76" y="220" class="card-name" fill="#1b5e20">② 属性填充</text>
+  <text x="684" y="220" class="card-src" text-anchor="end">populateBean()</text>
+  <text x="76" y="241" class="card-desc">注入属性值和依赖对象，让 Bean 具备工作条件</text>
+
+  <line x1="380" y1="254" x2="380" y2="272" class="arrow"/>
+
+  <rect x="60" y="272" width="640" height="56" rx="6" class="card" fill="#e8f5e9" stroke="#2e7d32"/>
+  <text x="76" y="294" class="card-name" fill="#1b5e20">③ Aware 回调</text>
+  <text x="684" y="294" class="card-src" text-anchor="end">invokeAwareMethods()</text>
+  <text x="76" y="315" class="card-desc">让 Bean 按需获取自己的名称、类加载器或 BeanFactory</text>
+
+  <line x1="380" y1="328" x2="380" y2="346" class="arrow"/>
+
+  <rect x="60" y="346" width="640" height="56" rx="6" class="card" fill="#e8f5e9" stroke="#2e7d32"/>
+  <text x="76" y="368" class="card-name" fill="#1b5e20">④ 初始化前处理</text>
+  <text x="684" y="368" class="card-src" text-anchor="end">postProcessBeforeInitialization()</text>
+  <text x="76" y="389" class="card-desc">执行初始化前的回调，@PostConstruct 通常在此阶段调用</text>
+
+  <line x1="380" y1="402" x2="380" y2="420" class="arrow"/>
+
+  <rect x="60" y="420" width="640" height="56" rx="6" class="card" fill="#e8f5e9" stroke="#2e7d32"/>
+  <text x="76" y="442" class="card-name" fill="#1b5e20">⑤ 初始化方法</text>
+  <text x="684" y="442" class="card-src" text-anchor="end">invokeInitMethods()</text>
+  <text x="76" y="463" class="card-desc">执行 Bean 自定义的初始化逻辑，如检查配置、准备资源</text>
+
+  <line x1="380" y1="476" x2="380" y2="494" class="arrow"/>
+
+  <rect x="60" y="494" width="640" height="56" rx="6" class="card" fill="#fff1f0" stroke="#DC382D"/>
+  <text x="76" y="516" class="card-name" fill="#DC382D">⑥ 初始化后处理</text>
+  <text x="684" y="516" class="card-src" text-anchor="end">postProcessAfterInitialization()</text>
+  <text x="76" y="537" class="card-desc">初始化后的扩展处理，AOP 代理通常在此生成</text>
+
+  <line x1="380" y1="562" x2="380" y2="588" class="arrow"/>
+
+  <rect x="30" y="588" width="700" height="98" rx="10" class="stage-box"/>
+  <text x="50" y="608" class="stage-title" fill="#57606a">交付使用</text>
+  <rect x="60" y="618" width="640" height="56" rx="6" class="card" fill="#f6f8fa" stroke="#c0c8d0"/>
+  <text x="76" y="640" class="card-name" fill="#24292f">⑦ Bean 就绪</text>
+  <text x="76" y="661" class="card-desc">完成创建，Bean 可供容器使用</text>
+
+  <line x1="380" y1="686" x2="380" y2="726" class="arrow-dash"/>
+  <text x="396" y="706" class="footnote" fill="#e65100">容器关闭时触发</text>
+
+  <rect x="30" y="726" width="700" height="98" rx="10" class="stage-box"/>
+  <text x="50" y="746" class="stage-title" fill="#bf360c">销毁</text>
+  <rect x="60" y="756" width="640" height="56" rx="6" class="card" fill="#fff3e0" stroke="#e65100"/>
+  <text x="76" y="778" class="card-name" fill="#bf360c">⑧ 销毁</text>
+  <text x="684" y="778" class="card-src" text-anchor="end">destroy()</text>
+  <text x="76" y="799" class="card-desc">容器关闭时执行清理回调</text>
+
+  <text x="380" y="852" class="footnote" text-anchor="middle">省略了部分扩展点，完整说明见正文 §3</text>
+</svg>

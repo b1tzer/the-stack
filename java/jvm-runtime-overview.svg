@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 640" width="560" height="498" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <marker id="arrowDown" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#555555"/>
+    </marker>
+  </defs>
+
+  <text x="360" y="34" text-anchor="middle" font-size="22" font-weight="bold" fill="#333333">一个 Java 程序从源码到 CPU 执行的完整链路</text>
+
+  <!-- 1. 源码 -->
+  <rect x="180" y="56" width="360" height="58" rx="8" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.4"/>
+  <text x="360" y="83" text-anchor="middle" font-size="20" font-weight="bold" fill="#0d47a1">.java 源码文件</text>
+  <text x="360" y="104" text-anchor="middle" font-size="14" fill="#555555">你写的 Java 代码</text>
+  <line x1="360" y1="114" x2="360" y2="146" stroke="#555555" stroke-width="1.4" marker-end="url(#arrowDown)"/>
+  <text x="556" y="136" text-anchor="start" font-size="15" fill="#555555">javac 编译</text>
+
+  <!-- 2. 字节码文件 -->
+  <rect x="180" y="150" width="360" height="58" rx="8" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.4"/>
+  <text x="360" y="177" text-anchor="middle" font-size="20" font-weight="bold" fill="#1b5e20">.class 字节码文件</text>
+  <text x="360" y="198" text-anchor="middle" font-size="14" fill="#555555">磁盘上的二进制程序描述</text>
+  <line x1="360" y1="208" x2="360" y2="240" stroke="#555555" stroke-width="1.4" marker-end="url(#arrowDown)"/>
+  <text x="556" y="230" text-anchor="start" font-size="15" fill="#555555">ClassLoader 加载</text>
+
+  <!-- 3. 运行时 Class -->
+  <rect x="180" y="244" width="360" height="58" rx="8" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.4"/>
+  <text x="360" y="271" text-anchor="middle" font-size="20" font-weight="bold" fill="#4a148c">JVM 中的 Class 对象</text>
+  <text x="360" y="292" text-anchor="middle" font-size="14" fill="#555555">内存中的运行时类</text>
+  <line x1="360" y1="302" x2="360" y2="334" stroke="#555555" stroke-width="1.4" marker-end="url(#arrowDown)"/>
+  <text x="556" y="324" text-anchor="start" font-size="15" fill="#555555">JVM 解释执行</text>
+
+  <!-- 4. 方法中的字节码指令 -->
+  <rect x="180" y="338" width="360" height="58" rx="8" fill="#e0f7fa" stroke="#00838f" stroke-width="1.4"/>
+  <text x="360" y="365" text-anchor="middle" font-size="20" font-weight="bold" fill="#006064">方法中的字节码指令</text>
+  <text x="360" y="386" text-anchor="middle" font-size="14" fill="#555555">被 JVM 逐条执行</text>
+  <line x1="360" y1="396" x2="360" y2="428" stroke="#555555" stroke-width="1.4" marker-end="url(#arrowDown)"/>
+  <text x="556" y="418" text-anchor="start" font-size="15" fill="#555555">Interpreter / JIT 编译</text>
+
+  <!-- 5. 机器码 -->
+  <rect x="180" y="432" width="360" height="58" rx="8" fill="#fff3e0" stroke="#e65100" stroke-width="1.4"/>
+  <text x="360" y="459" text-anchor="middle" font-size="20" font-weight="bold" fill="#bf360c">机器码</text>
+  <text x="360" y="480" text-anchor="middle" font-size="14" fill="#555555">CPU 真正能执行的指令</text>
+  <line x1="360" y1="490" x2="360" y2="522" stroke="#555555" stroke-width="1.4" marker-end="url(#arrowDown)"/>
+  <text x="556" y="512" text-anchor="start" font-size="15" fill="#555555">交给 CPU</text>
+
+  <!-- 6. CPU 执行 -->
+  <rect x="180" y="526" width="360" height="58" rx="8" fill="#ffcdd2" stroke="#c62828" stroke-width="1.4"/>
+  <text x="360" y="553" text-anchor="middle" font-size="20" font-weight="bold" fill="#b71c1c">CPU 执行</text>
+  <text x="360" y="574" text-anchor="middle" font-size="14" fill="#555555">程序真正运行起来</text>
+
+  <text x="360" y="618" text-anchor="middle" font-size="13" fill="#999999">本章覆盖前四段，JIT 编译与机器码由第五章承接</text>
+</svg>
