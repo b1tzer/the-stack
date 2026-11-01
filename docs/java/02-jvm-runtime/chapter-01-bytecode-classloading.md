@@ -2,7 +2,7 @@
 
 > 一个 `.java` 文件躺在磁盘上，自己不会运行。`javac` 先把它编译成 `.class`，JVM 再加载、连接并初始化类，最后解释或编译执行方法中的字节码。这条从「磁盘文件」到「运行中程序」的链路，是本文的主线，也是整个 JVM Runtime 的骨架。后面讲运行时数据区、对象模型、GC、JIT，都挂在这条链的某个环节上。
 
-![Java 程序从源码到 CPU 执行的完整链路](/java/jvm-runtime-overview.svg)
+![Java 程序从源码到 CPU 执行的完整链路](/java/02-jvm-runtime-chapter-01-jvm-runtime-overview.svg)
 
 ## 1. 全景：一条链看懂 JVM Runtime
 

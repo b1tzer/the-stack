@@ -36,7 +36,7 @@ ScannedGenericBeanDefinition（示意）{
 
 Bean 的创建过程可以分成三个主要阶段，中间夹着可插拔的回调。先看全景：
 
-![Bean 生命周期全流程](/spring/spring-bean-lifecycle.svg)
+![Bean 生命周期全流程](/spring/01-core-chapter-03-spring-bean-lifecycle.svg)
 
 以下按常规 Bean 创建流程概括：
 

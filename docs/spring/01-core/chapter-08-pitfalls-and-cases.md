@@ -8,7 +8,7 @@
 
 ### 1.1 现象
 
-![Configuration vs Component](/spring/pitfall-config-vs-component.svg)
+![Configuration vs Component](/spring/01-core-chapter-08-pitfall-config-vs-component.svg)
 
 ```java
 @Component  // ← 用了 @Component 而不是 @Configuration
@@ -153,7 +153,7 @@ Spring 的扫描顺序受 `@ComponentScan` 的 `basePackages`、类的包路径�
 
 ### 4.1 现象
 
-![prototype @PreDestroy](/spring/pitfall-prototype-scope.svg)
+![prototype @PreDestroy](/spring/01-core-chapter-08-pitfall-prototype-scope.svg)
 
 ```java
 @Component

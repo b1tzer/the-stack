@@ -85,7 +85,7 @@ $$
 
 单点故障（Single Point of Failure, SPOF）可能存在于系统的任何层次：
 
-![ha-degradation](/java/ha-degradation.svg)
+![ha-degradation](/engineering/05-system-design-chapter-03-ha-degradation.svg)
 
 ### 2.2 逐层消除单点
 
@@ -245,7 +245,7 @@ public class OrderService {
 
 故障隔离（Bulkhead Pattern，舱壁模式）的灵感来自轮船的水密隔舱——一个舱进水不会导致整船沉没。
 
-![ha-degradation](/java/ha-degradation.svg)
+![ha-degradation](/engineering/05-system-design-chapter-03-ha-degradation.svg)
 
 ### 4.2 服务级隔离
 

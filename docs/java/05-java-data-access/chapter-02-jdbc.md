@@ -50,7 +50,7 @@ ResultSet rs = ps.executeQuery();
 
 在后续章节中我们会学习 MyBatis、Hibernate/JPA 等 ORM 框架。但请记住一个关键事实：**在传统的 Java 关系数据库访问中，MyBatis、Hibernate/JPA 等常见 ORM 框架通常通过 JDBC 与数据库通信；但 JDBC 并非唯一的 Java 数据访问方式（例如响应式访问可用 R2DBC），不能把"Java 数据访问"等同于 JDBC。**
 
-![jdbc-architecture](/java/jdbc-architecture.svg)
+![jdbc-architecture](/java/05-java-data-access-chapter-02-jdbc-architecture.svg)
 
 理解 JDBC，就是理解 Java 数据访问的"基岩层"。它不是最优雅的 API，但它是所有上层建筑的地基。
 

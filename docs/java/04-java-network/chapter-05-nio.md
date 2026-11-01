@@ -48,7 +48,7 @@ Tomcat 的 Acceptor 和 Poller 可以使用 Selector 管理就绪事件，但业
        └───────┴───────┘
 ```
 
-![bio-thread-timeline](/java/bio-thread-timeline.svg)
+![bio-thread-timeline](/java/04-java-network-chapter-05-bio-thread-timeline.svg)
 
 每个 Java 线程通常需要独立的栈空间（默认约 1MB，取决于 JVM 参数和平台，虚拟线程则不同）。以 10000 个平台线程粗略估算，栈内存约 10GB。花 10GB 内存雇一万个「等待工」，大部分时间在工位上睡觉。
 
@@ -83,7 +83,7 @@ NIO:  线程 → 注册关心 READ 事件 → 做其他事 → Selector 通知�
 
 NIO 依赖三个核心组件——Channel、Buffer、Selector。
 
-![nio-components](/java/nio-components.svg)
+![nio-components](/java/04-java-network-chapter-05-nio-components.svg)
 
 这三个组件共同工作：Channel 表示 I/O 连接，Buffer 是读写数据的容器，Selector 让一个线程同时检查多个 Channel 的就绪事件。下面按这三个组件说明阻塞等待与事件通知的差异。
 
@@ -284,7 +284,7 @@ java.lang.OutOfMemoryError: Direct buffer memory
 
 每个 Buffer 维护三个状态属性：
 
-![buffer-ops](/java/buffer-ops.svg)
+![buffer-ops](/java/04-java-network-chapter-05-buffer-ops.svg)
 
 | 属性 | 含义 | 取值范围 |
 | :--- | :--- | :--- |
@@ -432,7 +432,7 @@ public class NioEchoServer {
 
 这正是 Tomcat NioEndpoint 的三线程设计要解决的问题：
 
-![reactor-master-slave](/java/reactor-master-slave.svg)
+![reactor-master-slave](/java/04-java-network-chapter-05-reactor-master-slave.svg)
 
 | 角色 | 对应 Tomcat | 职责 | 线程数 |
 | :--- | :--- | :--- | :--- |

@@ -84,7 +84,7 @@ ORDER BY level, id;
 
 **执行过程**：
 
-![递归 CTE 执行过程](/pg/cte-recursive.svg)
+![递归 CTE 执行过程](/pg/03-sql-power-chapter-02-cte-recursive.svg)
 
 ## 5. 实战：查询分类层级
 

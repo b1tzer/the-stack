@@ -55,13 +55,13 @@ public class UserServlet extends HttpServlet {
 
 Spring MVC 的核心设计思想是**前端控制器（Front Controller）模式**——所有请求统一由一个 Servlet 处理，再分发给具体的处理器：
 
-![spring-front-controller](/spring/spring-front-controller.svg)
+![spring-front-controller](/spring/03-web-chapter-01-spring-front-controller.svg)
 
 ### 1.3 组织层次：Tomcat 是容器，Spring MVC 挂在 DispatcherServlet 里
 
 前面把 Servlet 规范和前端控制器分开讲，容易让人误以为 Tomcat 和 Spring MVC 是两个平级的框架。实际上它们是**包含关系**，而且 Tomcat 对 Spring 一无所知。
 
-![spring-mvc-architecture](/spring/spring-mvc-architecture.svg)
+![spring-mvc-architecture](/spring/03-web-chapter-01-spring-mvc-architecture.svg)
 
 分三层看：
 
@@ -148,7 +148,7 @@ protected void doDispatch(HttpServletRequest request, HttpServletResponse respon
 
 ### 2.2 流程图解
 
-![spring-mvc-flow](/spring/spring-mvc-flow.svg)
+![spring-mvc-flow](/spring/03-web-chapter-01-spring-mvc-flow.svg)
 
 ### 2.3 HandlerMapping 的职责
 

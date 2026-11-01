@@ -357,7 +357,7 @@ public class UserService {
 
 ### 4.3 多线程事务失效
 
-![多线程事务失效](/spring/pitfall-thread-transaction.svg)
+![多线程事务失效](/spring/04-data-access-chapter-04-pitfall-thread-transaction.svg)
 
 ```java
 @Service

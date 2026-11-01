@@ -6,7 +6,7 @@
 
 传统 Spring MVC 把 WAR 丢进外部 Tomcat；Spring Boot 反过来，把 Tomcat 当依赖打进 JAR，`java -jar` 启动时应用自己把它拉起来。
 
-![Spring Boot 内嵌容器启动时序](/spring/embedded-server-startup.svg)
+![Spring Boot 内嵌容器启动时序](/spring/02-spring-boot-chapter-04-embedded-server-startup.svg)
 
 四个阶段——入口、容器刷新、建容器、开始监听——是主干；右侧两个虚线块是可干预点，对应「工厂从哪来」和「用户怎么插手」。
 

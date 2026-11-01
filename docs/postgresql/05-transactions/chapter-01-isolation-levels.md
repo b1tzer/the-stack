@@ -42,7 +42,7 @@ SHOW transaction_isolation;
 
 PG 的 Serializable 隔离级别使用 SSI 算法，而非简单的加锁：
 
-![SSI 冲突检测](/pg/ssi-conflict.svg)
+![SSI 冲突检测](/pg/05-transactions-chapter-01-ssi-conflict.svg)
 
 - **乐观并发控制**：不提前加锁，而是在提交时检测冲突
 - **性能优势**：大多数事务不冲突时，性能接近 Read Committed

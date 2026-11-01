@@ -128,7 +128,7 @@ Spring 推荐 STOMP 的原因：与 Spring 消息生态（`@MessageMapping`、`S
 
 ### 3.3 Spring WebSocket 架构
 
-![Spring WebSocket 分层架构](/spring/spring-websocket-arch.svg)
+![Spring WebSocket 分层架构](/spring/03-web-chapter-07-spring-websocket-arch.svg)
 
 ## 4. 消息处理
 

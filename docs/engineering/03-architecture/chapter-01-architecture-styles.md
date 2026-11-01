@@ -13,7 +13,7 @@
 
 ## 2. 架构演进全景
 
-![软件架构演进路径](/java/architecture-evolution.svg)
+![软件架构演进路径](/engineering/03-architecture-chapter-01-architecture-evolution.svg)
 
 ## 3. 各阶段架构详解
 
@@ -74,7 +74,7 @@
 
 将公共能力抽取为独立服务，通过 ESB（企业服务总线）统一通信。
 
-![SOA：以 ESB 为中心的服务集成](/java/soa-esb-architecture.svg)
+![SOA：以 ESB 为中心的服务集成](/engineering/03-architecture-chapter-01-soa-esb-architecture.svg)
 
 | 优势 | 劣势 |
 | :-- | :-- |
@@ -90,7 +90,7 @@
 
 每个服务围绕一个业务能力构建，独立开发、部署、扩展，服务间通过轻量级协议（HTTP/gRPC）通信。
 
-![微服务架构全景](/java/microservice-infrastructure.svg)
+![微服务架构全景](/engineering/03-architecture-chapter-01-microservice-infrastructure.svg)
 
 | 优势 | 劣势 |
 | :-- | :-- |
@@ -109,7 +109,7 @@
 
 > **维度说明**：云原生技术主要解决应用的部署、编排、弹性与运行治理问题，并不要求采用特定的应用架构。单体、SOA、微服务都可以运行在容器化平台上，Serverless 则提供另一种运行与资源管理模型，是否采用取决于工作负载特征与平台约束。本节与前面各节并非单向演进关系，而是不同维度的技术选型。
 
-![云原生技术栈演进](/java/cloud-native-stack.svg)
+![云原生技术栈演进](/engineering/03-architecture-chapter-01-cloud-native-stack.svg)
 
 | 特性 | 说明 |
 | :-- | :-- |
@@ -122,7 +122,7 @@
 
 ### 4.1 选型决策树
 
-![架构选型决策树](/java/architecture-decision-tree.svg)
+![架构选型决策树](/engineering/03-architecture-chapter-01-architecture-decision-tree.svg)
 
 ### 4.2 关键决策因素
 
@@ -151,7 +151,7 @@ Controller（表现层）→ Service（业务层）→ DAO（数据层）
 
 ### 5.2 六边形架构（端口与适配器）
 
-![六边形架构（端口与适配器）](/java/hexagonal-ports-adapters.svg)
+![六边形架构（端口与适配器）](/engineering/03-architecture-chapter-01-hexagonal-ports-adapters.svg)
 
 **核心思想**：业务逻辑在中心，通过端口（接口）与外部交互，适配器负责技术细节。更换数据库、消息队列等只需替换适配器，不影响核心业务。
 

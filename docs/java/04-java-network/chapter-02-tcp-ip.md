@@ -56,7 +56,7 @@ HTTP 定义请求与响应消息及消息体的完整性语义，但 HTTP/1.1 �
 
 TCP 连接的建立需要三次数据交互，这就是著名的"三次握手"：
 
-![tcp-handshake](/java/tcp-handshake.svg)
+![tcp-handshake](/java/04-java-network-chapter-02-tcp-handshake.svg)
 
 > **这跟你的代码有什么关系？** 每次建一个新的 TCP 连接，在你的第一个字节数据发出去之前，客户端和服务器已经来回飞了三趟（SYN→SYN-ACK→ACK）。如果 RTT 是 40ms，这 40ms 是纯等待——你的代码还没开始跑。这就是连接池（HTTP Keep-Alive、数据库连接池、Dubbo 长连接）存在的根本原因：复用已有连接，省掉这个 1-RTT 的握手代价。TLS 握手还要再花 1-RTT——所以首次访问 HTTPS 总比 HTTP 慢一拍，不是网络问题，是协议设计决定的。
 
@@ -135,7 +135,7 @@ sysctl net.ipv4.tcp_tw_reuse net.ipv4.tcp_fin_timeout
 
 TCP 连接的生命周期可以用一个状态机来描述：
 
-![tcp-segment](/java/tcp-segment.svg)
+![tcp-segment](/java/04-java-network-chapter-02-tcp-segment.svg)
 
 **对 Java 开发者的意义：** 当你在代码中调用 `socket.close()` 时，操作系统并不一定立即关闭连接——它可能进入 FIN_WAIT_1、FIN_WAIT_2、TIME_WAIT 等状态。理解这些状态，能帮你解释为什么 `close()` 后端口还被占用、为什么连接池中的连接"看起来还活着"。
 
@@ -200,7 +200,7 @@ RTO    = SRTT + max(G, 4 × RTTVAR)
 
 如果每发一个包就等一个 ACK，效率太低（尤其是高延迟网络）。滑动窗口允许发送方在等待 ACK 的同时继续发送后续数据：
 
-![tcp-window](/java/tcp-window.svg)
+![tcp-window](/java/04-java-network-chapter-02-tcp-window.svg)
 
 **窗口大小由接收方通告（Window Advertisement）：** 接收方在 ACK 中告诉发送方"我的接收缓冲区还有多少空间"，发送方据此控制发送速率。这就是**流量控制（Flow Control）**。
 
@@ -218,7 +218,7 @@ RTO    = SRTT + max(G, 4 × RTTVAR)
 
 TCP 的拥塞控制包含四个阶段：
 
-![tcp-congestion](/java/tcp-congestion.svg)
+![tcp-congestion](/java/04-java-network-chapter-02-tcp-congestion.svg)
 
 | 阶段 | 主要作用 | 说明 |
 | :-- | :-- | :-- |
@@ -235,7 +235,7 @@ TCP 的拥塞控制包含四个阶段：
 
 TCP 向应用交付的是连续字节流，不保留发送方每次 `write()` 的消息边界。发送端的一次写入可能被接收端分多次读取，多次写入也可能在接收端的一次读取中一起出现。
 
-![tcp-sticky-packet](/java/tcp-sticky-packet.svg)
+![tcp-sticky-packet](/java/04-java-network-chapter-02-tcp-sticky-packet.svg)
 
 **为什么 UDP 没有这个问题？** 因为 UDP 是数据报协议，接收端可以区分各个数据报的边界，不会像 TCP 那样把多个数据报拼接成连续字节流。但 UDP 不保证每个数据报都到达：数据报可能丢失、重复或乱序，接收缓冲区不足时也可能丢弃已到达的数据报。所以 UDP 不需要处理粘包，却仍要考虑丢包、乱序、重复和消息长度限制。
 

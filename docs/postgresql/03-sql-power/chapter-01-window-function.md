@@ -47,7 +47,7 @@ FROM employees;
 | `RANK()` | 跳跃排名（有并列） | 1, 2, 2, 4 | 相同值同排名，下一名跳过 |
 | `DENSE_RANK()` | 密集排名（有并列） | 1, 2, 2, 3 | 相同值同排名，下一名不跳过 |
 
-![排名函数对比](/pg/rank-compare.svg)
+![排名函数对比](/pg/03-sql-power-chapter-01-rank-compare.svg)
 
 **选择原则**：
 

@@ -240,7 +240,7 @@ PG 的扩展机制让它不只是一个数据库：
 
 本站聚焦 **v14 / v15 / v16** 版本，覆盖 JSONB、窗口函数、CTE、MVCC/VACUUM 等核心特性。
 
-![PostgreSQL 关键版本](/pg/timeline.svg)
+![PostgreSQL 关键版本](/pg/01-pg-unique-chapter-01-timeline.svg)
 
 ### 发布节奏
 
