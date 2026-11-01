@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="800" viewBox="0 0 800 460" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif">
+<svg height="460" xmlns="http://www.w3.org/2000/svg" width="800" viewBox="0 0 800 460" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif">
   <defs>
-    <marker id="arRef" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#e65100"/></marker>
-    <marker id="arBarrier" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#7b1fa2"/></marker>
-    <marker id="arGc" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#2e7d32"/></marker>
+    <marker id="arRef" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#e65100"/></marker>
+    <marker id="arBarrier" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#7b1fa2"/></marker>
+    <marker id="arGc" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#2e7d32"/></marker>
   </defs>
 
   <text x="400" y="30" text-anchor="middle" font-size="16" font-weight="bold" fill="#333333">卡表：用 1 字节标记 512 字节的堆块</text>
@@ -46,7 +46,7 @@
   <text x="305.5" y="185" text-anchor="middle" fill="#bf360c" font-size="11" font-weight="bold">对象 O</text>
 
   <!-- 跨代引用箭头 O → Y -->
-  <line x1="286" y1="174" x2="124" y2="140" stroke="#e65100" stroke-width="1.6" marker-end="url(#arRef)"/>
+  <line x1="286" y1="174" x2="141.74" y2="143.73" stroke="#e65100" stroke-width="1.6" marker-end="url(#arRef)"/>
   <text x="190" y="192" text-anchor="middle" fill="#bf360c" font-size="12">O 引用 Y（跨代引用）</text>
 
   <!-- GC 线程区（堆外，独立） -->
@@ -83,11 +83,11 @@
   </g>
 
   <!-- 写屏障箭头：O 的赋值 → 卡表第3字节 -->
-  <line x1="305.5" y1="198" x2="305.5" y2="352" stroke="#7b1fa2" stroke-width="1.4" stroke-dasharray="5,3" marker-end="url(#arBarrier)"/>
+  <line x1="305.5" y1="198" x2="305.50" y2="343" stroke="#7b1fa2" stroke-width="1.4" stroke-dasharray="5,3" marker-end="url(#arBarrier)"/>
   <text x="318" y="278" fill="#7b1fa2" font-size="12">写屏障把对应卡页置 dirty</text>
 
   <!-- GC 线程扫 dirty 卡页箭头 -->
-  <line x1="650" y1="138" x2="333" y2="352" stroke="#2e7d32" stroke-width="1.4" marker-end="url(#arGc)"/>
+  <line x1="650" y1="138" x2="340.46" y2="346.96" stroke="#2e7d32" stroke-width="1.4" marker-end="url(#arGc)"/>
   <text x="460" y="300" text-anchor="middle" fill="#1b5e20" font-size="12">只扫 dirty 卡页</text>
 
   <!-- 卡页层级说明 -->

@@ -30,18 +30,10 @@
   </style>
 
   <defs>
-    <marker id="arrow-main" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 9 3.5, 0 7" fill="#6a1b9a"/>
-    </marker>
-    <marker id="arrow-pass" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 9 3.5, 0 7" fill="#00796b"/>
-    </marker>
-    <marker id="arrow-skip" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 9 3.5, 0 7" fill="#ad1457"/>
-    </marker>
-    <marker id="arrow-user" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 9 3.5, 0 7" fill="#ef6c00"/>
-    </marker>
+    <marker id="arrow-main" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#6a1b9a"/></marker>
+    <marker id="arrow-pass" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#00796b"/></marker>
+    <marker id="arrow-skip" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#ad1457"/></marker>
+    <marker id="arrow-user" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#ef6c00"/></marker>
   </defs>
 
   <text x="490" y="26" class="title">Spring Boot 自动配置的核心流程</text>

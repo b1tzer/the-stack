@@ -50,3 +50,4 @@ tools/
 research-cache/downloads/
 research-cache/extracted/
 .playwright-mcp/
+.cache/

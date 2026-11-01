@@ -13,9 +13,7 @@
   .important { fill: #ffcdd2; stroke: #e65100; stroke-width: 1.5; }
 </style>
 <defs>
-  <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-    <polygon points="0 0, 10 3.5, 0 7" fill="#7b1fa2"/>
-  </marker>
+  <marker id="arrowhead" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#7b1fa2"/></marker>
 </defs>
 
 <text x="340" y="24" class="title">Spring 容器启动 → MyBatis Mapper 注册</text>

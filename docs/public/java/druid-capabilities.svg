@@ -1,8 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 340" font-family="PingFang SC, Microsoft YaHei, sans-serif">
+<svg width="780" height="340" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 340" font-family="PingFang SC, Microsoft YaHei, sans-serif">
   <defs>
-    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-      <path d="M0,0 L8,4 L0,8 z" fill="#5f6368"/>
-    </marker>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#5f6368"/></marker>
   </defs>
 
   <!-- 应用 -->
@@ -30,8 +28,8 @@
   <text x="685" y="170" text-anchor="middle" font-size="15" fill="#1a1a1a">数据库</text>
 
   <!-- 箭头 -->
-  <line x1="130" y1="165" x2="176" y2="165" stroke="#5f6368" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <line x1="560" y1="165" x2="626" y2="165" stroke="#5f6368" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="130" y1="165" x2="167" y2="165" stroke="#5f6368" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="560" y1="165" x2="617" y2="165" stroke="#5f6368" stroke-width="1.5" marker-end="url(#arrow)"/>
 
   <!-- 监控台 -->
   <rect x="180" y="288" width="380" height="44" rx="6" fill="#fce8e6" stroke="#ea4335" stroke-width="1.5"/>

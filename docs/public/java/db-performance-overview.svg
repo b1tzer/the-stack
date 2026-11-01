@@ -1,8 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="570" height="653" viewBox="0 0 430 493" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif">
   <defs>
-    <marker id="ar" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M0,0 L10,4 L0,8 Z" fill="#1565c0"/>
-    </marker>
+    <marker id="ar" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#1565c0"/></marker>
     <linearGradient id="lg" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" style="stop-color: #1565c0"/>
       <stop offset="100%" style="stop-color: #1565c0"/>

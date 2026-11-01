@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 476 374" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+<svg width="476" height="374" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 476 374" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
   <defs>
-    <marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#555555"/></marker>
+    <marker id="ar" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#555555"/></marker>
   </defs>
   <text x="238" y="24" text-anchor="middle" font-size="11" font-weight="bold" fill="#333333">MyBatis 一级/二级缓存协作流程</text>
 
@@ -43,7 +43,7 @@
   <text x="344" y="190" text-anchor="middle" fill="#999999" font-size="10">直接返回，不查数据库</text>
 
   <!-- Flow arrow from A commit to B cache hit -->
-  <path d="M238,292 Q280,292 280,182 Q280,182 304,182" fill="none" stroke="#7b1fa2" stroke-width="1.3" stroke-dasharray="6,3" marker-end="url(#ar)"/>
+  <path d="M238,292 Q280,292 280,182 Q280,182 295,182" fill="none" stroke="#7b1fa2" stroke-width="1.3" stroke-dasharray="6,3" marker-end="url(#ar)"/>
 
   <!-- Footer -->
   <text x="238" y="306" text-anchor="middle" fill="#888888" font-size="10">一级缓存：SqlSession 级别，默认开启</text>

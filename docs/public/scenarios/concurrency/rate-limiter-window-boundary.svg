@@ -20,12 +20,10 @@
   <!-- 边界突刺标记 -->
   <rect x="340" y="84" width="80" height="40" fill="none" stroke="#DC382D" stroke-width="2" stroke-dasharray="4 3"/>
   <text x="380" y="162" text-anchor="middle" font-size="12" fill="#DC382D" font-weight="600">边界突刺：瞬间 2×limit</text>
-  <line x1="380" y1="124" x2="380" y2="150" stroke="#DC382D" stroke-width="1" marker-end="url(#redarrow)"/>
+  <line x1="380" y1="124" x2="380" y2="148" stroke="#DC382D" stroke-width="1" marker-end="url(#redarrow)"/>
 
   <defs>
-    <marker id="redarrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#DC382D"/>
-    </marker>
+    <marker id="redarrow" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#DC382D"/></marker>
   </defs>
 
   <!-- ============ 滑动窗口 ============ -->

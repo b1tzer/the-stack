@@ -1,14 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 330" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="10">
+<svg width="760" height="330" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 330" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="10">
 <defs>
-  <marker id="arGray" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-    <path d="M0,0 L8,4 L0,8 Z" fill="#666666"/>
-  </marker>
-  <marker id="arOrange" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-    <path d="M0,0 L8,4 L0,8 Z" fill="#e65100"/>
-  </marker>
-  <marker id="arGreen" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-    <path d="M0,0 L8,4 L0,8 Z" fill="#2e7d32"/>
-  </marker>
+  <marker id="arGray" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#666666"/></marker>
+  <marker id="arOrange" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#e65100"/></marker>
+  <marker id="arGreen" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#2e7d32"/></marker>
 </defs>
 
 <text x="380" y="26" text-anchor="middle" font-size="14" font-weight="bold" fill="#333333">电商下单的 BASE 实践：基本可用 → 软状态 → 最终一致</text>
@@ -20,11 +14,11 @@
 
   <rect x="20" y="34" width="180" height="40" rx="5" fill="#eceff1" stroke="#546e7a" stroke-width="1.2"/>
   <text x="110" y="59" text-anchor="middle" font-size="11" font-weight="bold" fill="#37474f">用户下单</text>
-  <line x1="110" y1="74" x2="110" y2="90" stroke="#666666" stroke-width="1.2" marker-end="url(#arGray)"/>
+  <line x1="110" y1="74" x2="110" y2="81" stroke="#666666" stroke-width="1.2" marker-end="url(#arGray)"/>
 
   <rect x="20" y="90" width="180" height="40" rx="5" fill="#eceff1" stroke="#546e7a" stroke-width="1.2"/>
   <text x="110" y="115" text-anchor="middle" font-size="11" fill="#37474f">创建订单（本地事务）</text>
-  <line x1="110" y1="130" x2="110" y2="146" stroke="#666666" stroke-width="1.2" marker-end="url(#arGray)"/>
+  <line x1="110" y1="130" x2="110" y2="137" stroke="#666666" stroke-width="1.2" marker-end="url(#arGray)"/>
 
   <rect x="20" y="146" width="180" height="52" rx="8" fill="#fff8e1" stroke="#f9a825" stroke-width="1.2"/>
   <text x="110" y="168" text-anchor="middle" font-size="10" font-weight="bold" fill="#795548">库存服务是否可用？</text>
@@ -50,7 +44,7 @@
 
   <rect x="20" y="40" width="180" height="44" rx="5" fill="#eceff1" stroke="#546e7a" stroke-width="1.2"/>
   <text x="110" y="67" text-anchor="middle" font-size="11" fill="#37474f">MQ 消费者扣减库存</text>
-  <line x1="110" y1="84" x2="110" y2="104" stroke="#666666" stroke-width="1.2" marker-end="url(#arGray)"/>
+  <line x1="110" y1="84" x2="110" y2="95" stroke="#666666" stroke-width="1.2" marker-end="url(#arGray)"/>
 
   <rect x="20" y="104" width="180" height="90" rx="5" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
   <text x="110" y="134" text-anchor="middle" font-size="11" font-weight="bold" fill="#1b5e20">订单已支付</text>
@@ -59,11 +53,11 @@
 </g>
 
 <!-- 段1 → 段2：降级 -->
-<path d="M200,172 L240,172 L240,115 L268,115" fill="none" stroke="#e65100" stroke-width="1.3" marker-end="url(#arOrange)"/>
+<path d="M200,172 L240,172 L240,115 L259,115" fill="none" stroke="#e65100" stroke-width="1.3" marker-end="url(#arOrange)"/>
 <text x="234" y="162" text-anchor="middle" font-size="9" font-weight="bold" fill="#e65100">不可用</text>
 <text x="250" y="100" text-anchor="middle" font-size="9" fill="#e65100">发 MQ 降级</text>
 
 <!-- 段2 → 段3：异步消费 -->
-<path d="M470,115 L490,115 L500,115 L518,66" fill="none" stroke="#2e7d32" stroke-width="1.3" marker-end="url(#arGreen)"/>
+<path d="M470,115 L490,115 L500,115 L514.90,74.45" fill="none" stroke="#2e7d32" stroke-width="1.3" marker-end="url(#arGreen)"/>
 <text x="494" y="100" text-anchor="middle" font-size="9" fill="#2e7d32">异步消费</text>
 </svg>

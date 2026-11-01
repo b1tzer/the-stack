@@ -14,9 +14,7 @@
     .footnote { font-size: 10px; fill: #8b949e; }
   </style>
   <defs>
-    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 9 3.5, 0 7" class="marker-arrow"/>
-    </marker>
+    <marker id="arrowhead" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#64748b"/></marker>
   </defs>
 
   <text x="380" y="24" class="title" text-anchor="middle">Spring Bean 生命周期主流程</text>

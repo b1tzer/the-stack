@@ -1,8 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 240" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="10">
+<svg width="660" height="240" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 240" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="10">
 <defs>
-  <marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-    <path d="M0,0 L8,4 L0,8 Z" fill="#666666"/>
-  </marker>
+  <marker id="ar" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#666666"/></marker>
 </defs>
 
 <text x="330" y="24" text-anchor="middle" font-size="14" font-weight="bold" fill="#333333">CAP 理论：一致性、可用性、分区容错性</text>

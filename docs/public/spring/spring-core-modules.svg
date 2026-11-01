@@ -8,9 +8,7 @@
 	.arrow { stroke: #64748b; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
   </style>
   <defs>
-	<marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-	  <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
-	</marker>
+	<marker id="arrowhead" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#64748b"/></marker>
   </defs>
 
   <text x="450" y="24" class="title">Spring 核心模块依赖关系</text>

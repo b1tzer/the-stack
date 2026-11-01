@@ -1,8 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="300" height="400" viewBox="0 0 300 400" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif">
   <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#57606a"/>
-    </marker>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#57606a"/></marker>
   </defs>
   <rect width="300" height="400" fill="#ffffff"/>
 
@@ -18,7 +16,7 @@
   <rect x="35" y="305" width="230" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
   <text x="150" y="327" text-anchor="middle" font-size="13" fill="#24292f">执行故障转移</text>
 
-  <line x1="150" y1="64" x2="150" y2="107" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <line x1="150" y1="159" x2="150" y2="202" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <line x1="150" y1="254" x2="150" y2="297" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="150" y1="64" x2="150" y2="105" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="150" y1="159" x2="150" y2="200" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="150" y1="254" x2="150" y2="295" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
 </svg>

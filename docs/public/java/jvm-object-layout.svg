@@ -1,8 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="442" viewBox="0 0 442 442" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+<svg height="442" xmlns="http://www.w3.org/2000/svg" width="442" viewBox="0 0 442 442" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
   <defs>
-    <marker id="arrowDown" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-      <path d="M0,0 L8,4 L0,8 Z" fill="#555555"/>
-    </marker>
+    <marker id="arrowDown" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#555555"/></marker>
   </defs>
 
   <!-- Title -->

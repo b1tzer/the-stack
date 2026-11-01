@@ -1,8 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="560" viewBox="0 0 560 400" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif" font-size="11">
+<svg height="400" xmlns="http://www.w3.org/2000/svg" width="560" viewBox="0 0 560 400" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif" font-size="11">
   <defs>
-    <marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-      <path d="M0,0 L8,4 L0,8 Z" fill="#57606a"/>
-    </marker>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#57606a"/></marker>
   </defs>
 
   <text x="280" y="26" text-anchor="middle" font-size="13" font-weight="bold" fill="#24292f">GC 可达性 ≠ 业务使用状态</text>
@@ -37,8 +35,8 @@
   <text x="456" y="266" text-anchor="middle" font-size="9" fill="#57606a">可回收</text>
 
   <!-- 引用关系 -->
-  <path d="M170,114 C170,150 104,150 104,194" fill="none" stroke="#57606a" stroke-width="1.4" marker-end="url(#arrow)"/>
-  <path d="M390,114 C390,150 280,150 280,194" fill="none" stroke="#57606a" stroke-width="1.4" marker-end="url(#arrow)"/>
+  <path d="M170,114 C170,150 104,150 104,188" fill="none" stroke="#57606a" stroke-width="1.4" marker-end="url(#arrow)"/>
+  <path d="M390,114 C390,150 280,150 280,188" fill="none" stroke="#57606a" stroke-width="1.4" marker-end="url(#arrow)"/>
 
   <!-- 底部结论 -->
   <line x1="16" y1="316" x2="544" y2="316" stroke="#C0C8D0" stroke-width="1"/>

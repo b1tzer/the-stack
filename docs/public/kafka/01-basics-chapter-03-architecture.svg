@@ -14,9 +14,7 @@
     .arrow-label { font-size: 11px; fill: #64748b; text-anchor: middle; }
   </style>
   <defs>
-    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
-    </marker>
+    <marker id="arrowhead" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#64748b"/></marker>
   </defs>
 
   <text x="500" y="34" class="title">Kafka 整体架构</text>

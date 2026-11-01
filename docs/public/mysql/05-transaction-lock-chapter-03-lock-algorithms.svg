@@ -1,17 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 864" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="13">
+<svg width="1120" height="864" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 864" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="13">
   <defs>
-    <marker id="arrRedL" markerWidth="10" markerHeight="10" refX="0" refY="3" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M7,0 L0,3 L7,6 Z" fill="#c62828"/>
-    </marker>
-    <marker id="arrRedR" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M0,0 L7,3 L0,6 Z" fill="#c62828"/>
-    </marker>
-    <marker id="arrGreen" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M0,0 L7,3 L0,6 Z" fill="#2e7d32"/>
-    </marker>
-    <marker id="arrGray" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M0,0 L7,3 L0,6 Z" fill="#9e9e9e"/>
-    </marker>
+    <marker id="arrRedL" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#c62828"/></marker>
+    <marker id="arrRedR" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#c62828"/></marker>
+    <marker id="arrGreen" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#2e7d32"/></marker>
+    <marker id="arrGray" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#9e9e9e"/></marker>
   </defs>
 
   <text x="560" y="30" text-anchor="middle" font-size="20" font-weight="bold" fill="#333333">MySQL 锁全景：MDL 与 InnoDB 锁的关联，及行锁判断路线</text>
@@ -29,11 +21,11 @@
   <text x="835" y="126" text-anchor="middle" font-size="14" font-weight="bold" fill="#b71c1c">MDL 写锁（排他）</text>
   <text x="835" y="145" text-anchor="middle" font-size="13" fill="#555555">DDL（ALTER 等）加</text>
 
-  <line x1="504" y1="129" x2="616" y2="129" stroke="#c62828" stroke-width="1.8" marker-start="url(#arrRedL)" marker-end="url(#arrRedR)"/>
+  <line x1="504" y1="129" x2="606" y2="129" stroke="#c62828" stroke-width="1.8" marker-start="url(#arrRedL)" marker-end="url(#arrRedR)"/>
   <text x="560" y="119" text-anchor="middle" font-size="13" font-weight="bold" fill="#c62828">互斥</text>
 
   <!-- ================= 关联桥 ================= -->
-  <line x1="285" y1="154" x2="285" y2="256" stroke="#2e7d32" stroke-width="1.8" marker-end="url(#arrGreen)"/>
+  <line x1="285" y1="154" x2="285" y2="246" stroke="#2e7d32" stroke-width="1.8" marker-end="url(#arrGreen)"/>
   <text x="600" y="186" text-anchor="middle" font-size="14" font-weight="bold" fill="#2e7d32">同一条 DML：Server 层 MDL 读锁 ＋ InnoDB 层意向锁 IX ＋ 行锁</text>
   <text x="600" y="208" text-anchor="middle" font-size="13" fill="#555555">两类锁都在事务提交 / 回滚时一起释放 → 长事务不提交，DDL 的 MDL 写锁被卡</text>
 
@@ -90,27 +82,27 @@
   <!-- 决策树连线 -->
   <line x1="560" y1="364" x2="560" y2="382" stroke="#9e9e9e" stroke-width="1.6"/>
   <line x1="560" y1="382" x2="960" y2="382" stroke="#9e9e9e" stroke-width="1.6"/>
-  <line x1="560" y1="382" x2="560" y2="400" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
-  <line x1="960" y1="382" x2="960" y2="400" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <line x1="560" y1="382" x2="560" y2="390" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <line x1="960" y1="382" x2="960" y2="390" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
 
   <line x1="560" y1="442" x2="560" y2="457" stroke="#9e9e9e" stroke-width="1.6"/>
   <line x1="410" y1="457" x2="760" y2="457" stroke="#9e9e9e" stroke-width="1.6"/>
-  <line x1="410" y1="457" x2="410" y2="472" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
-  <line x1="760" y1="457" x2="760" y2="472" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <line x1="410" y1="457" x2="410" y2="462" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <line x1="760" y1="457" x2="760" y2="462" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
 
   <line x1="410" y1="514" x2="410" y2="529" stroke="#9e9e9e" stroke-width="1.6"/>
   <line x1="260" y1="529" x2="560" y2="529" stroke="#9e9e9e" stroke-width="1.6"/>
-  <line x1="260" y1="529" x2="260" y2="544" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
-  <line x1="560" y1="529" x2="560" y2="544" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <line x1="260" y1="529" x2="260" y2="534" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <line x1="560" y1="529" x2="560" y2="534" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
 
   <line x1="260" y1="586" x2="260" y2="600" stroke="#9e9e9e" stroke-width="1.6"/>
   <line x1="160" y1="600" x2="360" y2="600" stroke="#9e9e9e" stroke-width="1.6"/>
-  <line x1="160" y1="600" x2="160" y2="614" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
-  <line x1="360" y1="600" x2="360" y2="614" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <line x1="160" y1="600" x2="160" y2="604" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <line x1="360" y1="600" x2="360" y2="604" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
 
-  <line x1="560" y1="586" x2="560" y2="614" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
-  <line x1="760" y1="514" x2="760" y2="614" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
-  <line x1="960" y1="442" x2="960" y2="614" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <line x1="560" y1="586" x2="560" y2="604" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <line x1="760" y1="514" x2="760" y2="604" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
+  <line x1="960" y1="442" x2="960" y2="604" stroke="#9e9e9e" stroke-width="1.6" marker-end="url(#arrGray)"/>
 
   <!-- 三种行锁的空间含义：灰色长条 = 一行数据，彩色横条 = 锁住的范围；三行是三个独立查询，锚点各不相同 -->
   <text x="90" y="694" font-size="14" font-weight="bold" fill="#bf360c">Record Lock</text>

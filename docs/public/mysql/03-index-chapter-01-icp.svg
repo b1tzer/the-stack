@@ -1,14 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 360" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+<svg width="940" height="360" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 360" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
   <defs>
-    <marker id="arrGray" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M0,0 L10,4 L0,8 Z" fill="#757575"/>
-    </marker>
-    <marker id="arrGreen" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M0,0 L10,4 L0,8 Z" fill="#2e7d32"/>
-    </marker>
-    <marker id="arrRed" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M0,0 L10,4 L0,8 Z" fill="#c62828"/>
-    </marker>
+    <marker id="arrGray" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#757575"/></marker>
+    <marker id="arrGreen" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#2e7d32"/></marker>
+    <marker id="arrRed" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#c62828"/></marker>
   </defs>
 
   <text x="470" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">ICP 索引下推：过滤发生在回表之前还是之后</text>

@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 476 238" font-family="'Noto Sans SC','PingFang SC','Myanmar',sans-serif" font-size="11">
+<svg width="476" height="238" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 476 238" font-family="'Noto Sans SC','PingFang SC','Myanmar',sans-serif" font-size="11">
   <defs>
-    <marker id="ar3" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#e65100"/></marker>
+    <marker id="ar3" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#e65100"/></marker>
   </defs>
   <text x="238" y="24" text-anchor="middle" font-size="11" font-weight="bold" fill="#333333">XML 解析 → 运行时动态 SQL</text>
 
@@ -16,7 +16,7 @@
   <text x="61" y="168" fill="#666666" font-size="10">&lt;/where&gt;</text>
 
   <!-- Arrow -->
-  <line x1="196" y1="119" x2="253" y2="119" stroke="#e65100" stroke-width="1.7" marker-end="url(#ar3)"/>
+  <line x1="196" y1="119" x2="244" y2="119" stroke="#e65100" stroke-width="1.7" marker-end="url(#ar3)"/>
   <text x="224" y="110" text-anchor="middle" fill="#e65100" font-size="9">解析为</text>
 
   <!-- Runtime side -->

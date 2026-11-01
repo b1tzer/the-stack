@@ -1,8 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 430" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+<svg width="940" height="430" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 430" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
   <defs>
-    <marker id="arrOrange" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M0,0 L10,4 L0,8 Z" fill="#e65100"/>
-    </marker>
+    <marker id="arrOrange" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#e65100"/></marker>
   </defs>
 
   <text x="470" y="28" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">dump/load 预热：把热点记忆带过重启</text>

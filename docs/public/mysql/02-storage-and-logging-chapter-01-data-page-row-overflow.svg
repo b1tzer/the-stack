@@ -1,8 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 520" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+<svg width="940" height="520" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 520" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
   <defs>
-    <marker id="arrOrange" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M0,0 L10,4 L0,8 Z" fill="#e65100"/>
-    </marker>
+    <marker id="arrOrange" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#e65100"/></marker>
   </defs>
 
   <text x="470" y="28" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">行溢出：大字段搬进独立的溢出页</text>
@@ -22,7 +20,7 @@
   <text x="56" y="282" fill="#555555" font-size="10">读大字段时要多一次「跳溢出页」的 IO</text>
 
   <!-- 指针箭头 -->
-  <path d="M460,188 H502 Q510,188 510,180 V158 Q510,150 518,150 H546" fill="none" stroke="#e65100" stroke-width="1.8" marker-end="url(#arrOrange)"/>
+  <path d="M460,188 H502 Q510,188 510,180 V158 Q510,150 518,518 H150" fill="none" stroke="#e65100" stroke-width="1.8" marker-end="url(#arrOrange)"/>
   <text x="506" y="178" text-anchor="middle" fill="#e65100" font-size="10" font-weight="bold">20 字节指针</text>
 
   <!-- 溢出页 -->

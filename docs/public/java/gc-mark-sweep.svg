@@ -1,13 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 110" width="640" height="98" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif">
   <defs>
-    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
-      <path d="M0,0 L10,5 L0,10 Z" fill="#555555"/>
-    </marker>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#555555"/></marker>
   </defs>
 
   <text x="233" y="27" text-anchor="middle" font-size="14" fill="#666666">回收前</text>
   <text x="527" y="27" text-anchor="middle" font-size="14" fill="#666666">清除后</text>
-  <line x1="362" y1="61" x2="396" y2="61" stroke="#555555" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="362" y1="61" x2="388" y2="61" stroke="#555555" stroke-width="1.5" marker-end="url(#arrow)"/>
 
   <!-- 回收前 -->
   <rect x="110" y="40" width="46" height="42" rx="4" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1.3"/>

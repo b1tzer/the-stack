@@ -1,16 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 561 340" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif">
+<svg width="561" height="340" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 561 340" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif">
   <defs>
-    <marker id="arrow-axis" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-      <polygon points="0 0, 8 3, 0 6" fill="#555555"/>
-    </marker>
+    <marker id="arrow-axis" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#555555"/></marker>
   </defs>
 
   <!-- Title -->
   <text x="280" y="26" text-anchor="middle" font-size="12" font-weight="bold" fill="#333333">TCP 拥塞控制示意图</text>
 
   <!-- Axes -->
-  <line x1="68" y1="289" x2="527" y2="289" stroke="#555555" stroke-width="1.7" marker-end="url(#arrow-axis)"/>
-  <line x1="68" y1="289" x2="68" y2="42" stroke="#555555" stroke-width="1.7" marker-end="url(#arrow-axis)"/>
+  <line x1="68" y1="289" x2="517" y2="289" stroke="#555555" stroke-width="1.7" marker-end="url(#arrow-axis)"/>
+  <line x1="68" y1="289" x2="68" y2="52" stroke="#555555" stroke-width="1.7" marker-end="url(#arrow-axis)"/>
 
   <!-- Axis labels -->
   <text x="298" y="319" text-anchor="middle" font-size="12" fill="#555555">时间</text>
@@ -45,13 +43,13 @@
 
   <!-- Arrow annotations -->
   <!-- Slow start arrow -->
-  <line x1="85" y1="255" x2="110" y2="221" stroke="#1565c0" stroke-width="0.8" marker-end="url(#arrow-axis)"/>
+  <line x1="85" y1="255" x2="104.08" y2="229.06" stroke="#1565c0" stroke-width="0.8" marker-end="url(#arrow-axis)"/>
 
   <!-- Congestion avoidance arrow -->
-  <line x1="221" y1="110" x2="264" y2="94" stroke="#2e7d32" stroke-width="0.8" marker-end="url(#arrow-axis)"/>
+  <line x1="221" y1="110" x2="254.63" y2="97.49" stroke="#2e7d32" stroke-width="0.8" marker-end="url(#arrow-axis)"/>
 
   <!-- Fast recovery arrow -->
-  <line x1="366" y1="200" x2="400" y2="183" stroke="#e65100" stroke-width="0.8" marker-end="url(#arrow-axis)"/>
+  <line x1="366" y1="200" x2="391.06" y2="187.47" stroke="#e65100" stroke-width="0.8" marker-end="url(#arrow-axis)"/>
 
   <!-- Legend box -->
   <rect x="374" y="47" width="153" height="68" rx="5" fill="#f8f9fa" stroke="#e0e0e0" stroke-width="0.8"/>

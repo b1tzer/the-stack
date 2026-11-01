@@ -1,14 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 340" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+<svg width="940" height="340" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 340" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
   <defs>
-    <marker id="arrOrange" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M0,0 L10,4 L0,8 Z" fill="#e65100"/>
-    </marker>
-    <marker id="arrBlue" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M0,0 L10,4 L0,8 Z" fill="#1565c0"/>
-    </marker>
-    <marker id="arrGreen" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M0,0 L10,4 L0,8 Z" fill="#2e7d32"/>
-    </marker>
+    <marker id="arrOrange" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#e65100"/></marker>
+    <marker id="arrBlue" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#1565c0"/></marker>
+    <marker id="arrGreen" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#2e7d32"/></marker>
   </defs>
 
   <text x="470" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">Undo Log：回滚段里的存储结构，服务回滚与 MVCC</text>

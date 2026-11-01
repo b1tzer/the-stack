@@ -1,11 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 544 357" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+<svg width="544" height="357" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 544 357" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
   <defs>
-    <marker id="aDown" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-      <path d="M0,0 L8,4 L0,8 Z" fill="#555555"/>
-    </marker>
-    <marker id="aRight" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-      <path d="M0,0 L8,4 L0,8 Z" fill="#555555"/>
-    </marker>
+    <marker id="aDown" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#555555"/></marker>
+    <marker id="aRight" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#555555"/></marker>
   </defs>
 
   <text x="272" y="24" text-anchor="middle" font-size="12" font-weight="bold" fill="#333333">全连接队列与半连接队列</text>
@@ -18,7 +14,7 @@
   <text x="238" y="99" fill="#888888" font-size="9">tcp_max_syn_backlog</text>
 
   <!-- arrow: SYN → accept -->
-  <line x1="136" y1="110" x2="136" y2="144" stroke="#555555" stroke-width="1.3" marker-end="url(#aDown)"/>
+  <line x1="136" y1="110" x2="136" y2="138" stroke="#555555" stroke-width="1.3" marker-end="url(#aDown)"/>
   <text x="150" y="132" fill="#555555" font-size="9">三次握手完成（收到客户端 ACK）</text>
 
   <!-- accept queue -->
@@ -29,7 +25,7 @@
   <text x="238" y="209" fill="#888888" font-size="9">listen(backlog) 参数</text>
 
   <!-- arrow: accept → process -->
-  <line x1="136" y1="221" x2="136" y2="255" stroke="#555555" stroke-width="1.3" marker-end="url(#aDown)"/>
+  <line x1="136" y1="221" x2="136" y2="249" stroke="#555555" stroke-width="1.3" marker-end="url(#aDown)"/>
   <text x="150" y="242" fill="#555555" font-size="9">应用调用 accept()</text>
 
   <!-- process -->

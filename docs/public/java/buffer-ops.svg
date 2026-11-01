@@ -1,11 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 595 612" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+<svg width="595" height="612" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 595 612" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
   <defs>
-    <marker id="arDown" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-      <path d="M0,0 L8,4 L0,8 Z" fill="#555555"/>
-    </marker>
-    <marker id="arRight" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-      <path d="M0,0 L8,4 L0,8 Z" fill="#7b1fa2"/>
-    </marker>
+    <marker id="arDown" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#555555"/></marker>
+    <marker id="arRight" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#7b1fa2"/></marker>
   </defs>
 
   <text x="298" y="24" text-anchor="middle" font-size="12" font-weight="bold" fill="#333333">Buffer 的内存布局与核心操作</text>
@@ -39,7 +35,7 @@
   <text x="398" y="143" fill="#888888" font-size="9">capacity=8</text>
 
   <!-- ===== Step 2: flip() ===== -->
-  <line x1="212" y1="151" x2="212" y2="175" stroke="#555555" stroke-width="1.3" marker-end="url(#arDown)"/>
+  <line x1="212" y1="151" x2="212" y2="169" stroke="#555555" stroke-width="1.3" marker-end="url(#arDown)"/>
   <text x="226" y="167" fill="#7b1fa2" font-size="10" font-weight="bold">flip()</text>
 
   <text x="34" y="192" font-size="12" font-weight="bold" fill="#1565c0">② flip() 后（准备读）</text>
@@ -70,7 +66,7 @@
   <text x="109" y="292" text-anchor="middle" fill="#1565c0" font-size="9">可读数据 [position, limit)</text>
 
   <!-- ===== Step 3: get() ===== -->
-  <line x1="212" y1="298" x2="212" y2="321" stroke="#555555" stroke-width="1.3" marker-end="url(#arDown)"/>
+  <line x1="212" y1="298" x2="212" y2="315" stroke="#555555" stroke-width="1.3" marker-end="url(#arDown)"/>
   <text x="226" y="313" fill="#7b1fa2" font-size="10" font-weight="bold">get()</text>
 
   <text x="34" y="338" font-size="12" font-weight="bold" fill="#1565c0">③ get() 读取 1 字节后</text>
@@ -98,7 +94,7 @@
   <text x="180" y="416" text-anchor="middle" fill="#c62828" font-size="10" font-weight="bold">limit=3</text>
 
   <!-- ===== Step 4: compact() ===== -->
-  <line x1="212" y1="422" x2="212" y2="445" stroke="#555555" stroke-width="1.3" marker-end="url(#arDown)"/>
+  <line x1="212" y1="422" x2="212" y2="439" stroke="#555555" stroke-width="1.3" marker-end="url(#arDown)"/>
   <text x="226" y="437" fill="#7b1fa2" font-size="10" font-weight="bold">compact()</text>
 
   <text x="34" y="462" font-size="12" font-weight="bold" fill="#1565c0">④ compact() 后（保留未读，准备继续写）</text>

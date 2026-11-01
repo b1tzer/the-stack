@@ -14,12 +14,8 @@
   .cache { fill: #e65100; stroke: #e65100; stroke-width: 1.5; }
 </style>
 <defs>
-  <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-    <polygon points="0 0, 10 3.5, 0 7" fill="#7b1fa2"/>
-  </marker>
-  <marker id="arrowhead-green" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-    <polygon points="0 0, 10 3.5, 0 7" fill="#2e7d32"/>
-  </marker>
+  <marker id="arrowhead" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#7b1fa2"/></marker>
+  <marker id="arrowhead-green" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#2e7d32"/></marker>
 </defs>
 
 <text x="332" y="24" class="title">Spring Security 认证流程</text>
@@ -63,8 +59,8 @@
 <text x="502" y="336" class="note">→ 验证密码是否匹配</text>
 
 <!-- Converge -->
-<line x1="162" y1="321" x2="332" y2="366" class="arrow" stroke="#2e7d32" marker-end="url(#arrowhead-green)"/>
-<line x1="502" y1="321" x2="332" y2="366" class="arrow" stroke="#2e7d32" marker-end="url(#arrowhead-green)"/>
+<line x1="162" y1="321" x2="322.33" y2="363.44" class="arrow" stroke="#2e7d32" marker-end="url(#arrowhead-green)"/>
+<line x1="502" y1="321" x2="341.67" y2="363.44" class="arrow" stroke="#2e7d32" marker-end="url(#arrowhead-green)"/>
 
 <!-- Step 5: 认证成功 -->
 <rect x="144" y="366" width="374" height="48" class="box important"/>

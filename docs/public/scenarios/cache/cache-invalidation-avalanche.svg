@@ -1,8 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="600" height="330" viewBox="0 0 600 330" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif">
   <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#57606a"/>
-    </marker>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#57606a"/></marker>
   </defs>
   <rect width="600" height="330" fill="#ffffff"/>
 
@@ -27,8 +25,8 @@
   <rect x="380" y="138" width="180" height="44" rx="8" fill="#fff1f0" stroke="#DC382D"/>
   <text x="470" y="160" text-anchor="middle" font-size="13" font-weight="600" fill="#DC382D">数据库承受瞬时洪峰</text>
 
-  <line x1="165" y1="75" x2="380" y2="160" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <line x1="165" y1="120" x2="380" y2="160" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <line x1="165" y1="165" x2="380" y2="160" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <line x1="165" y1="280" x2="380" y2="160" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="165" y1="75" x2="368.84" y2="155.58" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="165" y1="120" x2="368.20" y2="157.80" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="165" y1="165" x2="368.00" y2="160.28" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="165" y1="280" x2="369.52" y2="165.84" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
 </svg>

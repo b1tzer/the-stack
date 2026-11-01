@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 663 289" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="10">
+<svg width="663" height="289" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 663 289" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="10">
   <text x="332" y="22" text-anchor="middle" font-size="12" font-weight="bold" fill="#333333">HTTP 报文格式对比：文本 vs 二进制帧</text>
 
   <!-- Left: HTTP/1.1 文本 -->
