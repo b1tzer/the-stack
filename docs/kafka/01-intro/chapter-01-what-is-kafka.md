@@ -23,7 +23,7 @@ Kafka 的三重身份：
 
 Kafka 集群由「数据面」和「控制面」两层构成：
 
-![Kafka 整体架构](/kafka/01-basics-chapter-03-architecture.svg)
+![Kafka 整体架构](/kafka/01-intro-chapter-01-architecture.svg)
 
 | 层次 | 组成 | 职责 |
 | :-- | :-- | :-- |
@@ -34,7 +34,7 @@ Kafka 集群由「数据面」和「控制面」两层构成：
 
 ## 3. 核心组件
 
-![Kafka 核心组件全景图](/kafka/01-basics-chapter-02-terminology.svg)
+![Kafka 核心组件全景图](/kafka/01-intro-chapter-01-terminology.svg)
 
 ### 3.1 存储模型
 

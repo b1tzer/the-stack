@@ -101,7 +101,7 @@ MySQL 5.6 之前，Undo Log 存放在系统表空间 `ibdata1` 里，无法独�
 
 Undo Log 除了回滚，还支撑 MVCC。 [事务与 MVCC §2.3](../05-transaction-lock/chapter-02-transaction.md#version-chain) 已经详细讲过：每行记录的 `DB_ROLL_PTR` 指向 Undo 中的旧版本，多次修改串成一条从当前版本通到最老版本的链。
 
-![版本链：当前记录经 DB_ROLL_PTR 串起 Undo 中的历史版本](/mysql/05-transaction-lock-chapter-01-transaction-version-chain.svg)
+![版本链：当前记录经 DB_ROLL_PTR 串起 Undo 中的历史版本](/mysql/05-transaction-lock-chapter-02-transaction-version-chain.svg)
 
 快照读时，事务沿这条链，用 Read View 判定每个版本是否可见。**版本链与可见性判定的完整算法见 [事务与 MVCC §3.2](../05-transaction-lock/chapter-02-transaction.md#visibility-judgment)，本文不再重复。** 这里只强调 Undo 视角下的一个推论：
 
