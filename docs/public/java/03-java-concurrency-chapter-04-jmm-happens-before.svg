@@ -37,5 +37,5 @@
 
   <!-- Side annotation -->
   <rect x="434" y="153" width="34" height="212" rx="3" fill="none" stroke="#e0e0e0" stroke-width="0.8" stroke-dasharray="4,3"/>
-  <text x="450" y="264" text-anchor="middle" font-size="8" fill="#555555" writing-mode="tb">三层协作是 Java 并发能被推理的物理基础</text>
+  <text x="450" y="264" text-anchor="middle" font-size="10" fill="#555555" writing-mode="tb">三层协作是 Java 并发能被推理的物理基础</text>
 </svg>

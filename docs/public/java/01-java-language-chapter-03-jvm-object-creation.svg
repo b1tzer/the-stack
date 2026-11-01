@@ -26,13 +26,13 @@
   <line x1="123" y1="156" x2="95" y2="156" stroke="#888888" stroke-width="0.8" marker-end="url(#arrowRight)"/>
   <rect x="17" y="139" width="70" height="32" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="0.8"/>
   <text x="52" y="154" text-anchor="middle" fill="#1b5e20" font-size="9" font-weight="bold">是</text>
-  <text x="52" y="166" text-anchor="middle" fill="#555555" font-size="8">指针碰撞</text>
+  <text x="52" y="166" text-anchor="middle" fill="#555555" font-size="10">指针碰撞</text>
 
   <!-- 否 → 空闲列表 -->
   <line x1="259" y1="156" x2="287" y2="156" stroke="#888888" stroke-width="0.8" marker-end="url(#arrowRight)"/>
   <rect x="296" y="139" width="70" height="32" rx="3" fill="#ffcdd2" stroke="#c62828" stroke-width="0.8"/>
   <text x="331" y="154" text-anchor="middle" fill="#c62828" font-size="9" font-weight="bold">否</text>
-  <text x="331" y="166" text-anchor="middle" fill="#555555" font-size="8">空闲列表</text>
+  <text x="331" y="166" text-anchor="middle" fill="#555555" font-size="10">空闲列表</text>
 
   <!-- 线程安全 -->
   <rect x="123" y="185" width="264" height="82" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="0.8"/>
@@ -81,5 +81,5 @@
   <text x="264" y="604" text-anchor="middle" fill="#888888" font-size="10">超过 -XX:PretenureSizeThreshold 的大对象直接分配在老年代</text>
 
   <!-- 顶部标注行号 -->
-  <text x="17" y="654" fill="#999999" font-size="8">共 5 步：类加载 → 分配内存 → 零值初始化 → 设置对象头 → 执行构造方法</text>
+  <text x="17" y="654" fill="#999999" font-size="10">共 5 步：类加载 → 分配内存 → 零值初始化 → 设置对象头 → 执行构造方法</text>
 </svg>

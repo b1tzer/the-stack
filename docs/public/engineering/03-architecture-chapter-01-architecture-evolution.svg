@@ -52,20 +52,20 @@
 
 <!-- 箭头 + 驱动力 -->
 <line x1="180" y1="105" x2="229" y2="105" stroke="#666666" stroke-width="1.3" marker-end="url(#ar)"/>
-<text x="209" y="126" text-anchor="middle" font-size="8" fill="#666666">模块增多</text>
-<text x="209" y="138" text-anchor="middle" font-size="8" fill="#666666">代码耦合</text>
+<text x="209" y="126" text-anchor="middle" font-size="10" fill="#666666">模块增多</text>
+<text x="209" y="138" text-anchor="middle" font-size="10" fill="#666666">代码耦合</text>
 
 <line x1="400" y1="105" x2="449" y2="105" stroke="#666666" stroke-width="1.3" marker-end="url(#ar)"/>
-<text x="429" y="126" text-anchor="middle" font-size="8" fill="#666666">能力重复</text>
-<text x="429" y="138" text-anchor="middle" font-size="8" fill="#666666">需要复用</text>
+<text x="429" y="126" text-anchor="middle" font-size="10" fill="#666666">能力重复</text>
+<text x="429" y="138" text-anchor="middle" font-size="10" fill="#666666">需要复用</text>
 
 <line x1="620" y1="105" x2="669" y2="105" stroke="#666666" stroke-width="1.3" marker-end="url(#ar)"/>
-<text x="649" y="126" text-anchor="middle" font-size="8" fill="#666666">ESB 瓶颈</text>
-<text x="649" y="138" text-anchor="middle" font-size="8" fill="#666666">轻量通信</text>
+<text x="649" y="126" text-anchor="middle" font-size="10" fill="#666666">ESB 瓶颈</text>
+<text x="649" y="138" text-anchor="middle" font-size="10" fill="#666666">轻量通信</text>
 
 <line x1="840" y1="105" x2="889" y2="105" stroke="#666666" stroke-width="1.3" marker-end="url(#ar)"/>
-<text x="869" y="126" text-anchor="middle" font-size="8" fill="#666666">运维复杂</text>
-<text x="869" y="138" text-anchor="middle" font-size="8" fill="#666666">极致弹性</text>
+<text x="869" y="126" text-anchor="middle" font-size="10" fill="#666666">运维复杂</text>
+<text x="869" y="138" text-anchor="middle" font-size="10" fill="#666666">极致弹性</text>
 
 <text x="520" y="180" text-anchor="middle" font-size="10" fill="#666666">演进驱动力：团队规模增长 + 业务复杂度提升</text>
 </svg>

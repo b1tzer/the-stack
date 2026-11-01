@@ -56,10 +56,10 @@
 
   <!-- Side annotations -->
   <rect x="434" y="133" width="51" height="42" rx="3" fill="#eceff1" stroke="#e0e0e0" stroke-width="0.8"/>
-  <text x="459" y="151" text-anchor="middle" fill="#888888" font-size="8">银行</text>
-  <text x="459" y="164" text-anchor="middle" fill="#888888" font-size="8">柜台窗口</text>
+  <text x="459" y="151" text-anchor="middle" fill="#888888" font-size="10">银行</text>
+  <text x="459" y="164" text-anchor="middle" fill="#888888" font-size="10">柜台窗口</text>
 
   <rect x="434" y="199" width="51" height="42" rx="3" fill="#eceff1" stroke="#e0e0e0" stroke-width="0.8"/>
-  <text x="459" y="217" text-anchor="middle" fill="#888888" font-size="8">银行后台</text>
-  <text x="459" y="230" text-anchor="middle" fill="#888888" font-size="8">审批员</text>
+  <text x="459" y="217" text-anchor="middle" fill="#888888" font-size="10">银行后台</text>
+  <text x="459" y="230" text-anchor="middle" fill="#888888" font-size="10">审批员</text>
 </svg>

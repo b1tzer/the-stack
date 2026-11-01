@@ -50,7 +50,7 @@
   <g transform="translate(260,256)">
     <rect x="0" y="0" width="153" height="31" rx="3" fill="#c62828" stroke="none" opacity="0.15"/>
     <text x="76" y="12" text-anchor="middle" font-size="9" fill="#c62828" font-weight="bold">支付服务变慢</text>
-    <text x="76" y="26" text-anchor="middle" font-size="8" fill="#c62828">→ 只耗尽线程池 B</text>
+    <text x="76" y="26" text-anchor="middle" font-size="10" fill="#c62828">→ 只耗尽线程池 B</text>
   </g>
 
   <!-- Result -->

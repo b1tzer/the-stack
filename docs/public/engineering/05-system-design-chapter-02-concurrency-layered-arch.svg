@@ -19,7 +19,7 @@
     <text x="280" y="36" text-anchor="middle" font-size="9" fill="#1565c0">缓存图片、JS、CSS，不回源 — 消除 60-80% 静态请求</text>
   </g>
   <line x1="332" y1="144" x2="332" y2="154" stroke="#666666" stroke-width="1.3" marker-end="url(#arC1)"/>
-  <text x="343" y="157" font-size="8" fill="#666666">动态请求</text>
+  <text x="343" y="157" font-size="10" fill="#666666">动态请求</text>
 
   <!-- Gateway Layer -->
   <g transform="translate(60,196)">
@@ -53,7 +53,7 @@
     <text x="280" y="36" text-anchor="middle" font-size="9" fill="#7b1fa2">热点数据缓存，拦截 80%+ 的读请求</text>
   </g>
   <line x1="332" y1="391" x2="332" y2="388" stroke="#666666" stroke-width="1.3" marker-end="url(#arC1)"/>
-  <text x="343" y="404" font-size="8" fill="#666666">缓存未命中</text>
+  <text x="343" y="404" font-size="10" fill="#666666">缓存未命中</text>
 
   <!-- Database Layer -->
   <g transform="translate(60,486)">

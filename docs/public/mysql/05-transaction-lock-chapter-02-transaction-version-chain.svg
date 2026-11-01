@@ -31,25 +31,25 @@
   <text x="420" y="212" fill="#0d47a1" font-size="10" font-weight="bold">多次修改后，旧版本串成一条链（由新到老）：</text>
   <rect x="420" y="226" width="104" height="44" rx="3" fill="#c8e6c9" stroke="#2e7d32" stroke-width="1"/>
   <text x="472" y="244" text-anchor="middle" fill="#1b5e20" font-size="9" font-weight="bold">当前行</text>
-  <text x="472" y="260" text-anchor="middle" fill="#555555" font-size="8">trx=105</text>
+  <text x="472" y="260" text-anchor="middle" fill="#555555" font-size="10">trx=105</text>
 
   <line x1="524" y1="248" x2="538" y2="248" stroke="#1565c0" stroke-width="1.4" marker-end="url(#mvccRoll)"/>
 
   <rect x="552" y="226" width="104" height="44" rx="3" fill="#bbdefb" stroke="#1565c0" stroke-width="1"/>
   <text x="604" y="244" text-anchor="middle" fill="#0d47a1" font-size="9" font-weight="bold">undo v3</text>
-  <text x="604" y="260" text-anchor="middle" fill="#555555" font-size="8">trx=104</text>
+  <text x="604" y="260" text-anchor="middle" fill="#555555" font-size="10">trx=104</text>
 
   <line x1="656" y1="248" x2="670" y2="248" stroke="#1565c0" stroke-width="1.4" marker-end="url(#mvccRoll)"/>
 
   <rect x="684" y="226" width="104" height="44" rx="3" fill="#bbdefb" stroke="#1565c0" stroke-width="1"/>
   <text x="736" y="244" text-anchor="middle" fill="#0d47a1" font-size="9" font-weight="bold">undo v2</text>
-  <text x="736" y="260" text-anchor="middle" fill="#555555" font-size="8">trx=102</text>
+  <text x="736" y="260" text-anchor="middle" fill="#555555" font-size="10">trx=102</text>
 
   <line x1="788" y1="248" x2="802" y2="248" stroke="#1565c0" stroke-width="1.4" marker-end="url(#mvccRoll)"/>
 
   <rect x="816" y="226" width="104" height="44" rx="3" fill="#bbdefb" stroke="#1565c0" stroke-width="1"/>
   <text x="868" y="244" text-anchor="middle" fill="#0d47a1" font-size="9" font-weight="bold">undo v1</text>
-  <text x="868" y="260" text-anchor="middle" fill="#555555" font-size="8">trx=101</text>
+  <text x="868" y="260" text-anchor="middle" fill="#555555" font-size="10">trx=101</text>
 
   <text x="420" y="300" fill="#888888" font-size="9">链头是表里的「当前行」，链身都在 Undo Log 里</text>
   <text x="420" y="320" fill="#888888" font-size="9">快照读：从当前行出发，沿 DB_ROLL_PTR 一路往回找可见版本</text>

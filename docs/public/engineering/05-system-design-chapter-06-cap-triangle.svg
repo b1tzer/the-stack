@@ -12,7 +12,7 @@
   <text x="93" y="46" text-anchor="middle" font-size="9" fill="#1565c0">所有节点同一时刻</text>
   <text x="93" y="61" text-anchor="middle" font-size="9" fill="#1565c0">看到相同的数据</text>
   <line x1="16" y1="70" x2="170" y2="70" stroke="#90caf9" stroke-width="0.6"/>
-  <text x="93" y="86" text-anchor="middle" font-size="8" fill="#666666">ATM-A 存钱，ATM-B 立刻可查</text>
+  <text x="93" y="86" text-anchor="middle" font-size="10" fill="#666666">ATM-A 存钱，ATM-B 立刻可查</text>
 </g>
 
 <!-- 可用性 A -->
@@ -22,7 +22,7 @@
   <text x="93" y="46" text-anchor="middle" font-size="9" fill="#2e7d32">每个请求都能收到响应</text>
   <text x="93" y="61" text-anchor="middle" font-size="9" fill="#2e7d32">但不保证数据最新</text>
   <line x1="16" y1="70" x2="170" y2="70" stroke="#a5d6a7" stroke-width="0.6"/>
-  <text x="93" y="86" text-anchor="middle" font-size="8" fill="#666666">不超时、不报错，可能返回旧数据</text>
+  <text x="93" y="86" text-anchor="middle" font-size="10" fill="#666666">不超时、不报错，可能返回旧数据</text>
 </g>
 
 <!-- 分区容错性 P -->
@@ -32,7 +32,7 @@
   <text x="93" y="46" text-anchor="middle" font-size="9" fill="#e65100">网络分区时</text>
   <text x="93" y="61" text-anchor="middle" font-size="9" fill="#e65100">系统仍能运行</text>
   <line x1="16" y1="70" x2="170" y2="70" stroke="#ffcc80" stroke-width="0.6"/>
-  <text x="93" y="86" text-anchor="middle" font-size="8" fill="#666666">机房断网，系统不停机</text>
+  <text x="93" y="86" text-anchor="middle" font-size="10" fill="#666666">机房断网，系统不停机</text>
 </g>
 
 <!-- 约束条 -->
