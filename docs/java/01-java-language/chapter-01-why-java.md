@@ -16,7 +16,7 @@ Java 诞生时，开发者面对两个难题：手动内存管理带来的正确
 
 Java 的设计方向是降低这些风险：由运行时承担内存回收，由编译器和类型系统提前发现更多错误，同时保留面向对象的表达能力。
 
-![memory-management-responsibility](/java/memory-management-responsibility.svg)
+![memory-management-responsibility](/java/01-java-language-chapter-01-memory-management-responsibility.svg)
 
 ### 1.2 跨平台执行
 
@@ -43,7 +43,7 @@ Java 不要求开发者手动释放普通对象内存。垃圾回收器（Garbag
 
 这减少了悬空指针、Use-After-Free 和 Double Free 等错误，但不会消除所有内存问题。可达性判断不等于业务使用判断，一个已经不再被业务访问的对象，只要仍被静态集合或缓存引用，GC 仍会视其为存活。堆外内存未释放同样可能造成内存耗尽。
 
-![gc-reachability-vs-business-usage](/java/gc-reachability-vs-business-usage.svg)
+![gc-reachability-vs-business-usage](/java/01-java-language-chapter-01-gc-reachability-vs-business-usage.svg)
 
 GC 也有成本：它会消耗 CPU，并在某些阶段暂停应用线程。是否可接受取决于堆大小、分配速率、延迟目标和收集器配置。
 
@@ -69,7 +69,7 @@ Java 代码通常以类、接口、枚举和记录作为组织单位，通过封
 
 Java 重视语言和字节码层面的兼容性。旧版本编译生成的字节码通常能在较新 JVM 上运行，但源码能否重新编译、程序行为是否一致，还取决于使用的 API、第三方依赖和运行环境。因此 JDK 升级不能只看编译是否通过。
 
-![java-compatibility-layers](/java/java-compatibility-layers.svg)
+![java-compatibility-layers](/java/01-java-language-chapter-01-java-compatibility-layers.svg)
 
 ## 3. Java 的性能取舍
 
@@ -100,7 +100,7 @@ java Hello
 
 `javac` 生成 `Hello.class`，内容是 JVM 字节码；`java Hello` 启动 JVM 加载并执行 `Hello` 类。这段代码从源码到 CPU 执行，主要经历以下步骤：
 
-![java-compile-pipeline](/java/java-compile-pipeline.svg)
+![java-compile-pipeline](/java/01-java-language-chapter-01-java-compile-pipeline.svg)
 
 继续学习 Java 语言，进入[类型系统](./chapter-02-type-system.md)和[对象与值语义](./chapter-03-object-values.md)；理解程序如何运行，进入[字节码与类加载](../02-jvm-runtime/chapter-01-bytecode-classloading.md)、[运行时数据区](../02-jvm-runtime/chapter-02-runtime-data-areas.md)、GC 和 JIT。
 

@@ -75,7 +75,7 @@ PG 和 MySQL 都实现了 MVCC，但实现方式完全不同：
 | 读性能 | 无需回溯 Undo Log，稳定 | 长事务需要回溯 Undo Log 链 |
 | 长事务影响 | 阻塞 VACUUM → 表膨胀 | Undo Log 膨胀 → 占用空间 |
 
-![MySQL vs PostgreSQL MVCC](/pg/mvcc-compare.svg)
+![MySQL vs PostgreSQL MVCC](/pg/01-pg-unique-chapter-03-mvcc-compare.svg)
 
 > **为什么 PG 选择把旧版本存在堆表中？** 读操作不需要去 Undo Log 中回溯旧版本，读性能更稳定。代价是需要 VACUUM 定期清理 Dead Tuple，否则表空间持续增长。这是一个**读性能 vs 维护成本**的取舍。
 
@@ -88,7 +88,7 @@ PG 和 MySQL 都实现了 MVCC，但实现方式完全不同：
 - **索引效率下降**：索引指向的页面包含大量 Dead Tuple
 - **磁盘浪费**：空间被 Dead Tuple 占用，无法复用
 
-![VACUUM 流程](/pg/vacuum-flow.svg)
+![VACUUM 流程](/pg/01-pg-unique-chapter-03-vacuum-flow.svg)
 
 ### 4.1 监控表膨胀
 
@@ -118,7 +118,7 @@ ORDER BY n_dead_tup DESC;
 
 VACUUM 不能清理**所有** Dead Tuple。它必须保留比最老活跃事务更"新"的旧版本，因为长事务可能还需要读取这些数据（MVCC 的快照隔离保证）。
 
-![长事务阻塞 VACUUM](/pg/long-transaction.svg)
+![长事务阻塞 VACUUM](/pg/01-pg-unique-chapter-03-long-transaction.svg)
 
 ```txt
 时间线：

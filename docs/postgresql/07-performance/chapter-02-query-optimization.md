@@ -125,7 +125,7 @@ SELECT * FROM active_users WHERE age > 25;
 
 ## 4. 性能问题排查流程
 
-![慢查询优化流程](/pg/query-optimize-flow.svg)
+![慢查询优化流程](/pg/07-performance-chapter-02-query-optimize-flow.svg)
 
 ## 5. 索引优化建议
 

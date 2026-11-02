@@ -21,7 +21,7 @@ Rod Johnson 在 2002 年出版的《Expert One-on-One J2EE Design and Developmen
 
 从 2004 年的 1.0 到 2022 年的 6.0，Spring Framework 每次大版本升级都在回应一个具体的问题。下表也纳入了 Spring Boot，它是建立在 Framework 之上的另一条产品线：
 
-![Spring 生态演进](/spring/spring-core-timeline.svg)
+![Spring 生态演进](/spring/01-core-chapter-01-spring-core-timeline.svg)
 
 | 版本 | 年份 | 主要变化 |
 | :-- | :-- | :-- |
@@ -47,7 +47,7 @@ Spring Framework 由多个模块组成，核心容器只是其中一条主线。
 
 图中箭头即依赖方向，只允许上层依赖下层。由此能推出一个常被问到的结论：`BeanFactory` 定义在 `spring-beans`，`ApplicationContext` 定义在 `spring-context`，后者在前者之上叠加了应用上下文能力，详见 [IoC 容器](./chapter-02-ioc-container.md)。AOP、事务、Web 这些能力，都建立在同一套 Bean 装配之上：
 
-![Spring 核心模块依赖关系](/spring/spring-core-modules.svg)
+![Spring 核心模块依赖关系](/spring/01-core-chapter-01-spring-core-modules.svg)
 
 ## 4. 知识地图
 
@@ -60,4 +60,4 @@ Spring Framework 由多个模块组成，核心容器只是其中一条主线。
 - **循环依赖**：注入的极端情况，A 依赖 B、B 又依赖 A。Spring 用三级缓存提前暴露早期引用，解开部分单例循环依赖，三级缓存同时和 AOP 的早期代理有关。
 - **条件装配**：解决「哪些 Bean 该生效」，按条件决定 Bean 是否注册，是 Spring Boot 自动配置的基础。
 
-![Spring 核心知识地图](/spring/spring-core-mindmap.svg)
+![Spring 核心知识地图](/spring/01-core-chapter-01-spring-core-mindmap.svg)

@@ -156,7 +156,7 @@ public synchronized void doSomething();
 
 JVM 在方法调用和返回的机制里看到这个标记，就隐式地获取和释放 Monitor，不需要显式指令。同步方法的加解锁和"方法进出"绑在一起，而不是和某两条字节码绑在一起。
 
-![同步块通过 monitorenter 和 monitorexit 获取并释放 Monitor 的流程](/java/sync-monitor-flow.svg)
+![同步块通过 monitorenter 和 monitorexit 获取并释放 Monitor 的流程](/java/03-java-concurrency-chapter-06-sync-monitor-flow.svg)
 
 HotSpot 的一种实现策略是让 `ObjectMonitor` 懒加载：对象创建时不预留 Monitor，真正进入重量级路径时才可能膨胀（inflate）。这不是 Java 语言规范保证，其他 JVM 可以采用不同布局。
 

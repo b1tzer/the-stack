@@ -209,7 +209,7 @@ try (var scope = new StructuredTaskScope.ShutdownOnFailure()) {
 
 **判断决策**：
 
-![虚拟线程与平台线程的选型决策树](/java/vt-decision-tree.svg)
+![虚拟线程与平台线程的选型决策树](/java/03-java-concurrency-chapter-14-vt-decision-tree.svg)
 
 ## 4. 一段完整示例：从传统 API 迁移到虚拟线程
 

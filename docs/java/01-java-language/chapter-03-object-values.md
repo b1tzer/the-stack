@@ -18,7 +18,7 @@ public void process() {
 }
 ```
 
-![引用与对象的逻辑关系：方法帧中的 text 引用指向堆中的 StringBuilder 对象](/java/stack-heap.svg)
+![引用与对象的逻辑关系：方法帧中的 text 引用指向堆中的 StringBuilder 对象](/java/01-java-language-chapter-03-stack-heap.svg)
 
 当方法 `process()` 执行完毕：
 
@@ -63,7 +63,7 @@ NPE 是 Java 中最常见的运行时异常之一。后面的[异常与资源管
 
 当你写 `new User()` 时，JVM 做了什么？
 
-![jvm-object-creation](/java/jvm-object-creation.svg)
+![jvm-object-creation](/java/01-java-language-chapter-03-jvm-object-creation.svg)
 
 `new` 的语义不只是申请一块内存。若类尚未初始化，JVM 先按类初始化规则完成初始化；随后分配实例内存、把实例字段设为默认值（引用为 `null`、数值为零值、`boolean` 为 `false`），再执行构造器完成状态建立。这是便于理解的对象创建框架，不代表 JVM 必须按固定的物理顺序实现；HotSpot 的 TLAB 分配、JIT 优化等会改变实际执行方式。
 

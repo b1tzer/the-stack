@@ -90,7 +90,7 @@ Order loadOrder(String id) {
 
 ### 2.1 虚拟线程与平台线程的对照
 
-![虚拟线程由载体线程池调度并映射到平台线程的执行模型](/java/vt-mapping.svg)
+![虚拟线程由载体线程池调度并映射到平台线程的执行模型](/java/03-java-concurrency-chapter-13-vt-mapping.svg)
 
 - **虚拟线程（Virtual Thread, VT）**：`java.lang.Thread` 的子类实例，栈保存在堆上，个数可达百万级
 - **载体线程（Carrier Thread）**：真正的平台线程，是 VT 运行时实际占用的 CPU 执行流；VT 只在 Carrier 上"临时挂载"

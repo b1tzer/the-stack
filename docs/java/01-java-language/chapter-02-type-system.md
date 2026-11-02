@@ -10,7 +10,7 @@ Java 语言规范把类型分为基本类型（primitive type）和引用类型�
 
 引用类型包括类类型、接口类型和数组类型。语言规范还定义了没有名称的空类型（null type），它唯一的值是 `null`，可以赋给任意引用类型变量，但不能赋给基本类型变量。枚举和 record（Java 16 起）是类类型的特殊形式，仍然遵守引用类型的基本规则。
 
-![Java 类型分类：基本类型与引用类型，以及引用类型下的类、接口和数组](/java/type-hierarchy.svg)
+![Java 类型分类：基本类型与引用类型，以及引用类型下的类、接口和数组](/java/01-java-language-chapter-02-type-hierarchy.svg)
 
 图中的文字等价于以下分类：
 

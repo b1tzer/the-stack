@@ -1,8 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 450" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
+<svg width="940" height="450" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 450" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
   <defs>
-    <marker id="arrOrange" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse">
-      <path d="M0,0 L10,4 L0,8 Z" fill="#e65100"/>
-    </marker>
+    <marker id="arrOrange" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#e65100"/></marker>
   </defs>
 
   <text x="470" y="28" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">next_record 单链表：逻辑有序，物理乱序</text>
@@ -37,7 +35,7 @@
 
   <!-- next_record：直箭头水平入框；长跳走下方走廊，拐上来后水平进入 id=8 左侧 -->
   <line x1="280" y1="116" x2="250" y2="116" stroke="#e65100" stroke-width="1.8" marker-end="url(#arrOrange)"/>
-  <path d="M198,140 Q198,160 214,160 H468 Q484,160 484,152 V138 Q484,130 492,130 H506" fill="none" stroke="#e65100" stroke-width="1.8" marker-end="url(#arrOrange)"/>
+  <path d="M198,140 Q198,160 214,160 H468 Q484,160 484,152 V138 Q484,130 492,492 H130" fill="none" stroke="#e65100" stroke-width="1.8" marker-end="url(#arrOrange)"/>
   <line x1="520" y1="108" x2="490" y2="108" stroke="#e65100" stroke-width="1.8" marker-end="url(#arrOrange)"/>
 
   <text x="470" y="212" text-anchor="middle" fill="#555555" font-size="11">物理顺序：id=5, id=1, id=12, id=8 —— 与主键无关，取决于哪里有空位</text>

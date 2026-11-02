@@ -36,7 +36,7 @@ public class StatementPreparePlugin implements Interceptor {
 
 ### 1.2 四个拦截点
 
-![mybatis-interceptor-chain](/java/mybatis-interceptor-chain.svg)
+![mybatis-interceptor-chain](/java/05-java-data-access-chapter-05-mybatis-interceptor-chain.svg)
 
 | 拦截对象 | 典型场景 | 示例 |
 | :-- | :-- | :-- |
@@ -193,7 +193,7 @@ MyBatis 的动态 SQL 通过 XML 标签，根据运行时参数动态拼装 SQL 
 
 MyBatis 的动态 SQL 并非简单的字符串拼接。对于包含运行时动态节点的映射语句，MyBatis 将其中的动态元素解析为 `SqlNode` 组合，通过 **OGNL 表达式引擎** 解析 `test` 条件，在执行时根据参数计算条件并生成 SQL，最终得到包含 SQL 文本与参数映射的 `BoundSql`。不包含运行时动态文本或动态节点的 SQL 通常走 `RawSqlSource` 路径；包含 `${...}` 文本替换或动态 SQL 节点的语句通常由 `DynamicSqlSource` 在执行时构建 `BoundSql`，因此不能用「不带动态 XML 标签」直接判断它一定是静态 SQL。`${...}` 做文本替换，不能将不可信输入直接作为 SQL 片段插入。
 
-![mybatis-xml-to-runtime](/java/mybatis-xml-to-runtime.svg)
+![mybatis-xml-to-runtime](/java/05-java-data-access-chapter-05-mybatis-xml-to-runtime.svg)
 
 `<if>`、`<choose>`、`<foreach>`、`<where>` 等动态 SQL 元素会被解析为相应的 `SqlNode` 实现（`IfSqlNode`、`ForEachSqlNode`、`WhereSqlNode` 等），运行时根据参数值决定是否输出该节点的内容。`<select>`、`<resultMap>`、`<sql>/<include>` 等并非运行时动态 SQL 节点。
 

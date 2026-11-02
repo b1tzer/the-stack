@@ -77,7 +77,7 @@ public ThreadPoolExecutor(
 
 ### 2.2 四项主开关的耦合关系
 
-![任务进入线程池后依次判断核心线程、工作队列和最大线程数的流程](/java/pool-execute-flow.svg)
+![任务进入线程池后依次判断核心线程、工作队列和最大线程数的流程](/java/03-java-concurrency-chapter-11-pool-execute-flow.svg)
 
 **这个流程决定了一件反直觉的事：只有队列先"装不下"，才可能创建非核心线程**。也就是说，把 `workQueue` 换成无界队列，等于让 `maximumPoolSize` 形同虚设——见 §5.2。
 
@@ -119,7 +119,7 @@ public void execute(Runnable command) {
 
 `Worker` 就是"承担任务执行"的那条线程。它的循环骨架是：
 
-![核心线程、队列和非核心线程的创建顺序](/java/pool-worker-create.svg)
+![核心线程、队列和非核心线程的创建顺序](/java/03-java-concurrency-chapter-11-pool-worker-create.svg)
 
 `allowCoreThreadTimeOut(true)` 会让核心线程也走带超时的 `poll`——适合"深夜没流量"的应用，代价是流量突增时需要重新预热线程。
 
@@ -171,7 +171,7 @@ public void rejectedExecution(Runnable r, ThreadPoolExecutor e) {
 
 `CallerRunsPolicy` 是这四种里最有意思的一种——它把过载压力**反推给上游**：
 
-![队列已满时线程池按拒绝策略处理新任务的流程](/java/pool-reject-flow.svg)
+![队列已满时线程池按拒绝策略处理新任务的流程](/java/03-java-concurrency-chapter-11-pool-reject-flow.svg)
 
 这在"绝不能丢任务、也不允许无界排队"的场景里非常有用。代价是调用线程会被临界任务卡住一段时间——如果调用线程本身是 Tomcat 的请求处理线程，这段时间它无法响应新请求。
 

@@ -14,7 +14,7 @@
 
 现代 CPU 采用多级缓存架构。每个核心有私有的 L1 / L2，多个核心共享 L3，最后才是主内存：
 
-![处理器核心缓存与共享内存的层级关系](/java/jmm-memory-model.svg)
+![处理器核心缓存与共享内存的层级关系](/java/03-java-concurrency-chapter-04-jmm-memory-model.svg)
 
 Core 0 把 `x = 1` 写到自己的 L1 时，这个修改并不会立刻写回主内存。此时 Core 1 从自己 L1 读到的可能仍是旧值 `0`。**可见性问题的硬件根源就在这里**。
 
@@ -460,7 +460,7 @@ public class SafeThisEscape {
 
 ### 6.5 三层关系一图收尾
 
-![JMM 语义经由 JVM 实现再映射到 CPU 行为的三层关系](/java/jmm-happens-before.svg)
+![JMM 语义经由 JVM 实现再映射到 CPU 行为的三层关系](/java/03-java-concurrency-chapter-04-jmm-happens-before.svg)
 
 JMM 定义并发语义、JVM 翻译为屏障、CPU 执行屏障——三层协作是"Java 并发能被推理"的物理基础。
 

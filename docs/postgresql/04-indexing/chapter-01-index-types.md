@@ -9,7 +9,7 @@ title: 索引类型详解
 
 ## 1. 索引类型全景图
 
-![PostgreSQL 索引类型](/pg/index-types.svg)
+![PostgreSQL 索引类型](/pg/04-indexing-chapter-01-index-types.svg)
 
 ## 2. 各索引类型适用场景
 

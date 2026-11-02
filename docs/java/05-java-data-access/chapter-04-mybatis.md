@@ -95,7 +95,7 @@ sequenceDiagram
 
 整个执行链路涉及六个核心组件，各司其职：
 
-![mybatis-flow](/java/mybatis-flow.svg)
+![mybatis-flow](/java/05-java-data-access-chapter-04-mybatis-flow.svg)
 
 | 组件 | 职责 | 类比 |
 | :-- | :-- | :-- |
@@ -292,7 +292,7 @@ public abstract class BaseExecutor implements Executor {
 
 **二级缓存的工作机制：**
 
-![mybatis-cache-flow](/java/mybatis-cache-flow.svg)
+![mybatis-cache-flow](/java/05-java-data-access-chapter-04-mybatis-cache-flow.svg)
 
 **关键注意事项：**
 

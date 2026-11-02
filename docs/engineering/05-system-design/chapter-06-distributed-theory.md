@@ -8,7 +8,7 @@
 
 ## 2. CAP 三要素
 
-![CAP 三要素](/java/cap-triangle.svg)
+![CAP 三要素](/engineering/05-system-design-chapter-06-cap-triangle.svg)
 
 ### 2.1 三要素详解
 
@@ -24,7 +24,7 @@
 
 ### 3.1 用一个例子说明
 
-![网络分区下 CP 与 AP 的取舍](/java/cap-partition-choice.svg)
+![网络分区下 CP 与 AP 的取舍](/engineering/05-system-design-chapter-06-cap-partition-choice.svg)
 
 > **为什么 P 不可放弃**：分布式系统中，网络分区是客观存在的（网络抖动、机器宕机、光纤被挖断），无法避免。因此 P 是前提，只能在 C 和 A 之间权衡。单机系统没有网络分区问题，所以可以同时满足 CA。
 
@@ -49,7 +49,7 @@
 
 ### 4.2 选型决策指南
 
-![CAP 选型决策树](/java/cap-decision-tree.svg)
+![CAP 选型决策树](/engineering/05-system-design-chapter-06-cap-decision-tree.svg)
 
 | 业务场景 | 推荐选型 | 原因 |
 | :-- | :-- | :-- |
@@ -115,7 +115,7 @@ BASE 是对 CAP 中 AP 方案的工程化总结，核心思想是：**不追求�
 
 经过一段时间后，所有节点的数据最终会达到一致状态。
 
-![最终一致性：主从同步与缓存失效](/java/base-eventual-consistency.svg)
+![最终一致性：主从同步与缓存失效](/engineering/05-system-design-chapter-06-base-eventual-consistency.svg)
 
 ### 6.2 最终一致性的实现模式
 
@@ -131,7 +131,7 @@ BASE 是对 CAP 中 AP 方案的工程化总结，核心思想是：**不追求�
 
 #### 6.3.1 电商下单流程中的 BASE
 
-![电商下单的 BASE 实践](/java/base-ecommerce-order.svg)
+![电商下单的 BASE 实践](/engineering/05-system-design-chapter-06-base-ecommerce-order.svg)
 
 ## 7. CAP 的常见误解
 

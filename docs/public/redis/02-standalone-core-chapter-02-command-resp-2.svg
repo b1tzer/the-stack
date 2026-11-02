@@ -1,8 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="300" height="530" viewBox="0 0 300 530" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif">
   <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-      <path d="M 0 0 L 10 5 L 0 10 z" fill="#57606a"/>
-    </marker>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#57606a"/></marker>
   </defs>
   <rect width="300" height="530" fill="#ffffff"/>
 
@@ -27,10 +25,10 @@
   <rect x="50" y="464" width="200" height="44" rx="8" fill="#fff1f0" stroke="#DC382D"/>
   <text x="150" y="486" text-anchor="middle" font-size="13" font-weight="600" fill="#DC382D">返回响应</text>
 
-  <line x1="150" y1="64" x2="150" y2="86" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <line x1="150" y1="138" x2="150" y2="160" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <line x1="150" y1="212" x2="150" y2="234" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <line x1="150" y1="286" x2="150" y2="308" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <line x1="150" y1="360" x2="150" y2="382" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <line x1="150" y1="434" x2="150" y2="456" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="150" y1="64" x2="150" y2="84" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="150" y1="138" x2="150" y2="158" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="150" y1="212" x2="150" y2="232" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="150" y1="286" x2="150" y2="306" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="150" y1="360" x2="150" y2="380" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="150" y1="434" x2="150" y2="454" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
 </svg>

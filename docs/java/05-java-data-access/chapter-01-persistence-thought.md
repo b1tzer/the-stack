@@ -102,7 +102,7 @@ public class PremiumOrder extends Order {
 
 **导航问题（Navigation）**：在 Java 中遍历对象图是 `order.getBuyer().getAddress().getCity()`，自然流畅。在 SQL 中要写 `SELECT ... FROM orders o JOIN users u ON o.buyer_id = u.id JOIN addresses a ON u.address_id = a.id`，繁琐且与对象图的结构截然不同。
 
-![orm-mapping](/java/orm-mapping.svg)
+![orm-mapping](/java/05-java-data-access-chapter-01-orm-mapping.svg)
 
 **这就是持久化技术存在的根本原因**——我们需要某种机制，在对象世界和关系世界之间架起桥梁，让开发者尽可能少地感知这种失配。
 
