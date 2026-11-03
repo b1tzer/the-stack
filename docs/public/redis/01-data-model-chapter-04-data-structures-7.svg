@@ -5,7 +5,7 @@
   <rect width="920" height="300" fill="#ffffff"/>
 
   <!-- 上半：ziplist 连锁更新 -->
-  <text x="40" y="34" font-size="14" font-weight="700" fill="#DC382D">ziplist：prevlen 记录前一个节点长度</text>
+  <text x="40" y="34" font-size="13" font-weight="700" fill="#DC382D">ziplist：prevlen 记录前一个节点长度</text>
 
   <rect x="40" y="50" width="150" height="52" rx="8" fill="#fff1f0" stroke="#DC382D"/>
   <text x="115" y="72" text-anchor="middle" font-size="12" font-weight="600" fill="#DC382D">节点 A</text>
@@ -29,7 +29,7 @@
   <line x1="40" y1="150" x2="880" y2="150" stroke="#c0c8d0" stroke-width="1" stroke-dasharray="5 4"/>
 
   <!-- 下半：listpack -->
-  <text x="40" y="184" font-size="14" font-weight="700" fill="#1a7f37">listpack：self-len 只记录自身长度</text>
+  <text x="40" y="184" font-size="13" font-weight="700" fill="#1a7f37">listpack：self-len 只记录自身长度</text>
 
   <rect x="40" y="200" width="150" height="52" rx="8" fill="#e6f4ea" stroke="#1a7f37"/>
   <text x="115" y="222" text-anchor="middle" font-size="12" font-weight="600" fill="#1a7f37">节点 A′</text>

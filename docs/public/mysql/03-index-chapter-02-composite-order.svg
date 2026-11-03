@@ -1,5 +1,5 @@
 <svg width="940" height="370" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 370" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
-  <text x="470" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">联合索引 idx_a_b_c：叶子按 (a, b, c) 字典序排列</text>
+  <text x="470" y="26" text-anchor="middle" font-size="16" font-weight="bold" fill="#333333">联合索引 idx_a_b_c：叶子按 (a, b, c) 字典序排列</text>
 
   <!-- a 组标签 -->
   <text x="300" y="176" text-anchor="end" fill="#0d47a1" font-size="12" font-weight="bold">a = 1 区间</text>
@@ -29,15 +29,15 @@
 
   <!-- b 组标签 -->
   <text x="630" y="98" fill="#1565c0" font-size="11" font-weight="bold">b=1</text>
-  <text x="630" y="138" fill="#1565c0" font-size="10">（区间内有序）</text>
+  <text x="630" y="138" fill="#1565c0" font-size="11">（区间内有序）</text>
   <text x="630" y="194" fill="#1565c0" font-size="11" font-weight="bold">b=2</text>
-  <text x="630" y="214" fill="#1565c0" font-size="10">（区间内有序）</text>
+  <text x="630" y="214" fill="#1565c0" font-size="11">（区间内有序）</text>
   <text x="630" y="290" fill="#e65100" font-size="11" font-weight="bold">b 又从 1 开始</text>
-  <text x="630" y="310" fill="#e65100" font-size="10">（a 换区间，重新排序）</text>
+  <text x="630" y="310" fill="#e65100" font-size="11">（a 换区间，重新排序）</text>
 
   <!-- 反例标注 -->
   <text x="770" y="196" fill="#c62828" font-size="11" font-weight="bold">只写 WHERE b=2：</text>
-  <text x="770" y="216" fill="#555555" font-size="10">b=2 散落在 a=1、a=2</text>
-  <text x="770" y="234" fill="#555555" font-size="10">多个区间里，树上无序，</text>
-  <text x="770" y="252" fill="#555555" font-size="10">无法定位，只能全扫</text>
+  <text x="770" y="216" fill="#555555" font-size="11">b=2 散落在 a=1、a=2</text>
+  <text x="770" y="234" fill="#555555" font-size="11">多个区间里，树上无序，</text>
+  <text x="770" y="252" fill="#555555" font-size="11">无法定位，只能全扫</text>
 </svg>

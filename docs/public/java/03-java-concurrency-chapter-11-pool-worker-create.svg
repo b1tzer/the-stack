@@ -4,7 +4,7 @@
     <marker id="arr-back" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#7b1fa2"/></marker>
   </defs>
   <style>
-    text{font-size:14px;fill:#333333}
+    text{font-size:13px;fill:#333333}
     .title{font-size:16px;font-weight:bold;fill:#333333}
     .node-label{font-size:13px;fill:#0d47a1}
     .loop-label{fill:#7b1fa2;font-size:12px;font-weight:bold}

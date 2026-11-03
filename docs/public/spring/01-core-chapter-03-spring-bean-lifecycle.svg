@@ -1,17 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 870" width="760" height="870" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif">
   <style>
     text { dominant-baseline: central; }
-    .title { font-size: 16px; font-weight: bold; fill: #24292f; }
+    .title { font-size:16px; font-weight: bold; fill: #24292f; }
     .stage-title { font-size: 13px; font-weight: bold; }
     .stage-box { fill: #f6f8fa; stroke: #9aa4af; stroke-width: 1.2; stroke-dasharray: 5 4; }
     .card { stroke-width: 1.2; }
     .card-name { font-size: 13px; font-weight: bold; }
     .card-desc { font-size: 12px; fill: #57606a; }
-    .card-src { font-size: 10px; fill: #8b949e; font-family: 'SF Mono', Consolas, Menlo, monospace; }
+    .card-src { font-size: 11px; fill: #8b949e; font-family: 'SF Mono', Consolas, Menlo, monospace; }
     .arrow { stroke: #57606a; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
     .arrow-dash { stroke: #57606a; stroke-width: 1.5; fill: none; stroke-dasharray: 6 4; marker-end: url(#arrowhead); }
     .marker-arrow { fill: #57606a; }
-    .footnote { font-size: 10px; fill: #8b949e; }
+    .footnote { font-size: 11px; fill: #8b949e; }
   </style>
   <defs>
     <marker id="arrowhead" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#64748b"/></marker>

@@ -1,7 +1,7 @@
 <svg height="270" xmlns="http://www.w3.org/2000/svg" width="580" viewBox="0 0 580 270" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
   <!-- 进程外框 -->
   <rect x="8" y="8" width="564" height="254" rx="10" fill="#eef4fb" stroke="#1565c0" stroke-width="1.6"/>
-  <text x="290" y="32" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">进程（Process）</text>
+  <text x="290" y="32" text-anchor="middle" font-size="16" font-weight="bold" fill="#0d47a1">进程（Process）</text>
 
   <!-- 线程 A -->
   <rect x="24" y="46" width="170" height="104" rx="6" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3"/>
