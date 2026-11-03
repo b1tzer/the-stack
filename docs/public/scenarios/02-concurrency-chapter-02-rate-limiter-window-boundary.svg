@@ -2,7 +2,7 @@
   <rect width="640" height="340" fill="#ffffff"/>
 
   <!-- ============ 固定窗口 ============ -->
-  <text x="40" y="48" font-size="15" font-weight="700" fill="#24292f">固定窗口</text>
+  <text x="40" y="48" font-size="13" font-weight="700" fill="#24292f">固定窗口</text>
   <text x="40" y="70" font-size="12" fill="#57606a">窗口 1 与窗口 2 交界处，两侧各自独立计数</text>
 
   <!-- 时间轴 -->
@@ -27,7 +27,7 @@
   </defs>
 
   <!-- ============ 滑动窗口 ============ -->
-  <text x="40" y="228" font-size="15" font-weight="700" fill="#24292f">滑动窗口</text>
+  <text x="40" y="228" font-size="13" font-weight="700" fill="#24292f">滑动窗口</text>
   <text x="40" y="250" font-size="12" fill="#57606a">任意时刻只统计最近 window 内的请求，窗口随请求平滑移动</text>
 
   <!-- 时间轴 -->

@@ -3,7 +3,7 @@
     <marker id="a" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#555555"/></marker>
   </defs>
   <style>
-    text{font-size:14px;fill:#333333}
+    text{font-size:13px;fill:#333333}
     .title{font-size:16px;font-weight:bold;fill:#333333}
     .layer-label{font-size:13px;fill:#333333;font-weight:bold}
     .vt-label{font-size:12px;fill:#0d47a1}

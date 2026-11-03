@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" width="640" height="420" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif">
 <style>
   text { text-anchor: middle; dominant-baseline: central; }
-  .title { font-size: 17px; font-weight: bold; fill: #333333; }
-  .label { font-size: 14px; fill: #333333; }
+  .title { font-size:16px; font-weight: bold; fill: #333333; }
+  .label { font-size: 13px; fill: #333333; }
   .note { font-size: 12px; fill: #666666; }
   .arrow { stroke: #7b1fa2; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
   .box { rx: 8; ry: 8; }

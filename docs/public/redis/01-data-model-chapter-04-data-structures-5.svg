@@ -6,7 +6,7 @@
 
   <!-- 左侧 dict 结构框 -->
   <rect x="30" y="50" width="180" height="210" rx="8" fill="#f6f8fa" stroke="#9aa4af"/>
-  <text x="120" y="76" text-anchor="middle" font-size="14" font-weight="700" fill="#24292f">dict</text>
+  <text x="120" y="76" text-anchor="middle" font-size="13" font-weight="700" fill="#24292f">dict</text>
   <text x="48" y="104" font-size="13" fill="#57606a">type</text>
   <text x="48" y="132" font-size="13" fill="#57606a">privdata</text>
   <text x="48" y="160" font-size="13" font-weight="700" fill="#DC382D">ht[0]</text>
@@ -16,7 +16,7 @@
   <text x="48" y="260" font-size="12" fill="#9aa4af">rehash 时同时使用</text>
 
   <!-- 右侧 ht[0] 桶数组 -->
-  <text x="330" y="76" text-anchor="middle" font-size="14" font-weight="700" fill="#24292f">ht[0] 桶数组（table）</text>
+  <text x="330" y="76" text-anchor="middle" font-size="13" font-weight="700" fill="#24292f">ht[0] 桶数组（table）</text>
 
   <!-- 桶0 -->
   <rect x="280" y="94" width="100" height="36" rx="6" fill="#ffffff" stroke="#c0c8d0"/>

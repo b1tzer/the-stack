@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0.0 0.0 1058.4 620.0" width="1058.4" height="620.0" font-family="'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif">
   <style>
-    .title { font-size: 20px; font-weight: 700; fill: #1e293b; text-anchor: middle; }
+    .title { font-size:16px; font-weight: 700; fill: #1e293b; text-anchor: middle; }
     .subtitle { font-size: 12px; fill: #64748b; text-anchor: middle; }
-    .legend { font-size: 10px; fill: #64748b; }
+    .legend { font-size: 11px; fill: #64748b; }
     .panel { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; rx: 10; }
-    .panel-title { font-size: 15px; font-weight: 700; text-anchor: middle; }
+    .panel-title { font-size: 13px; font-weight: 700; text-anchor: middle; }
     .panel-old { fill: #b91c1c; }
     .panel-new { fill: #15803d; }
     .broker-box { rx: 8; }
@@ -19,14 +19,14 @@
     .cell-follower { fill: #fef3c7; stroke: #f59e0b; }
     .cell-deleted { fill: #fee2e2; stroke: #dc2626; stroke-dasharray: 4 3; }
     .cell-msg { font-size: 11px; font-weight: 700; text-anchor: middle; }
-    .offset { font-size: 9px; fill: #94a3b8; text-anchor: middle; }
-    .meta { font-size: 10px; fill: #475569; }
+    .offset { font-size: 11px; fill: #94a3b8; text-anchor: middle; }
+    .meta { font-size: 11px; fill: #475569; }
     .hw-line { stroke-dasharray: 4 3; stroke-width: 1.5; fill: none; }
-    .hw-label { font-size: 9px; font-weight: 700; text-anchor: middle; }
+    .hw-label { font-size: 11px; font-weight: 700; text-anchor: middle; }
     .step { font-size: 12px; fill: #334155; text-anchor: middle; }
     .step-reply { font-size: 11px; fill: #15803d; font-weight: 700; text-anchor: middle; }
     .step-arrow { stroke: #64748b; stroke-width: 1.5; fill: none; marker-end: url(#arrowhead); }
-    .result { font-size: 14px; font-weight: 700; text-anchor: middle; }
+    .result { font-size: 13px; font-weight: 700; text-anchor: middle; }
     .result-bad { fill: #b91c1c; }
     .result-good { fill: #15803d; }
     .cross { stroke: #dc2626; stroke-width: 2; }

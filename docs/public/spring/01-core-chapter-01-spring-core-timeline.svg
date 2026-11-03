@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0.0 0.0 1150.6 166.0" width="1150.6" height="166.0" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif">
   <style>
-	.title { font-size: 16px; font-weight: bold; fill: #1e293b; text-anchor: middle; }
+	.title { font-size:16px; font-weight: bold; fill: #1e293b; text-anchor: middle; }
 	.year { font-size: 13px; font-weight: bold; fill: #1e293b; text-anchor: middle; }
 	.node-title { font-size: 13px; font-weight: bold; fill: #334155; text-anchor: middle; }
 	.node-desc { font-size: 12px; fill: #64748b; text-anchor: middle; }

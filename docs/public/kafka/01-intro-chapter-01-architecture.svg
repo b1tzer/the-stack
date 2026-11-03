@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 390" width="1000" height="390" font-family="'PingFang SC','Microsoft YaHei','Noto Sans SC',sans-serif">
   <style>
-    .title { font-size: 20px; font-weight: 700; fill: #1e293b; text-anchor: middle; }
+    .title { font-size:16px; font-weight: 700; fill: #1e293b; text-anchor: middle; }
     .group-box { fill: none; stroke: #94a3b8; stroke-width: 1.5; stroke-dasharray: 6 4; rx: 10; }
-    .group-label { font-size: 14px; font-weight: 700; fill: #1e293b; }
+    .group-label { font-size: 13px; font-weight: 700; fill: #1e293b; }
     .module { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.2; rx: 6; }
     .module-title { font-size: 13px; font-weight: 700; fill: #1e293b; text-anchor: middle; }
     .topic-label { font-size: 11px; fill: #64748b; text-anchor: middle; }

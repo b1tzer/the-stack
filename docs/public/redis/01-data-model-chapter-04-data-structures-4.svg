@@ -6,7 +6,7 @@
 
   <!-- quicklist 结构框 -->
   <rect x="30" y="30" width="860" height="46" rx="8" fill="#f6f8fa" stroke="#9aa4af"/>
-  <text x="460" y="58" text-anchor="middle" font-size="14" font-weight="700" fill="#24292f">quicklist（head / tail / len，每个节点是一个 listpack）</text>
+  <text x="460" y="58" text-anchor="middle" font-size="13" font-weight="700" fill="#24292f">quicklist（head / tail / len，每个节点是一个 listpack）</text>
 
   <!-- 节点1 -->
   <rect x="60" y="130" width="220" height="60" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
@@ -15,9 +15,9 @@
     <line x1="135" y1="130" x2="135" y2="190"/>
     <line x1="210" y1="130" x2="210" y2="190"/>
   </g>
-  <text x="97" y="165" text-anchor="middle" font-size="14" fill="#24292f">A</text>
-  <text x="172" y="165" text-anchor="middle" font-size="14" fill="#24292f">B</text>
-  <text x="245" y="165" text-anchor="middle" font-size="14" fill="#24292f">C</text>
+  <text x="97" y="165" text-anchor="middle" font-size="13" fill="#24292f">A</text>
+  <text x="172" y="165" text-anchor="middle" font-size="13" fill="#24292f">B</text>
+  <text x="245" y="165" text-anchor="middle" font-size="13" fill="#24292f">C</text>
 
   <!-- 节点2 -->
   <rect x="350" y="130" width="220" height="60" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
@@ -25,8 +25,8 @@
   <g stroke="#c0c8d0" stroke-width="1">
     <line x1="460" y1="130" x2="460" y2="190"/>
   </g>
-  <text x="405" y="165" text-anchor="middle" font-size="14" fill="#24292f">D</text>
-  <text x="515" y="165" text-anchor="middle" font-size="14" fill="#24292f">E</text>
+  <text x="405" y="165" text-anchor="middle" font-size="13" fill="#24292f">D</text>
+  <text x="515" y="165" text-anchor="middle" font-size="13" fill="#24292f">E</text>
 
   <!-- 节点3 -->
   <rect x="640" y="130" width="220" height="60" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
@@ -35,9 +35,9 @@
     <line x1="715" y1="130" x2="715" y2="190"/>
     <line x1="790" y1="130" x2="790" y2="190"/>
   </g>
-  <text x="677" y="165" text-anchor="middle" font-size="14" fill="#24292f">F</text>
-  <text x="752" y="165" text-anchor="middle" font-size="14" fill="#24292f">G</text>
-  <text x="827" y="165" text-anchor="middle" font-size="14" fill="#24292f">H</text>
+  <text x="677" y="165" text-anchor="middle" font-size="13" fill="#24292f">F</text>
+  <text x="752" y="165" text-anchor="middle" font-size="13" fill="#24292f">G</text>
+  <text x="827" y="165" text-anchor="middle" font-size="13" fill="#24292f">H</text>
 
   <!-- 双向箭头（prev/next） -->
   <g stroke="#57606a" stroke-width="1.5" marker-start="url(#arrow)" marker-end="url(#arrow)">

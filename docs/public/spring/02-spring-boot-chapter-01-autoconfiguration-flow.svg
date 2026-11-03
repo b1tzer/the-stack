@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 640" width="980" height="640" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="12">
   <style>
     text { text-anchor: middle; dominant-baseline: central; }
-    .title { font-size: 16px; font-weight: bold; fill: #1a1a2e; }
+    .title { font-size:16px; font-weight: bold; fill: #1a1a2e; }
     .subtitle { font-size: 12px; fill: #666666; }
     .footnote { font-size: 11px; fill: #999999; }
     .stage-label { font-size: 13px; font-weight: bold; fill: #333333; }

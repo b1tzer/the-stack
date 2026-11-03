@@ -4,7 +4,7 @@
     <marker id="arrBlue" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#1565c0"/></marker>
   </defs>
 
-  <text x="470" y="26" text-anchor="middle" font-size="15" font-weight="bold" fill="#333333">二级索引与回表</text>
+  <text x="470" y="26" text-anchor="middle" font-size="16" font-weight="bold" fill="#333333">二级索引与回表</text>
 
   <!-- 左：二级索引 -->
   <rect x="40" y="56" width="380" height="214" rx="8" fill="#fafafa" stroke="#1565c0" stroke-width="1.4"/>
@@ -26,7 +26,7 @@
   <rect x="310" y="180" width="100" height="44" rx="4" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.2"/>
   <text x="360" y="207" text-anchor="middle" fill="#1b5e20" font-size="11">Zoe → 9</text>
 
-  <text x="230" y="252" text-anchor="middle" fill="#555555" font-size="10">叶子存主键值，不存行数据</text>
+  <text x="230" y="252" text-anchor="middle" fill="#555555" font-size="11">叶子存主键值，不存行数据</text>
 
   <!-- 右：聚簇索引 -->
   <rect x="540" y="56" width="360" height="214" rx="8" fill="#fafafa" stroke="#2e7d32" stroke-width="1.4"/>
@@ -44,10 +44,10 @@
   <rect x="780" y="180" width="100" height="44" rx="4" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.2"/>
   <text x="830" y="207" text-anchor="middle" fill="#1b5e20" font-size="11">其他行</text>
 
-  <text x="720" y="252" text-anchor="middle" fill="#555555" font-size="10">叶子存完整行数据</text>
+  <text x="720" y="252" text-anchor="middle" fill="#555555" font-size="11">叶子存完整行数据</text>
 
   <!-- 回表箭头：先上行绕过本侧叶子，再从左侧水平进入目标叶 -->
-  <text x="525" y="194" text-anchor="middle" fill="#e65100" font-size="10" font-weight="bold">回表</text>
+  <text x="525" y="194" text-anchor="middle" fill="#e65100" font-size="11" font-weight="bold">回表</text>
   <path d="M245,180 V166 Q245,158 253,158 H492 Q500,158 500,166 V194 Q500,202 508,202 H546" fill="none" stroke="#e65100" stroke-width="1.8" marker-end="url(#arrOrange)"/>
 
   <!-- 底部两步 -->

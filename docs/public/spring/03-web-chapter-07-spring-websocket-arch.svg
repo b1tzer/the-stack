@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 500" width="640" height="500" font-family="'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif" font-size="11">
 <style>
   text { text-anchor: middle; dominant-baseline: central; }
-  .title { font-size: 15px; font-weight: bold; fill: #333333; }
+  .title { font-size:16px; font-weight: bold; fill: #333333; }
   .label { font-size: 12px; font-weight: bold; fill: #333333; }
   .note { font-size: 11px; fill: #666666; }
   .arrow { stroke: #7b1fa2; stroke-width: 2; fill: none; }

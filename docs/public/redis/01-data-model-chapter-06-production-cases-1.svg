@@ -5,8 +5,8 @@
   <rect width="920" height="480" fill="#ffffff"/>
 
   <!-- 列标题 -->
-  <text x="210" y="36" text-anchor="middle" font-size="15" font-weight="700" fill="#24292f">数据模型知识点（前五章）</text>
-  <text x="710" y="36" text-anchor="middle" font-size="15" font-weight="700" fill="#24292f">对应的生产问题</text>
+  <text x="210" y="36" text-anchor="middle" font-size="13" font-weight="700" fill="#24292f">数据模型知识点（前五章）</text>
+  <text x="710" y="36" text-anchor="middle" font-size="13" font-weight="700" fill="#24292f">对应的生产问题</text>
 
   <!-- 左列：知识点 -->
   <rect x="40" y="64" width="340" height="48" rx="8" fill="#f6f8fa" stroke="#9aa4af"/>

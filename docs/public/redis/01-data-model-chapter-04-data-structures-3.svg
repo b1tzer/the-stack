@@ -5,10 +5,10 @@
   <rect x="30" y="70" width="860" height="70" rx="8" fill="#f6f8fa" stroke="#9aa4af"/>
 
   <!-- 字段名 -->
-  <text x="75" y="58" text-anchor="middle" font-size="14" font-weight="700" fill="#24292f">len</text>
-  <text x="155" y="58" text-anchor="middle" font-size="14" font-weight="700" fill="#24292f">alloc</text>
-  <text x="235" y="58" text-anchor="middle" font-size="14" font-weight="700" fill="#24292f">flags</text>
-  <text x="580" y="58" text-anchor="middle" font-size="14" font-weight="700" fill="#24292f">buf[]（实际字节内容）</text>
+  <text x="75" y="58" text-anchor="middle" font-size="13" font-weight="700" fill="#24292f">len</text>
+  <text x="155" y="58" text-anchor="middle" font-size="13" font-weight="700" fill="#24292f">alloc</text>
+  <text x="235" y="58" text-anchor="middle" font-size="13" font-weight="700" fill="#24292f">flags</text>
+  <text x="580" y="58" text-anchor="middle" font-size="13" font-weight="700" fill="#24292f">buf[]（实际字节内容）</text>
 
   <!-- 字段分隔竖线 -->
   <g stroke="#c0c8d0" stroke-width="1.5">
@@ -27,16 +27,16 @@
   </g>
 
   <!-- 字段值 -->
-  <text x="75" y="112" text-anchor="middle" font-size="15" fill="#24292f">5</text>
-  <text x="155" y="112" text-anchor="middle" font-size="15" fill="#24292f">5</text>
+  <text x="75" y="112" text-anchor="middle" font-size="13" fill="#24292f">5</text>
+  <text x="155" y="112" text-anchor="middle" font-size="13" fill="#24292f">5</text>
   <text x="235" y="112" text-anchor="middle" font-size="13" fill="#24292f">8</text>
 
   <!-- buf 内容字符 -->
-  <text x="321" y="112" text-anchor="middle" font-size="15" fill="#DC382D">h</text>
-  <text x="424" y="112" text-anchor="middle" font-size="15" fill="#DC382D">e</text>
-  <text x="527" y="112" text-anchor="middle" font-size="15" fill="#DC382D">l</text>
-  <text x="630" y="112" text-anchor="middle" font-size="15" fill="#DC382D">l</text>
-  <text x="733" y="112" text-anchor="middle" font-size="15" fill="#DC382D">o</text>
+  <text x="321" y="112" text-anchor="middle" font-size="13" fill="#DC382D">h</text>
+  <text x="424" y="112" text-anchor="middle" font-size="13" fill="#DC382D">e</text>
+  <text x="527" y="112" text-anchor="middle" font-size="13" fill="#DC382D">l</text>
+  <text x="630" y="112" text-anchor="middle" font-size="13" fill="#DC382D">l</text>
+  <text x="733" y="112" text-anchor="middle" font-size="13" fill="#DC382D">o</text>
   <text x="837" y="112" text-anchor="middle" font-size="13" fill="#57606a">\0</text>
 
   <!-- 字节说明 -->
