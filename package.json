@@ -14,8 +14,11 @@
     "fix:emphasis": "python3 fix-emphasis.py"
   },
   "devDependencies": {
+    "@chunge16/vitepress-blogs-theme": "^1.0.0",
+    "@tailwindcss/vite": "^4.3.4",
     "fabric": "^6.9.1",
     "mermaid": "^11.17.2",
+    "tailwindcss": "^4.3.4",
     "vitepress": "^1.6.3",
     "vitepress-plugin-open-in-editor": "^0.1.5",
     "vitepress-plugin-svg-editor": "^0.5.0"
