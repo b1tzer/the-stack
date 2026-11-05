@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { basename, dirname, extname, join, relative, resolve } from 'node:path'
+import { basename, dirname, extname, join, relative, resolve, sep } from 'node:path'
 
 const DOCS_DIR = resolve('docs')
 const CONFIG_PATH = resolve('.vitepress/config.mts')
@@ -9,8 +9,24 @@ const SIDEBAR_EXCLUSIONS = new Set([
   join(DOCS_DIR, '_snippets', 'depth-audit-2026-08-31.md'),
   join(DOCS_DIR, 'kafka', 'RESTRUCTURE-PLAN.md'),
 ])
+// 博客由 vitepress-blogs-theme 动态生成入口：首页按 frontmatter 列出 posts/**，
+// 作者页由文章元数据链入。它们不需要写进 nav/sidebar，也不参与正文互链统计。
+const BLOG_DYNAMIC_PREFIXES = [
+  join(DOCS_DIR, 'blog', 'posts'),
+  join(DOCS_DIR, 'blog', 'authors'),
+]
 
 const errors = []
+
+function isBlogDynamicPage(file) {
+  return BLOG_DYNAMIC_PREFIXES.some(prefix => file.startsWith(`${prefix}${sep}`))
+}
+
+// 首页布局由主题渲染，页面标题和结构由组件负责，不按正文文档校验 H1。
+function hasHomeLayout(source) {
+  const frontmatter = source.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)
+  return frontmatter ? /^layout:\s*home\s*$/m.test(frontmatter[1]) : false
+}
 
 function walk(directory) {
   const entries = readdirSync(directory, { withFileTypes: true })
@@ -88,12 +104,13 @@ for (const file of markdownFiles) {
 
   const headings = [...content.matchAll(/^(#{1,6})\s+.+$/gm)]
   const h1Count = headings.filter(match => match[1] === '#').length
+  const isLandingPage = hasHomeLayout(source)
 
-  if (file !== join(DOCS_DIR, 'index.md') && h1Count !== 1) {
+  if (!isLandingPage && h1Count !== 1) {
     report(file, `应有且仅有一个 H1，当前为 ${h1Count}`)
   }
 
-  if (headings.length > 0) {
+  if (!isLandingPage && headings.length > 0) {
     let previousLevel = headings[0][1].length
     if (previousLevel !== 1) report(file, '首个标题必须是 H1')
 
@@ -132,6 +149,7 @@ for (const file of markdownFiles) {
 // 只报告，不阻塞构建；导览页、纯中转说明页和被排除的草稿页不计入。
 function isInboundExempt(file) {
   if (SIDEBAR_EXCLUSIONS.has(file)) return true
+  if (isBlogDynamicPage(file)) return true
   if (basename(file) === 'index.md') return true
 
   const body = stripCodeAndFrontmatter(readFileSync(file, 'utf8')).trim()
@@ -179,6 +197,7 @@ for (const match of config.matchAll(/link:\s*['"]([^'"]+)['"]/g)) {
 
 for (const file of markdownFiles) {
   if (SIDEBAR_EXCLUSIONS.has(file)) continue
+  if (isBlogDynamicPage(file)) continue
   if (!configRoutes.has(file)) report(file, '未出现在站点导航或侧边栏中')
 }
 

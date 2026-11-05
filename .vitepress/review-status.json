@@ -73,6 +73,12 @@
       "status": "pending",
       "lastVerified": null,
       "nextReview": "2026-11-24"
+    },
+    "blog": {
+      "versionScope": "按 vitepress-blogs-theme 版本与站点配置核对",
+      "status": "pending",
+      "lastVerified": null,
+      "nextReview": "2027-02-02"
     }
   }
 }

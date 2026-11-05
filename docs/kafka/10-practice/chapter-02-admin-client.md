@@ -4,7 +4,7 @@
 
 `kafka-topics.sh`、`kafka-configs.sh`、`kafka-consumer-groups.sh` 这些 shell 脚本适合运维手动操作，但**业务代码里需要动态管理 Kafka**时它们就成了瓶颈。Java 应用虽然也能通过子进程调用脚本，但会带来进程管理、输出解析和错误处理的额外成本；需要把管理操作集成进应用或平台时，直接调用 Admin API 更合适。
 
-AdminClient 是 Kafka 从 [KIP-4](https://cwiki.apache.org/confluence/x/kJi8Aw) 起规划、[KIP-117](https://cwiki-test.apache.org/confluence/x/qx4IB) 在 0.11.0 引入的编程式管理 API。它通过 wire protocol 直接和 broker 说话，不再依赖 ZooKeeper，把 Topic 创建删除、配置修改、消费组查询与 Offset 管理这些操作都暴露成了 Java 方法。Admin API 与命令行工具并非严格一一对应，人工运维和一次性操作仍以命令行工具更直接。
+AdminClient 是 Kafka 从 [KIP-4](https://cwiki.apache.org/confluence/x/kJi8Aw) 起规划、[KIP-117](https://cwiki.apache.org/confluence/x/qx4IB) 在 0.11.0 引入的编程式管理 API。它通过 wire protocol 直接和 broker 说话，不再依赖 ZooKeeper，把 Topic 创建删除、配置修改、消费组查询与 Offset 管理这些操作都暴露成了 Java 方法。Admin API 与命令行工具并非严格一一对应，人工运维和一次性操作仍以命令行工具更直接。
 
 ## 1. 什么时候需要 AdminClient
 

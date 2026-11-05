@@ -2,6 +2,8 @@ import { defineConfig } from 'vitepress'
 import type { DefaultTheme } from 'vitepress'
 import { svgEditorPlugin, svgDiagramMarkdownPlugin } from 'vitepress-plugin-svg-editor'
 import { withOpenInEditor } from 'vitepress-plugin-open-in-editor'
+import { processData } from '@chunge16/vitepress-blogs-theme/config'
+import tailwindcss from '@tailwindcss/vite'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -124,6 +126,8 @@ gtag('config', 'G-ZV6SVQFCWW');`],
   },
 
   async transformPageData(pageData, context) {
+    await processData(pageData, context)
+
     if (pageData.description || pageData.frontmatter.description) return
 
     try {
@@ -159,6 +163,7 @@ gtag('config', 'G-ZV6SVQFCWW');`],
 
   vite: {
     plugins: [
+      tailwindcss(),
       svgEditorPlugin({
         storage: 'vitepress',
       }),
@@ -174,6 +179,12 @@ gtag('config', 'G-ZV6SVQFCWW');`],
         'dayjs',
         'debug',
       ],
+      exclude: [
+        '@chunge16/vitepress-blogs-theme',
+      ],
+    },
+    ssr: {
+      noExternal: ['@chunge16/vitepress-blogs-theme'],
     },
     resolve: {
       alias: [
@@ -211,6 +222,15 @@ gtag('config', 'G-ZV6SVQFCWW');`],
   },
   
   themeConfig: {
+    blog: {
+      title: 'Blog',
+      description: 'The Stack 博客，记录 Java 后端的技术原理与工程实践。',
+      defaultAuthor: 'b1tzer',
+      defaultCategory: 'Java',
+      dateConfig: {
+        format: 'yyyy-MM-dd',
+      },
+    },
     logo: '/logo.svg',
     outline: {
       level: [2, 3],
@@ -251,6 +271,15 @@ gtag('config', 'G-ZV6SVQFCWW');`],
         ],
       },
       { text: '场景实战', link: '/scenarios/', activeMatch: '^/scenarios/' },
+      {
+        text: '博客',
+        activeMatch: '^/blog/',
+        items: [
+          { text: '博客首页', link: '/blog/' },
+          { text: '标签', link: '/blog/tags' },
+          { text: '归档', link: '/blog/archives' },
+        ],
+      },
     ],
 
     sidebar: {

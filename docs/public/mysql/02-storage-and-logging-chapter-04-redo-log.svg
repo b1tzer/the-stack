@@ -21,7 +21,7 @@
   <text x="640" y="206" text-anchor="middle" fill="#333333" font-weight="bold" font-size="13">Redo Log</text>
 
   <!-- 写入方向：终点切线在圆顶，箭头水平 -->
-  <path d="M512,200 A128,128 0 0 1 1,640" fill="none" stroke="#e65100" stroke-width="2" marker-end="url(#arrOrange)"/>
+  <path d="M512,200 A128,128 0 0 1 640,72" fill="none" stroke="#e65100" stroke-width="2" marker-end="url(#arrOrange)"/>
   <text x="660" y="56" fill="#e65100" font-size="11" font-weight="bold">顺时针 = LSN 递增</text>
 
   <!-- checkpoint LSN 游标（底部，绿/橙分界） -->
