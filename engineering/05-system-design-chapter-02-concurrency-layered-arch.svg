@@ -1,0 +1,49 @@
+<svg width="820" height="460" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 460" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <marker id="ar" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#57606a"/>
+    </marker>
+  </defs>
+
+  <text x="390" y="26" text-anchor="middle" font-size="16" font-weight="bold" fill="#24292f">高并发架构分层</text>
+
+  <!-- 用户请求（流量源头，Primer 红） -->
+  <rect x="335" y="48" width="110" height="34" rx="17" fill="#fff1f0" stroke="#DC382D" stroke-width="1.5"/>
+  <text x="390" y="70" text-anchor="middle" font-size="13" font-weight="bold" fill="#DC382D">用户请求</text>
+  <line x1="390" y1="82" x2="390" y2="100" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+
+  <!-- CDN 层（最宽） -->
+  <rect x="110" y="104" width="560" height="54" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+  <text x="390" y="128" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">CDN 层</text>
+  <text x="390" y="146" text-anchor="middle" font-size="11" fill="#1565c0">静态资源缓存</text>
+  <line x1="390" y1="158" x2="390" y2="176" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+  <text x="400" y="171" font-size="11" fill="#57606a">动态请求</text>
+
+  <!-- 网关层 -->
+  <rect x="145" y="176" width="490" height="54" rx="6" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+  <text x="390" y="200" text-anchor="middle" font-size="13" font-weight="bold" fill="#1b5e20">网关层</text>
+  <text x="390" y="218" text-anchor="middle" font-size="11" fill="#2e7d32">限流 · 鉴权 · 路由</text>
+  <line x1="390" y1="230" x2="390" y2="248" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+
+  <!-- 应用服务层 -->
+  <rect x="180" y="248" width="420" height="54" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+  <text x="390" y="272" text-anchor="middle" font-size="13" font-weight="bold" fill="#bf360c">应用服务层</text>
+  <text x="390" y="290" text-anchor="middle" font-size="11" fill="#bf360c">订单 · 商品 · 用户</text>
+  <line x1="390" y1="302" x2="390" y2="320" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+
+  <!-- 缓存层 -->
+  <rect x="215" y="320" width="350" height="54" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+  <text x="390" y="344" text-anchor="middle" font-size="13" font-weight="bold" fill="#0d47a1">缓存层</text>
+  <text x="390" y="362" text-anchor="middle" font-size="11" fill="#1565c0">Redis / 本地缓存</text>
+  <line x1="390" y1="374" x2="390" y2="392" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+  <text x="400" y="387" font-size="11" fill="#57606a">未命中</text>
+
+  <!-- 数据库层（最窄） -->
+  <rect x="250" y="392" width="280" height="54" rx="6" fill="#ffebee" stroke="#c62828" stroke-width="1.5"/>
+  <text x="390" y="416" text-anchor="middle" font-size="13" font-weight="bold" fill="#b71c1c">数据库层</text>
+  <text x="390" y="434" text-anchor="middle" font-size="11" fill="#c62828">主从 · 分库 · 分表</text>
+
+  <!-- 逐层消峰（横向标注） -->
+  <line x1="705" y1="110" x2="705" y2="440" stroke="#DC382D" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#ar)"/>
+  <text x="717" y="280" font-size="12" font-weight="bold" fill="#DC382D">逐层消峰</text>
+</svg>
