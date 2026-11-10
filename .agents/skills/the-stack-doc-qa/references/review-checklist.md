@@ -17,6 +17,13 @@
 - The content mode fits the reader's need and does not mix unrelated modes.
 - The ordering supports the reader's decisions and actions.
 
+### Learning effectiveness
+
+- A complete, runnable worked example appears before any variation or exercise that expects the reader to fill gaps.
+- A diagram and the text that explains it stay in the same view; no "see above" or "as shown earlier" forces the reader to combine separate screens.
+- Steps that can fail state the failure signal and the way back, not only the success path.
+- The page states the knowledge it assumes, and advanced material takes a separate path rather than thickening the main one.
+
 ### Site integrity
 
 - Internal links and image paths resolve.

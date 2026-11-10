@@ -28,6 +28,7 @@ Read `references/review-checklist.md` for the complete review checklist.
 
 - Functional quality: accuracy, completeness, consistency, usefulness, and precision.
 - Content fit: correct tutorial, how-to, reference, or explanation mode and coherent reader flow.
+- Learning effectiveness: complete worked examples, diagram and explanation in the same view, failure recovery, and fit to the stated reader level.
 - Language: natural Chinese, concrete phrasing, terminology, headings, and information density.
 - Evidence: source quality, version scope, and uncertainty handling.
 - Accessibility: alt text, meaningful links, heading hierarchy, and text equivalents.
