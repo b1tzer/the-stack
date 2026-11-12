@@ -1538,6 +1538,20 @@ gtag('config', 'G-ZV6SVQFCWW');`],
           ],
         },
         {
+          text: 'AI 应用',
+          collapsed: true,
+          items: [
+            { text: 'Spring AI 概览与工程接入', link: '/spring/12-ai/chapter-01-spring-ai-overview' },
+            { text: 'ChatClient 与调用链', link: '/spring/12-ai/chapter-02-chat-client' },
+            { text: '提示词与结构化输出', link: '/spring/12-ai/chapter-03-prompt-and-structured-output' },
+            { text: '对话记忆', link: '/spring/12-ai/chapter-04-chat-memory' },
+            { text: 'RAG 与向量存储', link: '/spring/12-ai/chapter-05-rag-and-vector-store' },
+            { text: '工具调用', link: '/spring/12-ai/chapter-06-tool-calling' },
+            { text: 'MCP 集成', link: '/spring/12-ai/chapter-07-mcp' },
+            { text: '可观测性与评估', link: '/spring/12-ai/chapter-08-observability-and-evaluation' },
+          ],
+        },
+        {
           text: '实战',
           collapsed: true,
           items: [

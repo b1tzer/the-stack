@@ -43,6 +43,23 @@
 | `spring-cloud-starter-alibaba-nacos-config` | Nacos 配置中心 |
 | `spring-cloud-starter-alibaba-sentinel` | Sentinel 限流降级 |
 
+## Spring AI Starter
+
+Spring AI 1.1.x 的坐标需要配合 `spring-ai-bom` 使用，不单独写版本号。完整说明见 [Spring AI 概览与工程接入](../12-ai/chapter-01-spring-ai-overview.md)。
+
+| Starter | 说明 |
+| :-- | :-- |
+| `spring-ai-starter-model-openai` | OpenAI 及兼容协议的聊天、嵌入、图像模型 |
+| `spring-ai-starter-model-anthropic` | Anthropic Claude |
+| `spring-ai-starter-model-ollama` | 本地 Ollama 模型 |
+| `spring-ai-starter-vector-store-pgvector` | PostgreSQL + pgvector 向量库 |
+| `spring-ai-starter-vector-store-redis` | Redis 向量库 |
+| `spring-ai-starter-model-chat-memory-repository-jdbc` | 对话记忆的 JDBC 存储 |
+| `spring-ai-starter-mcp-client` | MCP 客户端（HTTP、STDIO） |
+| `spring-ai-starter-mcp-server-webmvc` | MCP 服务端（WebMVC） |
+
+Spring AI 2.0 要求 Spring Boot 4.x，并重命名了部分坐标（例如向量库 Advisor 改为 `spring-ai-vector-store-advisor`），升级前需对照官方升级说明。
+
 ## Actuator 端点
 
 | 端点 | 说明 |
