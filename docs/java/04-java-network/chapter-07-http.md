@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # HTTP 协议、Java 客户端与 TLS/HTTPS
 
 > 你的 Grafana 监控面板亮了一排红灯：502、504、Connection Timeout。team 群里的运营已经在催「接口挂了」。你打开 Nginx error.log，看到 `upstream timed out` 和 `connection refused` 交替出现——但这两个错误的根因完全不同，一个需要修上游代码，一个需要看上游进程是不是挂了。你怎么在 5 分钟内判断应该把时间花在哪？

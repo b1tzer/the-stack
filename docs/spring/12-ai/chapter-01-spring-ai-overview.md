@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # Spring AI 概览与工程接入
 
 > 本文以 Spring AI 1.1.x（参考文档 1.1.8）与 Spring Boot 3.5.x 为准，运行环境要求 Java 17 及以上。Spring AI 2.0.x 需要 Spring Boot 4.0.x 或 4.1.x，与本文的坐标、配置项和部分 API 不同，差异见本文第 8 节。

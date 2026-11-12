@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 外部化配置
 
 ## 1. 配置来源

@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 工具调用
 
 > 本文以 Spring AI 1.1.x 为准。2.0 移除了 `ChatModel` 内部的工具执行循环，改由 `ToolCallingAdvisor` 承担，升级前请对照上一章的版本差异表。

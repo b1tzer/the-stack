@@ -1,3 +1,8 @@
+---
+type: explanation
+level: basic
+---
+
 # Java 的设计目标与运行链路
 
 Java 把源码编译为字节码，再由 JVM 在不同平台上执行。理解 Java 要解决的问题和这条运行链路，是继续学习类型系统、对象语义和 JVM 运行时的共同起点。

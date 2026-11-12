@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # Starter 机制
 
 > 一个 Starter 是「依赖集合 + 自动配置类」的打包方案：引入一个功能需要哪些 JAR、版本是否兼容，都封装在一个依赖里解决。本章讲清 Starter 的构成、如何注册自动配置类、以及引入多个 Starter 后的依赖治理。

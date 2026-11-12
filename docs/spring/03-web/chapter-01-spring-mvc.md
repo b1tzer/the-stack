@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # Spring MVC
 
 > 本页解释 DispatcherServlet、参数解析、返回值和异常处理。请求从 Socket 进入 Tomcat 再到达 Servlet 的完整链路见 [Servlet 与 Tomcat 请求链](../../java/04-java-network/chapter-08-servlet-tomcat-request-chain.md)。

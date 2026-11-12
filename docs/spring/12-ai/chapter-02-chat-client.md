@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # ChatClient 与调用链
 
 > 本文以 Spring AI 1.1.x 与 Spring Boot 3.5.x 为准。示例使用 OpenAI 协议兼容的模型，其他厂商只需替换 starter 与选项类。

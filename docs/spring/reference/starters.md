@@ -1,3 +1,8 @@
+---
+type: reference
+level: intermediate
+---
+
 # Spring Boot Starter 速查
 
 ## 官方 Starter

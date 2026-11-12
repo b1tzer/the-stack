@@ -1,3 +1,8 @@
+---
+type: howto
+level: intermediate
+---
+
 # Testcontainers 与数据库测试
 
 > H2 和 MySQL 的行为差异让测试通过但生产报错——`GROUP_CONCAT` 分隔符默认不同、`JSON` 类型支持不同。Testcontainers 在测试时启动真实的 Docker 容器解决这个问题。

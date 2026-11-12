@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 日志体系
 
 > **一句话总结**：`System.out.println` 散落在代码里，没有级别、没有时间戳、没有线程信息，生产环境出问题根本没法排查。SLF4J + Logback + MDC 是 Java 日志的标准答案。

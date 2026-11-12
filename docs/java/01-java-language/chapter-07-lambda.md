@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # Lambda 与函数式编程
 
 > Java 8 引入 Lambda 表达式，让开发者可以更简洁地表示一段行为并传递给其他方法。Lambda 通常以函数式接口作为目标类型，例如 `Runnable`、`Comparator`、`Predicate`。它与匿名内部类在语言语义和编译实现上都有区别，以 OpenJDK 常见的 javac 实现为例，编译器通过 `invokedynamic` 指令和 `LambdaMetafactory` 支持 Lambda 的运行时创建，而不是像匿名内部类那样直接为每个表达式生成独立的类文件。

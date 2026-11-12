@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 虚拟线程模型与 Pinning（JDK 21）
 
 > 如果一条线程可以像一个对象那样廉价，过去十年围绕线程池积累的工程直觉，还剩下多少是对的？

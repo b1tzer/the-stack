@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 事务管理
 
 > 方法执行到一半抛异常，数据库里只插入了一半数据——加个 `@Transactional` 就行？没那么简单。默认只回滚 RuntimeException、自调用绕过代理、异常被 catch 吞掉——这些都是「事务失效」的经典场景。本章从 `@Transactional` 的基本用法开始，讲透传播行为、隔离级别、失效场景，以及需要更细粒度控制时的编程式事务。

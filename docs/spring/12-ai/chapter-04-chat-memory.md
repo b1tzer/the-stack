@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 对话记忆
 
 > 本文以 Spring AI 1.1.x 为准。会话 ID 必填、`PromptChatMemoryAdvisor` 废弃等行为从 1.1.x 开始生效，升级前请对照版本。

@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 提示词与结构化输出
 
 > 本文以 Spring AI 1.1.x 为准。结构化输出的行为依赖具体模型是否支持 JSON Schema 或 JSON 模式，差异在正文中标注。

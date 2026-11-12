@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 现代 Java：record、sealed 与模式匹配
 
 > 普通类需要自己维护数据组件、相等性和字符串表示；面对多个结果类型时，代码又常常重复进行类型判断和强制转换。record、sealed 和模式匹配分别提供了更直接的表达方式，描述数据、约束继承关系，以及按类型组织分支。

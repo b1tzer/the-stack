@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # synchronized：从八个问题出发
 
 > 一个 `synchronized` 关键字，锁住的到底是什么？为什么每个 Java 对象都能当锁？为什么 JDK 15 之后偏向锁被默认关闭，`synchronized` 仍然是"够用"的选择？

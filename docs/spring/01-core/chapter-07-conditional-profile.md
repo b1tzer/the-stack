@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 条件装配与 Profile
 
 > 条件装配让 Bean 的注册依赖一个运行时条件，满足才注册，不满足就不进容器。Spring Boot 的自动配置靠它实现「用户没配时给默认值，用户自己配了就不再重复注册」。

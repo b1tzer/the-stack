@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # MCP 集成
 
 > 本文以 Spring AI 1.1.x 为准。1.1.x 的 MCP 注解位于 `org.springaicommunity.mcp.annotation` 包，2.0 起迁移到 `org.springframework.ai.mcp.annotation`，同时 MCP Java SDK 升级到 2.0，升级时需要改包名和坐标。

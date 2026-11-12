@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # DevTools 热部署
 
 > 改一行 Java 代码，传统做法是停掉应用重新 `java -jar`。DevTools 把这个「停掉重来」缩短成一次应用上下文的快速重建，代价是开发期多引入一个依赖。真正要理解的是它的触发边界，哪些文件变化会重启、哪些只会刷新浏览器。

@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 异步编程：从 `Future` 到 `CompletableFuture`
 
 > 有了线程池，也有了 `Future`，为什么 Java 8 还要再加一个 `CompletableFuture`？异步链条上，任务到底跑在哪条线程上？异常又是从哪一段冒出来的？

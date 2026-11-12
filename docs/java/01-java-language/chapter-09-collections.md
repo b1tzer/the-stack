@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 标准集合：按契约选择 List、Set、Map
 
 > 用户列表需要频繁按下标读取，却用 `LinkedList`；按邮箱查用户时把整个 `List` 遍历一遍；把含可变字段的对象放进 `HashSet` 后，元素突然“找不到”。这些不是 API 记忆问题，而是没有先明确访问方式、相等性契约和并发边界。

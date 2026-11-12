@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 虚拟线程迁移：适用边界与结构化并发
 
 > 本页与 [虚拟线程模型与 Pinning（JDK 21）](./chapter-13-virtual-thread.md) 配套，重点说明适用边界、结构化并发、线程池取舍和迁移示例。

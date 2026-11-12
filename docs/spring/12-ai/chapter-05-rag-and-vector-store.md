@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # RAG 与向量存储
 
 > 本文以 Spring AI 1.1.x 为准，向量库示例使用 PostgreSQL + pgvector。不同向量库的过滤语法、索引参数和初始化方式存在差异，切换前需逐个核对。

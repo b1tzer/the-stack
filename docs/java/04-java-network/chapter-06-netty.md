@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # Netty：Java 高性能网络框架
 
 > Netty 不只是 NIO API 的封装。本章解释 EventLoop 如何绑定 Channel、异步任务如何分配执行线程、Pipeline 的职责边界，以及堆外内存不足为何可能在堆仍可用时失败。阅读时需要区分 NIO 核心类型与 Netty 自己的抽象。

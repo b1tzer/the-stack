@@ -1,3 +1,8 @@
+---
+type: howto
+level: intermediate
+---
+
 # 数据库迁移 (Flyway / Liquibase)
 
 > 表结构变更不能靠手动执行 SQL——开发、测试、生产环境的 DDL 必须版本化管理，和代码一起走 CI/CD。数据库迁移工具把 DDL 变更脚本化，保证每个环境按相同顺序执行。Spring Boot 对 Flyway 和 Liquibase 都有自动配置支持。

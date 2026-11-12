@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # RPC 与微服务通信
 
 > 你的 Dubbo 接口报了 `TimeoutException`。监控显示 P99 延迟从 20ms 飙到了 3500ms。你打开链路追踪，只看到一个巨大的耗时条挂在「Dubbo Invoke」上——但它背后到底卡在序列化、网络传输、服务端处理、还是 GC 停顿？这一章从你每次 RPC 超时都要拆的这个黑盒开始，一层层拆回去。

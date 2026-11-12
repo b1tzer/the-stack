@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # JdbcTemplate
 
 > 独立用 JDBC 查一条数据，要写六步：加载驱动、建立连接、创建 Statement、执行查询、遍历结果集、在 finally 里关闭三个资源。JdbcTemplate 把这六步收成一行 `jdbcTemplate.query(sql, rowMapper, id)`。它不是「用得少就没价值」的边角料——MyBatis 的 `SqlSessionTemplate`、JPA 的 `EntityManager`，解决的都是它先解决过的问题：资源管理、异常转换、样板代码收敛。本章只讲 JdbcTemplate 本身，MyBatis 见 [第二章](./chapter-02-mybatis-integration.md)，事务见 [第四章](./chapter-04-transaction.md)。

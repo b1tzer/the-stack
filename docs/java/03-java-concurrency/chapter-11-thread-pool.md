@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 线程池：任务调度的核心引擎
 
 > `ThreadPoolExecutor` 的七个参数如何互相牵制？`Executors` 提供的四个工厂方法隐含了哪些默认容量？队列满了、线程也满了，任务到底会去哪？

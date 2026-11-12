@@ -1,3 +1,8 @@
+---
+type: explanation
+level: advanced
+---
+
 # `Condition` 与 AQS 同步工具
 
 > 本页建立在 [LockSupport 与 AQS 核心机制](./chapter-08-locksupport-aqs.md) 之上，回答两个应用问题：多个等待条件如何精确唤醒，以及常见同步工具在 AQS 上如何分工与选型。

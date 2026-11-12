@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 拦截器与过滤器
 
 > HTTP 请求到达 Controller 之前，有很多通用逻辑需要处理：鉴权、日志、CORS、编码、限流。Spring 提供了两个拦截点：Filter（Servlet 规范，在 DispatcherServlet 之外）和 Interceptor（Spring MVC 规范，在 DispatcherServlet 之内）。类比：Filter 是机场安检——检查所有进入机场的人；Interceptor 是登机口检票——只检查要登机的旅客，能看到你买了什么票、去哪个座位。

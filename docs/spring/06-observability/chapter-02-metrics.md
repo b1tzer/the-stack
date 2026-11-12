@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 指标监控
 
 > **一句话总结**：你引入了 Prometheus，但不知道该监控什么、怎么监控——Micrometer 就是 Java 世界的指标标准 API，Prometheus + Grafana 是最成熟的监控方案。

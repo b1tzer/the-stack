@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # Java Socket 编程：网络抽象的起点
 
 > **核心问题：** 你线上报过 `Too many open files`，调过 `ulimit -n 65535`，配过连接池的 `maxConnections`——但你有没有想过，fd 到底是什么？一个 `new Socket()` 在内核里到底分配了什么？`read()` 卡住的时候，线程去哪了？一台机器到底能撑多少连接？本章从 OS 内核视角出发，把 Socket 从"一个 Java 对象"拆回它的本质：一个通过 fd 访问的内核通信端点、两块内核缓冲区、两对队列。

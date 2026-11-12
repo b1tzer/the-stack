@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 并发集合：为共享数据挑一把合适的容器
 
 > 多线程直接用 `HashMap` 会出什么问题？`ConcurrentHashMap` 从 JDK 7 到 JDK 8 换掉了 Segment，靠什么把并发度撑起来？想要一个"读完全无锁"的队列，代价是什么？

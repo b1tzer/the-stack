@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 认证机制
 
 ## 1. Session 认证

@@ -1,3 +1,8 @@
+---
+type: explanation
+level: advanced
+---
+
 # 并发案例：可变键与虚拟线程 pinning
 
 > 本页与 [并发案例：锁与执行模型](./chapter-03-cases-lock-execution.md) 配套，重点说明并发集合可变键和虚拟线程 pinning。

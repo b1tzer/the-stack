@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # JDBC：性能瓶颈与连接池
 
 > 本页与 [JDBC：Java 数据访问的底层抽象](./chapter-02-jdbc.md) 配套，重点说明常见性能瓶颈、连接池原理和参数取舍。

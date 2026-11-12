@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 构建与部署
 
 > `mvn package` 打出来的 jar 为什么能直接 `java -jar` 运行？答案是 `spring-boot-maven-plugin` 的 `repackage` 目标把一个「普通 jar」改造成「可执行 fat jar」。这一章讲清楚这个改造过程，以及多模块工程怎么组织才能顺畅打包。

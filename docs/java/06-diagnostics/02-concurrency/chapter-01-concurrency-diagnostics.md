@@ -1,3 +1,8 @@
+---
+type: howto
+level: advanced
+---
+
 # 并发问题诊断
 
 > 系统卡住了：CPU 空转、请求堆积、Thread Dump 里满屏 `BLOCKED`。这些症状分别对应什么问题？定位到哪一行代码才算根因？找到之后怎么修才不是治标？

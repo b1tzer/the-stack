@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # MyBatis 集成
 
 > 本页聚焦 Spring 配置、事务集成和 `SqlSessionTemplate`。MyBatis 的动态代理、缓存与插件机制见 [MyBatis：SQL 映射框架](../../java/05-java-data-access/chapter-04-mybatis.md)。

@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # TCP/IP：性能参数与 Java 实践
 
 > 本页与 [TCP/IP：可靠通信的基础](./chapter-02-tcp-ip.md) 配套，重点说明 TCP 性能参数以及用 Java 验证通信行为。

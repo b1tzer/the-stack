@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 可观测性与评估
 
 > 本文以 Spring AI 1.1.x、Spring Boot 3.5.x 与 Micrometer 为准。指标名称遵循 OpenTelemetry 生成式 AI 语义约定，不同后端展示的名字会有前缀或下划线差异。

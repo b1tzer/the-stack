@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # ORM 深入：对象关系映射策略
 
 > 本页与 [ORM 深入：对象与关系如何转换](./chapter-06-orm-deep.md) 配套，重点说明单表、关联映射与继承映射策略。

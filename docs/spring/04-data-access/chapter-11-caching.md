@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 缓存抽象
 
 > 核心问题：Spring Cache 如何用注解给方法加缓存？注解为什么能生效？它提供了哪些能力？

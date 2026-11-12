@@ -1,3 +1,8 @@
+---
+type: explanation
+level: advanced
+---
+
 # HotSpot 对象布局
 
 一个 Java 对象由对象头、实例字段和对齐填充组成。本文以 **64 位 OpenJDK 21.0.12.1 HotSpot** 为基线，解释如何计算对象大小、字段为什么不会按声明顺序排列，以及 Mark Word 如何复用同一批位来保存哈希、分代年龄和锁状态。

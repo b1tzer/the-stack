@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # Elasticsearch 集成（Spring Data Elasticsearch）
 
 > 本章是「Spring 中使用 Elasticsearch」的唯一权威章节。Elasticsearch 原生机制（倒排索引、Mapping、查询 DSL、聚合）见 [Elasticsearch 专项](../../elasticsearch/01-basics/chapter-01-overview)。

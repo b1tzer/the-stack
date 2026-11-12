@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 高并发网络优化与最佳实践
 
 > 本页与 [网络性能分析与故障排查](../06-diagnostics/03-network/chapter-01-network-diagnostics.md) 配套，重点说明高并发网络优化、连接参数和诊断实践。

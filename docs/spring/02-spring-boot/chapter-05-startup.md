@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 启动流程与启动参数
 
 > `SpringApplication.run(App.class, args)` 这行代码背后，是一条从「准备环境」到「发布就绪」的完整流水线。搞懂这条流水线，启动失败时才知道卡在哪一步；`args` 传了什么、`@Value` 为什么取不到值、优雅停机为什么没生效，都能定位。

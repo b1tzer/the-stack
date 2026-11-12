@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 授权模型
 
 ## 1. RBAC 模型

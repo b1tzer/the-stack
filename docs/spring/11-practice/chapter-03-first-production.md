@@ -1,3 +1,8 @@
+---
+type: howto
+level: intermediate
+---
+
 # 首次生产部署
 
 ## 打包
