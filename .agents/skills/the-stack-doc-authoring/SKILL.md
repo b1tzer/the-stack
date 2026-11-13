@@ -18,7 +18,8 @@ For small edits, apply the constraints below directly. Before a new article or m
    - Reference: accurate, neutral facts organized like the described system.
    - Explanation: context, mental models, trade-offs, and answers to why.
 3. State the single core question the page answers. Split or link content that serves a materially different question.
-4. Choose structure from the reader's decisions and likely confusion, not from a universal section template.
+4. Record the result in frontmatter: `type` for the content mode, `level` for the assumed prior knowledge. Both are required together; see `references/page-metadata.md` for the value sets, edge cases, and migration rules.
+5. Choose structure from the reader's decisions and likely confusion, not from a universal section template.
 
 ## Research dependencies
 
@@ -32,6 +33,7 @@ When accuracy, current behavior, version compatibility, comparisons, or external
 - Separate established facts, reasoned inference, trade-offs, and recommendations.
 - Describe conditions, failure modes, and consequences. Do not reduce content to feature lists.
 - Prefer one meaningful example with context over several disconnected snippets.
+- Show a complete, runnable worked example before asking the reader to adapt or extend it; keep a diagram and the text that explains it in the same view.
 - Remove repetition, promotional language, vague intensifiers, idioms, and decorative metaphors.
 - Preserve reader flow. Link to deep background instead of interrupting a task with extended theory.
 

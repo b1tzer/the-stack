@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # WebSocket 实时通信
 
 > 本页聚焦 Spring 的握手配置、STOMP、认证、集群和生产参数。协议帧、原生 Java 实现和通用保活策略见 [长连接协议与保活](../../java/04-java-network/chapter-10-long-connection-protocols.md)。

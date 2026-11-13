@@ -1,3 +1,8 @@
+---
+type: howto
+level: intermediate
+---
+
 # API 测试与契约测试
 
 > MockMvc 的断言语法太啰嗦，一个接口测试写 20 行，可读性差。REST Assured 提供类 BDD 风格的 API 测试。

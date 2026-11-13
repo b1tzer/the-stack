@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 参数校验与数据绑定
 
 Controller 接收到的每个参数都来自不可信的外部输入。校验的目的不是"拦下坏数据"，而是让坏数据在进入业务逻辑之前就带着清晰的原因被拒绝。本章讲两件事：用 Bean Validation 声明校验规则，以及 Spring 如何把这些规则与 HTTP 参数绑定到一起。

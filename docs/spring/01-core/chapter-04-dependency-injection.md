@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 依赖注入
 
 > 一个类要拿到它的依赖，Spring 给了三种写法：构造器、Setter、字段。三种都能让依赖在运行时被填上，但只有一种能让你三年后改代码时不踩坑。这一章不重复 DI 是什么（见 [IoC 容器](./chapter-02-ioc-container.md)），只回答一件事：三种写法怎么选，选错会付出什么代价。

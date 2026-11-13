@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # JVM 运行时数据区与内存结构
 
 > `-Xmx4g` 设完，你以为安全了。`docker stats` 一看，容器 RSS 已经 7.2G——堆才用了 3G。多出来的 4.2G 在哪？线程栈（一个线程 1MB，800 个就是 800MB）、Metaspace（类元数据不归堆管）、CodeCache（JIT 编译后的机器码）、堆外内存（Direct Buffer）。OOM Killer 杀进程时你在查堆——方向错了。JVM 内存不只堆和栈，记不住这一点，线上排查必走弯路。堆外内存不在本页的规范数据区范围内，分配与释放机制见 [堆外内存](./chapter-06-offheap-memory.md)。

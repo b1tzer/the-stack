@@ -1,3 +1,8 @@
+---
+type: howto
+level: intermediate
+---
+
 # 容器化部署
 
 > 把 Spring Boot 应用打包成 Docker 镜像看似简单——`COPY jar → java -jar` 就完事了。但这样每次代码改动都要重新传输 200MB+ 的依赖层，构建慢得让人怀疑人生。分层构建是解决这个问题的关键。

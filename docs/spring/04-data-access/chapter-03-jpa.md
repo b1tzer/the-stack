@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # Spring Data JPA
 
 > 本页聚焦 Repository、Specification、审计和 DTO 投影。实体生命周期、延迟加载与 N+1 问题见 [ORM 深入](../../java/05-java-data-access/chapter-06-orm-deep.md)。

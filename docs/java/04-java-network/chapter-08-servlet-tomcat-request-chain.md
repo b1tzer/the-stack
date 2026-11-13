@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # Servlet 与 Tomcat 请求链
 
 > Controller 中的一次 `userService.findById(id)` 调用，背后涉及 Spring MVC、Servlet 和 Tomcat 的多个处理层次。线上出现 `Broken pipe` 或 `Connection reset by peer` 时，仅凭异常名称往往无法判断连接在哪个阶段被关闭。这一章从你每天在写的 Controller 出发，沿 Servlet、Tomcat Container 和 Connector 向下梳理请求处理链。

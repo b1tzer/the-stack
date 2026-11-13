@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # ORM 深入：对象与关系如何转换
 
 > 本页比较 ORM 的映射机制和常见性能问题。Spring Data JPA 的 Repository、Specification 和审计用法见 [Spring Data JPA](../../spring/04-data-access/chapter-03-jpa.md)。

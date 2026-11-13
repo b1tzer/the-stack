@@ -1,3 +1,8 @@
+---
+type: howto
+level: intermediate
+---
+
 # 文件上传与下载
 
 > 文件处理是 Web 应用的常见需求：头像上传、报表导出、文档预览。Spring MVC 通过 `MultipartFile` 封装上传，通过 `Resource` 抽象下载。这一章覆盖单文件/多文件上传、大文件流式处理、断点续传，以及生产环境的安全和性能要点。

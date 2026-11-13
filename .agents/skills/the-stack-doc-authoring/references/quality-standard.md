@@ -1,6 +1,6 @@
 # Documentation Quality Standard
 
-This reference defines the quality bar for substantial documentation work in The Stack. It combines functional quality requirements with Diátaxis-informed content design and established technical-writing practice.
+This reference defines the quality bar for substantial documentation work in The Stack. It combines functional quality requirements with Diátaxis-informed content design, instructional-design evidence, and established technical-writing practice.
 
 ## Functional quality
 
@@ -68,6 +68,17 @@ Use Diátaxis's two dimensions to classify ambiguous content:
 
 Do not force every page into the same section template. A good structure follows the reader's questions, decisions, and likely misconceptions.
 
+## Teaching effectiveness
+
+Content mode decides what the page is. The rules below decide whether a reader can actually use it. They matter most for tutorials and explanations, and partly for how-to guides.
+
+- Show a complete worked example before asking for variation. A fully solved example with every step explained teaches a novice faster than the same problem left to solve alone: unguided problem-solving spends working memory on search instead of on the underlying idea. Do not leave out a key step to "make the reader think".
+- Keep a diagram and the text that explains it in the same view. Holding one source in memory while hunting for the other adds extraneous load and lowers retention. Replace "see the figure above" with the point restated in place.
+- Match guidance to prior knowledge. Detailed guidance that rescues a novice becomes redundant load for a reader who already has the schema, and can lower that reader's performance. State the assumed level at the top of the page, and move advanced material to a separate path instead of thickening the main one.
+- Make failure recoverable. A step that can fail must show the failure signal and the way back. A success-only procedure strands the reader at the first deviation.
+
+These effects come from cognitive-load research and are supported by controlled studies, mostly with learners performing concrete tasks. Apply them as design constraints for teaching content, not as claims about every reader or every page. The evidence is strongest for the worked-example and split-attention effects, and conditional for expertise reversal: it depends on how large the gap in prior knowledge actually is.
+
 ## Language quality
 
 - Use direct, conversational technical Chinese.
@@ -134,6 +145,9 @@ Deep quality requires human judgment. A checklist cannot create it, but the chec
 
 - Diátaxis: https://diataxis.fr/
 - Diátaxis quality: https://diataxis.fr/quality/
+- Cognitive load theory and worked examples, split attention: https://education.nsw.gov.au/content/dam/main-education/about-us/educational-data/cese/2017-cognitive-load-theory.pdf
+- Expertise reversal effect: https://my.chartered.college/impact_article/expertise-reversal-effect-and-its-instructional-implications
+- Minimalist instruction, error recovery: https://direct.mit.edu/books/edited-volume/2438/Minimalism-Beyond-the-Nurnberg-Funnel
 - Google Developer Documentation Style Guide: https://developers.google.com/style
 - Google headings and titles: https://developers.google.com/style/headings
 - Google procedures: https://developers.google.com/style/procedures

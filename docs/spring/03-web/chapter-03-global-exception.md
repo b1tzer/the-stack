@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 全局异常处理
 
 > Controller 到处 `try-catch` 返回不同的错误 JSON？前端对接时每个接口的错误格式都不一样？全局异常处理用 `@RestControllerAdvice` 一层搞定，让所有异常都带着统一的格式、清晰的错误码、可定位的 traceId 返回给调用方。

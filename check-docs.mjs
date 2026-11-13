@@ -15,6 +15,10 @@ const BLOG_DYNAMIC_PREFIXES = [
   join(DOCS_DIR, 'blog', 'posts'),
   join(DOCS_DIR, 'blog', 'authors'),
 ]
+const PAGE_TYPES = new Set(['tutorial', 'howto', 'reference', 'explanation'])
+const PAGE_LEVELS = new Set(['basic', 'intermediate', 'advanced'])
+const SNIPPETS_DIR = join(DOCS_DIR, '_snippets')
+const metadataMissing = []
 
 const errors = []
 
@@ -26,6 +30,25 @@ function isBlogDynamicPage(file) {
 function hasHomeLayout(source) {
   const frontmatter = source.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)
   return frontmatter ? /^layout:\s*home\s*$/m.test(frontmatter[1]) : false
+}
+
+// type / level 约定见 .agents/skills/the-stack-doc-authoring/references/page-metadata.md
+function readPageMetadata(source) {
+  const frontmatter = source.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)
+  if (!frontmatter) return { type: null, level: null }
+  const read = key => {
+    const match = frontmatter[1].match(new RegExp(`^${key}:\\s*(.+)$`, 'm'))
+    return match ? match[1].trim().replace(/^["']|["']$/g, '') : null
+  }
+  return { type: read('type'), level: read('level') }
+}
+
+function isMetadataExempt(file, source) {
+  if (basename(file) === 'index.md') return true
+  if (hasHomeLayout(source)) return true
+  if (SIDEBAR_EXCLUSIONS.has(file)) return true
+  if (isBlogDynamicPage(file)) return true
+  return file.startsWith(`${SNIPPETS_DIR}${sep}`)
 }
 
 function walk(directory) {
@@ -87,6 +110,18 @@ for (const file of markdownFiles) {
   const source = readFileSync(file, 'utf8')
   const content = stripCodeAndFrontmatter(source)
 
+  const { type, level } = readPageMetadata(source)
+  if (!isMetadataExempt(file, source)) {
+    if (type === null && level === null) {
+      metadataMissing.push(file)
+    } else if (type === null || level === null) {
+      report(file, 'type 与 level 必须同时出现')
+    } else {
+      if (!PAGE_TYPES.has(type)) report(file, `type 取值无效：${type}`)
+      if (!PAGE_LEVELS.has(level)) report(file, `level 取值无效：${level}`)
+    }
+  }
+
   // 代码围栏：开栏必须标注语言，且必须闭合
   let fence = null
   source.split(/\r?\n/).forEach((line, index) => {
@@ -140,6 +175,22 @@ for (const file of markdownFiles) {
     const resolved = resolveTarget(file, target)
     if (!existsSync(resolved) || !statSync(resolved).isFile()) report(file, `内部链接目标不存在：${target}`)
     else if (markdownSet.has(resolved) && resolved !== file) inboundLinks.set(resolved, inboundLinks.get(resolved) + 1)
+  }
+}
+
+if (metadataMissing.length > 0) {
+  const missingByDomain = new Map()
+  for (const file of metadataMissing) {
+    const domain = relative(DOCS_DIR, file).split('/')[0] ?? '(root)'
+    missingByDomain.set(domain, (missingByDomain.get(domain) ?? 0) + 1)
+  }
+  const breakdown = [...missingByDomain]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([domain, count]) => `${domain} ${count}`)
+    .join('、')
+  console.warn(`⚠ ${metadataMissing.length} 个正文页缺少 type/level 元数据（迁移期不阻塞）：${breakdown}`)
+  if (process.argv.includes('--verbose')) {
+    for (const file of metadataMissing) console.warn(`  - ${relative(process.cwd(), file)}`)
   }
 }
 
@@ -251,5 +302,5 @@ if (errors.length > 0) {
 
 const pendingReviews = Object.values(reviewDomains).filter(record => record.status === 'pending').length
 console.log(
-  `Checked ${markdownFiles.length} Markdown files: headings, links, images, aliases, navigation, and ${pendingReviews} pending review records passed; ${sidebarOnlyPages.length} pages lack prose cross-links.`
+  `Checked ${markdownFiles.length} Markdown files: headings, links, images, aliases, navigation, and ${pendingReviews} pending review records passed; ${sidebarOnlyPages.length} pages lack prose cross-links; ${metadataMissing.length} pages lack type/level metadata.`
 )

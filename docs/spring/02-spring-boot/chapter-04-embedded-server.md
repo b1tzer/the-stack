@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 内嵌容器
 
 > 启动一个 Spring Boot Web 应用，日志里会出现 `Tomcat started on port(s): 8080`。这行字背后不是 `main()` 里 `new` 出来的 Tomcat，而是 Spring 容器初始化过程中被顺带拉起来的一个内嵌实例。本章把这行日志从 `SpringApplication.run()` 追到端口监听。

@@ -1,3 +1,8 @@
+---
+type: explanation
+level: basic
+---
+
 # Spring 核心原理概览
 
 > 你写的 `@Service` 里没有一个 `new`，依赖却都能用；你写的 `@Transactional` 方法里没有一行事务代码，抛出 `RuntimeException` 却能自动回滚。前者靠 IoC 容器替你管理对象与依赖，后者靠 AOP 替你包一层代理。Spring 的上层能力大多长在这两套机制上，本专题就从它们讲起。

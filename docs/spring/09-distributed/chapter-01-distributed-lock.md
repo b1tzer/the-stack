@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 分布式锁
 
 > 单机 `synchronized` 或 `ReentrantLock` 只在 JVM 内有效。集群环境下多个实例同时执行同一段逻辑——重复扣款、重复派单、缓存并发重建——需要跨 JVM 的互斥机制。分布式锁的核心是：在多个进程之间，同一时刻只有一个能持有锁。

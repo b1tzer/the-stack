@@ -1,3 +1,8 @@
+---
+type: explanation
+level: advanced
+---
+
 # GraalVM 原生镜像
 
 > 传统 JVM 模式下，Spring 在启动时扫描注解、解析 Bean 定义、创建代理类——这个过程在云原生时代显得"奢侈"。Serverless 场景要求秒级启动、MB 级内存，GraalVM 原生镜像应运而生。

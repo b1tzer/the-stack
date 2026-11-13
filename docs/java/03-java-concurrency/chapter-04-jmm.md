@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # Java 内存模型（JMM）：线程如何看到数据
 
 > 线程 A 写完 `x = 42`，线程 B 却读到 `0`——出错的是 CPU、编译器、还是 Java？`volatile`、`synchronized`、`final` 到底各自保证了什么？没有 JMM，"多线程正确"这件事就没有可推理的地基。

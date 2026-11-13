@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 线程封闭：`ThreadLocal` 与无共享编程
 
 > 每条线程持有一份独立数据，那些让人焦头烂额的并发问题会不会凭空消失？

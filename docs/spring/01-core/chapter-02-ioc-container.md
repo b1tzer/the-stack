@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # IoC 容器
 
 > 你的 `OrderService` 依赖 `OrderRepository`。传统写法是在构造器里 `new JdbcOrderRepository(...)`，IoC 写法是把它声明成构造器参数。两段代码的差别在「谁决定用哪个实现」：前者写死了具体实现，后者把决定权交了出去。这一章讲清楚这个「交出去」的过程，以及接管这件事的容器长什么样。

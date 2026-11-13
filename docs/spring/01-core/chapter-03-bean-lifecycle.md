@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # Bean 完整生命周期
 
 > 上一章 [IoC 容器](./chapter-02-ioc-container.md) 把 `refresh()` 十二步里的第 11 步「实例化所有单例 Bean」一句话带过。这一步背后，单个 Bean 从创建到销毁，会经过实例化、依赖注入、初始化等阶段。各阶段的基本顺序相对稳定，但具体执行路径会受到 Bean 类型、后处理器和循环依赖等因素影响。本文继续沿着这个入口展开，重点看 Bean 的创建、依赖注入、初始化和销毁，以及 Spring 在这些阶段提供的扩展点。

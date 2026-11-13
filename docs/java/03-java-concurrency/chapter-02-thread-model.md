@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # Java 线程模型：执行单元如何被抽象
 
 > Java 线程到底是什么？它和操作系统线程是什么关系？为什么不能无限制地创建线程？从 `Thread` 到 `CompletableFuture`，创建线程的方式经历了怎样的演进？线程在 JVM 内部有哪些状态，它们之间如何转换？本章将逐一拆解这些问题，帮你建立对 Java 线程模型的完整认知。

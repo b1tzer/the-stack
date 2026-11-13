@@ -1,3 +1,8 @@
+---
+type: howto
+level: intermediate
+---
+
 # 多数据源
 
 ## 1. 配置

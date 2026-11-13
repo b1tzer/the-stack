@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 响应式数据访问 (R2DBC)
 
 > WebFlux 是非阻塞的，但如果数据库访问还是阻塞的 JDBC，整个调用链就退化成阻塞了。R2DBC（Reactive Relational Database Connectivity）是响应式关系数据库访问规范，让数据库操作也变成非阻塞的。Spring Data R2DBC 提供了 Repository 抽象，和 JPA 用法类似。

@@ -1,3 +1,8 @@
+---
+type: howto
+level: advanced
+---
+
 # JVM 调优
 
 > 连接池、线程池调好后，吞吐量的下一个瓶颈往往在 JVM 本身：堆太小频繁 Full GC，堆太大单次停顿过长，GC 策略选错让延迟失控。本章讲生产环境的 JVM 参数、GC 选型、日志与监控。连接池与线程池的调优见 [连接池与容器调优](./chapter-01-pool-tuning.md)。

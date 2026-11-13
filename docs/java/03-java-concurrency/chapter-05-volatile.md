@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # `volatile`：最轻的同步
 
 > 修饰一个变量到底修饰了什么？它凭什么能让 DCL 恢复正确？为什么它明明有"可见性 + 有序性"，却还是撑不起一个 `count++`？

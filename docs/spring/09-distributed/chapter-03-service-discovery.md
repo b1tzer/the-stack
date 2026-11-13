@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 服务注册与发现
 
 > 服务调用章节里的 `lb://order-service`、`@LoadBalanced`，全都依赖同一个前提，先要知道 `order-service` 现在有哪些存活实例。这个前提由注册中心提供。本章讲清楚注册中心解决什么问题、Nacos 怎么实现它，以及最容易踩的两个坑。

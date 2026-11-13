@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 服务调用
 
 > 微服务之间互相调用是家常便饭，但手写 RestTemplate 的 URL 拼接、序列化、异常处理让人崩溃。本章覆盖三种主流方案：RestTemplate、OpenFeign、WebClient，以及负载均衡策略。

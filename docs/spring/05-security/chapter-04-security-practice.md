@@ -1,3 +1,8 @@
+---
+type: howto
+level: intermediate
+---
+
 # 安全最佳实践
 
 ## 1. 密码加密（BCrypt vs MD5）

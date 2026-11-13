@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # MyBatis vs JPA 选型
 
 > 项目组为「用 MyBatis 还是 JPA」吵了三天——这不是信仰问题，是工程选型问题。MyBatis 是 SQL 映射器，你写 SQL 它帮你映射；JPA 是 ORM，你操作对象它帮你生成 SQL。两条路线各有适用场景，选错了代价很大。

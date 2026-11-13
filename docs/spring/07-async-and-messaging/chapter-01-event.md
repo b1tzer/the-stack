@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 事件机制
 
 > Spring 内置了一套基于 `ApplicationEvent` 的发布-订阅模型，是解耦业务逻辑最轻量的方式。当用户注册后要发邮件、初始化积分、写日志，全塞在 Service 里又长又难测——Spring 事件让你把"注册"和"注册后要做的事"彻底分开。

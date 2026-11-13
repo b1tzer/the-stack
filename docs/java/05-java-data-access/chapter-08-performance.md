@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 数据访问性能优化：调优、批处理与链路分析
 
 > SQL 已经优化，接口仍然在连接池入口排队。本章不重复[JDBC 性能瓶颈与连接池](./chapter-03-jdbc-performance-pool.md)的通用原理，而是聚焦 HikariCP 参数与指标、批处理取舍、全链路定位和常见故障恢复。

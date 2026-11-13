@@ -1,3 +1,8 @@
+---
+type: howto
+level: intermediate
+---
+
 # API 文档 (springdoc-openapi)
 
 > 前后端分离项目，API 文档是前后端的契约。手写文档必然和代码不同步——接口改了文档没改，联调时互相甩锅。springdoc-openapi 通过扫描代码自动生成 OpenAPI 3.0 规范文档，提供 Swagger UI 在线调试。代码即文档，永远同步。

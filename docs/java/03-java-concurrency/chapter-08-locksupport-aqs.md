@@ -1,3 +1,8 @@
+---
+type: explanation
+level: advanced
+---
+
 # `LockSupport` 与 AQS：并发工具的骨架
 
 > `ReentrantLock`、`Semaphore`、`CountDownLatch`——三种表面不同的工具，为什么源码都藏在同一个基类里？`CyclicBarrier` 为什么不继承它？

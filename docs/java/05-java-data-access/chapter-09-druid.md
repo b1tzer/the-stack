@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # Druid：带监控的连接池
 
 > HikariCP 只做一件事——管好连接；Druid 在做连接池之外，还内置了 SQL 监控、SQL 防火墙、Web 监控和可视化监控台。本章不重复连接池原理，聚焦 Druid 独有的能力、实际输出的日志长什么样，以及怎么用。

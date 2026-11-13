@@ -1,3 +1,8 @@
+---
+type: howto
+level: intermediate
+---
+
 # 生产问题排查
 
 > **一句话总结**：监控告警 CPU 90%+、内存持续增长、接口响应慢——这些生产问题你不能只靠重启解决。jstack、jmap、Arthas、MAT 是你的手术刀。

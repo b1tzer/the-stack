@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 定时任务
 
 > 每天凌晨要跑批、每 5 分钟检查订单状态——定时任务是后端开发的日常。Spring 提供了从轻量级 `@Scheduled` 到重量级 Quartz 的完整方案。

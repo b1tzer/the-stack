@@ -11,12 +11,14 @@
 | 要实现或排查一个 Web 接口 | [Spring MVC](./03-web/chapter-01-spring-mvc.md) |
 | 事务没有回滚或边界不清 | [事务管理](./04-data-access/chapter-04-transaction.md) |
 | 准备建立测试或生产检查流程 | [首次生产部署](./11-practice/chapter-03-first-production.md) |
+| 要在 Spring 应用里接入大模型 | [Spring AI 概览与工程接入](./12-ai/chapter-01-spring-ai-overview.md) |
 
 ## 按目录浏览
 
 - **核心与 Boot**：[核心原理](./01-core/chapter-01-spring-overview.md)、[Spring Boot](./02-spring-boot/chapter-01-autoconfiguration.md)。
 - **应用开发**：[Web](./03-web/chapter-01-spring-mvc.md)、[数据访问](./04-data-access/chapter-01-jdbc-template.md)、[安全](./05-security/chapter-01-security-architecture.md)。
 - **生产工程**：[可观测性](./06-observability/chapter-01-logging.md)、[测试](./08-testing/chapter-01-unit-test.md)、[分布式系统](./09-distributed/chapter-01-distributed-lock.md)、[生产化](./10-production/chapter-01-pool-tuning.md)。
+- **AI 应用**：[Spring AI](./12-ai/chapter-01-spring-ai-overview.md)，覆盖对话调用、结构化输出、对话记忆、RAG、工具调用与 MCP。
 - **实践与查证**：[实践章节](./11-practice/chapter-01-build-deploy.md)、[参考手册](./reference/annotations.md)。
 
 ## 内容边界

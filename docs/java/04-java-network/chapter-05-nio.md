@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # Java NIO：高性能网络模型
 
 > 高并发下线程池耗尽但 CPU 仍较空闲，通常说明大量工作线程正在等待网络或其他慢资源。要判断原因，需要同时确认连接器模式、线程栈、请求体读取方式和外部依赖，不能只凭线程名推断 I/O 模型。本章解释 Java NIO 的 Selector、Channel、Buffer 如何让少量线程管理多个连接。

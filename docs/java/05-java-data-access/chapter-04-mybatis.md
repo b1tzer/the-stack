@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # MyBatis：SQL 映射框架
 
 > 本页解释 MyBatis 的核心流程、动态代理、缓存和插件机制。Spring Boot 中的配置、事务集成与 `SqlSessionTemplate` 用法见 [MyBatis 集成](../../spring/04-data-access/chapter-02-mybatis-integration.md)。

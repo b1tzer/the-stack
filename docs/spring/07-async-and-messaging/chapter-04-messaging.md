@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # 消息集成
 
 > 微服务之间需要异步通信，Kafka 和 RabbitMQ 是主流选择。本章聚焦可靠收发，底层存储与分布式事务的完整方案见对应专题。

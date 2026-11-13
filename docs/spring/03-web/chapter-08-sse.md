@@ -1,3 +1,8 @@
+---
+type: explanation
+level: intermediate
+---
+
 # Server-Sent Events (SSE)
 
 > 本页聚焦 Spring MVC、WebFlux 和客户端接入。SSE 协议原理、原生 Java 实现与 WebSocket 对比见 [长连接协议与保活](../../java/04-java-network/chapter-10-long-connection-protocols.md)。
