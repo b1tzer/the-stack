@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://thestack.xpro.wang/sitemap.xml
