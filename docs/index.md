@@ -62,6 +62,10 @@ features:
     title: AI 工程
     details: LLM 与提示词、RAG、Function Calling、Spring AI 与 MCP。
     link: /ai/
+  - icon: 🔬
+    title: 逆向工程
+    details: PE 文件格式、x64 汇编、IDA/Ghidra/x64dbg、反调试与脱壳。
+    link: /reverse-engineering/
   - icon: 🧭
     title: 场景实战
     details: 按业务场景组织的端到端实战：缓存、并发、消息、数据访问与综合案例。

@@ -74,6 +74,18 @@
       "lastVerified": null,
       "nextReview": "2026-11-24"
     },
+    "python": {
+      "versionScope": "Python 3.13+；核心语言模型在 3.x 系列稳定，示例按页面标注版本核对",
+      "status": "pending",
+      "lastVerified": null,
+      "nextReview": "2027-02-23"
+    },
+    "reverse-engineering": {
+      "versionScope": "Windows x64 逆向；PE 格式与 x64 调用约定以 Microsoft 官方规范为准，工具版本按页面标注核对",
+      "status": "pending",
+      "lastVerified": null,
+      "nextReview": "2027-02-18"
+    },
     "blog": {
       "versionScope": "按 vitepress-blogs-theme 版本与站点配置核对",
       "status": "pending",

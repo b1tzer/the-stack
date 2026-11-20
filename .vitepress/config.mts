@@ -20,6 +20,7 @@ const DOMAIN_LABELS: Record<string, string> = {
   postgresql: 'PostgreSQL',
   rabbitmq: 'RabbitMQ',
   redis: 'Redis',
+  'reverse-engineering': '逆向工程',
   scenarios: '场景实战',
   spring: 'Spring',
 }
@@ -263,11 +264,12 @@ gtag('config', 'G-ZV6SVQFCWW');`],
       },
       {
         text: '工程',
-        activeMatch: '^/(design-pattern|engineering|ai)/',
+        activeMatch: '^/(design-pattern|engineering|ai|reverse-engineering)/',
         items: [
           { text: '设计模式', link: '/design-pattern/' },
           { text: '软件工程', link: '/engineering/' },
           { text: 'AI 工程', link: '/ai/' },
+          { text: '逆向工程', link: '/reverse-engineering/' },
         ],
       },
       { text: '场景实战', link: '/scenarios/', activeMatch: '^/scenarios/' },
@@ -380,6 +382,95 @@ gtag('config', 'G-ZV6SVQFCWW');`],
             { text: '评估与可观测性', link: '/ai/09-评估与可观测性' },
             { text: '安全护栏', link: '/ai/10-安全护栏' },
             { text: '端到端实战：从 0 到 1 搭一个生产 Agent', link: '/ai/11-端到端实战' },
+          ],
+        },
+      ],
+      '/reverse-engineering/': [
+        {
+          text: '逆向工程知识库',
+          link: '/reverse-engineering/',
+        },
+        {
+          text: '程序运行基础',
+          collapsed: true,
+          items: [
+            { text: 'C/C++ 编译过程与优化', link: '/reverse-engineering/01-program-basics/chapter-01-c-cpp-compilation' },
+            { text: '内存模型与函数调用', link: '/reverse-engineering/01-program-basics/chapter-02-memory-function-call' },
+          ],
+        },
+        {
+          text: '汇编语言与 CPU 架构',
+          collapsed: true,
+          items: [
+            { text: 'x86 汇编基础', link: '/reverse-engineering/02-assembly/chapter-01-x86-assembly' },
+            { text: 'x64 汇编与调用约定', link: '/reverse-engineering/02-assembly/chapter-02-x64-assembly' },
+            { text: '常见编译器代码模式', link: '/reverse-engineering/02-assembly/chapter-03-compiler-code-patterns' },
+          ],
+        },
+        {
+          text: 'Windows 底层机制',
+          collapsed: true,
+          items: [
+            { text: '进程与线程', link: '/reverse-engineering/03-windows-internals/chapter-01-process-thread' },
+            { text: '虚拟内存与内存保护', link: '/reverse-engineering/03-windows-internals/chapter-02-virtual-memory' },
+            { text: 'DLL 加载与 Windows API', link: '/reverse-engineering/03-windows-internals/chapter-03-dll-api' },
+            { text: 'PEB、TEB 与模块加载', link: '/reverse-engineering/03-windows-internals/chapter-04-peb-teb-loader' },
+            { text: '异常处理机制', link: '/reverse-engineering/03-windows-internals/chapter-05-exception-handling' },
+          ],
+        },
+        {
+          text: 'PE 文件格式',
+          collapsed: true,
+          items: [
+            { text: 'PE 头部：从 MZ 到节表', link: '/reverse-engineering/04-pe-format/chapter-01-pe-headers' },
+            { text: 'RVA 与三类表', link: '/reverse-engineering/04-pe-format/chapter-02-address-and-tables' },
+            { text: 'TLS、资源节与 Debug Directory', link: '/reverse-engineering/04-pe-format/chapter-03-tls-resource-debug' },
+            { text: 'PE 加载过程', link: '/reverse-engineering/04-pe-format/chapter-04-pe-loading' },
+          ],
+        },
+        {
+          text: '静态分析',
+          collapsed: true,
+          items: [
+            { text: '静态分析基础', link: '/reverse-engineering/05-static-analysis/chapter-01-basics' },
+            { text: '类型恢复与结构体识别', link: '/reverse-engineering/05-static-analysis/chapter-02-type-recovery' },
+            { text: '虚函数表与 RTTI', link: '/reverse-engineering/05-static-analysis/chapter-03-vtable-rtti' },
+            { text: 'IDA Pro 静态分析实操', link: '/reverse-engineering/05-static-analysis/chapter-04-ida-pro' },
+            { text: 'Ghidra 静态分析与脚本化', link: '/reverse-engineering/05-static-analysis/chapter-05-ghidra' },
+          ],
+        },
+        {
+          text: '动态调试',
+          collapsed: true,
+          items: [
+            { text: '调试器的断点与单步机制', link: '/reverse-engineering/06-dynamic-debugging/chapter-01-debugging-basics' },
+            { text: 'x64dbg 动态调试实操', link: '/reverse-engineering/06-dynamic-debugging/chapter-02-x64dbg' },
+          ],
+        },
+        {
+          text: '加壳与脱壳',
+          collapsed: true,
+          items: [
+            { text: '加壳原理与识别', link: '/reverse-engineering/07-packing/chapter-01-packing-principle' },
+            { text: '手动脱壳', link: '/reverse-engineering/07-packing/chapter-02-manual-unpacking' },
+            { text: '虚拟化保护与反调试', link: '/reverse-engineering/07-packing/chapter-03-virtualization-anti-debugging' },
+          ],
+        },
+        {
+          text: '高级程序逆向',
+          collapsed: true,
+          items: [
+            { text: 'MSVC C++ 逆向', link: '/reverse-engineering/08-advanced-reversing/chapter-01-msvc-cpp' },
+            { text: 'Qt 程序分析', link: '/reverse-engineering/08-advanced-reversing/chapter-02-qt-analysis' },
+            { text: '网络通信与协议分析', link: '/reverse-engineering/08-advanced-reversing/chapter-03-network-protocol' },
+            { text: '授权验证与完整性校验', link: '/reverse-engineering/08-advanced-reversing/chapter-04-license-integrity' },
+          ],
+        },
+        {
+          text: '综合逆向实战',
+          collapsed: true,
+          items: [
+            { text: '序列号校验的完整逆向', link: '/reverse-engineering/09-comprehensive-practice/chapter-01-crackme' },
           ],
         },
       ],
