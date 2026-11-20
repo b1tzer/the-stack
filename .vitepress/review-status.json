@@ -74,6 +74,12 @@
       "lastVerified": null,
       "nextReview": "2026-11-24"
     },
+    "csharp": {
+      "versionScope": ".NET 10 LTS / C# 14；页面保留 .NET 9 与更早版本的差异标注",
+      "status": "pending",
+      "lastVerified": null,
+      "nextReview": "2027-02-20"
+    },
     "python": {
       "versionScope": "Python 3.13+；核心语言模型在 3.x 系列稳定，示例按页面标注版本核对",
       "status": "pending",

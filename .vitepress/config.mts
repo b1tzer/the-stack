@@ -11,6 +11,7 @@ const SITE_URL = 'https://thestack.xpro.wang'
 const DESCRIPTION_LIMIT = 140
 const DOMAIN_LABELS: Record<string, string> = {
   ai: 'AI',
+  csharp: 'C#',
   'design-pattern': '设计模式',
   elasticsearch: 'Elasticsearch',
   engineering: '软件工程',
@@ -245,9 +246,10 @@ gtag('config', 'G-ZV6SVQFCWW');`],
     nav: [
       {
         text: '编程语言',
-        activeMatch: '^/(java|python)/',
+        activeMatch: '^/(java|csharp|python)/',
         items: [
           { text: 'Java', link: '/java/' },
+          { text: 'C#', link: '/csharp/' },
           { text: 'Python', link: '/python/' },
         ],
       },
@@ -950,6 +952,125 @@ gtag('config', 'G-ZV6SVQFCWW');`],
                 { text: '连接池耗尽案例', link: '/java/06-diagnostics/04-data-access/chapter-01-cases-connection-pool-exhaustion' },
                 { text: '慢 SQL 案例', link: '/java/06-diagnostics/04-data-access/chapter-02-cases-slow-sql' },
               ]
+            },
+          ],
+        },
+      ],
+      '/csharp/': [
+        {
+          text: 'C# 知识库',
+          link: '/csharp/',
+        },
+        {
+          text: 'C# 语言',
+          collapsed: true,
+          items: [
+            { text: 'C# 与 .NET 的设计目标与运行链路', link: '/csharp/01-csharp-language/chapter-01-why-csharp' },
+            { text: '类型系统', link: '/csharp/01-csharp-language/chapter-02-type-system' },
+            { text: '对象与值语义', link: '/csharp/01-csharp-language/chapter-03-object-values' },
+            { text: '面向对象', link: '/csharp/01-csharp-language/chapter-04-oop' },
+            { text: '泛型', link: '/csharp/01-csharp-language/chapter-05-generics' },
+            { text: '特性', link: '/csharp/01-csharp-language/chapter-06-attributes' },
+            { text: '委托与 Lambda', link: '/csharp/01-csharp-language/chapter-07-delegates-lambda' },
+            { text: '异常与资源管理', link: '/csharp/01-csharp-language/chapter-08-exceptions' },
+            { text: '集合与 LINQ', link: '/csharp/01-csharp-language/chapter-09-collections-linq' },
+            { text: '现代语言特性', link: '/csharp/01-csharp-language/chapter-10-modern-language-features' },
+            { text: '序列化', link: '/csharp/01-csharp-language/chapter-11-serialization' },
+            { text: '反射与元数据', link: '/csharp/01-csharp-language/chapter-12-reflection' },
+            { text: '表达式树与 IQueryable', link: '/csharp/01-csharp-language/chapter-13-expression-trees' },
+          ],
+        },
+        {
+          text: '.NET 运行时',
+          collapsed: true,
+          items: [
+            { text: '编译与 CLR', link: '/csharp/02-dotnet-runtime/chapter-01-compilation-clr' },
+            { text: '类型布局与内存', link: '/csharp/02-dotnet-runtime/chapter-02-type-layout-memory' },
+            { text: '垃圾回收', link: '/csharp/02-dotnet-runtime/chapter-03-gc' },
+            { text: 'JIT 与 AOT', link: '/csharp/02-dotnet-runtime/chapter-04-jit-aot' },
+            { text: '非托管互操作', link: '/csharp/02-dotnet-runtime/chapter-05-unmanaged-interop' },
+          ],
+        },
+        {
+          text: '并发与异步',
+          collapsed: true,
+          items: [
+            { text: '为什么需要异步', link: '/csharp/03-csharp-concurrency/chapter-01-why-async' },
+            { text: 'Task 与 async/await', link: '/csharp/03-csharp-concurrency/chapter-02-task-async-await' },
+            { text: '取消', link: '/csharp/03-csharp-concurrency/chapter-03-cancellation' },
+            { text: '线程与同步', link: '/csharp/03-csharp-concurrency/chapter-04-threading-synchronization' },
+            { text: '并行与 PLINQ', link: '/csharp/03-csharp-concurrency/chapter-05-parallel-linq' },
+            { text: '常见并发缺陷', link: '/csharp/03-csharp-concurrency/chapter-06-concurrency-pitfalls' },
+            { text: '内存模型与 volatile', link: '/csharp/03-csharp-concurrency/chapter-07-memory-model' },
+            { text: 'lock 与 Monitor', link: '/csharp/03-csharp-concurrency/chapter-08-lock-monitor' },
+            { text: '无锁编程', link: '/csharp/03-csharp-concurrency/chapter-09-interlocked-lockfree' },
+            { text: '并发集合', link: '/csharp/03-csharp-concurrency/chapter-10-concurrent-collections' },
+            { text: '线程池', link: '/csharp/03-csharp-concurrency/chapter-11-thread-pool' },
+            { text: '异步流与 Channels', link: '/csharp/03-csharp-concurrency/chapter-12-async-streams-channels' },
+          ],
+        },
+        {
+          text: 'ASP.NET Core',
+          collapsed: true,
+          items: [
+            { text: '为什么用 ASP.NET Core', link: '/csharp/04-aspnet-core/chapter-01-why-aspnet-core' },
+            { text: 'Minimal API', link: '/csharp/04-aspnet-core/chapter-02-minimal-api' },
+            { text: '路由与 MVC', link: '/csharp/04-aspnet-core/chapter-03-mvc-routing' },
+            { text: '中间件管道', link: '/csharp/04-aspnet-core/chapter-04-middleware-pipeline' },
+            { text: '依赖注入', link: '/csharp/04-aspnet-core/chapter-05-dependency-injection' },
+            { text: '配置与日志', link: '/csharp/04-aspnet-core/chapter-06-configuration-logging' },
+          ],
+        },
+        {
+          text: '网络',
+          collapsed: true,
+          items: [
+            { text: 'HttpClient 与 HttpClientFactory', link: '/csharp/05-network/chapter-01-http-client' },
+            { text: 'Socket 与 TCP', link: '/csharp/05-network/chapter-02-socket-tcp' },
+            { text: 'gRPC', link: '/csharp/05-network/chapter-03-grpc' },
+            { text: 'SignalR', link: '/csharp/05-network/chapter-04-signalr' },
+          ],
+        },
+        {
+          text: '数据访问',
+          collapsed: true,
+          items: [
+            { text: '持久化思想', link: '/csharp/06-data-access/chapter-01-persistence-thought' },
+            { text: 'EF Core', link: '/csharp/06-data-access/chapter-02-ef-core' },
+            { text: '查询与调优', link: '/csharp/06-data-access/chapter-03-query-tuning' },
+            { text: '迁移', link: '/csharp/06-data-access/chapter-04-migrations' },
+            { text: '测试', link: '/csharp/06-data-access/chapter-05-testing' },
+            { text: 'ADO.NET 与连接池', link: '/csharp/06-data-access/chapter-06-adonet' },
+            { text: 'Dapper', link: '/csharp/06-data-access/chapter-07-dapper' },
+            { text: '事务与隔离级别', link: '/csharp/06-data-access/chapter-08-transactions-isolation' },
+            { text: '索引与执行计划', link: '/csharp/06-data-access/chapter-09-indexes-execution' },
+          ],
+        },
+        {
+          text: '诊断与案例',
+          collapsed: true,
+          items: [
+            { text: '诊断总览', link: '/csharp/07-diagnostics/' },
+            {
+              text: '内存',
+              items: [
+                { text: '内存诊断', link: '/csharp/07-diagnostics/01-memory/chapter-01-memory-diagnostics' },
+                { text: '缓存无界增长 OOM 案例', link: '/csharp/07-diagnostics/01-memory/chapter-02-oom-case' },
+              ],
+            },
+            {
+              text: '并发',
+              items: [
+                { text: '并发诊断', link: '/csharp/07-diagnostics/02-concurrency/chapter-01-concurrency-diagnostics' },
+                { text: '线程池饥饿案例', link: '/csharp/07-diagnostics/02-concurrency/chapter-02-threadpool-starvation-case' },
+              ],
+            },
+            {
+              text: '性能',
+              items: [
+                { text: 'CPU 与性能诊断', link: '/csharp/07-diagnostics/03-performance/chapter-01-cpu-performance' },
+                { text: 'CPU 热点案例', link: '/csharp/07-diagnostics/03-performance/chapter-02-cpu-hotspot-case' },
+              ],
             },
           ],
         },
