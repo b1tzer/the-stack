@@ -18,6 +18,7 @@ const DOMAIN_LABELS: Record<string, string> = {
   kafka: 'Kafka',
   mysql: 'MySQL',
   postgresql: 'PostgreSQL',
+  python: 'Python',
   rabbitmq: 'RabbitMQ',
   redis: 'Redis',
   'reverse-engineering': '逆向工程',
@@ -242,7 +243,14 @@ gtag('config', 'G-ZV6SVQFCWW');`],
     },
     
     nav: [
-      { text: 'Java', link: '/java/', activeMatch: '^/java/' },
+      {
+        text: '编程语言',
+        activeMatch: '^/(java|python)/',
+        items: [
+          { text: 'Java', link: '/java/' },
+          { text: 'Python', link: '/python/' },
+        ],
+      },
       { text: 'Spring', link: '/spring/', activeMatch: '^/spring/' },
       {
         text: '数据库',
@@ -943,6 +951,79 @@ gtag('config', 'G-ZV6SVQFCWW');`],
                 { text: '慢 SQL 案例', link: '/java/06-diagnostics/04-data-access/chapter-02-cases-slow-sql' },
               ]
             },
+          ],
+        },
+      ],
+      '/python/': [
+        {
+          text: 'Python 知识库',
+          link: '/python/',
+        },
+        {
+          text: '语言核心',
+          collapsed: true,
+          items: [
+            { text: '起步：安装与第一个程序', link: '/python/01-python-language/chapter-00-getting-started' },
+            { text: '值、变量与类型', link: '/python/01-python-language/chapter-01-values-and-variables' },
+            { text: '条件与循环', link: '/python/01-python-language/chapter-02-control-flow' },
+            { text: '容器与可变性', link: '/python/01-python-language/chapter-03-collections' },
+            { text: '函数、作用域与模块', link: '/python/01-python-language/chapter-04-functions' },
+            { text: '异常与资源管理', link: '/python/01-python-language/chapter-05-exceptions-and-io' },
+            { text: '类、对象与特殊方法', link: '/python/01-python-language/chapter-06-classes' },
+            { text: '引用与对象模型', link: '/python/01-python-language/chapter-07-references-and-objects' },
+            { text: '迭代协议与 Pythonic 写法', link: '/python/01-python-language/chapter-08-pythonic' },
+            { text: '并发模型与 GIL', link: '/python/01-python-language/chapter-09-concurrency' },
+            { text: '标准库速查', link: '/python/01-python-language/chapter-10-standard-library' },
+            { text: 'asyncio、协程与事件循环', link: '/python/01-python-language/chapter-11-asyncio' },
+          ],
+        },
+        {
+          text: '工程化',
+          collapsed: true,
+          items: [
+            { text: '依赖管理与测试', link: '/python/02-python-engineering/chapter-01-project-and-testing' },
+          ],
+        },
+        {
+          text: '网络编程',
+          collapsed: true,
+          items: [
+            { text: 'HTTP 客户端与网络编程', link: '/python/03-python-network/chapter-01-http-client' },
+          ],
+        },
+        {
+          text: 'FastAPI',
+          collapsed: true,
+          items: [
+            { text: 'FastAPI 后端开发', link: '/python/04-fastapi/chapter-01-fastapi-core' },
+            { text: '认证与鉴权', link: '/python/04-fastapi/chapter-02-auth' },
+          ],
+        },
+        {
+          text: '数据访问',
+          collapsed: true,
+          items: [
+            { text: 'SQLAlchemy 与 asyncpg', link: '/python/05-data-access/chapter-01-sqlalchemy' },
+          ],
+        },
+        {
+          text: '生产',
+          collapsed: true,
+          items: [
+            { text: '部署：从开发到生产', link: '/python/06-production/chapter-01-deployment' },
+            { text: '生产诊断', link: '/python/06-production/chapter-02-diagnostics' },
+          ],
+        },
+        {
+          text: 'CPython 运行时（进阶）',
+          collapsed: true,
+          items: [
+            { text: '执行模型：从源码到字节码', link: '/python/07-cpython-runtime/chapter-01-execution-model' },
+            { text: '对象的内存真相', link: '/python/07-cpython-runtime/chapter-02-object-layout' },
+            { text: '引用计数与垃圾回收', link: '/python/07-cpython-runtime/chapter-03-reference-counting-gc' },
+            { text: 'GIL 的内部实现', link: '/python/07-cpython-runtime/chapter-04-gil-internals' },
+            { text: '为什么 Python 慢，如何变快', link: '/python/07-cpython-runtime/chapter-05-performance' },
+            { text: '内存分配器 pymalloc', link: '/python/07-cpython-runtime/chapter-06-pymalloc' },
           ],
         },
       ],

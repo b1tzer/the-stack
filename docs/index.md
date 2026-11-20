@@ -3,11 +3,11 @@ layout: home
 
 title: The Stack
 
-description: "面向中文开发者的 Java 后端技术知识库，覆盖核心原理、生产实践与场景方案。"
+description: "面向中文开发者的后端技术知识库，覆盖核心原理、生产实践与场景方案。"
 
 hero:
   name: "The Stack"
-  text: "系统化的 Java 后端技术分析"
+  text: "系统化的后端技术分析"
   tagline: "从语言基石到分布式架构，建立可验证、可迁移的后端知识体系。"
   actions:
     - theme: brand
@@ -22,6 +22,10 @@ features:
     title: Java
     details: 语言基石、JVM、并发编程、网络编程与数据访问。
     link: /java/
+  - icon: 🐍
+    title: Python
+    details: 语言核心、CPython 运行时、Web 后端、数据访问与生产部署。
+    link: /python/
   - icon: 🍃
     title: Spring
     details: IoC 容器与 AOP、Spring MVC、Boot、数据集成与微服务。
