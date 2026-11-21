@@ -1,11 +1,11 @@
 ---
 type: explanation
-level: basic
+level: intermediate
 ---
 
 # 条件与循环
 
-本页面向刚学完基本类型的读者，回答两个问题：Python 怎么写出"如果……就……否则……"的分支，怎么重复执行一段代码。重点放在 Python 特有的部分：真值判断、链式比较、`for` 遍历可迭代对象和 `else` 子句。
+本页面向已经能写 Python、希望回顾分支与循环并补全 Python 特有写法的读者，回答两个问题：怎么写出分支，怎么重复执行一段代码。重点放在 Python 特有的部分：真值判断、链式比较、`for` 遍历可迭代对象和 `else` 子句。
 
 布尔值与比较运算符的细节见[值、变量与类型](./chapter-01-values-and-variables.md)；列表、字典等可迭代对象见[容器与可变性](./chapter-03-collections.md)。
 

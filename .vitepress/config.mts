@@ -1086,7 +1086,7 @@ gtag('config', 'G-ZV6SVQFCWW');`],
           text: '语言核心',
           collapsed: true,
           items: [
-            { text: '起步：安装与第一个程序', link: '/python/01-python-language/chapter-00-getting-started' },
+            { text: '环境准备：安装与版本管理', link: '/python/01-python-language/chapter-00-getting-started' },
             { text: '值、变量与类型', link: '/python/01-python-language/chapter-01-values-and-variables' },
             { text: '条件与循环', link: '/python/01-python-language/chapter-02-control-flow' },
             { text: '容器与可变性', link: '/python/01-python-language/chapter-03-collections' },
@@ -1138,7 +1138,7 @@ gtag('config', 'G-ZV6SVQFCWW');`],
           ],
         },
         {
-          text: 'CPython 运行时（进阶）',
+          text: 'CPython 运行时',
           collapsed: true,
           items: [
             { text: '执行模型：从源码到字节码', link: '/python/07-cpython-runtime/chapter-01-execution-model' },
