@@ -74,4 +74,8 @@ features:
     title: 场景实战
     details: 按业务场景组织的端到端实战：缓存、并发、消息、数据访问与综合案例。
     link: /scenarios/
+  - icon: 🎮
+    title: Unity
+    details: 从零入门游戏开发：编辑器、场景与组件、脚本、物理、UI、动画与发布。
+    link: /unity/
 ---

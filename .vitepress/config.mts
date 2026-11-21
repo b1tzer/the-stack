@@ -25,6 +25,7 @@ const DOMAIN_LABELS: Record<string, string> = {
   'reverse-engineering': '逆向工程',
   scenarios: '场景实战',
   spring: 'Spring',
+  unity: '游戏开发',
 }
 
 function cleanMarkdownInline(value: string): string {
@@ -283,6 +284,7 @@ gtag('config', 'G-ZV6SVQFCWW');`],
         ],
       },
       { text: '场景实战', link: '/scenarios/', activeMatch: '^/scenarios/' },
+      { text: '游戏开发', link: '/unity/', activeMatch: '^/unity/' },
       {
         text: '博客',
         activeMatch: '^/blog/',
@@ -1860,6 +1862,69 @@ gtag('config', 'G-ZV6SVQFCWW');`],
           items: [
             { text: '注解速查', link: '/spring/reference/annotations' },
             { text: 'Starter 速查', link: '/spring/reference/starters' },
+          ],
+        },
+      ],
+      '/unity/': [
+        { text: 'Unity 游戏开发', link: '/unity/' },
+        {
+          text: '上手与工具链',
+          collapsed: true,
+          items: [
+            { text: '游戏开发与 Unity 的定位', link: '/unity/01-getting-started/chapter-01-why-unity' },
+            { text: '安装 Unity Hub 与选择 LTS 版本', link: '/unity/01-getting-started/chapter-02-installation' },
+            { text: '编辑器界面与工作区', link: '/unity/01-getting-started/chapter-03-editor-workspace' },
+            { text: '第一个项目：场景、GameObject 与组件', link: '/unity/01-getting-started/chapter-04-first-project' },
+          ],
+        },
+        {
+          text: 'Unity 脚本基础',
+          collapsed: true,
+          items: [
+            { text: 'MonoBehaviour 与生命周期', link: '/unity/02-unity-scripting/chapter-01-monobehaviour-lifecycle' },
+            { text: '常用 API：Transform、Time、GameObject', link: '/unity/02-unity-scripting/chapter-02-core-api' },
+            { text: '输入系统', link: '/unity/02-unity-scripting/chapter-03-input' },
+            { text: 'Unity 的 C# 约定：序列化与 Inspector', link: '/unity/02-unity-scripting/chapter-04-serialization-inspector' },
+          ],
+        },
+        {
+          text: '场景与核心概念',
+          collapsed: true,
+          items: [
+            { text: '场景、坐标系与 Transform', link: '/unity/03-scene-core/chapter-01-scene-transform' },
+            { text: '组件与消息', link: '/unity/03-scene-core/chapter-02-components-messages' },
+            { text: '预制体与实例化', link: '/unity/03-scene-core/chapter-03-prefab-instantiation' },
+            { text: '时间与帧循环', link: '/unity/03-scene-core/chapter-04-frame-loop' },
+          ],
+        },
+        {
+          text: '玩法基础',
+          collapsed: true,
+          items: [
+            { text: '物理：Rigidbody 与 Collider', link: '/unity/04-gameplay/chapter-01-physics-rigidbody-collider' },
+            { text: '碰撞检测与触发器', link: '/unity/04-gameplay/chapter-02-collision-triggers' },
+            { text: 'UI：Canvas 与 UGUI', link: '/unity/04-gameplay/chapter-03-ui-canvas-ugui' },
+            { text: '动画：Animator 与状态机', link: '/unity/04-gameplay/chapter-04-animator' },
+            { text: '音频', link: '/unity/04-gameplay/chapter-05-audio' },
+          ],
+        },
+        {
+          text: '工程实践',
+          collapsed: true,
+          items: [
+            { text: '脚本架构与组件化设计', link: '/unity/05-engineering/chapter-01-script-architecture' },
+            { text: '事件系统与解耦', link: '/unity/05-engineering/chapter-02-event-system' },
+            { text: '数据持久化：PlayerPrefs / JSON / ScriptableObject', link: '/unity/05-engineering/chapter-03-data-persistence' },
+            { text: '调试与 Profiler', link: '/unity/05-engineering/chapter-04-debugging-profiler' },
+            { text: '版本控制与团队协作', link: '/unity/05-engineering/chapter-05-version-control' },
+          ],
+        },
+        {
+          text: '进阶与发布',
+          collapsed: true,
+          items: [
+            { text: '跨平台打包与发布', link: '/unity/06-advanced/chapter-01-build-publish' },
+            { text: '性能优化概览', link: '/unity/06-advanced/chapter-02-performance' },
           ],
         },
       ],

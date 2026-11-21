@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 400" width="560" height="400">
+  <defs>
+    <style>
+      text { font-family: 'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif; }
+    </style>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="104%">
+      <feDropShadow dx="1" dy="2" stdDeviation="3" flood-opacity="0.10"/>
+    </filter>
+  </defs>
+
+  <text x="280" y="26" text-anchor="middle" font-size="16" font-weight="bold" fill="#333333">GameObject 是空容器，组件赋予行为</text>
+
+  <!-- GameObject 大框 -->
+  <rect x="120" y="56" width="320" height="276" rx="10" fill="#fafafa" stroke="#616161" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="280" y="80" text-anchor="middle" font-size="13" font-weight="bold" fill="#424242">GameObject</text>
+  <text x="280" y="97" text-anchor="middle" font-size="11" fill="#757575">（空容器，本身没有任何行为）</text>
+
+  <!-- Transform -->
+  <rect x="145" y="110" width="270" height="46" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.2"/>
+  <text x="160" y="130" font-size="12" font-weight="bold" fill="#0d47a1">Transform</text>
+  <text x="160" y="148" font-size="11" fill="#1565c0">位置 · 旋转 · 缩放（每个物体都有）</text>
+
+  <!-- Mesh Renderer -->
+  <rect x="145" y="164" width="270" height="46" rx="6" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.2"/>
+  <text x="160" y="184" font-size="12" font-weight="bold" fill="#1b5e20">Mesh Renderer</text>
+  <text x="160" y="202" font-size="11" fill="#2e7d32">让物体可见（渲染网格）</text>
+
+  <!-- Box Collider -->
+  <rect x="145" y="218" width="270" height="46" rx="6" fill="#fff3e0" stroke="#e65100" stroke-width="1.2"/>
+  <text x="160" y="238" font-size="12" font-weight="bold" fill="#bf360c">Box Collider</text>
+  <text x="160" y="256" font-size="11" fill="#e65100">碰撞形状（参与碰撞检测）</text>
+
+  <!-- Script -->
+  <rect x="145" y="272" width="270" height="46" rx="6" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.2"/>
+  <text x="160" y="292" font-size="12" font-weight="bold" fill="#4a148c">PlayerMovement（脚本）</text>
+  <text x="160" y="310" font-size="11" fill="#7b1fa2">自定义逻辑（继承 MonoBehaviour）</text>
+
+  <!-- 关键提示 -->
+  <rect x="120" y="348" width="320" height="42" rx="7" fill="#fff8e1" stroke="#e65100" stroke-width="1" stroke-dasharray="5,3"/>
+  <text x="280" y="367" text-anchor="middle" font-size="11" fill="#bf360c">组合优于继承：能力拆成独立组件，按需挂到 GameObject 上</text>
+  <text x="280" y="383" text-anchor="middle" font-size="11" fill="#bf360c">脚本也是组件，Unity 通过生命周期函数自动调用它</text>
+</svg>
