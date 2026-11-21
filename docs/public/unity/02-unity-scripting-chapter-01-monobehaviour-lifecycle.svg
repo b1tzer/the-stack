@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 424" width="760" height="424">
+  <defs>
+    <style>
+      text { font-family: 'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif; }
+    </style>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="104%">
+      <feDropShadow dx="1" dy="2" stdDeviation="3" flood-opacity="0.10"/>
+    </filter>
+    <marker id="arrowB" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#1565c0"/></marker>
+    <marker id="arrowG" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#2e7d32"/></marker>
+    <marker id="arrowO" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#e65100"/></marker>
+  </defs>
+
+  <text x="380" y="26" text-anchor="middle" font-size="16" font-weight="bold" fill="#333333">MonoBehaviour 生命周期：引擎自动调用的方法</text>
+
+  <!-- 阶段标题 -->
+  <text x="20" y="54" font-size="12" font-weight="bold" fill="#1565c0">初始化阶段（各执行一次）</text>
+
+  <!-- Awake -->
+  <rect x="20" y="64" width="150" height="54" rx="7" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3" filter="url(#shadow)"/>
+  <text x="95" y="86" text-anchor="middle" font-size="12" font-weight="bold" fill="#0d47a1">Awake</text>
+  <text x="95" y="106" text-anchor="middle" font-size="11" fill="#1565c0">加载时立即调用</text>
+
+  <line x1="170" y1="91" x2="198" y2="91" stroke="#1565c0" stroke-width="1.3" marker-end="url(#arrowB)"/>
+
+  <!-- OnEnable -->
+  <rect x="210" y="64" width="150" height="54" rx="7" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3" filter="url(#shadow)"/>
+  <text x="285" y="86" text-anchor="middle" font-size="12" font-weight="bold" fill="#0d47a1">OnEnable</text>
+  <text x="285" y="106" text-anchor="middle" font-size="11" fill="#1565c0">每次启用时调用</text>
+
+  <line x1="360" y1="91" x2="388" y2="91" stroke="#1565c0" stroke-width="1.3" marker-end="url(#arrowB)"/>
+
+  <!-- Start -->
+  <rect x="400" y="64" width="150" height="54" rx="7" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3" filter="url(#shadow)"/>
+  <text x="475" y="86" text-anchor="middle" font-size="12" font-weight="bold" fill="#0d47a1">Start</text>
+  <text x="475" y="106" text-anchor="middle" font-size="11" fill="#1565c0">首次 Update 前调用</text>
+
+  <!-- 阶段标题 -->
+  <text x="20" y="152" font-size="12" font-weight="bold" fill="#2e7d32">循环阶段（物体存活期间反复执行）</text>
+
+  <!-- 循环虚线大框 -->
+  <rect x="20" y="164" width="720" height="96" rx="10" fill="none" stroke="#9e9e9e" stroke-width="1.3" stroke-dasharray="6,4"/>
+
+  <!-- FixedUpdate -->
+  <rect x="40" y="184" width="150" height="54" rx="7" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.3" filter="url(#shadow)"/>
+  <text x="115" y="206" text-anchor="middle" font-size="12" font-weight="bold" fill="#1b5e20">FixedUpdate</text>
+  <text x="115" y="226" text-anchor="middle" font-size="11" fill="#2e7d32">固定步长 · 物理</text>
+
+  <line x1="190" y1="211" x2="218" y2="211" stroke="#1565c0" stroke-width="1.3" marker-end="url(#arrowB)"/>
+
+  <!-- Update -->
+  <rect x="230" y="184" width="150" height="54" rx="7" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3" filter="url(#shadow)"/>
+  <text x="305" y="206" text-anchor="middle" font-size="12" font-weight="bold" fill="#0d47a1">Update</text>
+  <text x="305" y="226" text-anchor="middle" font-size="11" fill="#1565c0">每帧一次</text>
+
+  <line x1="380" y1="211" x2="408" y2="211" stroke="#1565c0" stroke-width="1.3" marker-end="url(#arrowB)"/>
+
+  <!-- LateUpdate -->
+  <rect x="420" y="184" width="150" height="54" rx="7" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.3" filter="url(#shadow)"/>
+  <text x="495" y="206" text-anchor="middle" font-size="12" font-weight="bold" fill="#0d47a1">LateUpdate</text>
+  <text x="495" y="226" text-anchor="middle" font-size="11" fill="#1565c0">Update 之后</text>
+
+  <!-- 回环箭头：LateUpdate 底部回到 FixedUpdate 底部 -->
+  <path d="M495,238 Q305,270 115,238" fill="none" stroke="#2e7d32" stroke-width="1.3" marker-end="url(#arrowG)"/>
+  <text x="305" y="260" text-anchor="middle" font-size="11" fill="#2e7d32">循环</text>
+
+  <!-- 阶段标题 -->
+  <text x="20" y="292" font-size="12" font-weight="bold" fill="#e65100">销毁阶段（各执行一次）</text>
+
+  <!-- OnDisable -->
+  <rect x="20" y="304" width="150" height="54" rx="7" fill="#fff3e0" stroke="#e65100" stroke-width="1.3" filter="url(#shadow)"/>
+  <text x="95" y="326" text-anchor="middle" font-size="12" font-weight="bold" fill="#bf360c">OnDisable</text>
+  <text x="95" y="346" text-anchor="middle" font-size="11" fill="#e65100">禁用时调用</text>
+
+  <line x1="170" y1="331" x2="198" y2="331" stroke="#e65100" stroke-width="1.3" marker-end="url(#arrowO)"/>
+
+  <!-- OnDestroy -->
+  <rect x="210" y="304" width="150" height="54" rx="7" fill="#fff3e0" stroke="#e65100" stroke-width="1.3" filter="url(#shadow)"/>
+  <text x="285" y="326" text-anchor="middle" font-size="12" font-weight="bold" fill="#bf360c">OnDestroy</text>
+  <text x="285" y="346" text-anchor="middle" font-size="11" fill="#e65100">销毁时调用</text>
+
+  <!-- 循环阶段到销毁阶段的前后衔接说明 -->
+  <path d="M305,260 Q305,275 305,290" fill="none" stroke="#9e9e9e" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <!-- 关键提示 -->
+  <rect x="20" y="378" width="720" height="38" rx="7" fill="#fff8e1" stroke="#e65100" stroke-width="1" stroke-dasharray="5,3"/>
+  <text x="380" y="402" text-anchor="middle" font-size="11" fill="#bf360c">OnEnable / OnDisable 配对用于订阅与退订事件；依赖其他对象初始化的逻辑放 Start 而非 Awake</text>
+</svg>

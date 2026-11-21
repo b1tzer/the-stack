@@ -11,6 +11,7 @@ const SITE_URL = 'https://thestack.xpro.wang'
 const DESCRIPTION_LIMIT = 140
 const DOMAIN_LABELS: Record<string, string> = {
   ai: 'AI',
+  csharp: 'C#',
   'design-pattern': '设计模式',
   elasticsearch: 'Elasticsearch',
   engineering: '软件工程',
@@ -18,10 +19,13 @@ const DOMAIN_LABELS: Record<string, string> = {
   kafka: 'Kafka',
   mysql: 'MySQL',
   postgresql: 'PostgreSQL',
+  python: 'Python',
   rabbitmq: 'RabbitMQ',
   redis: 'Redis',
+  'reverse-engineering': '逆向工程',
   scenarios: '场景实战',
   spring: 'Spring',
+  unity: '游戏开发',
 }
 
 function cleanMarkdownInline(value: string): string {
@@ -241,7 +245,15 @@ gtag('config', 'G-ZV6SVQFCWW');`],
     },
     
     nav: [
-      { text: 'Java', link: '/java/', activeMatch: '^/java/' },
+      {
+        text: '编程语言',
+        activeMatch: '^/(java|csharp|python)/',
+        items: [
+          { text: 'Java', link: '/java/' },
+          { text: 'C#', link: '/csharp/' },
+          { text: 'Python', link: '/python/' },
+        ],
+      },
       { text: 'Spring', link: '/spring/', activeMatch: '^/spring/' },
       {
         text: '数据库',
@@ -263,14 +275,16 @@ gtag('config', 'G-ZV6SVQFCWW');`],
       },
       {
         text: '工程',
-        activeMatch: '^/(design-pattern|engineering|ai)/',
+        activeMatch: '^/(design-pattern|engineering|ai|reverse-engineering)/',
         items: [
           { text: '设计模式', link: '/design-pattern/' },
           { text: '软件工程', link: '/engineering/' },
           { text: 'AI 工程', link: '/ai/' },
+          { text: '逆向工程', link: '/reverse-engineering/' },
         ],
       },
       { text: '场景实战', link: '/scenarios/', activeMatch: '^/scenarios/' },
+      { text: '游戏开发', link: '/unity/', activeMatch: '^/unity/' },
       {
         text: '博客',
         activeMatch: '^/blog/',
@@ -380,6 +394,95 @@ gtag('config', 'G-ZV6SVQFCWW');`],
             { text: '评估与可观测性', link: '/ai/09-评估与可观测性' },
             { text: '安全护栏', link: '/ai/10-安全护栏' },
             { text: '端到端实战：从 0 到 1 搭一个生产 Agent', link: '/ai/11-端到端实战' },
+          ],
+        },
+      ],
+      '/reverse-engineering/': [
+        {
+          text: '逆向工程知识库',
+          link: '/reverse-engineering/',
+        },
+        {
+          text: '程序运行基础',
+          collapsed: true,
+          items: [
+            { text: 'C/C++ 编译过程与优化', link: '/reverse-engineering/01-program-basics/chapter-01-c-cpp-compilation' },
+            { text: '内存模型与函数调用', link: '/reverse-engineering/01-program-basics/chapter-02-memory-function-call' },
+          ],
+        },
+        {
+          text: '汇编语言与 CPU 架构',
+          collapsed: true,
+          items: [
+            { text: 'x86 汇编基础', link: '/reverse-engineering/02-assembly/chapter-01-x86-assembly' },
+            { text: 'x64 汇编与调用约定', link: '/reverse-engineering/02-assembly/chapter-02-x64-assembly' },
+            { text: '常见编译器代码模式', link: '/reverse-engineering/02-assembly/chapter-03-compiler-code-patterns' },
+          ],
+        },
+        {
+          text: 'Windows 底层机制',
+          collapsed: true,
+          items: [
+            { text: '进程与线程', link: '/reverse-engineering/03-windows-internals/chapter-01-process-thread' },
+            { text: '虚拟内存与内存保护', link: '/reverse-engineering/03-windows-internals/chapter-02-virtual-memory' },
+            { text: 'DLL 加载与 Windows API', link: '/reverse-engineering/03-windows-internals/chapter-03-dll-api' },
+            { text: 'PEB、TEB 与模块加载', link: '/reverse-engineering/03-windows-internals/chapter-04-peb-teb-loader' },
+            { text: '异常处理机制', link: '/reverse-engineering/03-windows-internals/chapter-05-exception-handling' },
+          ],
+        },
+        {
+          text: 'PE 文件格式',
+          collapsed: true,
+          items: [
+            { text: 'PE 头部：从 MZ 到节表', link: '/reverse-engineering/04-pe-format/chapter-01-pe-headers' },
+            { text: 'RVA 与三类表', link: '/reverse-engineering/04-pe-format/chapter-02-address-and-tables' },
+            { text: 'TLS、资源节与 Debug Directory', link: '/reverse-engineering/04-pe-format/chapter-03-tls-resource-debug' },
+            { text: 'PE 加载过程', link: '/reverse-engineering/04-pe-format/chapter-04-pe-loading' },
+          ],
+        },
+        {
+          text: '静态分析',
+          collapsed: true,
+          items: [
+            { text: '静态分析基础', link: '/reverse-engineering/05-static-analysis/chapter-01-basics' },
+            { text: '类型恢复与结构体识别', link: '/reverse-engineering/05-static-analysis/chapter-02-type-recovery' },
+            { text: '虚函数表与 RTTI', link: '/reverse-engineering/05-static-analysis/chapter-03-vtable-rtti' },
+            { text: 'IDA Pro 静态分析实操', link: '/reverse-engineering/05-static-analysis/chapter-04-ida-pro' },
+            { text: 'Ghidra 静态分析与脚本化', link: '/reverse-engineering/05-static-analysis/chapter-05-ghidra' },
+          ],
+        },
+        {
+          text: '动态调试',
+          collapsed: true,
+          items: [
+            { text: '调试器的断点与单步机制', link: '/reverse-engineering/06-dynamic-debugging/chapter-01-debugging-basics' },
+            { text: 'x64dbg 动态调试实操', link: '/reverse-engineering/06-dynamic-debugging/chapter-02-x64dbg' },
+          ],
+        },
+        {
+          text: '加壳与脱壳',
+          collapsed: true,
+          items: [
+            { text: '加壳原理与识别', link: '/reverse-engineering/07-packing/chapter-01-packing-principle' },
+            { text: '手动脱壳', link: '/reverse-engineering/07-packing/chapter-02-manual-unpacking' },
+            { text: '虚拟化保护与反调试', link: '/reverse-engineering/07-packing/chapter-03-virtualization-anti-debugging' },
+          ],
+        },
+        {
+          text: '高级程序逆向',
+          collapsed: true,
+          items: [
+            { text: 'MSVC C++ 逆向', link: '/reverse-engineering/08-advanced-reversing/chapter-01-msvc-cpp' },
+            { text: 'Qt 程序分析', link: '/reverse-engineering/08-advanced-reversing/chapter-02-qt-analysis' },
+            { text: '网络通信与协议分析', link: '/reverse-engineering/08-advanced-reversing/chapter-03-network-protocol' },
+            { text: '授权验证与完整性校验', link: '/reverse-engineering/08-advanced-reversing/chapter-04-license-integrity' },
+          ],
+        },
+        {
+          text: '综合逆向实战',
+          collapsed: true,
+          items: [
+            { text: '序列号校验的完整逆向', link: '/reverse-engineering/09-comprehensive-practice/chapter-01-crackme' },
           ],
         },
       ],
@@ -852,6 +955,198 @@ gtag('config', 'G-ZV6SVQFCWW');`],
                 { text: '慢 SQL 案例', link: '/java/06-diagnostics/04-data-access/chapter-02-cases-slow-sql' },
               ]
             },
+          ],
+        },
+      ],
+      '/csharp/': [
+        {
+          text: 'C# 知识库',
+          link: '/csharp/',
+        },
+        {
+          text: 'C# 语言',
+          collapsed: true,
+          items: [
+            { text: 'C# 与 .NET 的设计目标与运行链路', link: '/csharp/01-csharp-language/chapter-01-why-csharp' },
+            { text: '类型系统', link: '/csharp/01-csharp-language/chapter-02-type-system' },
+            { text: '对象与值语义', link: '/csharp/01-csharp-language/chapter-03-object-values' },
+            { text: '面向对象', link: '/csharp/01-csharp-language/chapter-04-oop' },
+            { text: '泛型', link: '/csharp/01-csharp-language/chapter-05-generics' },
+            { text: '特性', link: '/csharp/01-csharp-language/chapter-06-attributes' },
+            { text: '委托与 Lambda', link: '/csharp/01-csharp-language/chapter-07-delegates-lambda' },
+            { text: '异常与资源管理', link: '/csharp/01-csharp-language/chapter-08-exceptions' },
+            { text: '集合与 LINQ', link: '/csharp/01-csharp-language/chapter-09-collections-linq' },
+            { text: '现代语言特性', link: '/csharp/01-csharp-language/chapter-10-modern-language-features' },
+            { text: '序列化', link: '/csharp/01-csharp-language/chapter-11-serialization' },
+            { text: '反射与元数据', link: '/csharp/01-csharp-language/chapter-12-reflection' },
+            { text: '表达式树与 IQueryable', link: '/csharp/01-csharp-language/chapter-13-expression-trees' },
+          ],
+        },
+        {
+          text: '.NET 运行时',
+          collapsed: true,
+          items: [
+            { text: '编译与 CLR', link: '/csharp/02-dotnet-runtime/chapter-01-compilation-clr' },
+            { text: '类型布局与内存', link: '/csharp/02-dotnet-runtime/chapter-02-type-layout-memory' },
+            { text: '垃圾回收', link: '/csharp/02-dotnet-runtime/chapter-03-gc' },
+            { text: 'JIT 与 AOT', link: '/csharp/02-dotnet-runtime/chapter-04-jit-aot' },
+            { text: '非托管互操作', link: '/csharp/02-dotnet-runtime/chapter-05-unmanaged-interop' },
+          ],
+        },
+        {
+          text: '并发与异步',
+          collapsed: true,
+          items: [
+            { text: '为什么需要异步', link: '/csharp/03-csharp-concurrency/chapter-01-why-async' },
+            { text: 'Task 与 async/await', link: '/csharp/03-csharp-concurrency/chapter-02-task-async-await' },
+            { text: '取消', link: '/csharp/03-csharp-concurrency/chapter-03-cancellation' },
+            { text: '线程与同步', link: '/csharp/03-csharp-concurrency/chapter-04-threading-synchronization' },
+            { text: '并行与 PLINQ', link: '/csharp/03-csharp-concurrency/chapter-05-parallel-linq' },
+            { text: '常见并发缺陷', link: '/csharp/03-csharp-concurrency/chapter-06-concurrency-pitfalls' },
+            { text: '内存模型与 volatile', link: '/csharp/03-csharp-concurrency/chapter-07-memory-model' },
+            { text: 'lock 与 Monitor', link: '/csharp/03-csharp-concurrency/chapter-08-lock-monitor' },
+            { text: '无锁编程', link: '/csharp/03-csharp-concurrency/chapter-09-interlocked-lockfree' },
+            { text: '并发集合', link: '/csharp/03-csharp-concurrency/chapter-10-concurrent-collections' },
+            { text: '线程池', link: '/csharp/03-csharp-concurrency/chapter-11-thread-pool' },
+            { text: '异步流与 Channels', link: '/csharp/03-csharp-concurrency/chapter-12-async-streams-channels' },
+          ],
+        },
+        {
+          text: 'ASP.NET Core',
+          collapsed: true,
+          items: [
+            { text: '为什么用 ASP.NET Core', link: '/csharp/04-aspnet-core/chapter-01-why-aspnet-core' },
+            { text: 'Minimal API', link: '/csharp/04-aspnet-core/chapter-02-minimal-api' },
+            { text: '路由与 MVC', link: '/csharp/04-aspnet-core/chapter-03-mvc-routing' },
+            { text: '中间件管道', link: '/csharp/04-aspnet-core/chapter-04-middleware-pipeline' },
+            { text: '依赖注入', link: '/csharp/04-aspnet-core/chapter-05-dependency-injection' },
+            { text: '配置与日志', link: '/csharp/04-aspnet-core/chapter-06-configuration-logging' },
+          ],
+        },
+        {
+          text: '网络',
+          collapsed: true,
+          items: [
+            { text: 'HttpClient 与 HttpClientFactory', link: '/csharp/05-network/chapter-01-http-client' },
+            { text: 'Socket 与 TCP', link: '/csharp/05-network/chapter-02-socket-tcp' },
+            { text: 'gRPC', link: '/csharp/05-network/chapter-03-grpc' },
+            { text: 'SignalR', link: '/csharp/05-network/chapter-04-signalr' },
+          ],
+        },
+        {
+          text: '数据访问',
+          collapsed: true,
+          items: [
+            { text: '持久化思想', link: '/csharp/06-data-access/chapter-01-persistence-thought' },
+            { text: 'EF Core', link: '/csharp/06-data-access/chapter-02-ef-core' },
+            { text: '查询与调优', link: '/csharp/06-data-access/chapter-03-query-tuning' },
+            { text: '迁移', link: '/csharp/06-data-access/chapter-04-migrations' },
+            { text: '测试', link: '/csharp/06-data-access/chapter-05-testing' },
+            { text: 'ADO.NET 与连接池', link: '/csharp/06-data-access/chapter-06-adonet' },
+            { text: 'Dapper', link: '/csharp/06-data-access/chapter-07-dapper' },
+            { text: '事务与隔离级别', link: '/csharp/06-data-access/chapter-08-transactions-isolation' },
+            { text: '索引与执行计划', link: '/csharp/06-data-access/chapter-09-indexes-execution' },
+          ],
+        },
+        {
+          text: '诊断与案例',
+          collapsed: true,
+          items: [
+            { text: '诊断总览', link: '/csharp/07-diagnostics/' },
+            {
+              text: '内存',
+              items: [
+                { text: '内存诊断', link: '/csharp/07-diagnostics/01-memory/chapter-01-memory-diagnostics' },
+                { text: '缓存无界增长 OOM 案例', link: '/csharp/07-diagnostics/01-memory/chapter-02-oom-case' },
+              ],
+            },
+            {
+              text: '并发',
+              items: [
+                { text: '并发诊断', link: '/csharp/07-diagnostics/02-concurrency/chapter-01-concurrency-diagnostics' },
+                { text: '线程池饥饿案例', link: '/csharp/07-diagnostics/02-concurrency/chapter-02-threadpool-starvation-case' },
+              ],
+            },
+            {
+              text: '性能',
+              items: [
+                { text: 'CPU 与性能诊断', link: '/csharp/07-diagnostics/03-performance/chapter-01-cpu-performance' },
+                { text: 'CPU 热点案例', link: '/csharp/07-diagnostics/03-performance/chapter-02-cpu-hotspot-case' },
+              ],
+            },
+          ],
+        },
+      ],
+      '/python/': [
+        {
+          text: 'Python 知识库',
+          link: '/python/',
+        },
+        {
+          text: '语言核心',
+          collapsed: true,
+          items: [
+            { text: '环境准备：安装与版本管理', link: '/python/01-python-language/chapter-00-getting-started' },
+            { text: '值、变量与类型', link: '/python/01-python-language/chapter-01-values-and-variables' },
+            { text: '条件与循环', link: '/python/01-python-language/chapter-02-control-flow' },
+            { text: '容器与可变性', link: '/python/01-python-language/chapter-03-collections' },
+            { text: '函数、作用域与模块', link: '/python/01-python-language/chapter-04-functions' },
+            { text: '异常与资源管理', link: '/python/01-python-language/chapter-05-exceptions-and-io' },
+            { text: '类、对象与特殊方法', link: '/python/01-python-language/chapter-06-classes' },
+            { text: '引用与对象模型', link: '/python/01-python-language/chapter-07-references-and-objects' },
+            { text: '迭代协议与 Pythonic 写法', link: '/python/01-python-language/chapter-08-pythonic' },
+            { text: '并发模型与 GIL', link: '/python/01-python-language/chapter-09-concurrency' },
+            { text: '标准库速查', link: '/python/01-python-language/chapter-10-standard-library' },
+            { text: 'asyncio、协程与事件循环', link: '/python/01-python-language/chapter-11-asyncio' },
+          ],
+        },
+        {
+          text: '工程化',
+          collapsed: true,
+          items: [
+            { text: '依赖管理与测试', link: '/python/02-python-engineering/chapter-01-project-and-testing' },
+          ],
+        },
+        {
+          text: '网络编程',
+          collapsed: true,
+          items: [
+            { text: 'HTTP 客户端与网络编程', link: '/python/03-python-network/chapter-01-http-client' },
+          ],
+        },
+        {
+          text: 'FastAPI',
+          collapsed: true,
+          items: [
+            { text: 'FastAPI 后端开发', link: '/python/04-fastapi/chapter-01-fastapi-core' },
+            { text: '认证与鉴权', link: '/python/04-fastapi/chapter-02-auth' },
+          ],
+        },
+        {
+          text: '数据访问',
+          collapsed: true,
+          items: [
+            { text: 'SQLAlchemy 与 asyncpg', link: '/python/05-data-access/chapter-01-sqlalchemy' },
+          ],
+        },
+        {
+          text: '生产',
+          collapsed: true,
+          items: [
+            { text: '部署：从开发到生产', link: '/python/06-production/chapter-01-deployment' },
+            { text: '生产诊断', link: '/python/06-production/chapter-02-diagnostics' },
+          ],
+        },
+        {
+          text: 'CPython 运行时',
+          collapsed: true,
+          items: [
+            { text: '执行模型：从源码到字节码', link: '/python/07-cpython-runtime/chapter-01-execution-model' },
+            { text: '对象的内存真相', link: '/python/07-cpython-runtime/chapter-02-object-layout' },
+            { text: '引用计数与垃圾回收', link: '/python/07-cpython-runtime/chapter-03-reference-counting-gc' },
+            { text: 'GIL 的内部实现', link: '/python/07-cpython-runtime/chapter-04-gil-internals' },
+            { text: '为什么 Python 慢，如何变快', link: '/python/07-cpython-runtime/chapter-05-performance' },
+            { text: '内存分配器 pymalloc', link: '/python/07-cpython-runtime/chapter-06-pymalloc' },
           ],
         },
       ],
@@ -1567,6 +1862,69 @@ gtag('config', 'G-ZV6SVQFCWW');`],
           items: [
             { text: '注解速查', link: '/spring/reference/annotations' },
             { text: 'Starter 速查', link: '/spring/reference/starters' },
+          ],
+        },
+      ],
+      '/unity/': [
+        { text: 'Unity 游戏开发', link: '/unity/' },
+        {
+          text: '上手与工具链',
+          collapsed: true,
+          items: [
+            { text: '游戏开发与 Unity 的定位', link: '/unity/01-getting-started/chapter-01-why-unity' },
+            { text: '安装 Unity Hub 与选择 LTS 版本', link: '/unity/01-getting-started/chapter-02-installation' },
+            { text: '编辑器界面与工作区', link: '/unity/01-getting-started/chapter-03-editor-workspace' },
+            { text: '第一个项目：场景、GameObject 与组件', link: '/unity/01-getting-started/chapter-04-first-project' },
+          ],
+        },
+        {
+          text: 'Unity 脚本基础',
+          collapsed: true,
+          items: [
+            { text: 'MonoBehaviour 与生命周期', link: '/unity/02-unity-scripting/chapter-01-monobehaviour-lifecycle' },
+            { text: '常用 API：Transform、Time、GameObject', link: '/unity/02-unity-scripting/chapter-02-core-api' },
+            { text: '输入系统', link: '/unity/02-unity-scripting/chapter-03-input' },
+            { text: 'Unity 的 C# 约定：序列化与 Inspector', link: '/unity/02-unity-scripting/chapter-04-serialization-inspector' },
+          ],
+        },
+        {
+          text: '场景与核心概念',
+          collapsed: true,
+          items: [
+            { text: '场景、坐标系与 Transform', link: '/unity/03-scene-core/chapter-01-scene-transform' },
+            { text: '组件与消息', link: '/unity/03-scene-core/chapter-02-components-messages' },
+            { text: '预制体与实例化', link: '/unity/03-scene-core/chapter-03-prefab-instantiation' },
+            { text: '时间与帧循环', link: '/unity/03-scene-core/chapter-04-frame-loop' },
+          ],
+        },
+        {
+          text: '玩法基础',
+          collapsed: true,
+          items: [
+            { text: '物理：Rigidbody 与 Collider', link: '/unity/04-gameplay/chapter-01-physics-rigidbody-collider' },
+            { text: '碰撞检测与触发器', link: '/unity/04-gameplay/chapter-02-collision-triggers' },
+            { text: 'UI：Canvas 与 UGUI', link: '/unity/04-gameplay/chapter-03-ui-canvas-ugui' },
+            { text: '动画：Animator 与状态机', link: '/unity/04-gameplay/chapter-04-animator' },
+            { text: '音频', link: '/unity/04-gameplay/chapter-05-audio' },
+          ],
+        },
+        {
+          text: '工程实践',
+          collapsed: true,
+          items: [
+            { text: '脚本架构与组件化设计', link: '/unity/05-engineering/chapter-01-script-architecture' },
+            { text: '事件系统与解耦', link: '/unity/05-engineering/chapter-02-event-system' },
+            { text: '数据持久化：PlayerPrefs / JSON / ScriptableObject', link: '/unity/05-engineering/chapter-03-data-persistence' },
+            { text: '调试与 Profiler', link: '/unity/05-engineering/chapter-04-debugging-profiler' },
+            { text: '版本控制与团队协作', link: '/unity/05-engineering/chapter-05-version-control' },
+          ],
+        },
+        {
+          text: '进阶与发布',
+          collapsed: true,
+          items: [
+            { text: '跨平台打包与发布', link: '/unity/06-advanced/chapter-01-build-publish' },
+            { text: '性能优化概览', link: '/unity/06-advanced/chapter-02-performance' },
           ],
         },
       ],
