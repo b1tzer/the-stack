@@ -61,7 +61,7 @@ asyncio.run(fetch('http://127.0.0.1:8000/hello'))   # {'msg': 'hello'}
 
 需要直接操作 TCP 连接时用标准库 `socket`，接口是创建套接字、连接、收发字节、关闭。底层 TCP 语义（三次握手、超时、粘包）是网络协议本身的行为，与语言无关。
 
-绝大多数场景不需要碰 `socket`：HTTP 请求用 requests/httpx，它们内部处理连接、编码和协议细节。只有实现自定义协议或做底层调试时才降到 `socket`。
+绝大多数场景不需要碰 `socket`：HTTP 请求用 requests/httpx，它们内部处理连接、编码和协议细节。只有实现自定义协议或做底层调试时才降到 `socket`，具体见 [socket 与 TCP 底层](./chapter-02-socket-tcp.md)。
 
 ## 4. 超时、重试与错误处理
 
@@ -91,4 +91,4 @@ except requests.HTTPError:
 
 同步请求用 `requests`，异步请求用 `httpx.AsyncClient`；网络请求必须设超时、按类型捕获错误，写操作重试前确认幂等；底层 TCP 语义与语言无关，日常不必碰 `socket`。
 
-接下来进入 [FastAPI 后端开发](../04-fastapi/chapter-01-fastapi-core.md)，把 HTTP 接口从"调用方"转到"提供方"。
+接下来进入 [socket 与 TCP 底层](./chapter-02-socket-tcp.md)，看什么时候需要直接操作 TCP 字节流；HTTP 层面的并发、连接池和流式见 [HTTP 客户端进阶](./chapter-04-http-advanced.md)。

@@ -24,7 +24,7 @@
 ### 主线二 · 用 Python 交付（工程与后端）
 
 - **[02 工程化](./02-python-engineering/chapter-01-project-and-testing.md)**：虚拟环境、依赖管理、pytest 测试，把代码组织成可复现、可测试的项目。
-- **[03 网络编程](./03-python-network/chapter-01-http-client.md)**：用 requests / httpx 访问 HTTP 接口，处理超时与错误。
+- **[03 网络编程](./03-python-network/chapter-01-http-client.md)**（6 章）：从 HTTP 客户端基础起步，往下到 socket 与 TCP 底层、asyncio 网络原语，再回到 HTTP 进阶（并发、连接池、流式、重试）、SSE 与 WebSocket，最后落到生产实践。
 - **[04 Web 后端](./04-fastapi/chapter-01-fastapi-core.md)**：用 FastAPI 搭带校验和依赖注入的接口，以及认证与鉴权。
 - **[05 数据访问](./05-data-access/chapter-01-sqlalchemy.md)**：用 SQLAlchemy / asyncpg 读写数据库、管理事务。
 - **[06 生产](./06-production/chapter-01-deployment.md)**：部署到生产环境，以及性能、内存与异步排查。
@@ -49,6 +49,11 @@
 | 协程怎么调度、`create_task` 和 `gather` 如何并发 | [asyncio、协程与事件循环](./01-python-language/chapter-11-asyncio.md) |
 | 怎么搭一个带 venv 和测试的项目 | [依赖管理与测试](./02-python-engineering/chapter-01-project-and-testing.md) |
 | 发 HTTP 请求用什么、怎么处理超时和错误 | [HTTP 客户端与网络编程](./03-python-network/chapter-01-http-client.md) |
+| 怎么直接收发 TCP 字节流、消息边界怎么定 | [socket 与 TCP 底层](./03-python-network/chapter-02-socket-tcp.md) |
+| 不用线程怎么让 TCP 服务端同时服务多个连接 | [asyncio 网络原语](./03-python-network/chapter-03-asyncio-network.md) |
+| 怎么并发请求、下载大文件、自动重试 | [HTTP 客户端进阶](./03-python-network/chapter-04-http-advanced.md) |
+| 服务端要主动推送、或双向实时通信 | [SSE 与 WebSocket](./03-python-network/chapter-05-sse-websocket.md) |
+| 生产里怎么选客户端、配连接池和超时 | [网络 IO 的生产实践](./03-python-network/chapter-06-production-practices.md) |
 | 怎么用 FastAPI 搭一个带校验的接口 | [FastAPI 后端开发](./04-fastapi/chapter-01-fastapi-core.md) |
 | 怎么给接口加登录和权限控制 | [认证与鉴权](./04-fastapi/chapter-02-auth.md) |
 | 怎么连数据库、执行查询、管理事务 | [SQLAlchemy 与 asyncpg](./05-data-access/chapter-01-sqlalchemy.md) |
@@ -65,5 +70,5 @@
 
 - 本专题讲 Python 语言机制、CPython 运行时和用 Python 做后端，目标是帮你从能写 Python 成长为具备体系化认知的高级开发人员。
 - 用 Python 做 AI 应用，见 [AI 工程知识库](../ai/index.md)；那套内容假设你已具备本专题语言核心章节的基础。
-- 消息队列、WebSocket、后台任务等主题不在本专题范围，需要时按对应组件专题展开。
-- 工程化与网络模块目前各只有一章，覆盖依赖管理、测试与 HTTP 客户端；依赖锁、类型检查、CI、并发请求与流式等主题暂缺，留作后续扩展方向。
+- 消息队列、后台任务等主题不在本专题范围，需要时按对应组件专题展开。
+- 工程化模块目前只有一章，覆盖依赖管理与测试；依赖锁、类型检查、CI 等主题暂缺，留作后续扩展方向。

@@ -1112,6 +1112,11 @@ gtag('config', 'G-ZV6SVQFCWW');`],
           collapsed: true,
           items: [
             { text: 'HTTP 客户端与网络编程', link: '/python/03-python-network/chapter-01-http-client' },
+            { text: 'socket 与 TCP 底层', link: '/python/03-python-network/chapter-02-socket-tcp' },
+            { text: 'asyncio 网络原语', link: '/python/03-python-network/chapter-03-asyncio-network' },
+            { text: 'HTTP 客户端进阶', link: '/python/03-python-network/chapter-04-http-advanced' },
+            { text: 'SSE 与 WebSocket', link: '/python/03-python-network/chapter-05-sse-websocket' },
+            { text: '网络 IO 的生产实践', link: '/python/03-python-network/chapter-06-production-practices' },
           ],
         },
         {
