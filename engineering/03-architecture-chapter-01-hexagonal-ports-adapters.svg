@@ -1,0 +1,47 @@
+<svg width="900" height="470" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 470" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <marker id="ar" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#57606a"/>
+    </marker>
+  </defs>
+
+  <text x="450" y="28" text-anchor="middle" font-size="16" font-weight="bold" fill="#24292f">六边形架构（端口与适配器）</text>
+
+  <!-- 中心六边形：领域模型（主角） -->
+  <polygon points="450,150 541,202 541,308 450,360 359,308 359,202" fill="#fff1f0" stroke="#DC382D" stroke-width="2"/>
+  <text x="450" y="247" text-anchor="middle" font-size="13" font-weight="bold" fill="#DC382D">领域模型</text>
+  <text x="450" y="271" text-anchor="middle" font-size="12" fill="#DC382D">业务逻辑（核心）</text>
+
+  <!-- 驱动侧（左侧） -->
+  <text x="135" y="205" text-anchor="middle" font-size="11" fill="#0d47a1">驱动侧（主适配器）</text>
+  <rect x="60" y="225" width="150" height="50" rx="6" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+  <text x="135" y="254" text-anchor="middle" font-size="13" fill="#0d47a1">HTTP Adapter</text>
+
+  <rect x="322" y="233" width="37" height="44" rx="4" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+  <text x="340" y="251" text-anchor="middle" font-size="11" fill="#0d47a1">入站</text>
+  <text x="340" y="265" text-anchor="middle" font-size="11" fill="#0d47a1">端口</text>
+
+  <line x1="210" y1="250" x2="318" y2="250" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+
+  <!-- 被驱动侧（右侧） -->
+  <text x="735" y="118" text-anchor="middle" font-size="11" fill="#1b5e20">被驱动侧（次适配器）</text>
+
+  <rect x="541" y="233" width="37" height="44" rx="4" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+  <text x="559" y="251" text-anchor="middle" font-size="11" fill="#1b5e20">出站</text>
+  <text x="559" y="265" text-anchor="middle" font-size="11" fill="#1b5e20">端口</text>
+
+  <rect x="660" y="130" width="150" height="48" rx="6" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+  <text x="735" y="158" text-anchor="middle" font-size="12" fill="#1b5e20">DB Adapter</text>
+
+  <rect x="660" y="225" width="150" height="48" rx="6" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+  <text x="735" y="253" text-anchor="middle" font-size="12" fill="#1b5e20">Cache Adapter</text>
+
+  <rect x="660" y="320" width="150" height="48" rx="6" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+  <text x="735" y="348" text-anchor="middle" font-size="12" fill="#1b5e20">MQ Adapter</text>
+
+  <line x1="578" y1="250" x2="656" y2="154" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line x1="578" y1="250" x2="656" y2="249" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line x1="578" y1="250" x2="656" y2="344" stroke="#57606a" stroke-width="1.5" marker-end="url(#ar)"/>
+
+  <text x="450" y="440" text-anchor="middle" font-size="11" fill="#57606a">驱动侧适配器经入站端口调用领域模型，领域模型经出站端口驱动技术组件</text>
+</svg>

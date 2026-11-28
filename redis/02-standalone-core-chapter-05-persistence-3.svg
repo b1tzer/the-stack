@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="730" height="120" viewBox="0 0 730 120" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#57606a"/></marker>
+  </defs>
+  <rect width="730" height="120" fill="#ffffff"/>
+
+  <rect x="20" y="38" width="170" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="105" y="60" text-anchor="middle" font-size="13" fill="#24292f">写命令 SET key value</text>
+
+  <rect x="300" y="38" width="130" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="365" y="60" text-anchor="middle" font-size="13" fill="#24292f">aof_buf 缓冲区</text>
+
+  <rect x="540" y="38" width="170" height="44" rx="8" fill="#fff1f0" stroke="#DC382D"/>
+  <text x="625" y="60" text-anchor="middle" font-size="13" font-weight="600" fill="#DC382D">appendonly.aof 文件</text>
+
+  <line x1="190" y1="60" x2="290" y2="60" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="241" y="50" text-anchor="middle" font-size="11" fill="#57606a">追加到缓冲区</text>
+
+  <line x1="430" y1="60" x2="530" y2="60" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="481" y="50" text-anchor="middle" font-size="11" fill="#57606a">fsync 刷盘</text>
+</svg>

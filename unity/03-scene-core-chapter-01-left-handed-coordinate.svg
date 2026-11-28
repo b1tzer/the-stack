@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 380" width="560" height="380">
+  <defs>
+    <style>
+      text { font-family: 'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif; }
+    </style>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="104%">
+      <feDropShadow dx="1" dy="2" stdDeviation="3" flood-opacity="0.10"/>
+    </filter>
+    <marker id="arrowX" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#c62828"/></marker>
+    <marker id="arrowY" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#2e7d32"/></marker>
+    <marker id="arrowZ" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#1565c0"/></marker>
+  </defs>
+
+  <text x="280" y="26" text-anchor="middle" font-size="16" font-weight="bold" fill="#333333">Unity 的左手坐标系</text>
+
+  <!-- 坐标轴 -->
+  <line x1="120" y1="250" x2="320" y2="250" stroke="#c62828" stroke-width="2" marker-end="url(#arrowX)"/>
+  <line x1="120" y1="250" x2="120" y2="90" stroke="#2e7d32" stroke-width="2" marker-end="url(#arrowY)"/>
+  <line x1="120" y1="250" x2="65" y2="305" stroke="#1565c0" stroke-width="2" marker-end="url(#arrowZ)"/>
+
+  <!-- 原点 -->
+  <circle cx="120" cy="250" r="4" fill="#333333"/>
+  <text x="108" y="270" font-size="11" fill="#333333">原点</text>
+
+  <!-- 轴标注 -->
+  <text x="330" y="246" font-size="13" font-weight="bold" fill="#c62828">X</text>
+  <text x="330" y="262" font-size="11" fill="#c62828">（右）</text>
+
+  <text x="120" y="80" text-anchor="middle" font-size="13" font-weight="bold" fill="#2e7d32">Y</text>
+  <text x="120" y="70" text-anchor="middle" font-size="11" fill="#2e7d32">（上）</text>
+
+  <text x="52" y="322" text-anchor="middle" font-size="13" font-weight="bold" fill="#1565c0">Z</text>
+  <text x="52" y="338" text-anchor="middle" font-size="11" fill="#1565c0">（前 · 屏幕里）</text>
+
+  <!-- 说明框 -->
+  <rect x="360" y="90" width="180" height="180" rx="7" fill="#f8f9fa" stroke="#bdbdbd" stroke-width="1" filter="url(#shadow)"/>
+  <text x="450" y="114" text-anchor="middle" font-size="12" font-weight="bold" fill="#333333">左手坐标系</text>
+
+  <text x="376" y="138" font-size="11" fill="#666666">判断方法：</text>
+  <text x="376" y="156" font-size="11" fill="#666666">拇指 → X（右）</text>
+  <text x="376" y="174" font-size="11" fill="#666666">食指 → Y（上）</text>
+  <text x="376" y="192" font-size="11" fill="#666666">中指 → Z（前）</text>
+
+  <line x1="376" y1="204" x2="524" y2="204" stroke="#e0e0e0" stroke-width="1"/>
+
+  <text x="376" y="222" font-size="11" fill="#666666">单位：米</text>
+  <text x="376" y="240" font-size="11" fill="#666666">1 单位 = 1 米</text>
+  <text x="376" y="258" font-size="11" fill="#666666">物理按真实尺寸计算</text>
+</svg>

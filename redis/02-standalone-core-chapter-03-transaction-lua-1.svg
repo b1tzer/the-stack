@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="160" viewBox="0 0 680 160" font-family="'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0,0 L10,4 L0,8 Z" fill="#57606a"/></marker>
+  </defs>
+  <rect width="680" height="160" fill="#ffffff"/>
+
+  <rect x="20" y="58" width="160" height="44" rx="8" fill="#fff1f0" stroke="#DC382D"/>
+  <text x="100" y="80" text-anchor="middle" font-size="13" font-weight="600" fill="#DC382D">MULTI 开启事务</text>
+
+  <rect x="260" y="58" width="150" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="335" y="80" text-anchor="middle" font-size="13" fill="#24292f">命令依次入队</text>
+
+  <rect x="500" y="58" width="150" height="44" rx="8" fill="#ffffff" stroke="#c0c8d0"/>
+  <text x="575" y="80" text-anchor="middle" font-size="13" fill="#24292f">EXEC 顺序执行</text>
+
+  <line x1="180" y1="80" x2="250" y2="80" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="410" y1="80" x2="490" y2="80" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+</svg>
